@@ -53,11 +53,21 @@ void MHABase::SetUp() {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
 
-    setInferenceType(prc);
     inType = outType = prc;
-    if (prc == ov::element::bf16)
-        rel_threshold = 0.05f;
+    setInferenceType(prc);
+    init_thresholds();
 }
+
+ void MHABase::init_thresholds() {
+    // Note: Libxsmm calculates Exp in a slightly different way, so the abs values might differ a bit. Ticket: 130699
+#ifdef SNIPPETS_LIBXSMM_TPP
+    abs_threshold = 1e-6;
+#endif
+    if (inType == ov::element::bf16)
+        rel_threshold = 0.05f;
+    if (inType == ov::element::f16)
+        abs_threshold = 2e-2;
+ }
 
 std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj) {
     std::vector<InputShape> input_shapes;
@@ -143,6 +153,17 @@ std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul, is_with_reshape);
 }
 
+void MHA::init_thresholds() {
+    MHABase::init_thresholds();
+    auto precision_hint = configuration.count(ov::hint::inference_precision.name())
+                              ? configuration.at(ov::hint::inference_precision.name())
+                              : ov::element::f32;
+    if (m_input_types.size() > 1 && m_input_types[0] == ov::element::bf16 && precision_hint == ov::element::f32) {
+        rel_threshold = 0.01f;
+        abs_threshold = 0.0078125f;
+    }
+}
+
 void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     auto model_inputs = function->inputs();
@@ -190,6 +211,11 @@ std::shared_ptr<SnippetsFunctionBase> MHAINT8MatMul::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAINT8MatMulFunction>(inputDynamicShapes);
 }
 
+void MHAINT8MatMul::init_thresholds() {
+    MHABase::init_thresholds();
+    abs_threshold = 4e-6;
+}
+
 std::shared_ptr<SnippetsFunctionBase> MHAQuantMatMul0::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAQuantMatMul0Function>(inputDynamicShapes);
 }
@@ -200,6 +226,11 @@ std::shared_ptr<SnippetsFunctionBase> MHAFQAfterMatMul::get_subgraph() const {
 
 std::shared_ptr<SnippetsFunctionBase> MHAFQ::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAFQFunction>(inputDynamicShapes);
+}
+
+void MHAFQ::init_thresholds() {
+    MHABase::init_thresholds();
+    abs_threshold = 0.016;
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHAMulAdd::get_subgraph() const {

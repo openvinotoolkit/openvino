@@ -33,7 +33,7 @@ jobs:
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO debian packages
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: openvino_debian_packages
           path: ${{ env.DEBIAN_PACKAGES_DIR }}
@@ -50,14 +50,14 @@ jobs:
             # Install debian packages from previous release
             apt-get install --no-install-recommends -y gnupg wget ca-certificates lsb-release
             wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-            apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-            
+            gpg --output /etc/apt/trusted.gpg.d/intel.gpg --dearmor GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+
             # Yields only the number, e.g., "20"
             ubuntu_version=$(lsb_release -r -s)
             ubuntu_version=${ubuntu_version%.*}
-            
+
             echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu$ubuntu_version main" | tee /etc/apt/sources.list.d/intel-openvino-2024.list
-            
+
             apt-get update -y
             apt-get install -y openvino
           fi
@@ -93,7 +93,7 @@ jobs:
           python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_PROPERTIES")'
-          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 7'
+          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
           benchmark_app --help
           opt_in_out --help
           ovc --help

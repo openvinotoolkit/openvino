@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include "data_inst.h"
 #include "prior_box_inst.h"
 #include "input_layout_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include <vector>
@@ -26,27 +26,26 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::common::wait_for_events_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<wait_for_events_impl>(*this);
+        return std::make_unique<wait_for_events_impl>(*this);
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}
     void set_arguments(primitive_inst& /*instance*/, kernel_arguments_data& /*args*/) override {}
-    std::vector<layout> get_internal_buffer_layouts() const override { return {}; }
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override { return {}; }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
 
-        return events.empty() ? stream.create_user_event(true)
-                              : stream.enqueue_marker(events);
+        return stream.aggregate_events(events);
     }
 
     static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params&) {
-        return make_unique<wait_for_events_impl>(data);
+        return std::make_unique<wait_for_events_impl>(data);
     }
 
     static std::unique_ptr<primitive_impl> create_input_layout(const input_layout_node& input, const kernel_impl_params&) {
-        return make_unique<wait_for_events_impl>(input);
+        return std::make_unique<wait_for_events_impl>(input);
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_param) override { }

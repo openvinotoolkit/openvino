@@ -10,8 +10,7 @@ from time import perf_counter
 
 import numpy as np
 import openvino as ov
-from openvino.runtime import get_version
-from openvino.runtime.utils.types import get_dtype
+from openvino.utils.types import get_dtype
 
 
 def fill_tensor_random(tensor):
@@ -29,7 +28,7 @@ def fill_tensor_random(tensor):
 def main():
     log.basicConfig(format='[ %(levelname)s ] %(message)s', level=log.INFO, stream=sys.stdout)
     log.info('OpenVINO:')
-    log.info(f"{'Build ':.<39} {get_version()}")
+    log.info(f"{'Build ':.<39} {ov.__version__}")
     device_name = 'CPU'
     if len(sys.argv) == 3:
         device_name = sys.argv[2]

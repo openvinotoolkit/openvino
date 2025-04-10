@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -172,7 +172,19 @@ AxisSet StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t>& mask)
 
 std::shared_ptr<Node> StridedSlice::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_StridedSlice_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
+    auto args_size = new_args.size();
+    NODE_VALIDATION_CHECK(this, (args_size == 3) || (args_size == 4), "Incorrect number of new inputs: ", args_size);
+
+    if (args_size == 3) {
+        return std::make_shared<StridedSlice>(new_args.at(0),
+                                              new_args.at(1),
+                                              new_args.at(2),
+                                              m_begin_mask,
+                                              m_end_mask,
+                                              m_new_axis_mask,
+                                              m_shrink_axis_mask,
+                                              m_ellipsis_mask);
+    }
     return std::make_shared<v1::StridedSlice>(new_args.at(0),
                                               new_args.at(1),
                                               new_args.at(2),
@@ -283,9 +295,13 @@ bool StridedSlice::evaluate_symbol(TensorSymbolVector& output_symbols) const {
            default_symbol_evaluator(this, {0}, output_symbols);
 }
 
+bool StridedSlice::can_constant_fold(const OutputVector& input_values) const {
+    return !is_const_fold_disabled();
+}
+
 bool StridedSlice::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
     auto is_folded = Node::constant_fold(output_values, inputs_values);
-    if (!is_const_fold_disabled() && !is_folded) {
+    if (can_constant_fold(inputs_values) && !is_folded) {
         // If all ignored mask are set for all begin or end then replace this input by dummy constant
         // to avoid return false from `could_propagate` during bound evaluation (value of const will be ignored).
         auto get_indices_input = [&inputs_values](size_t port, const std::vector<int64_t>& mask) -> Output<Node> {

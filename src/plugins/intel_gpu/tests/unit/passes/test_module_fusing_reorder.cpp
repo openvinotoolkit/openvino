@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    lo.add_all_onednn_impls_optimization_attribute();
 
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
@@ -104,7 +104,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, false);
+    lo.clear_onednn_impls_optimization_attribute();
 
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
@@ -176,7 +176,7 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    lo.add_all_onednn_impls_optimization_attribute();
     setting_node(prog, "conv", conv_layout);
 
     auto itr = prog->get_processing_order().begin();
@@ -233,7 +233,7 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
 
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, false);
+    lo.clear_onednn_impls_optimization_attribute();
 
     auto itr = prog->get_processing_order().begin();
     while (itr != prog->get_processing_order().end()) {
@@ -279,7 +279,7 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    lo.add_all_onednn_impls_optimization_attribute();
     setting_node(prog, "conv", conv_layout);
 
     auto itr = prog->get_processing_order().begin();
@@ -456,7 +456,7 @@ TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv) {
     ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     auto& lo = prog->get_layout_optimizer();
-    lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
+    lo.add_all_onednn_impls_optimization_attribute();
     setting_onednn_conv(prog, lo, "conv", p.conv_layout);
 
     auto itr = prog->get_processing_order().begin();

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-import openvino.runtime.opset8 as ov
+import openvino.opset8 as ov
 from openvino import Type
 
 
@@ -108,17 +108,6 @@ def test_clamp_operator():
     assert model.get_type_name() == "Clamp"
     assert model.get_output_size() == 1
     assert list(model.get_output_shape(0)) == [2, 2]
-
-
-def test_squeeze_operator():
-    data_shape = [1, 2, 1, 3, 1, 1]
-    parameter_data = ov.parameter(data_shape, name="Data", dtype=np.float32)
-    axes = [2, 4]
-    model = ov.squeeze(parameter_data, axes)
-
-    assert model.get_type_name() == "Squeeze"
-    assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == [1, 2, 3, 1]
 
 
 def test_squared_difference_operator():

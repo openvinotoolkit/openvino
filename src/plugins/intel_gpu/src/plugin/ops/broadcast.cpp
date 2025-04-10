@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateCommonBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, const ov::AxisSet axis_mapping) {
     auto inputs = p.GetInputInfo(op);
@@ -61,9 +60,9 @@ static void CreateCommonBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov:
     }
 
     ov::op::BroadcastModeSpec mode = ov::op::BroadcastType::NONE;
-    if (auto broadcast_v3 = std::dynamic_pointer_cast<ov::op::v3::Broadcast>(op)) {
+    if (auto broadcast_v3 = ov::as_type_ptr<ov::op::v3::Broadcast>(op)) {
         mode = broadcast_v3->get_broadcast_spec();
-    } else if (auto broadcast_v1 = std::dynamic_pointer_cast<ov::op::v1::Broadcast>(op)) {
+    } else if (auto broadcast_v1 = ov::as_type_ptr<ov::op::v1::Broadcast>(op)) {
         switch (broadcast_v1->get_broadcast_spec().m_type) {
             case ov::op::AutoBroadcastType::NONE: mode = ov::op::BroadcastType::NONE; break;
             case ov::op::AutoBroadcastType::NUMPY: mode = ov::op::BroadcastType::NUMPY; break;
@@ -98,7 +97,7 @@ static void CreateCommonBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov:
 static void CreateBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Broadcast>& op) {
     validate_inputs_count(op, {2, 3});
     if (op->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NONE && op->get_input_size() == 3) {
-        auto axis_mapping_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        auto axis_mapping_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         OPENVINO_ASSERT(axis_mapping_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         auto axis_mapping = axis_mapping_node->get_axis_set_val();
@@ -113,7 +112,7 @@ static void CreateBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     validate_inputs_count(op, {2, 3});
     ov::AxisSet axis_mapping;
     if (op->get_input_size() == 3) {
-        auto axis_mapping_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        auto axis_mapping_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
         OPENVINO_ASSERT(axis_mapping_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         axis_mapping = axis_mapping_node->get_axis_set_val();
@@ -124,5 +123,4 @@ static void CreateBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
 REGISTER_FACTORY_IMPL(v1, Broadcast);
 REGISTER_FACTORY_IMPL(v3, Broadcast);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

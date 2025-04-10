@@ -9,14 +9,24 @@ namespace ov {
 namespace test {
 namespace snippets {
 
+void SnippetsFunctionBase::validate_params_shape(const std::vector<PartialShape>& input_shapes,
+                                                 const ov::ParameterVector& params) {
+    OPENVINO_ASSERT(params.size() == input_shapes.size(),
+                    "Passed input shapes and produced function are inconsistent: number of params mismatch. Expected: ",
+                    input_shapes.size(), ", actual: ", params.size());
+    for (size_t i = 0; i < input_shapes.size(); i++) {
+        const auto& cur_shape = params[i]->get_partial_shape();
+        OPENVINO_ASSERT(input_shapes[i] == cur_shape,
+                        "Passed input shapes (", input_shapes[i],
+                        ") and produced function shape(", cur_shape,
+                        ") are inconsistent.");
+    }
+}
+
 void SnippetsFunctionBase::validate_function(const std::shared_ptr<Model> &f) const {
     OPENVINO_ASSERT(f != nullptr, "The test requires Model to be defined");
     const auto &params = f->get_parameters();
-    OPENVINO_ASSERT(params.size() == input_shapes.size(),
-                 "Passed input shapes and produced function are inconsistent.");
-    for (size_t i = 0; i < input_shapes.size(); i++)
-        OPENVINO_ASSERT(std::equal(input_shapes[i].begin(), input_shapes[i].end(), params[i]->get_partial_shape().begin()),
-                     "Passed input shapes and produced function are inconsistent.");
+    validate_params_shape(input_shapes, params);
 }
 
 SnippetsFunctionCustomizable::SnippetsFunctionCustomizable(const std::vector<PartialShape>& inputShapes,

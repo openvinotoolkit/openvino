@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -32,18 +32,17 @@ class Convnet(torch.nn.Module):
 def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
     retries = 0
     max_retries = 3
+    last_e = None
     while retries < max_retries:
         try:
             return _infer_pipelines_impl(test_input, preprocess_pipeline, input_channels)
         except RuntimeError as e:
-            if "builtin cannot be used as a value" in e:
-                # This is a potentially sporadic issue
-                print(f"An error occurred: {e}. Retrying...")
-                retries += 1
-            else:
-                raise
+            # This is a potentially sporadic issue
+            print(f"An error occurred: {e}. Retrying...")
+            last_e = e
+            retries += 1
     else:
-        print("Max retries reached. Function execution failed.")
+        raise RuntimeError("Max retries reached. Function execution failed.") from last_e
 
 
 def _infer_pipelines_impl(test_input, preprocess_pipeline, input_channels=3):
@@ -87,21 +86,27 @@ def test_normalize():
     reason="Ticket: 114816",
 )
 @pytest.mark.parametrize(
-    ("target_size", "interpolation", "tolerance"),
+    ("target_size", "current_size", "interpolation", "tolerance"),
     [
-        ((220, 220, 3), transforms.InterpolationMode.NEAREST, 4e-05),
-        ((200, 240, 3), transforms.InterpolationMode.NEAREST, 0.3),  # Ticket 127670
-        ((220, 220, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
-        ((200, 240, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
-        ((220, 220, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
-        ((200, 240, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
+        (224, (220, 220, 3), transforms.InterpolationMode.NEAREST, 4e-05),
+        (224, (200, 240, 3), transforms.InterpolationMode.NEAREST, 0.3),  # Ticket 127670
+        (224, (220, 220, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
+        (224, (200, 240, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
+        (224, (220, 220, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
+        (224, (200, 240, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
+        ((224, 224), (220, 220, 3), transforms.InterpolationMode.NEAREST, 4e-05),
+        ((224, 224), (200, 240, 3), transforms.InterpolationMode.NEAREST, 4e-05),
+        ((224, 224), (220, 220, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
+        ((224, 224), (200, 240, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
+        ((224, 224), (220, 220, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
+        ((224, 224), (200, 240, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
     ],
 )
-def test_resize(target_size, interpolation, tolerance):
-    test_input = np.random.randint(255, size=target_size, dtype=np.uint8)
+def test_resize(target_size, current_size, interpolation, tolerance):
+    test_input = np.random.randint(255, size=current_size, dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
-            transforms.Resize(224, interpolation=interpolation),
+            transforms.Resize(target_size, interpolation=interpolation),
             transforms.ToTensor(),
         ],
     )

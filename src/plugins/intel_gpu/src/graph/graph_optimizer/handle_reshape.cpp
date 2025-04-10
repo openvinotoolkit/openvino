@@ -1,18 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/internal_properties.hpp"
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "reshape_inst.h"
-#include "layout_optimizer.h"
-
-#include "gemm_inst.h"
-#include "pooling_inst.h"
-#include "fully_connected_inst.h"
-
-#include <iterator>
 #include <vector>
 #include <memory>
 
@@ -103,7 +95,7 @@ void handle_reshape::run(program& p) {
                 if (user->is_type<reorder>() &&
                     (*user).as<reorder>().get_primitive()->truncate == false)   // not to split conversion only reorder
                     reorder_node_to_split.push_back(user);
-                if (user->get_preferred_impl_type() == cldnn::impl_types::onednn)
+                if (user->can_use(impl_types::onednn))
                     onednn_users.push_back(user);
             }
 
@@ -113,23 +105,17 @@ void handle_reshape::run(program& p) {
                 // Copy reorder_node_to_split to iteration
                 std::vector<program_node*> reorder_users(reorder_node_to_split);
                 for (const auto& reorder_node : reorder_users) {
-                    auto output_data_type = reorder_node->get_output_layout().data_type;
                     bool onednn_support = true;
                     for (const auto& user : onednn_users) {
-                        auto out_dt = user->get_output_layout().data_type;
-                        if (user->is_type<fully_connected>() || user->is_type<gemm>()) {
-                            bool is_fc = user->is_type<fully_connected>();
-                            auto wei_dt = is_fc ? user->as<fully_connected>().weights().get_output_layout().data_type :
-                                                    user->as<gemm>().get_input_layout(1).data_type;
-                            onednn_support = layout_optimizer::onednn_check_data_types_for_fc_gemm(output_data_type, wei_dt, out_dt);
-                        } else if (user->is_type<convolution>() || user->is_type<deconvolution>()) {
-                            bool is_conv = user->is_type<convolution>();
-                            auto wei_dt = is_conv ? user->as<convolution>().weights().get_output_layout().data_type :
-                                                    user->as<deconvolution>().weights().get_output_layout().data_type;
-                            onednn_support = layout_optimizer::onednn_check_data_types_for_convolution(output_data_type, wei_dt, out_dt);
-                        } else if (user->is_type<pooling>()) {
-                            onednn_support = layout_optimizer::onednn_check_data_types_for_pooling(output_data_type, out_dt);
-                        }
+                        auto idx = user->get_dependency_index(*node);
+                        user->replace_dependency(idx, *reorder_node, false);
+                        // Disable forcing to enable validate() call
+                        auto forced_impl = user->get_forced_impl_type();
+                        user->set_forced_impl_type(impl_types::any);
+
+                        onednn_support = user->can_use(impl_types::onednn);
+                        user->set_forced_impl_type(forced_impl);
+                        user->replace_dependency(idx, *node, false);
 
                         if (!onednn_support) {
                             reorder_node_to_split.erase(std::remove(reorder_node_to_split.begin(), reorder_node_to_split.end(), reorder_node),

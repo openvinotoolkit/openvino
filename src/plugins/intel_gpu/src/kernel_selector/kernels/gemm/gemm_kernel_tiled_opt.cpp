@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -205,14 +205,10 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         else
             jit.AddConstant(MakeJitConstant("TRANSPOSE_OUTPUT", 0 /* set as TRANSPOSE_X_LAST */));
 
-        bool has_dynamic_k_padding = params.transpose_input0 ? params.inputs[0].Y().pad.is_dynamic
-                                                             : params.inputs[0].X().pad.is_dynamic;
-        bool has_dynamic_n_padding = params.transpose_input1 ? params.inputs[1].Y().pad.is_dynamic
-                                                             : params.inputs[1].X().pad.is_dynamic;
-        if (has_dynamic_k_padding)
-            jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_K_PADDING", 1));
-        if (has_dynamic_n_padding)
-            jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_N_PADDING", 1));
+        if (dims0_padded.has_dynamic_pad)
+            jit.AddConstant(MakeJitConstant("INPUT0_HAS_DYNAMIC_PADDING", 1));
+        if (dims1_padded.has_dynamic_pad)
+            jit.AddConstant(MakeJitConstant("INPUT1_HAS_DYNAMIC_PADDING", 1));
     } else {
         auto get_transposed_dim_size = [](const kernel_selector::DataTensor &data_tensor,
                                           const std::vector<int64_t>& dims_order, const std::string dim) {
@@ -334,6 +330,14 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                 if ((vec_axis_dim == 1 && op.tensors[0].LogicalSize() != 1) && (params.inputs[1].X().v != vec_axis_dim)) {
                     vec_load_type = LoadType::LT_UNALIGNED;
                 }
+
+                // In case of a fused operation where input data has dynamic innermost dimension,
+                // we shouldn't use block reads, as the dynamic dimension may only have a single
+                // broadcastable value. Therefore, we should force scalar fusions (to read elements
+                // one by one using _SAFE index calculation) and apply them in the loop over vec_size
+                if (vec_axis_dim == 0) {
+                    jit.AddConstants({MakeJitConstant("FUSE_SCALAR", 1)});
+                }
             }
         }
         FusedOpsConfiguration conf_vec = { "_VEC", {"b", "f", "(y + write_id)", "x"},
@@ -345,8 +349,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                                            IndexType::TENSOR_COORD,
                                            Tensor::DataChannelName::X };
 
-        FusedOpsConfiguration conf_scalar = { "_SCALAR", {"b", "f", "(y + write_id)", "x"},
-                                               "dequantized",
+        FusedOpsConfiguration conf_scalar = { "_SCALAR", {"b", "f", "(y + write_id)", "xs"},
+                                               "dequantized_scalar",
                                                input_dt,
                                                1,
                                                LoadType::LT_UNALIGNED,

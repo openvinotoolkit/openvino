@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,35 +6,39 @@
 
 #include <vector>
 
-#include "intel_npu/al/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "zero_device.hpp"
 
 namespace intel_npu {
 
-ZeroEngineBackend::ZeroEngineBackend(const Config& config) : _logger("ZeroEngineBackend", Logger::global().level()) {
+ZeroEngineBackend::ZeroEngineBackend() : _logger("ZeroEngineBackend", Logger::global().level()) {
     _logger.debug("ZeroEngineBackend - initialize started");
 
-    _instance = std::make_shared<ZeroInitStructsHolder>();
+    _initStruct = std::make_shared<ZeroInitStructsHolder>();
 
-    auto device = std::make_shared<ZeroDevice>(_instance);
+    auto device = std::make_shared<ZeroDevice>(_initStruct);
     _devices.emplace(std::make_pair(device->getName(), device));
     _logger.debug("ZeroEngineBackend - initialize completed");
 }
 
 uint32_t ZeroEngineBackend::getDriverVersion() const {
-    return _instance->getDriverVersion();
+    return _initStruct->getDriverVersion();
 }
 
 uint32_t ZeroEngineBackend::getGraphExtVersion() const {
-    return _instance->getGraphDdiTable().version();
+    return _initStruct->getGraphDdiTable().version();
 }
 
 bool ZeroEngineBackend::isBatchingSupported() const {
-    return _instance->getGraphDdiTable().version() >= ZE_GRAPH_EXT_VERSION_1_6;
+    return _initStruct->isExtensionSupported("ZE_extension_graph_1_6", ZE_MAKE_VERSION(1, 6));
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {
-    return _instance->getCommandQueueDdiTable().version() >= ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0;
+    return _initStruct->isExtensionSupported(std::string(ZE_COMMAND_QUEUE_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
+}
+
+bool ZeroEngineBackend::isLUIDExtSupported() const {
+    return _initStruct->isExtensionSupported(std::string(ZE_DEVICE_LUID_EXT_NAME), ZE_MAKE_VERSION(1, 0));
 }
 
 ZeroEngineBackend::~ZeroEngineBackend() = default;
@@ -65,19 +69,7 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
 }
 
 void* ZeroEngineBackend::getContext() const {
-    return _instance->getContext();
-}
-
-void* ZeroEngineBackend::getDriverHandle() const {
-    return _instance->getDriver();
-}
-
-void* ZeroEngineBackend::getDeviceHandle() const {
-    return _instance->getDevice();
-}
-
-ze_graph_dditable_ext_curr_t& ZeroEngineBackend::getGraphDdiTable() const {
-    return _instance->getGraphDdiTable();
+    return _initStruct->getContext();
 }
 
 void ZeroEngineBackend::updateInfo(const Config& config) {
@@ -87,6 +79,10 @@ void ZeroEngineBackend::updateInfo(const Config& config) {
             dev.second->updateInfo(config);
         }
     }
+}
+
+const std::shared_ptr<ZeroInitStructsHolder> ZeroEngineBackend::getInitStructs() const {
+    return _initStruct;
 }
 
 }  // namespace intel_npu

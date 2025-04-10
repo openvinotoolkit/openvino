@@ -17,7 +17,7 @@
 namespace {
 
 template <class InT, class OutT>
-void convertTensorPrecisionImpl(const ov::Tensor& in, const ov::Tensor& out) {
+void convertTensorPrecisionImpl(const ov::Tensor& in, ov::Tensor& out) {
     const auto inputBuffer = in.data<const InT>();
     OPENVINO_ASSERT(inputBuffer != nullptr, "Tensor was not allocated");
 
@@ -34,7 +34,7 @@ void convertTensorPrecisionImpl(const ov::Tensor& in, const ov::Tensor& out) {
 namespace npu {
 namespace utils {
 
-void copyTensor(const ov::Tensor& in, const ov::Tensor& out) {
+void copyTensor(const ov::Tensor& in, ov::Tensor& out) {
     OPENVINO_ASSERT(in.get_element_type() == out.get_element_type(), "Precision mismatch");
     OPENVINO_ASSERT(in.get_shape() == out.get_shape(), "Shape mismatch");
 
@@ -47,7 +47,7 @@ void copyTensor(const ov::Tensor& in, const ov::Tensor& out) {
     std::copy_n(inputBuffer, in.get_byte_size(), outputBuffer);
 }
 
-void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out) {
+void convertTensorPrecision(const ov::Tensor& in, ov::Tensor& out) {
     OPENVINO_ASSERT(in.get_shape() == out.get_shape(), "Mismatch in Dims");
 
     const ov::element::Type& inPrecision = in.get_element_type();
@@ -491,6 +491,30 @@ ov::Tensor joinTensors(const std::list<ov::Tensor>& tensors, const ov::Layout& l
         bytesOffset += t.get_byte_size();
     }
     return out;
+}
+
+std::list<ov::Tensor> splitBatchedTensor(const ov::Tensor &tensor, const ov::Layout& layout, size_t parts) {
+    if (!parts) {
+        OPENVINO_THROW("Cannot split tensor on parts: ", parts);
+    }
+    auto pivotShape = tensor.get_shape();
+    if (!ov::layout::has_batch(layout)) {
+        OPENVINO_THROW("Cannot split tensor: has no batch_idx in layout", layout.to_string());
+    }
+    auto pivotPrecision = tensor.get_element_type();
+    if (pivotShape[ov::layout::batch_idx(layout)] % parts != 0) {
+        OPENVINO_THROW("Cannot split tensor with batch size: ", pivotShape[ov::layout::batch_idx(layout)], " on: ", parts ," equal tensors");
+    }
+    pivotShape[ov::layout::batch_idx(layout)] /= parts;
+    std::list<ov::Tensor> ret;
+    const auto *inputBuffer = tensor.data<unsigned char>();
+    for (size_t i = 0; i < parts; i ++) {
+        ov::Tensor out(pivotPrecision, pivotShape);
+        memcpy(out.data<unsigned char>(), inputBuffer, out.get_byte_size());
+        inputBuffer += out.get_byte_size();
+        ret.push_back(std::move(out));
+    }
+    return ret;
 }
 }  // namespace utils
 }  // namespace npu

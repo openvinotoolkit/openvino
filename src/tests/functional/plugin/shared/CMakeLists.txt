@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -41,6 +41,9 @@ endif()
 
 if (TARGET openvino::snippets)
     list(APPEND LINK_LIBRARIES_PRIVATE ov_snippets_models)
+    if (ENABLE_SNIPPETS_LIBXSMM_TPP)
+        add_definitions(-DSNIPPETS_LIBXSMM_TPP)
+    endif()
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/snippets)
 endif()

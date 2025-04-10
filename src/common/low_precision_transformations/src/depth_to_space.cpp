@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,15 +20,15 @@ DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : T
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<ov::Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer)) {
+bool DepthToSpaceTransformation::canBeTransformed(const std::shared_ptr<ov::Node>& layer) const {
+    if (!LayerTransformation::canBeTransformed(layer)) {
         return false;
     }
 

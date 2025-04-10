@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,11 +14,13 @@
 #include "itt.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/util/log.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 
@@ -155,12 +157,8 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     for (auto& cdep : control_dependencies) {
         clone->add_control_dependency(cdep);
     }
-    for (size_t i = 0; i < get_output_size(); i++) {
-        clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::descriptor::set_ov_tensor_legacy_name(clone->get_output_tensor(i),
-                                                  ov::descriptor::get_ov_tensor_legacy_name(get_output_tensor(i)));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    for (size_t i = 0; i < get_output_size(); ++i) {
+        descriptor::copy_tensor_names(clone->get_output_tensor(i), get_output_tensor(i));
     }
     return clone;
 }
@@ -222,9 +220,8 @@ ov::descriptor::Input& ov::Node::get_input_descriptor(size_t position) {
 
 ov::descriptor::Output& ov::Node::get_output_descriptor(size_t position) {
     while (m_outputs.size() <= position) {
-        size_t i = m_outputs.size();
-        auto tensor_descriptor = make_shared<descriptor::Tensor>(element::dynamic, PartialShape::dynamic(), this, i);
-        m_outputs.emplace_back(this, i, tensor_descriptor);
+        const auto i = m_outputs.size();
+        m_outputs.emplace_back(this, i, make_shared<descriptor::Tensor>(element::dynamic, PartialShape::dynamic()));
     }
     return m_outputs[position];
 }
@@ -472,8 +469,8 @@ ov::descriptor::Tensor& ov::Node::get_output_tensor(size_t i) const {
 
 ov::descriptor::Tensor& ov::Node::get_input_tensor(size_t i) const {
     OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
-    descriptor::Input input = m_inputs[i];
-    return input.get_tensor();
+    auto& input = m_inputs[i];
+    return input.get_output().get_tensor();
 }
 
 size_t ov::Node::get_input_size() const {
@@ -538,6 +535,7 @@ bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
         (matcher->is_strict_mode() &&
          (!pattern_value.get_element_type().compatible(graph_value.get_element_type()) ||
           !pattern_value.get_partial_shape().compatible(graph_value.get_partial_shape())))) {
+        OPENVINO_LOG_NODE1(matcher, pattern_value, graph_value);
         return false;
     }
     return match_node(matcher, graph_value);
@@ -552,11 +550,17 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
     // Not exact matching allows using base classes in the patterns and successfully matching such
     // patterns
     // with sub-graph of descent nodes types.
-    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
-        matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
-        auto& pattern_map = matcher->get_pattern_value_map();
-        pattern_map[shared_from_this()] = graph_value;
-        return true;
+    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info())) {
+        OPENVINO_LOG_NODE2(matcher);
+        if (matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
+            auto& pattern_map = matcher->get_pattern_value_map();
+            pattern_map[shared_from_this()] = graph_value;
+            OPENVINO_LOG_NODE3(matcher);
+            return true;
+        }
+        OPENVINO_LOG_NODE4(matcher);
+    } else {
+        OPENVINO_LOG_NODE5(matcher, shared_from_this(), graph_value);
     }
     return false;
 }
@@ -696,8 +700,8 @@ bool ov::Node::evaluate_symbol(TensorSymbolVector& output_symbols) const {
     return false;
 }
 
-bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::constant_fold");
+bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::can_constant_fold");
 
     if (is_const_fold_disabled()) {
         return false;
@@ -707,8 +711,16 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
         return ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
     });
-    if (!all_constants)
+
+    return all_constants;
+}
+
+bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::constant_fold");
+
+    if (!Node::can_constant_fold(input_values)) {
         return false;
+    }
 
     NodeVector nodes;
     TensorVector input_tensors;
@@ -723,7 +735,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     TensorVector output_tensors;
     for (const auto& output : outputs()) {
         const auto& et = output.get_element_type();
-        if (et != element::undefined && et.is_static()) {
+        if (et.is_static()) {
             output_tensors.emplace_back(output);
         } else {
             output_tensors.emplace_back();
@@ -772,6 +784,8 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     return true;
 }
 
+AttributeAdapter<std::shared_ptr<ov::Node>>::~AttributeAdapter() = default;
+
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 
 bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
@@ -795,4 +809,6 @@ bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
     }
     return true;
 }
+
+AttributeAdapter<ov::NodeVector>::~AttributeAdapter() = default;
 }  // namespace ov

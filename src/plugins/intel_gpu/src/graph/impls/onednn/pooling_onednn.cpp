@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "pooling_onednn.hpp"
 #include "pooling_inst.h"
 #include "primitive_onednn_base.h"
-#include "impls/registry/implementation_map.hpp"
-
-#include "kernel_selector_common.h"
+#include "registry/implementation_manager.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -23,7 +22,7 @@ struct pooling_onednn : typed_primitive_onednn_impl<pooling> {
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<pooling_onednn>(*this);
+        return std::make_unique<pooling_onednn>(*this);
     }
 
     static std::shared_ptr<dnnl::pooling_forward::primitive_desc> get_pooling_primitive_descriptor(const kernel_impl_params& impl_params,
@@ -156,39 +155,15 @@ public:
         auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_pooling_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<pooling_onednn>(engine, config, attr, *prim_desc);
+        return std::make_unique<pooling_onednn>(engine, config, attr, *prim_desc);
     }
 };
 
-namespace detail {
-
-attach_pooling_onednn::attach_pooling_onednn() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-        format::b_fs_yx_fsv16,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::b_fs_zyx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv16_fsv32,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv16_fsv16,
-        format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv32_fsv16,
-        format::bs_fs_zyx_bsv32_fsv32,
-    };
-
-    implementation_map<pooling>::add(impl_types::onednn, pooling_onednn::create, dt, fmt);
+std::unique_ptr<primitive_impl> PoolingImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<pooling>());
+    return onednn::pooling_onednn::create(static_cast<const pooling_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
 

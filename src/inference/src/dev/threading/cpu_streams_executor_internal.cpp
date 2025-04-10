@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@ void get_cur_stream_info(const int stream_id,
                          int& concurrency,
                          int& core_type,
                          int& numa_node_id,
+                         int& socket_id,
                          int& max_threads_per_core) {
     int stream_total = 0;
     size_t stream_info_id = 0;
@@ -36,6 +37,7 @@ void get_cur_stream_info(const int stream_id,
     concurrency = streams_info_table[stream_info_id][THREADS_PER_STREAM];
     core_type = streams_info_table[stream_info_id][PROC_TYPE];
     numa_node_id = streams_info_table[stream_info_id][STREAM_NUMA_NODE_ID];
+    socket_id = streams_info_table[stream_info_id][STREAM_SOCKET_ID];
     max_threads_per_core = 1;
     if (core_type == ALL_PROC) {
         for (size_t i = stream_info_id + 1; i < streams_info_table.size(); i++) {
@@ -55,10 +57,6 @@ void get_cur_stream_info(const int stream_id,
 
 #if defined(__APPLE__)
     pinning = false;
-#elif defined(_WIN32)
-    if (proc_type_table.size() > 1) {
-        pinning = false;
-    }
 #endif
     if (pinning) {
         stream_type = STREAM_WITH_OBSERVE;

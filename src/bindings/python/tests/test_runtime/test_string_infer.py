@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import (
     CompiledModel,
     InferRequest,
@@ -67,6 +67,7 @@ def test_default_decode_flag(class_defaults, expected_value):
     [
         ([bytes("text", encoding="utf-8"), bytes("openvino", encoding="utf-8")], [-1]),
         ([[b"xyz"], [b"abc"], [b"this is my last"]], [3, -1]),
+        ([b"text\0with\0null", b"openvino\0"], [-1]),
         (["text", "abc", "openvino"], [3]),
         (["text", "больше текста", "jeszcze więcej słów", "효과가 있었어"], [-1]),
         ([["text"], ["abc"], ["openvino"]], [3, 1]),
@@ -91,6 +92,7 @@ def test_infer_request_infer(string_data, data_shape, decode_strings):
     [
         ([bytes("text", encoding="utf-8"), bytes("openvino", encoding="utf-8")], [-1]),
         ([[b"xyz"], [b"abc"], [b"this is my last"]], [3, -1]),
+        ([b"text\0with\0null", b"openvino\0"], [-1]),
         (["text", "abc", "openvino"], [3]),
         (["text", "больше текста", "jeszcze więcej słów", "효과가 있었어"], [-1]),
         ([["text"], ["abc"], ["openvino"]], [3, 1]),

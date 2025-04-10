@@ -30,15 +30,21 @@ class typed_primitive_inst<dynamic_quantize> : public typed_primitive_inst_base<
 
 public:
     template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(dynamic_quantize_node const& /*node*/, const kernel_impl_params& impl_params);
+    static std::vector<layout> calc_output_layouts(dynamic_quantize_node const& node, const kernel_impl_params& impl_params);
     static layout calc_output_layout(dynamic_quantize_node const& node, kernel_impl_params const& impl_params);
 
     // Internal function to be used from fakealignment
     template<typename ShapeType>
-    static std::vector<layout> __calc_output_layouts(const layout &act_layout, uint64_t group_size);
+    static std::vector<layout> __calc_output_layouts(dynamic_quantize_node const& node,
+                                                     const layout &act_layout,
+                                                     const dynamic_quantize::Attributes& config);
     static std::string to_string(dynamic_quantize_node const& node);
 
     typed_primitive_inst(network& network, dynamic_quantize_node const& node);
+    void update_output_memory() override;
+
+private:
+    void on_execute() override;
 };
 
 using dynamic_quantize_inst = typed_primitive_inst<dynamic_quantize>;

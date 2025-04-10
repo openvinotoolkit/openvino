@@ -4,9 +4,12 @@ inputs:
   artifacts:
     description: "Multi-line list of artifacts to store"
     required: true
+  platform:
+    description: "Platform for which to restore artifacts. Used if 'storage_dir' is not set"
+    required: false
   storage_dir:
-    description: "Subdirectory name for stored artifacts, same as product type"
-    required: true
+    description: "Subdirectory name for stored artifacts, same as product type. Optional if 'platform' argument is set"
+    required: false
   storage_root:
     description: "Root path to place artifacts to"
     required: true
@@ -15,6 +18,9 @@ inputs:
     required: false
   branch_name:
     description: "Target branch name. If not set - taken from github context"
+    required: false
+  product_name:
+    description: "Product name for which artifacts are generated"
     required: false
   trigger_repo_sha:
     description: "Commit hash of a trigger repo. If not set - taken from github context"
@@ -45,12 +51,18 @@ runs:
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
         python3 ${{ env.ACTION_PATH }}/store_artifacts.py
-        --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}"
+        --storage_root "${{ inputs.storage_root }}"
         -a "${{ inputs.artifacts }}" 
         -s "${{ inputs.trigger_repo_sha || github.event.pull_request.head.sha || github.sha }}"
+        ${{ inputs.storage_dir && env.STORAGE_PARAM || env.PLATFORM_PARAM }}
         ${{ inputs.branch_name && env.BRANCH_PARAM || '' }}
         ${{ inputs.event_name && env.EVENT_PARAM || '' }}
+        ${{ inputs.product_name && env.PRODUCT_NAME_PARAM || '' }}
       env:
         ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
         BRANCH_PARAM: "-b ${{ inputs.branch_name }}"
         EVENT_PARAM: "-e ${{ inputs.event_name }}"
+        STORAGE_PARAM: "--storage_dir ${{ inputs.storage_dir }}"
+        PLATFORM_PARAM: "--platform ${{ inputs.platform }}"
+        PRODUCT_NAME_PARAM: "-n ${{ inputs.product_name }}"
+        MERGE_QUEUE_BASE_REF: ""

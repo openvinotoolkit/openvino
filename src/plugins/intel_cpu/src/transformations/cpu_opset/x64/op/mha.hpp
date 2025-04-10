@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class MHANode : public ov::op::Op {
 public:
@@ -15,24 +14,24 @@ public:
 
     MHANode() = default;
 
-    MHANode(const ov::Output<ov::Node> &in0,
-            const ov::Output<ov::Node> &in1,
-            const ov::Output<ov::Node> &in2,
-            const ov::Output<ov::Node> &in3,
-            const std::vector<float> &mul_scales,
+    MHANode(const ov::Output<ov::Node>& in0,
+            const ov::Output<ov::Node>& in1,
+            const ov::Output<ov::Node>& in2,
+            const ov::Output<ov::Node>& in3,
+            std::vector<float> mul_scales,
             bool is_mul_first,
             const ov::element::Type output_type);
 
-    MHANode(const ov::Output<ov::Node> &in0,
-            const ov::Output<ov::Node> &in1,
-            const ov::Output<ov::Node> &in2,
-            const ov::Output<ov::Node> &in3,
-            const std::vector<float> &mul_scales,
+    MHANode(const ov::Output<ov::Node>& in0,
+            const ov::Output<ov::Node>& in1,
+            const ov::Output<ov::Node>& in2,
+            const ov::Output<ov::Node>& in3,
+            std::vector<float> mul_scales,
             bool is_mul_first,
-            const std::vector<float> &fq_scales0,
-            const std::vector<float> &fq_scales1,
-            const std::vector<float> &fq_scales2,
-            const std::vector<float> &fq_scales3,
+            std::vector<float> fq_scales0,
+            std::vector<float> fq_scales1,
+            std::vector<float> fq_scales2,
+            std::vector<float> fq_scales3,
             const ov::element::Type fq0_output_type,
             const ov::element::Type fq1_output_type,
             const ov::element::Type fq2_output_type,
@@ -40,11 +39,13 @@ public:
 
     void validate_and_infer_types() override;
 
-    bool visit_attributes(ov::AttributeVisitor &visitor) override;
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
-    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector &new_args) const override;
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    ov::element::Type get_output_type() const { return m_output_type; }
+    ov::element::Type get_output_type() const {
+        return m_output_type;
+    }
 
     const std::vector<float>& get_mul_scales() const {
         return mul_scales;
@@ -90,5 +91,4 @@ private:
     ov::element::Type fq2_output_type;
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

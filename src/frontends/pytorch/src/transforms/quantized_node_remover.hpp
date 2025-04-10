@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ namespace pass {
  */
 class QuantizedNodeRemover : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::QuantizedNodeRemover");
+    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::QuantizedNodeRemover");
     QuantizedNodeRemover();
 };
 

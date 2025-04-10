@@ -1,15 +1,24 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+import pathlib
 import sys
 
 import numpy as np
-# pylint: disable=no-name-in-module,import-error
-from openvino.runtime import Tensor, PartialShape
-from openvino.tools.ovc.error import Error
-from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
 
+# pylint: disable=no-name-in-module,import-error
+from openvino import Tensor, PartialShape
+from openvino.tools.ovc.cli_parser import single_input_to_input_cut_info, _InputCutInfo
+from openvino.tools.ovc.error import Error
+
+
+def extract_module_extensions(args):
+    from openvino.frontend.pytorch.module_extension import ModuleExtension
+    extensions = args.get('extension', []) or []
+    if not isinstance(extensions, (list, tuple)):
+        extensions = [extensions]
+    return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
 
 
 def get_pytorch_decoder(model, example_inputs, args):
@@ -21,12 +30,6 @@ def get_pytorch_decoder(model, example_inputs, args):
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
-    
-    def extract_module_extensions(args):
-        extensions = args.get('extension', []) or []
-        if not isinstance(extensions, (list, tuple)):
-            extensions = [extensions]
-        return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
 
     if 'nncf' in sys.modules:
         is_good_version = True
@@ -40,16 +43,13 @@ def get_pytorch_decoder(model, example_inputs, args):
         except:
             pass
         if not is_good_version:
-            raise RuntimeError(
-                "NNCF models produced by nncf<2.6 are not supported directly. Please upgrade nncf or export to ONNX first.")
+            raise RuntimeError("NNCF models produced by nncf<2.6 are not "
+                               "supported directly. Please upgrade nncf or "
+                               "export to ONNX first.")
     inputs = prepare_torch_inputs(example_inputs)
     if not isinstance(model, (TorchScriptPythonDecoder, TorchFXPythonDecoder)):
         if hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram)):
-            from packaging import version
-            if version.parse(torch.__version__) >= version.parse("2.2"):
-                model = model.run_decompositions()
-            gm = model.module()
-            decoder = TorchFXPythonDecoder(gm)
+            decoder = TorchFXPythonDecoder.from_exported_program(model)
         else:
             decoder = TorchScriptPythonDecoder(
                 model,
@@ -59,9 +59,60 @@ def get_pytorch_decoder(model, example_inputs, args):
     else:
         decoder = model
     args['input_model'] = decoder
-    args["example_input"] = inputs
+    ei = getattr(decoder, "_example_input", None)
+    if ei is not None:
+        args["example_input"] = ei
+    else:
+        args["example_input"] = inputs
 
     return args
+
+
+def get_pytorch_decoder_for_model_on_disk(argv, args):
+    try:
+        from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+        from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+        import torch
+    except:
+        return False
+
+    example_inputs = None
+    if 'example_input' in args and args['example_input'] is not None:
+        example_inputs = args['example_input']
+
+    if isinstance(argv.input_model, (tuple, list)) and len(argv.input_model) == 1:
+        input_model = argv.input_model[0]
+    else:
+        input_model = argv.input_model
+
+    if not isinstance(input_model, (str, pathlib.Path)):
+        return False
+
+    # attempt to load scripted model
+    try:
+        inputs = prepare_torch_inputs(example_inputs)
+        model = torch.jit.load(input_model)
+        model.eval()
+        decoder = TorchScriptPythonDecoder(
+            model,
+            example_input=inputs,
+            shared_memory=args.get("share_weights", True),
+            module_extensions=extract_module_extensions(args))
+        argv.input_model = decoder
+        argv.framework = 'pytorch'
+        return True
+    except:
+        pass
+    # attempt to load exported model
+    try:
+        exported_program = torch.export.load(input_model)
+        if hasattr(torch, "export") and isinstance(exported_program, (torch.export.ExportedProgram)):
+            argv.input_model = TorchFXPythonDecoder.from_exported_program(exported_program)
+            argv.framework = 'pytorch'
+            return True
+    except:
+        pass
+    return False
 
 
 def update_list_or_dict(container, name, idx, value):
@@ -187,6 +238,8 @@ def to_torch_tensor(tensor):
         return tuple(to_torch_tensor(x) for x in tensor)
     if isinstance(tensor, dict) and all(isinstance(k, str) for k in tensor.keys()):
         return dict((k, to_torch_tensor(x)) for k, x in tensor.items())
+    if tensor is None:
+        return None
     else:
         raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -556,7 +556,7 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
                         "supported by any plugin");
                 }
                 if (dump_dot_files) {
-                    if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+                    if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
                         for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i) {
                             if (const auto& sub_graph = multi_subgraph_op->get_function(i)) {
                                 collect_affinities(sub_graph, debug_supported_ops.at(node->get_friendly_name()));
@@ -589,7 +589,7 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
                         subgraph_id = default_id;
                     }
                     map_id.emplace(node->get_friendly_name(), subgraph_id);
-                    if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+                    if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
                         for (size_t i = 0; i < multi_subgraph_op->get_internal_subgraphs_size(); ++i) {
                             if (const auto& sub_graph = multi_subgraph_op->get_function(i)) {
                                 collect_map_id(sub_graph, subgraph_id);
@@ -643,7 +643,7 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::sh
             ParameterVector subgraph_parameters{submodel->inputs().size()};
             OutputVector args{submodel->inputs().size()};
             for (size_t j = 0; j < submodel->inputs().size(); j++) {
-                auto const& input = submodel->input(j);
+                const auto& input = submodel->input(j);
                 subgraph_parameters[j] =
                     std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_partial_shape());
                 supported_ops[subgraph_parameters[j]->get_friendly_name()] = subgraph._affinity;

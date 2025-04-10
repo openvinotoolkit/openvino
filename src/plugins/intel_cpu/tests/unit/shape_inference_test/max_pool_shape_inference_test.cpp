@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ TEST_F(MaxPoolV1StaticShapeInferenceTest, default_ctor) {
     op->set_rounding_type(op::RoundingType::FLOOR);
     op->set_auto_pad(op::PadType::VALID);
 
-    input_shapes = ShapeVector{{1, 3, 10, 12}};
+    input_shapes = StaticShapeVector{{1, 3, 10, 12}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -51,7 +51,7 @@ TEST_F(MaxPoolV1StaticShapeInferenceTest, no_auto_pad_round_floor) {
 
     op = make_op(data, strides, pads_begin, pads_end, kernel_shape, rounding_mode, pad_type);
 
-    input_shapes = ShapeVector{{1, 3, 10, 12}};
+    input_shapes = StaticShapeVector{{1, 3, 10, 12}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -74,7 +74,7 @@ TEST_F(MaxPoolV1StaticShapeInferenceTest, auto_padding_same_lower_round_ceil) {
 
     op = make_op(data, strides, pads_begin, pads_end, kernel_shape, rounding_mode, pad_type);
 
-    input_shapes = ShapeVector{{1, 3, 10, 12, 20}};
+    input_shapes = StaticShapeVector{{1, 3, 10, 12, 20}};
     auto shape_infer = make_shape_inference(op);
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
     output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -96,13 +96,13 @@ TEST_F(MaxPoolV14StaticShapeInferenceTest, ceil_torch_mode_1) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape::dynamic());
     const Strides strides{2, 2};
     const Strides dilations{1, 1};
-    const Shape pads_begin{1, 1};
-    const Shape pads_end{1, 1};
-    const Shape kernel_shape{2, 2};
+    const ov::Shape pads_begin{1, 1};
+    const ov::Shape pads_end{1, 1};
+    const ov::Shape kernel_shape{2, 2};
     const auto rounding_mode = op::RoundingType::CEIL_TORCH;
 
     op = make_op(data, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_mode);
-    this->input_shapes = ShapeVector{{1, 3, 5, 5}};
+    this->input_shapes = StaticShapeVector{{1, 3, 5, 5}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -114,13 +114,13 @@ TEST_F(MaxPoolV14StaticShapeInferenceTest, ceil_torch_mode_2) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape::dynamic());
     const Strides strides{2, 2};
     const Strides dilations{1, 1};
-    const Shape pads_begin{1, 1};
-    const Shape pads_end{1, 1};
-    const Shape kernel_shape{2, 2};
+    const ov::Shape pads_begin{1, 1};
+    const ov::Shape pads_end{1, 1};
+    const ov::Shape kernel_shape{2, 2};
     const auto rounding_mode = op::RoundingType::CEIL_TORCH;
 
     op = make_op(data, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_mode);
-    this->input_shapes = ShapeVector{{1, 3, 9, 9}};
+    this->input_shapes = StaticShapeVector{{1, 3, 9, 9}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -143,7 +143,7 @@ TYPED_TEST_P(MaxPoolCommonStaticShapeInferenceTest, default_ctor) {
     this->op->set_rounding_type(op::RoundingType::FLOOR);
     this->op->set_auto_pad(op::PadType::VALID);
 
-    this->input_shapes = ShapeVector{{1, 3, 10, 12}};
+    this->input_shapes = StaticShapeVector{{1, 3, 10, 12}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -165,7 +165,7 @@ TYPED_TEST_P(MaxPoolCommonStaticShapeInferenceTest, no_dilation) {
 
     this->op = this->make_op(data, strides, dilations, pads_begin, pads_end, kernel_shape);
 
-    this->input_shapes = ShapeVector{{2, 3, 13, 13}};
+    this->input_shapes = StaticShapeVector{{2, 3, 13, 13}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
@@ -187,7 +187,7 @@ TYPED_TEST_P(MaxPoolCommonStaticShapeInferenceTest, with_dilations) {
 
     this->op = this->make_op(data, strides, dilations, pads_begin, pads_end, kernel_shape);
 
-    this->input_shapes = ShapeVector{{2, 4, 13, 13}};
+    this->input_shapes = StaticShapeVector{{2, 4, 13, 13}};
     auto shape_infer = make_shape_inference(this->op);
     const auto input_shape_refs = make_static_shape_refs(this->input_shapes);
     this->output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());

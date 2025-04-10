@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # mypy: ignore-errors
@@ -89,22 +89,22 @@ class Partitioner:
         const_0_node = PatternNode
         const_0_node.op_types["get_attr"] = None
         unsqueeze_0_node = PatternNode
-        unsqueeze_0_node.op_types["call_function:aten.unsqueeze.default"] = [const_0_node,]
+        unsqueeze_0_node.op_types["call_function:aten.unsqueeze.default"] = [const_0_node]
         expand_node = PatternNode
-        expand_node.op_types["call_function:aten.expand.default"] = [unsqueeze_0_node,]
+        expand_node.op_types["call_function:aten.expand.default"] = [unsqueeze_0_node]
         const_1_node = PatternNode
         const_1_node.op_types["get_attr"] = None
         unsqueeze_1_node = PatternNode
-        unsqueeze_1_node.op_types["call_function:aten.unsqueeze.default"] = [const_1_node,]
+        unsqueeze_1_node.op_types["call_function:aten.unsqueeze.default"] = [const_1_node]
         bitwise_right_shift_node = PatternNode
         bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor"] = [expand_node, unsqueeze_1_node]
         to_copy_node = PatternNode
-        to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node,]
+        to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node]
         add_or_to_copy_node = PatternNode
-        add_or_to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node,]
-        add_or_to_copy_node.op_types["call_function:aten.add.Tensor"] = [to_copy_node,]
+        add_or_to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node]
+        add_or_to_copy_node.op_types["call_function:aten.add.Tensor"] = [to_copy_node]
         bitwise_and_node = PatternNode
-        bitwise_and_node.op_types["call_function:aten.bitwise_and.Scalar"] = [add_or_to_copy_node,]
+        bitwise_and_node.op_types["call_function:aten.bitwise_and.Scalar"] = [add_or_to_copy_node]
 
         for node in graph_module.graph.nodes:
             if str(node.op) == "call_function" and str(node.target) == "aten.bitwise_and.Scalar":
@@ -114,9 +114,28 @@ class Partitioner:
                     for pattern_op in enabled_ops:
                         self.supported_ops.enable_by_name(pattern_op)
 
+    def capture_nncf_patterns(self, graph_module: GraphModule):
+        const_node = PatternNode
+        const_node.op_types["get_attr"] = None
+        bitwise_right_shift_node = PatternNode
+        bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor_Scalar"] = [const_node]
+        bitwise_and_node = PatternNode
+        bitwise_and_node.op_types["call_function:aten.bitwise_and.Scalar"] = [const_node]
+        stack_node = PatternNode
+        stack_node.op_types["call_function:aten.stack.default"] = [bitwise_and_node, bitwise_right_shift_node]
+
+        for node in graph_module.graph.nodes:
+            if str(node.op) == "call_function" and str(node.target) == "aten.stack.default":
+                enabled_ops = []
+                pattern_match = self.check_pattern(node, bitwise_and_node, enabled_ops)
+                if pattern_match:
+                    for pattern_op in enabled_ops:
+                        self.supported_ops.enable_by_name(pattern_op)
+
     def make_partitions(self, graph_module: GraphModule, options) -> GraphModule:
         allow_single_node_partition = _is_testing(options)
         self.capture_gptq_patterns(graph_module)
+        self.capture_nncf_patterns(graph_module)
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=allow_single_node_partition)
         partitions = partitioner.propose_partitions()

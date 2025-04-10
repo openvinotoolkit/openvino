@@ -1,36 +1,103 @@
 // -*- coding: utf-8 -*-
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 const { addon: ov } = require('../..');
 const assert = require('assert');
-const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { after, describe, it, before, beforeEach } = require('node:test');
+const {
+  testModels,
+  compareModels,
+  isModelAvailable,
+  sleep,
+  lengthFromShape,
+} = require('../utils.js');
 const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
-  let testXml = null;
+  const { testModelFP32 } = testModels;
   let core = null;
   let model = null;
   let compiledModel = null;
   let modelLike = null;
+  let outDir = null;
 
   before(async () => {
-    await isModelAvailable(testModels.testModelFP32);
-    testXml = getModelPath().xml;
+    outDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ov_js_out_'));
+    await isModelAvailable(testModelFP32);
   });
 
   beforeEach(() => {
     core = new ov.Core();
-    model = core.readModelSync(testXml);
+    model = core.readModelSync(testModelFP32.xml);
     compiledModel = core.compileModelSync(model, 'CPU');
     modelLike = [model, compiledModel];
+  });
+
+  after(async () => {
+    // Wait to ensure the model file is released
+    await sleep(1);
+    await fs.promises.rm(outDir, { recursive: true });
   });
 
   it('Core.getAvailableDevices()', () => {
     const devices = core.getAvailableDevices();
 
     assert.ok(devices.includes('CPU'));
+  });
+
+  describe('ov.saveModelSync()', () => {
+    it('saveModelSync(model, path, compressToFp16=true)', () => {
+      const xmlPath = path.join(outDir, `${model.getName()}_fp16.xml`);
+      assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath, true));
+
+      const savedModel = core.readModelSync(xmlPath);
+      assert.doesNotThrow(() => compareModels(model, savedModel));
+    });
+
+    it('saveModelSync(model, path, compressToFp16)', () => {
+      const xmlPath = path.join(outDir, `${model.getName()}_fp32.xml`);
+      assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath));
+
+      const savedModel = core.readModelSync(xmlPath);
+      assert.doesNotThrow(() => compareModels(model, savedModel));
+    });
+    it('saveModelSync(model, path, compressToFp16=false)', () => {
+      const xmlPath = path.join(outDir, `${model.getName()}_fp32.xml`);
+      assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath, false));
+
+      const savedModel = core.readModelSync(xmlPath);
+      assert.doesNotThrow(() => compareModels(model, savedModel));
+    });
+
+    it('saveModelSync(model) throws', () => {
+      const expectedMsg = (
+        '\'saveModelSync\' method called with incorrect parameters.\n' +
+        'Provided signature: (object) \n' +
+        'Allowed signatures:\n' +
+        '- (Model, string)\n' +
+        '- (Model, string, boolean)\n'
+      ).replace(/[()]/g, '\\$&');
+
+      assert.throws(
+        () => ov.saveModelSync(model),
+        new RegExp(expectedMsg));
+    });
+
+    it('saveModelSync(model, path) throws with incorrect path', () => {
+      const expectedMsg = (
+        'Path for xml file doesn\'t ' +
+        'contains file name with \'xml\' extension'
+      ).replace(/[()]/g, '\\$&');
+
+      const noXmlPath = `${outDir}${model.getName()}_fp32`;
+      assert.throws(
+        () => ov.saveModelSync(model, noXmlPath),
+        new RegExp(expectedMsg));
+    });
   });
 
   describe('Core.getVersions()', () => {
@@ -71,12 +138,12 @@ describe('ov basic tests.', () => {
     });
 
     it('compileModelSync(model_path, deviceName, config: {}) ', () => {
-      const cm = core.compileModelSync(testXml, 'CPU', tput);
+      const cm = core.compileModelSync(testModelFP32.xml, 'CPU', tput);
       assert.equal(cm.inputs.length, 1);
     });
 
     it('compileModelSync(model:model_path, deviceName: string) ', () => {
-      const cm = core.compileModelSync(testXml, 'CPU');
+      const cm = core.compileModelSync(testModelFP32.xml, 'CPU');
       assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
@@ -132,13 +199,13 @@ describe('ov basic tests.', () => {
     });
 
     it('compileModel(model_path, deviceName, config: {}) ', () => {
-      core.compileModel(testXml, 'CPU', tput).then((cm) => {
+      core.compileModel(testModelFP32.xml, 'CPU', tput).then((cm) => {
         assert.equal(cm.inputs.length, 1);
       });
     });
 
     it('compileModel(model:model_path, deviceName: string) ', () => {
-      core.compileModel(testXml, 'CPU').then((cm) => {
+      core.compileModel(testModelFP32.xml, 'CPU').then((cm) => {
         assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
       });
     });
@@ -209,8 +276,11 @@ describe('ov basic tests.', () => {
         assert.strictEqual(obj.input().getAnyName(), 'data');
         assert.strictEqual(obj.input().anyName, 'data');
 
-        assert.deepStrictEqual(obj.input(0).shape, [1, 3, 32, 32]);
-        assert.deepStrictEqual(obj.input(0).getShape(), [1, 3, 32, 32]);
+        assert.deepStrictEqual(obj.input(0).shape, testModelFP32.inputShape);
+        assert.deepStrictEqual(
+          obj.input(0).getShape(),
+          testModelFP32.inputShape,
+        );
       });
     });
   });
@@ -222,11 +292,11 @@ describe('ov basic tests.', () => {
 
     before(() => {
       tensor = Float32Array.from(
-        { length: 3072 },
+        { length: lengthFromShape(testModelFP32.inputShape) },
         () => Math.random() + epsilon,
       );
       const core = new ov.Core();
-      const model = core.readModelSync(testXml);
+      const model = core.readModelSync(testModelFP32.xml);
       const compiledModel = core.compileModelSync(model, 'CPU');
       userStream = compiledModel.exportModelSync();
       const inferRequest = compiledModel.createInferRequest();

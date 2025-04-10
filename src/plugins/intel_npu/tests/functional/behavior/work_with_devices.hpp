@@ -1,20 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <base/ov_behavior_test_utils.hpp>
 #include <cstring>
-#include <intel_npu/al/config/compiler.hpp>
 #include <string>
 #include <vector>
 
+#include "base/ov_behavior_test_utils.hpp"
 #include "common/functions.h"
 #include "common/npu_test_env_cfg.hpp"
-#include "intel_npu/al/config/common.hpp"
-#include "npu_private_properties.hpp"
-
+#include "intel_npu/config/options.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 
 using CompilerType = ov::intel_npu::CompilerType;
 
@@ -55,7 +53,7 @@ TEST_P(TestCompiledModelNPU, samePlatformProduceTheSameBlob) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
         std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr("3720");
 
-        configuration[ov::intel_npu::create_executor.name()] = "0";
+        configuration[ov::intel_npu::defer_weights_load.name()] = true;
         auto configuration1 = configuration;
         configuration1[ov::intel_npu::platform.name()] = platform;
         const auto& ov_model1 = buildSingleLayerSoftMaxNetwork();

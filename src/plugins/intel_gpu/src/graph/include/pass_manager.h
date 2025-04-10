@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "quantize_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
+#include "read_value_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -53,6 +54,7 @@ public:
 private:
     void run(program& p) override;
     void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
+    bool test_format(cldnn::program_node& node, format requested_format);
 };
 
 class compile_graph : public base_pass {
@@ -88,26 +90,30 @@ private:
     void run(program& p) override;
 };
 
+class mark_state_init_subgraphs : public base_pass {
+    // This optimization pass aggregates nodes into state initializer subgraphs
+public:
+    mark_state_init_subgraphs() : base_pass("mark_state_init_subgraphs") {}
+
+private:
+    void run(program& p) override;
+    void mark_init_subgraph(program& p, read_value_node& node);
+};
+
 class mark_shape_of_subgraphs : public base_pass {
     // This optimization pass aggregates nodes into shape_of subgraphs for further optimizations.
     // There are few key requirements to decide if node belongs to shape_of subgraph or not:
     // - Node type is shape_of OR
     // - All node's dependencies are marked as members of shape_of subgraphs OR
     // - Node is a shape infer dependency of any user
-    // Also, there is some additional requirement:
-    // - Primitive must have CPU implementation (this requirement is ignored for reshape
-    //   primitives, since currently ocl optimized_out implementation is used for reshape execution in such subgraphs)
 public:
-    mark_shape_of_subgraphs(bool update_impls = false) :
-        base_pass("mark_shape_of_subgraphs"), _update_impls(update_impls) {}
+    mark_shape_of_subgraphs() : base_pass("mark_shape_of_subgraphs") {}
 
 private:
     void run(program& p) override;
     void look_for_shape_of_subgraph(program_node& node);
     bool can_mark_node(const program_node& node);
     void mark_node(program_node& node);
-
-    bool _update_impls;
 };
 
 class prepare_buffer_fusing : public base_pass {
@@ -145,6 +151,7 @@ public:
 private:
     void run(program& p) override;
     void fuse_bias(program &p);
+    void fuse_swiglu(program &p);
     void fuse_reorders(program& p);
     void fuse_simple_primitives(program &p);
     void fuse_constant_transposes(program &p);
@@ -201,6 +208,11 @@ private:
     weights_bias_offset get_weights_bias_offset(const T& node);
     template<typename T>
     void optimize_weights(T& node, program& p);
+    void select_implementation(program& p, program_node& node);
+    void add_lstm_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
+                                  cldnn::program_node&, size_t);
+    void add_lstm_bias_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
+                               cldnn::program_node&);
     reorder_factory& _rf;
 };
 
@@ -210,9 +222,13 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
-                                                              const ExecutionConfig& config,
-                                                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
+    std::list<std::tuple<
+        primitive_id,
+        memory::ptr,
+        std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>>>
+    calculate(engine& engine,
+              const ExecutionConfig& config,
+              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
@@ -287,13 +303,31 @@ public:
 class memory_dependency_pass : public base_pass {
 public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
+
+    // Program node with can_be_optimized true could also allocate from memory pool during runtime, if it cannot be
+    // optimized out (with inst_impl.can_be_optimized false).
+    // If it is optimized out, alternatively, it could reuse the memory from its parent (e.g. reshape) or children (e.g. concat).
+    // The memory dependency pass need consider both situations, by iteratively referencing to all nodes that can_be_optimized until
+    // it meets the first node with can_be_optimize==false along the searching path.
+    // For example, in such a subgraph like -
+    // Node1 (can_be_optimized false) -> Node2 (can_be_optimized false) -> Reshape (skippable true) -> Permute (skippable true)
+    // -> Node3 (can_be_optimized false).
+    // Since Reshape MAY or MAY NOT be optimized out in runtime, Permute should be memory-dependent to all of its two predecessors. Otherwise
+    // Permute may allocate from the same block of Node2 and override its input; Similarly, since Reshape and Permute MAY or MAY NOT be optimized
+    // out in runtime, Node3 should be memory-dependent to all of its three predecessors, to avoid memory conflicting.
     void add_memory_dependency(program_node* node, program_node* dep) {
-        if (node->can_be_optimized() || !dep->can_be_optimized()) {
+        if (node->get_unique_id() == dep->get_unique_id()) {
+            return;
+        }
+
+        if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) && ((node->can_be_optimized() && !node->is_runtime_skippable())
+            || !dep->can_be_optimized())) {
             node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
-            if (node->id() == dep->id()) {
-                return;
+            if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
+                node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
             }
+
             for (const auto& subdep : dep->get_dependencies()) {
                 add_memory_dependency(node, subdep.first);
                 add_memory_dependency(subdep.first, node);

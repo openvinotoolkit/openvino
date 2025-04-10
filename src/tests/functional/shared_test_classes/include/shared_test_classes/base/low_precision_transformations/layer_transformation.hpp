@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,8 @@ protected:
 
     // get runtime precision by operation type
     std::string get_runtime_precision_by_type(const std::string& layerType);
+
+    std::string get_property_by_type(const std::string& layerTypeName, const std::string& propertyName);
 
     // get runtime precision by operation friendly name which can be fused
     std::string get_runtime_precision_by_fused_name(const std::string& layerName);

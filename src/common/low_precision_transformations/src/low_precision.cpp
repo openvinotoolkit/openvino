@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,6 +68,7 @@
 #include "low_precision/relu.hpp"
 #include "low_precision/squeeze.hpp"
 #include "low_precision/subtract.hpp"
+#include "low_precision/slice.hpp"
 #include "low_precision/space_to_batch.hpp"
 #include "low_precision/split.hpp"
 #include "low_precision/shuffle_channels.hpp"
@@ -111,7 +112,7 @@ void make_matcher_type_relaxed(ov::pass::GraphRewrite* transformation) {
     auto p_node = std::make_shared<pass::pattern::op::Label>(element::f32, Shape{}, is_op_type);
 
     ov::graph_rewrite_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto l_node = std::dynamic_pointer_cast<BaseOp>(m.get_match_root());
+        auto l_node = ov::as_type_ptr<BaseOp>(m.get_match_root());
         if (!l_node) {
             THROW_TRANSFORMATION_EXCEPTION << "unexpected operation type for type relaxed conversion";
         }
@@ -267,6 +268,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, ReshapeTransformation, params)
     ADD_MATCHER(common, SqueezeTransformation, params)
     ADD_MATCHER(common, ShuffleChannelsTransformation, params)
+    ADD_MATCHER(common, SliceTransformation, params)
     ADD_MATCHER(common, SpaceToBatchTransformation, params)
     ADD_MATCHER(common, SplitTransformation, params)
     ADD_MATCHER(common, StridedSliceTransformation, params)

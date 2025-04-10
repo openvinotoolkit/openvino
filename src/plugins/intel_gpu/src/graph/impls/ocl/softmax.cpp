@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "primitive_base.hpp"
 
+#include "softmax.hpp"
 #include "softmax_inst.h"
 #include "softmax/softmax_kernel_selector.h"
 #include "softmax/softmax_kernel_base.h"
@@ -42,12 +43,12 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::softmax_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<softmax_impl>(*this);
+        return make_deep_copy<softmax_impl, kernel_params_t>(*this);
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic()) {
+        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -74,28 +75,11 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
     }
 };
 
-namespace detail {
-
-attach_softmax_impl::attach_softmax_impl() {
-    auto types = {data_types::f16, data_types::f32};
-    auto formats = {
-            format::bfyx,
-            format::byxf,
-            format::yxfb,
-            format::bfzyx
-    };
-
-    implementation_map<softmax>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, formats);
-
-    auto dyn_formats = {
-        format::bfyx,
-        format::bfzyx,
-    };
-
-    implementation_map<softmax>::add(impl_types::ocl, shape_types::dynamic_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, dyn_formats);
+std::unique_ptr<primitive_impl> SoftmaxImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<softmax>());
+    return typed_primitive_impl_ocl<softmax>::create<softmax_impl>(static_cast<const softmax_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 

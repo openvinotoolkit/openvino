@@ -19,7 +19,7 @@ namespace {
 std::shared_ptr<ov::op::util::FrameworkNode> get_framework_node_with_out_name(const std::shared_ptr<ov::Model>& model,
                                                                               const std::string& out_name) {
     for (const auto& op : model->get_ops()) {
-        if (auto framework_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(op)) {
+        if (auto framework_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(op)) {
             for (const auto& out : op->outputs()) {
                 if (out.get_any_name() == out_name) {
                     return framework_node;

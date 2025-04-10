@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,6 +93,134 @@ public:
     }
 };
 
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensorScalar) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor1Dimension) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, ov::Shape{16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor2Dimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{32, 128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 16}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor3Dimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{5, 32, 128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 64}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
+TEST_P(RemoteRunTests, CheckIsContinuousHostTensor4Dimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_context = core->get_default_context(target_device);
+
+    auto host_tensor = zero_context.create_host_tensor(ov::element::f32, Shape{3, 5, 32, 128});
+    auto data = host_tensor.data();
+    auto strides = host_tensor.get_strides();
+
+    ov::Tensor view_tensor;
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 5, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 2, 32, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 2, 5, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{3, 5, 32, 64}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{2, 1, 16, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), false);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 1, 128}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+
+    view_tensor = ov::Tensor(ov::element::f32, Shape{1, 1, 1, 32}, data, strides);
+    EXPECT_EQ(view_tensor.is_continuous(), true);
+}
+
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -114,6 +242,88 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
 
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
     OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
+                         {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, params);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    auto tensor = inference_request.get_input_tensor();
+    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape());
+    tensor = {};
+
+    ov::Tensor check_remote_tensor;
+    OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+    ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorSetOnlyTensorType) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap params = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, params);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    auto tensor = inference_request.get_input_tensor();
+    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape()), ov::Exception);
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensor) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap paramsContext = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
+                                {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, paramsContext);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    ov::AnyMap paramsTensor = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::BINDED}}};
+
+    auto tensor = inference_request.get_input_tensor();
+    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), paramsTensor);
+    tensor = {};
+
+    ov::Tensor check_remote_tensor;
+    OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContextandChangedInTensorExpectToFail) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::InferRequest inference_request;
+
+    ov::AnyMap paramsContext = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, paramsContext);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    ov::AnyMap paramsTensor = {{ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::BINDED}}};
+
+    auto tensor = inference_request.get_input_tensor();
+    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), paramsTensor),
+                 ov::Exception);
 }
 
 TEST_P(RemoteRunTests, CheckImportModelPath) {
@@ -432,6 +642,380 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor2) 
     EXPECT_NE(remote_output_tensor.get(), l0_host_output_tensor.data());
     EXPECT_NE(memcmp(remote_output_tensor.get(), l0_host_output_tensor.data(), remote_output_tensor.get_byte_size()),
               0);
+}
+
+TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensors) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    testing::internal::Random random(1);
+    ov::Tensor input_tensor;
+
+    auto original_shape = Shape{1, 10, 10, 10};
+    auto shape_size = ov::shape_size(original_shape);
+    auto model = createModelWithStates(element::f32, original_shape);
+
+    auto context = core->get_default_context(target_device);
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    auto input = compiled_model.input();
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = static_cast<float>(random.Generate(10));
+    }
+
+    auto states = inference_request.query_state();
+
+    auto tensor_state = states[0].get_state();
+    auto tensor_state_shape = tensor_state.get_shape();
+    auto l0_host_tensor0 = context.create_host_tensor(ov::element::f32, tensor_state_shape);
+
+    tensor_state = states[1].get_state();
+    tensor_state_shape = tensor_state.get_shape();
+    auto l0_host_tensor1 = context.create_host_tensor(ov::element::f32, tensor_state_shape);
+
+    states[0].set_state(l0_host_tensor0);
+    states[0].reset();
+    states[1].set_state(l0_host_tensor1);
+    states[1].reset();
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_tensor("sigmod_state");
+    auto output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < output_tensor.get_size(); i++) {
+        EXPECT_NEAR(0.5f, output_data[i], 1e-5);
+    }
+
+    auto tensor_size = l0_host_tensor0.get_size();
+    auto state_data = static_cast<float*>(l0_host_tensor0.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(0.0, state_data[i], 1e-5);
+    }
+
+    tensor_size = l0_host_tensor1.get_size();
+    state_data = static_cast<float*>(l0_host_tensor1.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(0.0, state_data[i], 1e-5);
+    }
+
+    tensor_state = states[0].get_state();
+    tensor_state_shape = tensor_state.get_shape();
+    auto l0_host_tensor2 = context.create_host_tensor(ov::element::f32, tensor_state_shape);
+
+    tensor_state = states[1].get_state();
+    tensor_state_shape = tensor_state.get_shape();
+    auto l0_host_tensor3 = context.create_host_tensor(ov::element::f32, tensor_state_shape);
+
+    states[0].set_state(l0_host_tensor2);
+    states[1].set_state(l0_host_tensor3);
+
+    tensor_size = l0_host_tensor2.get_size();
+    state_data = static_cast<float*>(l0_host_tensor2.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        state_data[i] = 1.0f;
+    }
+
+    tensor_size = l0_host_tensor3.get_size();
+    state_data = static_cast<float*>(l0_host_tensor3.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        state_data[i] = 1.0f;
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    tensor_size = l0_host_tensor2.get_size();
+    state_data = static_cast<float*>(l0_host_tensor2.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(input_data[i], state_data[i], 1e-5);
+    }
+
+    tensor_size = l0_host_tensor3.get_size();
+    state_data = static_cast<float*>(l0_host_tensor3.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(input_data[i], state_data[i], 1e-5);
+    }
+}
+
+TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensorsWithRemoteTensors) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    testing::internal::Random random(1);
+    ov::Tensor input_tensor;
+
+    auto original_shape = Shape{1, 2, 2, 2};
+    auto shape_size = ov::shape_size(original_shape);
+    auto model = createModelWithStates(element::f32, original_shape);
+
+    auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    ;
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    auto input = compiled_model.input();
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = static_cast<float>(random.Generate(10));
+    }
+
+    auto states = inference_request.query_state();
+
+    auto tensor_state = states[0].get_state();
+    auto tensor_state_shape = tensor_state.get_shape();
+    auto l0_host_tensor0 = context.create_l0_host_tensor(ov::element::f32, tensor_state_shape);
+
+    tensor_state = states[1].get_state();
+    tensor_state_shape = tensor_state.get_shape();
+    auto l0_host_tensor1 = context.create_l0_host_tensor(ov::element::f32, tensor_state_shape);
+
+    states[0].set_state(l0_host_tensor0);
+    states[0].reset();
+    states[1].set_state(l0_host_tensor1);
+    states[1].reset();
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_tensor("sigmod_state");
+    auto output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < output_tensor.get_size(); i++) {
+        EXPECT_NEAR(0.5f, output_data[i], 1e-5);
+    }
+
+    auto tensor_size = l0_host_tensor0.get_size();
+    auto state_data = static_cast<float*>(l0_host_tensor0.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(0.0, state_data[i], 1e-5);
+    }
+
+    tensor_size = l0_host_tensor1.get_size();
+    state_data = static_cast<float*>(l0_host_tensor1.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(0.0, state_data[i], 1e-5);
+    }
+
+    tensor_state = states[0].get_state();
+    tensor_state_shape = tensor_state.get_shape();
+    auto l0_host_tensor2 = context.create_l0_host_tensor(ov::element::f32, tensor_state_shape);
+
+    tensor_state = states[1].get_state();
+    tensor_state_shape = tensor_state.get_shape();
+    auto l0_host_tensor3 = context.create_l0_host_tensor(ov::element::f32, tensor_state_shape);
+
+    states[0].set_state(l0_host_tensor2);
+    states[1].set_state(l0_host_tensor3);
+
+    tensor_size = l0_host_tensor2.get_size();
+    state_data = static_cast<float*>(l0_host_tensor2.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        state_data[i] = 1.0f;
+    }
+
+    tensor_size = l0_host_tensor3.get_size();
+    state_data = static_cast<float*>(l0_host_tensor3.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        state_data[i] = 1.0f;
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    tensor_size = l0_host_tensor2.get_size();
+    state_data = static_cast<float*>(l0_host_tensor2.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(input_data[i], state_data[i], 1e-5);
+    }
+
+    tensor_size = l0_host_tensor3.get_size();
+    state_data = static_cast<float*>(l0_host_tensor3.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(input_data[i], state_data[i], 1e-5);
+    }
+}
+
+TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTensors0) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    testing::internal::Random random(1);
+    ov::Tensor input_tensor;
+
+    auto original_shape = Shape{1, 10, 10, 10};
+    auto shape_size = ov::shape_size(original_shape);
+    auto model = createModelWithStates(element::f32, original_shape);
+
+    auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    ;
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    auto input = compiled_model.input();
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = static_cast<float>(random.Generate(10));
+    }
+
+    auto states = inference_request.query_state();
+
+    auto tensor_state = states[0].get_state();
+    auto tensor_state_shape = tensor_state.get_shape();
+    auto l0_host_tensor = context.create_l0_host_tensor(ov::element::f32, tensor_state_shape);
+
+    tensor_state = states[1].get_state();
+    tensor_state_shape = tensor_state.get_shape();
+    auto byte_size = tensor_state.get_byte_size();
+    float* data = new float[byte_size / sizeof(float)];
+    ov::Tensor random_tensor{ov::element::f32, tensor_state_shape, data};
+
+    states[0].set_state(l0_host_tensor);
+    states[0].reset();
+    states[1].set_state(random_tensor);
+    states[1].reset();
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_tensor("sigmod_state");
+    auto output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < output_tensor.get_size(); i++) {
+        EXPECT_NEAR(0.5f, output_data[i], 1e-5);
+    }
+
+    auto tensor_size = l0_host_tensor.get_size();
+    auto state_data = static_cast<float*>(l0_host_tensor.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(0.0, state_data[i], 1e-5);
+    }
+
+    tensor_size = random_tensor.get_size();
+    state_data = static_cast<float*>(random_tensor.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(0.0, state_data[i], 1e-5);
+    }
+
+    tensor_size = l0_host_tensor.get_size();
+    state_data = static_cast<float*>(l0_host_tensor.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        state_data[i] = 1.0f;
+    }
+
+    tensor_size = random_tensor.get_size();
+    state_data = static_cast<float*>(random_tensor.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        state_data[i] = 1.0f;
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    tensor_size = l0_host_tensor.get_size();
+    state_data = static_cast<float*>(l0_host_tensor.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(input_data[i], state_data[i], 1e-5);
+    }
+
+    tensor_size = random_tensor.get_size();
+    state_data = static_cast<float*>(random_tensor.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(input_data[i], state_data[i], 1e-5);
+    }
+}
+
+TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTensors1) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    testing::internal::Random random(1);
+    ov::Tensor input_tensor;
+
+    auto original_shape = Shape{1, 10, 10, 10};
+    auto shape_size = ov::shape_size(original_shape);
+    auto model = createModelWithStates(element::f32, original_shape);
+
+    auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    ;
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    auto input = compiled_model.input();
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = static_cast<float>(random.Generate(10));
+    }
+
+    auto states = inference_request.query_state();
+
+    auto tensor_state = states[0].get_state();
+    auto tensor_state_shape = tensor_state.get_shape();
+    auto l0_host_tensor = context.create_l0_host_tensor(ov::element::f32, tensor_state_shape);
+
+    tensor_state = states[1].get_state();
+    tensor_state_shape = tensor_state.get_shape();
+    auto byte_size = tensor_state.get_byte_size();
+    float* data = new float[byte_size / sizeof(float)];
+    ov::Tensor random_tensor{ov::element::f32, tensor_state_shape, data};
+
+    auto tensor_size = l0_host_tensor.get_size();
+    auto state_data = static_cast<float*>(l0_host_tensor.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        state_data[i] = 1.0f;
+    }
+
+    tensor_size = random_tensor.get_size();
+    state_data = static_cast<float*>(random_tensor.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        state_data[i] = 1.0f;
+    }
+
+    states[0].set_state(l0_host_tensor);
+    states[1].set_state(random_tensor);
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    tensor_size = l0_host_tensor.get_size();
+    state_data = static_cast<float*>(l0_host_tensor.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(input_data[i], state_data[i], 1e-5);
+    }
+
+    tensor_size = random_tensor.get_size();
+    state_data = static_cast<float*>(random_tensor.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(input_data[i], state_data[i], 1e-5);
+    }
+
+    states[0].reset();
+    states[1].reset();
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_tensor("sigmod_state");
+    auto output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < output_tensor.get_size(); i++) {
+        EXPECT_NEAR(0.5f, output_data[i], 1e-5);
+    }
+
+    tensor_size = l0_host_tensor.get_size();
+    state_data = static_cast<float*>(l0_host_tensor.get());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(0.0, state_data[i], 1e-5);
+    }
+
+    tensor_size = random_tensor.get_size();
+    state_data = static_cast<float*>(random_tensor.data());
+    for (size_t i = 0; i < tensor_size; ++i) {
+        EXPECT_NEAR(0.0, state_data[i], 1e-5);
+    }
 }
 
 }  // namespace behavior

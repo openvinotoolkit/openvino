@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -160,6 +160,7 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
         { name<opset1::Pad>() },
         { name<ov::opset12::Pad>() },
         { name<opset1::Reshape>() },
+        { name<opset8::Slice>() },
         { name<opset1::Squeeze>() },
         { name<opset2::SpaceToBatch>() },
         { name<opset1::Split>() },
@@ -229,6 +230,7 @@ bool ov::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_pt
         { name<opset1::Relu>() },
         // TODO: there are conditions
         { name<opset1::Reshape>() },
+        { name<opset8::Slice>() },
         { name<opset2::SpaceToBatch>() },
         { name<opset1::Squeeze>() },
         { name<opset1::ShuffleChannels>() },

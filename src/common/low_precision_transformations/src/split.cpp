@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,15 +24,15 @@ SplitTransformation::SplitTransformation(const Params& params) : LayerTransforma
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool SplitTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool SplitTransformation::transform(ov::pass::pattern::Matcher& m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -120,7 +120,7 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
         }
     }
 
-    updateOutputs(context, lastNodes, newSplit);
+    updateOutputs(lastNodes, newSplit);
 
     OPENVINO_DEBUG("LPT: done: ", newSplit);
     return true;
@@ -128,12 +128,10 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
 
 
 void SplitTransformation::updateOutputs(
-    TransformationContext& context,
     std::vector<std::shared_ptr<ov::Node>> lastNodes,
     std::shared_ptr<ov::Node> originalNode) const {
-    //TODO: LPT: during refactoring update is not tested
     if (lastNodes.size() == 1ul) {
-        updateOutput(context, lastNodes[0], originalNode);
+        updateOutput(lastNodes[0], originalNode);
     } else {
         const std::string originalName = originalNode->get_friendly_name();
         for (size_t i = 0; i < lastNodes.size(); ++i) {
@@ -155,7 +153,7 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
     return true;
 }
 
-bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+bool SplitTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
     return !NetworkHelper::getDequantization(layer, defaultPrecisions).empty() && layer->get_input_partial_shape(0).rank().is_static();
 }
 

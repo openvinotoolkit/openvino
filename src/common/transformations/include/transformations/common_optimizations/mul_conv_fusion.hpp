@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,24 +80,24 @@ class TRANSFORMATIONS_API MultiplyGroupConvolutionBackpropDataFusion;
 
 class ov::pass::MultiplyConvolutionFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MultiplyConvolutionFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MultiplyConvolutionFusion");
     MultiplyConvolutionFusion();
 };
 
 class ov::pass::MultiplyGroupConvolutionFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MultiplyGroupConvolutionFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MultiplyGroupConvolutionFusion");
     MultiplyGroupConvolutionFusion();
 };
 
 class ov::pass::MultiplyConvolutionBackpropDataFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MultiplyConvolutionBackpropDataFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MultiplyConvolutionBackpropDataFusion");
     MultiplyConvolutionBackpropDataFusion();
 };
 
 class ov::pass::MultiplyGroupConvolutionBackpropDataFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MultiplyGroupConvolutionBackpropDataFusion", "0");
+    OPENVINO_MATCHER_PASS_RTTI("MultiplyGroupConvolutionBackpropDataFusion");
     MultiplyGroupConvolutionBackpropDataFusion();
 };

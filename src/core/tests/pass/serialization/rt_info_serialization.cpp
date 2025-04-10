@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,10 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
@@ -59,14 +61,14 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
 
     std::shared_ptr<ov::Model> function;
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
         data->set_layout("NCHW");
-        auto add = std::make_shared<ov::opset8::Add>(data, data);
+        auto add = std::make_shared<ov::op::v1::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
         init_info(add->input(1).get_rt_info());
         init_info(add->output(0).get_rt_info());
-        auto result = std::make_shared<ov::opset8::Result>(add);
+        auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_layout("????");
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data});
     }
@@ -124,11 +126,11 @@ TEST_F(RTInfoSerializationTest, rt_info_precise_test) {
 
     std::shared_ptr<ov::Model> function;
     {
-        auto data_1 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 10});
-        auto data_2 = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{10, 1});
-        auto matmul_1 = std::make_shared<ov::opset8::MatMul>(data_1, data_2);
+        auto data_1 = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 10});
+        auto data_2 = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{10, 1});
+        auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(data_1, data_2);
         init_info(matmul_1->get_rt_info());
-        auto result = std::make_shared<ov::opset8::Result>(matmul_1);
+        auto result = std::make_shared<ov::op::v0::Result>(matmul_1);
         function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data_1, data_2});
     }
     ov::pass::Manager m;
@@ -149,9 +151,9 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
 
     std::shared_ptr<ov::Model> function;
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
         data->set_layout("NCHW");
-        auto add = std::make_shared<ov::opset8::Add>(data, data);
+        auto add = std::make_shared<ov::op::v1::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
         init_info(add->input(1).get_rt_info());
@@ -202,7 +204,7 @@ TEST_F(RTInfoSerializationTest, tag_names_verification) {
 
     std::shared_ptr<ov::Model> model;
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
         model = std::make_shared<ov::Model>(ov::OutputVector{data}, ov::ParameterVector{data});
         init_info(model->get_rt_info());
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -752,6 +752,51 @@ TEST(gather_nd_gpu_fp16, d22_i32_ir2_batch0) {
     DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 1, 1, 1 });
 }
 
+TEST(gather_nd_gpu_fp16, d1333_i11164_ir5_batch0) {
+    auto& engine = get_test_engine();
+
+    const int indices_rank = 5;
+    const int batch_dims = 0;
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 3, 3, 3 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfzyx, { 1, 1, 4, 6, 1 } }); // indices
+    // expected output dim: {1,1,1,6}
+
+    set_values(input0, {
+        ov::float16(0), ov::float16(1), ov::float16(2),
+        ov::float16(3), ov::float16(4), ov::float16(5),
+        ov::float16(6), ov::float16(7), ov::float16(8),
+
+        ov::float16(10), ov::float16(11), ov::float16(12),
+        ov::float16(13), ov::float16(14), ov::float16(15),
+        ov::float16(16), ov::float16(17), ov::float16(18),
+
+        ov::float16(20), ov::float16(21), ov::float16(22),
+        ov::float16(23), ov::float16(24), ov::float16(25),
+        ov::float16(26), ov::float16(27), ov::float16(28),
+    });
+
+    set_values(input1, {
+        ov::float16(0), ov::float16(0), ov::float16(0), ov::float16(0),
+        ov::float16(0), ov::float16(0), ov::float16(0), ov::float16(1),
+        ov::float16(0), ov::float16(0), ov::float16(0), ov::float16(2),
+        ov::float16(0), ov::float16(0), ov::float16(1), ov::float16(0),
+        ov::float16(0), ov::float16(0), ov::float16(1), ov::float16(1),
+        ov::float16(0), ov::float16(0), ov::float16(1), ov::float16(2),
+    });
+
+    std::vector<float> expected_results = {
+        ov::float16(0),
+        ov::float16(1),
+        ov::float16(2),
+        ov::float16(3),
+        ov::float16(4),
+        ov::float16(5),
+    };
+
+    DoTestV5(engine,input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 1, 1, 6, 1 });
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 1, 1, 6, 1 });
+}
+
 TEST(gather_nd_gpu_fp16, export_import) {
     auto& engine = get_test_engine();
 
@@ -952,4 +997,36 @@ TEST(gather_nd_gpu_fp16, dynamic_r5) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i])) << i;
     }
+}
+
+TEST(gather_nd_gpu_fp16, prevent_reorder_to_indices_node) {
+    auto& engine = get_test_engine();
+
+    auto data_layout = layout{ ov::PartialShape{ 1, 1, 262, 262, 64 }, data_types::f16, format::bfzyx };
+    auto indices_layout = layout{ ov::PartialShape{ 1, 1, 3211264, 2 }, data_types::i32, format::bfyx };
+
+    uint8_t indices_rank = static_cast<uint8_t>(indices_layout.get_rank());
+    uint8_t input_rank = static_cast<uint8_t>(data_layout.get_rank());
+    uint8_t batch_dims = static_cast<uint8_t>(2);
+
+    topology topology(
+        input_layout("data", data_layout),
+        input_layout("indices", indices_layout),
+        gather_nd("gather_nd", input_info("data"), input_info("indices"), input_rank, indices_rank, batch_dims, false)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config);
+
+    ASSERT_NE(program, nullptr);
+
+    for (auto dep : program->get_node("gather_nd").get_dependencies()) {
+        ASSERT_NE(dep.first->is_type<reorder>(), true);
+    }
+
+    auto actual_shape = program->get_node("gather_nd").get_output_layout().get_partial_shape();
+    ov::PartialShape expected_shape { 1, 1, 3211264, 64 };
+    ASSERT_EQ(expected_shape, actual_shape);
 }

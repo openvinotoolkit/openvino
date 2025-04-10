@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 #include "intel_gpu/primitives/random_uniform.hpp"
 
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 
@@ -48,5 +47,4 @@ void CreateRandomUniformOp(ProgramBuilder &p, const std::shared_ptr<ov::op::v8::
 
 REGISTER_FACTORY_IMPL(v8, RandomUniform);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

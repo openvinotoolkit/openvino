@@ -6,6 +6,8 @@
 
 #include "pass.hpp"
 
+#include "snippets/lowered/loop_info.hpp"
+
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -31,7 +33,7 @@ namespace pass {
  */
 class DefineBufferClusters : public RangedPass {
 public:
-    OPENVINO_RTTI("DefineBufferClusters", "RangedPass")
+    OPENVINO_RTTI("DefineBufferClusters", "", RangedPass);
 
     DefineBufferClusters() = default;
 
@@ -45,7 +47,7 @@ public:
 private:
     using BufferCluster = std::set<BufferExpressionPtr>;
     using BufferClusters = std::vector<BufferCluster>;
-    using BufferPorts = std::unordered_map<BufferExpressionPtr, std::set<size_t>>;
+    using BufferMap = std::unordered_map<BufferExpressionPtr, UnifiedLoopInfo::LoopPortInfo>;
     /**
      * @brief Finds Buffer cluster in set of clusters which contains the target expression with Buffer
      * @param target target expression with Buffer op
@@ -58,76 +60,72 @@ private:
      * @param target_expr expression with target op - LoopEnd or MemoryAccess op
      * @return boolean value
      */
-    bool is_direct_buffer(const BufferExpressionPtr& buffer_expr, const ExpressionPtr& target_expr) const;
+    static bool is_direct_buffer(const BufferExpressionPtr& buffer_expr, const ExpressionPtr& target_expr);
     /**
      * @brief Creates new buffer cluster if buffer_exprs is missed in clusters. If buffer_exprs is already in clusters, do nothing
      * @param buffer_expr expression with Buffer op
      */
     void create_new_cluster(const BufferExpressionPtr& buffer_expr);
     /**
+     * @brief Add buffers to the existing clusters
+     * @param existing_cluster existing clusters
+     * @param buffers buffers which will be added to the existing cluster
+     */
+    static void add_buffers_to_cluster(BufferCluster& existing_cluster, const std::set<BufferExpressionPtr>& buffers);
+    /**
      * @brief Returns common ID of cluster if all buffer inside have the same Buffer ID. Otherwise returns the default value SIZE_MAX
      *        that means that Buffers in cluster have different IDs.
      * @param cluster set of Buffer expressions - cluster
      * @return common buffer ID or SIZE_MAX - size value
      */
-    size_t get_cluster_buffer_id(const BufferCluster& cluster) const;
+    static size_t get_cluster_buffer_id(const BufferCluster& cluster);
 
     /**
      * @brief Analyzes Loop: if Loop has Buffer ops on inputs and outputs, Loop can read and write from/to the same memory.
+     * @param loop_manager loop manager
      * @param expr_it iterator of Linear IR which refers to the expression with LoopEnd
      */
-    void parse_loop(const LinearIR::constExprIt& expr_it);
+    void parse_loop(const LoopManagerPtr& loop_manager, const LinearIR::constExprIt& expr_it);
     /**
      * @brief Analyzes full MemoryAccess op: if the op has Buffer ops on I/O, the op can read and write from/to the same memory.
      * @param expr expression with full MemoryAccess op
      */
     void parse_memory_access_op(const ExpressionPtr& expr);
     /**
-     * @brief Gets input outputs buffers of Loop
-     * @param loop_expr expression with LoopEnd op
-     * @return unordered map [Expression -> set of input ports] which represents input Buffers of Loop
+     * @brief Find all direct buffers that are connected to the current Loop
+     * @param loop_info current unified loop info
+     * @param loop_expr the target LoopEnd expression
+     * @return input and output buffer maps
      */
-    BufferPorts get_input_buffers(const ExpressionPtr& loop_expr) const;
-    /**
-     * @brief Gets output buffers of Loop
-     * @param loop_expr expression with LoopEnd op
-     * @return unordered map [Expression -> set of input ports] which represents output Buffers of Loop
-     */
-    BufferPorts get_output_buffers(const ExpressionPtr& loop_expr) const;
+    static std::pair<BufferMap, BufferMap> get_direct_buffers(const UnifiedLoopInfoPtr& loop_info, const ExpressionPtr& loop_expr);
     /**
      * @brief Analyzes nested Loops: unite nested buffer clusters if they can reproduce `window` sliding
-     * @param input_buffers unordered map [Expression -> set of input ports] which represents input Buffers of Loop
-     * @param output_buffers unordered map [Expression -> set of output ports (one)] which represents output Buffers of Loop
+     * @param loop_manager loop manager
+     * @param input_buffers unordered map [Expression -> LoopPortInfo] which represents input Buffers of Loop
+     * @param output_buffers unordered map [Expression -> LoopPortInfo] which represents output Buffers of Loop
      * @param outer_loop_end_expr_it iterator of Linear IR which refers to the expression with outer LoopEnd
      */
-    void parse_nested_loops(const BufferPorts& input_buffers, const BufferPorts& output_buffers, const LinearIR::constExprIt& outer_loop_end_expr_it);
+    void parse_nested_loops(const LoopManagerPtr& loop_manager, const BufferMap& input_buffers, const BufferMap& output_buffers,
+                            const LinearIR::constExprIt& outer_loop_end_expr_it);
     /**
-     * @brief Finds the last connected Loop to the target Buffer and returns the corresponding finalization offset
+     * @brief Finds the last connected Loop to the target Buffer and init the corresponding loop port info
+     * @param loop_manager loop manager
      * @param buffer_expr expression with Buffer op
-     * @return finalization offset - int64_t value
+     * @param port_info target loop port info to be initialized
+     * @return status - True if loop port has been found. Otherwise, return false - not connected to the Loop.
      */
-    int64_t get_buffer_finalization_offset(const BufferExpressionPtr& buffer_expr) const;
-    /**
-     * @brief Check if two Buffer expressions are connected to the same Loop. Set common LoopEnd as `loop` parameter and
-     *        indexes of Loop ports `up_idx` and `down_idx` if Buffers are really neighbours
-     * @param up expression with upper Buffer op
-     * @param down expression with lower Buffer op
-     * @param loop expression with common LoopEnd op
-     * @param up_idx the reference to port index of upper Buffer op to the Loop
-     * @param down_idx the reference to port index of lower Buffer op to the Loop
-     * @return Return True if the Buffers are connected to the same Loop
-     */
-    static bool are_buffer_neighbours(const BufferExpressionPtr& up, const BufferExpressionPtr& down, ExpressionPtr& loop,
-                                      size_t& up_idx, size_t& down_idx);
+    static bool init_buffer_last_loop_port_info(const LoopManagerPtr& loop_manager, const BufferExpressionPtr& buffer_expr,
+                                                UnifiedLoopInfo::LoopPortInfo& port_info);
     /**
      * @brief Unite clusters
+     * @param loop_manager loop manager
      * @param inner_cluster_it iterator to inner cluster - buffer cluster is in the loop
      * @param outer_cluster buffer clusters with buffers outside the Loop
      * @param outer_buffer target Buffer from outer_cluster
      * @param is_outer_up true if outer buffer is upper in Linear IR than inner Buffers
      * @return Return True if clusters have been united
      */
-    bool unite_nested_clusters(const BufferClusters::iterator& inner_cluster_it, BufferCluster& outer_cluster,
+    bool unite_nested_clusters(const LoopManagerPtr& loop_manager, const BufferClusters::iterator& inner_cluster_it, BufferCluster& outer_cluster,
                                const BufferExpressionPtr& outer_buffer, bool is_outer_up);
 
     BufferClusters m_clusters;

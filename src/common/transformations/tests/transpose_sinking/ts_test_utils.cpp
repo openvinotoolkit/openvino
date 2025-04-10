@@ -30,7 +30,7 @@ ParameterVector filter_parameters(const OutputVector& out_vec) {
     ParameterVector parameters;
     for (const auto& out : out_vec) {
         auto node = out.get_node_shared_ptr();
-        if (auto param = dynamic_pointer_cast<Parameter>(node)) {
+        if (auto param = ov::as_type_ptr<Parameter>(node)) {
             parameters.push_back(param);
         }
     }

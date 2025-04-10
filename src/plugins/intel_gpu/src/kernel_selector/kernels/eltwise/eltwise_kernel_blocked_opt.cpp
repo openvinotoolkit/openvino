@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     }
 
     const auto vec_size = SelectVecSizeFromFormat(ewParams.outputs[0]);
-    const auto input0 = ewParams.inputs[0];
+    const auto& input0 = ewParams.inputs[0];
     const auto& output = ewParams.outputs[0];
     // Check that padding before features doesn't mis-align the blocks
     if (input0.Feature().pad.before % vec_size != 0 || output.Feature().pad.before % vec_size != 0)
@@ -137,10 +137,21 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     };
 
     for (size_t i = 1; i < ewParams.inputs.size(); i++) {
-        if (ewParams.inputs[i].LogicalSize() == input0.LogicalSize() && !(compareTensors(ewParams.inputs[i], input0)))
+        const auto& input = ewParams.inputs[i];
+        if (input.LogicalSize() == input0.LogicalSize() && !(compareTensors(input, input0)))
             return false;
-        if (ewParams.inputs[i].Feature().pad.before % vec_size != 0) {
+        if (input.Feature().pad.before % vec_size != 0) {
             return false;
+        }
+        if (input.GetLayout() == DataLayout::bfyx) {
+            bool is_valid = input.LogicalSize() == 1;           // Scalar value broadcast
+            is_valid |= input.LogicalSize() % vec_size == 0 &&  // Feature value broadcast
+                        input.LogicalSize() == input.Feature().v &&
+                        input.LogicalSize() == output.Feature().v &&
+                        GetInnerBatchBlockSize(input) == 1;
+            if (!is_valid) {
+                return false;
+            }
         }
     }
 
@@ -422,6 +433,7 @@ static inline int SelectVecSizeFromFormat(const DataTensor& tensor) {
 static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
     auto layout = tensor.GetLayout();
     switch (layout) {
+    case DataLayout::bfyx:
     case DataLayout::b_fs_yx_fsv4:
     case DataLayout::b_fs_yx_fsv16:
     case DataLayout::b_fs_zyx_fsv16:

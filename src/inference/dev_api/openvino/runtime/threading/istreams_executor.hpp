@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <mutex>
 
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -52,19 +53,6 @@ public:
     };
 
     /**
-     * @brief Defines inference thread binding type
-     */
-    enum ThreadBindingType : std::uint8_t {
-        NONE,   //!< Don't bind the inference threads
-        CORES,  //!< Bind inference threads to the CPU cores (round-robin)
-        // the following modes are implemented only for the TBB code-path:
-        NUMA,  //!< Bind to the NUMA nodes (default mode for the non-hybrid CPUs on the Win/MacOS, where the 'CORES' is
-               //!< not implemeneted)
-        HYBRID_AWARE  //!< Let the runtime bind the inference threads depending on the cores type (default mode for the
-                      //!< hybrid CPUs)
-    };
-
-    /**
      * @brief Defines IStreamsExecutor configuration
      */
     struct OPENVINO_RUNTIME_API Config {
@@ -102,13 +90,15 @@ public:
             ov::hint::SchedulingCoreType::ANY_CORE;  //!< PCORE_ONLY and ECORE_ONLY are valid in hybrid core machine,
                                                      //!< ANY_CORE is valid in all machines. Core type priority:
                                                      //!< physical PCore, ECore, logical PCore
-        bool _cpu_reservation = false;  //!< Whether to reserve current cores which will not be used by other plugin.
-                                        //!< If it is true, cpu_pinning defaults to true.
+        bool _cpu_reservation = false;  //!< Whether to reserve current cores which will not be used by other plugin or
+                                        //!< compiled model. If it is true, cpu_pinning defaults to true.
         bool _cpu_pinning = false;      //!< Whether to bind threads to cores.
+        bool _cores_limit = true;       //!< Whether to limit the number of streams and threads by the number of cpu cores
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         int _sub_streams = 0;
         std::vector<int> _rank = {};
+        bool _add_lock = true;
 
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information,
@@ -120,6 +110,8 @@ public:
          * @brief Modify _streams_info_table and related configuration according to configuration
          */
         void update_executor_config();
+
+        void update_executor_config(bool lock);
 
         /**
          * @brief Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
@@ -146,17 +138,21 @@ public:
                ov::hint::SchedulingCoreType thread_preferred_core_type = ov::hint::SchedulingCoreType::ANY_CORE,
                bool cpu_reservation = false,
                bool cpu_pinning = false,
+               bool cores_limit = true,
                std::vector<std::vector<int>> streams_info_table = {},
-               std::vector<int> rank = {})
+               std::vector<int> rank = {},
+               bool add_lock = true)
             : _name{std::move(name)},
               _streams{streams},
               _threads_per_stream{threads_per_stream},
               _thread_preferred_core_type(thread_preferred_core_type),
               _cpu_reservation{cpu_reservation},
               _cpu_pinning{cpu_pinning},
+              _cores_limit{cores_limit},
               _streams_info_table{std::move(streams_info_table)},
-              _rank{rank} {
-            update_executor_config();
+              _rank{std::move(rank)},
+              _add_lock(add_lock) {
+            update_executor_config(_add_lock);
         }
 
         // These APIs which includes set_property and get_property can not be removed until they will never be called by
@@ -256,6 +252,12 @@ public:
     virtual int get_stream_id() = 0;
 
     /**
+     * @brief Return the total number of streams
+     * @return The total number of streams.
+     */
+    virtual int get_streams_num() = 0;
+
+    /**
      * @brief Return the id of current NUMA Node
      *        Return 0 when current stream cross some NUMA Nodes
      * @return `ID` of current NUMA Node, or throws exceptions if called not from stream thread
@@ -277,11 +279,18 @@ public:
     virtual std::vector<int> get_rank() = 0;
 
     /**
+     * @brief Reset cpu map table when user set enable_cpu_reservation = true
+     */
+    virtual void cpu_reset() = 0;
+
+    /**
      * @brief Execute the task in the current thread using streams executor configuration and constraints
      * @param task A task to start
      */
     virtual void execute(Task task) = 0;
 };
+
+static std::mutex _streams_executor_mutex;
 
 }  // namespace threading
 }  // namespace ov

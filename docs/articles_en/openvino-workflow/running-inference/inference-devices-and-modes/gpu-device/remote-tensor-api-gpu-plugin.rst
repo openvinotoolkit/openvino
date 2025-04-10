@@ -452,6 +452,11 @@ pointers or the ``VASurfaceID`` handle, as shown in the examples below:
          infer_request.wait();
 
 
+.. important::
+
+   Currently, only sharing of D3D11 surfaces is supported via the
+   `cl_intel_d3d11_nv12_media_sharing <https://github.com/KhronosGroup/OpenCL-Registry/blob/main/extensions/intel/cl_intel_d3d11_nv12_media_sharing.txt>`__
+   extension, which provides interoperability between OpenCL and DirectX.
 
 
 Direct NV12 Video Surface Input
@@ -616,7 +621,7 @@ Two types of map entries are possible: descriptor and container.
 Descriptor sets the expected structure and possible parameter values of the map.
 
 For possible low-level properties and their description, refer to the header file:
-`remote_properties.hpp <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/inference/include/openvino/runtime/intel_gpu/remote_properties.hpp>`__.
+`remote_properties.hpp <https://github.com/openvinotoolkit/openvino/blob/releases/2025/0/src/inference/include/openvino/runtime/intel_gpu/remote_properties.hpp>`__.
 
 Examples
 ###########################################################
@@ -664,6 +669,6 @@ To see pseudo-code of usage examples, refer to the sections below.
 See Also
 #######################################
 
-* `ov::Core <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html>`__
-* `ov::RemoteTensor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
+* `ov::Core <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_core.html>`__
+* `ov::RemoteTensor <https://docs.openvino.ai/2025/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
 

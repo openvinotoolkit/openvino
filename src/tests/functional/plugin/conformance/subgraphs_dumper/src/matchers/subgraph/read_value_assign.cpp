@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,10 +24,10 @@ ReadValueAssignExtractor::extract(const std::shared_ptr<ov::Model> &model) {
     };
     std::map<ov::op::util::Variable::Ptr, ReadValuePairs>  pairs;
     for (auto& node : model->get_ordered_ops()) {
-        if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(node)) {
+        if (const auto& assign = ov::as_type_ptr<ov::op::util::AssignBase>(node)) {
             pairs[assign->get_variable()].cnt_assign++;
             pairs[assign->get_variable()].variable_id = assign->get_variable()->get_info().variable_id;
-        } else if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
+        } else if (const auto& read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(node)) {
             pairs[read_value->get_variable()].cnt_read_val++;
             pairs[read_value->get_variable()].rv = read_value;
             pairs[read_value->get_variable()].variable_id = read_value->get_variable()->get_info().variable_id;
@@ -49,7 +49,7 @@ ReadValueAssignExtractor::extract(const std::shared_ptr<ov::Model> &model) {
         while (bfs_queue.size() != 0) {
             auto node = bfs_queue.front();
             all_extracted_nodes.push_back(node);
-            if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(node)) {
+            if (const auto& assign = ov::as_type_ptr<ov::op::util::AssignBase>(node)) {
                 if (assign->get_variable()->get_info().variable_id == pair.second.variable_id) {
                     break;
                 }

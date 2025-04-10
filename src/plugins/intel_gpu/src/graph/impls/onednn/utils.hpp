@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,9 @@ dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc);
 cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& desc, bool is_weights = false, bool is_grouped = false);
 int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc);
 bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::memory::desc& desc);
+size_t get_post_ops_count(const program_node& node);
+bool is_supported_post_ops(const program_node& node);
+bool is_supported_pad(const layout& layout);
 
 // Check if data node is per-tensor
 template <typename T>

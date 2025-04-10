@@ -1,28 +1,20 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "common/primitive_attr.hpp"
-#include "node.h"
-
 #include <utility>
+
+#include "common/primitive_attr.hpp"
 #include "dnnl_postops_composer_legacy.h"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-enum class FQ_add_input_type {
-    CROP_LOW,
-    CROP_HIGH,
-    INPUT_SCALE,
-    INPUT_SHIFT,
-    OUTPUT_SCALE,
-    OUTPUT_SHIFT,
-    INPUTS_SIZE
-};
+enum class FQ_add_input_type { CROP_LOW, CROP_HIGH, INPUT_SCALE, INPUT_SHIFT, OUTPUT_SCALE, OUTPUT_SHIFT, INPUTS_SIZE };
 
 struct jit_quantize_params {
     bool is_planar;
@@ -33,8 +25,8 @@ struct jit_quantize_params {
 
     Algorithm op_type;
 
-    int c; // need only for binarization
-    std::bitset<static_cast<size_t>(FQ_add_input_type::INPUTS_SIZE)> broadcasted; // need only for quantization
+    int c;                                                                         // need only for binarization
+    std::bitset<static_cast<size_t>(FQ_add_input_type::INPUTS_SIZE)> broadcasted;  // need only for quantization
 };
 
 struct jit_quantize_call_args {
@@ -57,9 +49,9 @@ struct jit_quantize_call_args {
 };
 
 struct jit_uni_quantize_kernel {
-    void (*ker_)(const jit_quantize_call_args *);
+    void (*ker_)(const jit_quantize_call_args*);
 
-    void operator()(const jit_quantize_call_args *args) {
+    void operator()(const jit_quantize_call_args* args) {
         assert(ker_);
         ker_(args);
     }
@@ -74,66 +66,124 @@ struct jit_uni_quantize_kernel {
 
 class FakeQuantize : public Node {
 public:
-    FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    size_t getAxis() const { return axis; }
+    size_t getAxis() const {
+        return axis;
+    }
 
-    bool isBinarization() const { return getAlgorithm() == Algorithm::FQBinarization; }
+    bool isBinarization() const {
+        return getAlgorithm() == Algorithm::FQBinarization;
+    }
 
     bool needPrepareParams() const override;
     void prepareParams() override;
     void createPrimitive() override;
 
-    const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
-    const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
-    size_t getBinarizationTresholdsSize() const { return binarizationThresholds.size(); }
-    size_t getBinarizationOutputMaskSize() const { return binarizationOutputMask.size(); }
+    const float* getBinarizationTresholdsPtr() const {
+        return &binarizationThresholds[0];
+    }
+    const float* getBinarizationOutputMaskPtr() const {
+        return reinterpret_cast<const float*>(&binarizationOutputMask[0]);
+    }
+    size_t getBinarizationTresholdsSize() const {
+        return binarizationThresholds.size();
+    }
+    size_t getBinarizationOutputMaskSize() const {
+        return binarizationOutputMask.size();
+    }
 
-    const std::vector<float>& getCropLow() const { return cropLow; }
-    const std::vector<float>& getCropHigh() const { return cropHigh; }
-    const std::vector<float>& getInputScale() const { return inputScale; }
-    const std::vector<float>& getInputShift() const { return inputShift; }
-    const std::vector<float>& getOutputScale() const { return outputScale; }
-    const std::vector<float>& getOutputShift() const { return outputShift; }
-    const size_t getLevels() const { return levels; }
+    const std::vector<float>& getCropLow() const {
+        return cropLow;
+    }
+    const std::vector<float>& getCropHigh() const {
+        return cropHigh;
+    }
+    const std::vector<float>& getInputScale() const {
+        return inputScale;
+    }
+    const std::vector<float>& getInputShift() const {
+        return inputShift;
+    }
+    const std::vector<float>& getOutputScale() const {
+        return outputScale;
+    }
+    const std::vector<float>& getOutputShift() const {
+        return outputShift;
+    }
+    const size_t getLevels() const {
+        return levels;
+    }
 
     void setCropLow(std::vector<float> newCropLow) {
-        cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); ++parameterVersion;
+        cropLow = std::move(newCropLow);
+        cropLowSize = cropLow.size();
+        ++parameterVersion;
     }
     void setCropHigh(std::vector<float> newCropHigh) {
-        cropHigh = std::move(newCropHigh); cropHighSize = cropHigh.size(); ++parameterVersion;
+        cropHigh = std::move(newCropHigh);
+        cropHighSize = cropHigh.size();
+        ++parameterVersion;
     }
     void setInputScale(std::vector<float> newInputScale) {
-        inputScale = std::move(newInputScale); inputScaleSize = inputScale.size(); ++parameterVersion;
+        inputScale = std::move(newInputScale);
+        inputScaleSize = inputScale.size();
+        ++parameterVersion;
     }
     void setInputShift(std::vector<float> newInputShift) {
-        inputShift = std::move(newInputShift); inputShiftSize = inputShift.size(); ++parameterVersion;
+        inputShift = std::move(newInputShift);
+        inputShiftSize = inputShift.size();
+        ++parameterVersion;
     }
     void setOutputScale(std::vector<float> newOutputScale) {
-        outputScale = std::move(newOutputScale); outputScaleSize = outputScale.size(); ++parameterVersion;
+        outputScale = std::move(newOutputScale);
+        outputScaleSize = outputScale.size();
+        ++parameterVersion;
     }
     void setOutputShift(std::vector<float> newOutputShift) {
-        outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); ++parameterVersion;
+        outputShift = std::move(newOutputShift);
+        outputShiftSize = outputShift.size();
+        ++parameterVersion;
     }
 
-    const std::vector<float>& getFQScales() const { return fqScales; }
+    const std::vector<float>& getFQScales() const {
+        return fqScales;
+    }
 
-    bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
-    bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
-    bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
-    bool isOutputHighBroadcast() const { return isOutputHighBroadcasted; }
+    bool isInputLowBroadcast() const {
+        return isInputLowBroadcasted;
+    }
+    bool isInputHighBroadcast() const {
+        return isInputHighBroadcasted;
+    }
+    bool isOutputLowBroadcast() const {
+        return isOutputLowBroadcasted;
+    }
+    bool isOutputHighBroadcast() const {
+        return isOutputHighBroadcasted;
+    }
 
-    ov::element::Type getInputPrecision() const { return inputPrecision; }
-    ov::element::Type getOutputPrecision() const { return outputPrecision; }
+    ov::element::Type getInputPrecision() const {
+        return inputPrecision;
+    }
+    ov::element::Type getOutputPrecision() const {
+        return outputPrecision;
+    }
 
-    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
-    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
+    void appendPostOps(dnnl::post_ops& ops,
+                       const VectorDims& postOpDims,
+                       std::unordered_map<int, MemoryPtr>& postOpsMem,
+                       const int channelAxis) override;
+    void appendPostOps(dnnl::post_ops& ops,
+                       const VectorDims& postOpDims,
+                       std::vector<const void*>& postOpsMem,
+                       const int channelAxis) override;
     bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
@@ -143,12 +193,14 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     enum BroadcastingPolicy {
-        PerChannel, // all FQ operations are per channel
-        PerTensor,  // all FQ operations are per tensor
-        Mixed,      // some per channel, some per tensor
+        PerChannel,  // all FQ operations are per channel
+        PerTensor,   // all FQ operations are per tensor
+        Mixed,       // some per channel, some per tensor
     };
 
-    BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
+    BroadcastingPolicy getBroadcastingPolicy() const {
+        return broadcastingPolicy;
+    }
 
     MemoryPtr cropLowMemory;
     MemoryPtr cropHighMemory;
@@ -165,22 +217,22 @@ private:
     using executorPtr = std::shared_ptr<FakeQuantizeExecutor>;
     executorPtr execPtr = nullptr;
     struct FakeQuantizeJitExecutor : public FakeQuantizeExecutor {
-        FakeQuantizeJitExecutor(const jit_quantize_params &_jqp);
+        FakeQuantizeJitExecutor(const jit_quantize_params& _jqp);
         void exec(const FakeQuantize& node) override;
         std::unique_ptr<jit_uni_quantize_kernel> pKernel;
     };
     void init() override;
     std::vector<LayoutType> getDataFormats() const;
-    void initializePostOpData(const VectorDims &postOpDims, const size_t bufferAlignment, bool doRounding);
-    void initializePostOpDataLegacy(const VectorDims &dims, const size_t bufferAlignment);
+    void initializePostOpData(const VectorDims& postOpDims, const size_t bufferAlignment, bool doRounding);
+    void initializePostOpDataLegacy(const VectorDims& dims, const size_t bufferAlignment);
     void executeReference();
-    void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
-    void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
+    void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel>& pKernel) const;
+    void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel>& pKernel) const;
 
-    void appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
-    void appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
+    void appendMemory(const size_t dataSize, const void* data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem);
+    void appendMemory(const size_t dataSize, const void* data, MemoryPtr& memPtr, std::vector<const void*>& postOpsMem);
     template <typename T>
-    void appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
+    void appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<T>& postOpsMem);
 
     size_t levels = 0;
 
@@ -268,11 +320,9 @@ private:
     ov::element::Type inputPrecision = ov::element::f32;
     ov::element::Type outputPrecision = ov::element::f32;
 
-    std::string errorPrefix;
-
     BroadcastingPolicy broadcastingPolicy;
 };
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov

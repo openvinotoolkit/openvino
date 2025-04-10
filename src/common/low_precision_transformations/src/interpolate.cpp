@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(
@@ -56,13 +56,13 @@ InterpolateTransformation::InterpolateTransformation(const Params& params) : Lay
     this->register_matcher(matcher, callback);
 }
 
-bool InterpolateTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool InterpolateTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<Node> interpolate = m.get_match_root();
-    if (!canBeTransformed(context, m.get_match_root())) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
     interpolate = NetworkHelper::separateInStandaloneBranch(interpolate, defaultPrecisions);
-    const auto newOperation = moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions));
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
@@ -84,8 +84,8 @@ bool InterpolateTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer
     return false;
 }
 
-bool InterpolateTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer)) {
+bool InterpolateTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
+    if (!LayerTransformation::canBeTransformed(layer)) {
         return false;
     }
 

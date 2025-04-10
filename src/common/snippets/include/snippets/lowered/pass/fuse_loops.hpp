@@ -38,7 +38,7 @@ namespace pass {
  */
 class FuseLoops : public RangedPass {
 public:
-    OPENVINO_RTTI("FuseLoops", "RangedPass")
+    OPENVINO_RTTI("FuseLoops", "", RangedPass);
     FuseLoops();
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 

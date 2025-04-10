@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 
-namespace ov {
-namespace pass {
-namespace pattern {
+namespace ov::pass::pattern {
 namespace op {
 /// Fails if the predicate returns false on the graph value.
 ///
@@ -36,31 +34,14 @@ public:
     ///                                                   nullptr,
     ///                                                   OutputVector{add});
     /// \endcode
+    template <typename TPredicate, typename TArg = OutputVector>
     Label(const element::Type& type,
           const PartialShape& s,
-          const ValuePredicate pred,
-          const OutputVector& wrapped_values)
-        : Pattern(OutputVector{wrap_values(wrapped_values)}, pred) {
+          const TPredicate& pred,
+          const TArg& wrapped_values = OutputVector{})
+        : Pattern(OutputVector{wrap_values(wrapped_values)}, Predicate(pred)) {
         set_output_type(0, type, s);
     }
-
-    explicit Label(const element::Type& type = element::dynamic, const PartialShape& s = PartialShape::dynamic())
-        : Label(
-              type,
-              s,
-              [](const Output<Node>&) {
-                  return true;
-              },
-              OutputVector()) {}
-
-    Label(const element::Type& type, const PartialShape& s, ValuePredicate pred)
-        : Label(type, s, std::move(pred), OutputVector{}) {}
-
-    Label(const element::Type& type, const PartialShape& s, NodePredicate pred)
-        : Label(type, s, as_value_predicate(std::move(pred)), OutputVector{}) {}
-
-    Label(const element::Type& type, const PartialShape& s, NodePredicate pred, const NodeVector& wrapped_values)
-        : Label(type, s, as_value_predicate(std::move(pred)), as_output_vector(wrapped_values)) {}
 
     /// \brief creates a Label node containing a sub-pattern described by the type and
     ///        shape of \sa node.
@@ -74,39 +55,27 @@ public:
     ///                                                   nullptr,
     ///                                                   OutputVector{add});
     /// \endcode
-    Label(const Output<Node>& value, const ValuePredicate pred, const OutputVector& wrapped_values)
-        : Label(value.get_element_type(), value.get_partial_shape(), pred, wrapped_values) {}
-    Label(const Output<Node>& value, const ValuePredicate pred)
-        : Label(value.get_element_type(), value.get_partial_shape(), pred, OutputVector{}) {}
+    template <typename TPredicate, typename TArg = OutputVector>
+    Label(const Output<Node>& value, const TPredicate& pred, const TArg& wrapped_values = OutputVector{})
+        : Label(value.get_element_type(), value.get_partial_shape(), Predicate(pred), wrapped_values) {}
 
-    Label(const Output<Node>& value, const NodePredicate pred)
-        : Label(value.get_element_type(), value.get_partial_shape(), as_value_predicate(pred), OutputVector{}) {}
-    Label(const Output<Node>& value)
-        : Label(
-              value.get_element_type(),
-              value.get_partial_shape(),
-              [](const Output<Node>&) {
-                  return true;
-              },
-              OutputVector{}) {}
-    Label(const Output<Node>& node, const NodePredicate pred, const NodeVector& wrapped_values)
-        : Label(node.get_element_type(),
-                node.get_partial_shape(),
-                as_value_predicate(pred),
-                as_output_vector(wrapped_values)) {}
+    explicit Label(const element::Type& type = element::dynamic, const PartialShape& s = PartialShape::dynamic())
+        : Label(type, s, nullptr, OutputVector{}) {}
+    explicit Label(const Output<Node>& value)
+        : Label(value.get_element_type(), value.get_partial_shape(), nullptr, OutputVector{}) {}
 
     bool match_value(Matcher* matcher, const Output<Node>& pattern_value, const Output<Node>& graph_value) override;
 
 protected:
     static Output<Node> wrap_values(const OutputVector& wrapped_values);
+    static Output<Node> wrap_values(const NodeVector& wrapped_values);
 };
 }  // namespace op
 
-OPENVINO_API
-std::shared_ptr<Node> any_input();
+OPENVINO_API std::shared_ptr<Node> any_input();
 
-OPENVINO_API
-std::shared_ptr<Node> any_input(const pattern::op::ValuePredicate& pred);
-}  // namespace pattern
-}  // namespace pass
-}  // namespace ov
+template <typename TPredicate>
+std::shared_ptr<Node> any_input(const TPredicate& pred) {
+    return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), op::Predicate(pred));
+}
+}  // namespace ov::pass::pattern

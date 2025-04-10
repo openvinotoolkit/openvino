@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ ZeroApi::ZeroApi() {
     const std::string baseName = "ze_loader";
     try {
         auto libpath = ov::util::make_plugin_library_name({}, baseName);
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(ANDROID)
         libpath = libpath + LIB_ZE_LOADER_SUFFIX;
 #endif
 
@@ -47,6 +47,11 @@ ZeroApi::ZeroApi() {
     symbols_list();
     weak_symbols_list();
 #undef symbol_statement
+}
+
+const std::shared_ptr<ZeroApi>& ZeroApi::getInstance() {
+    static std::shared_ptr<ZeroApi> instance = std::make_shared<ZeroApi>();
+    return instance;
 }
 
 }  // namespace intel_npu

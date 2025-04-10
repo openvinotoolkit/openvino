@@ -123,7 +123,7 @@ std::shared_ptr<ov::Node> ConvolutionLayerCPUTest::modifyGraph(const ov::element
                 }
 
                 std::vector<ov::Shape> secondParameterShapes;
-                if (auto parameter = dynamic_cast<ov::op::v0::Parameter*>(opToShapeInfer->get_input_node_ptr(0))) {
+                if (auto parameter = ov::as_type<ov::op::v0::Parameter>(opToShapeInfer->get_input_node_ptr(0))) {
                     parameter->set_partial_shape(targetShapes.front());
                     parameter->validate_and_infer_types();
                 }
@@ -154,14 +154,14 @@ void ConvolutionLayerCPUTest::SetUp() {
 
     convSpecificParams convParams;
     InputShape inputShape;
-    auto netType = ElementType::undefined;
+    auto netType = ElementType::dynamic;
     std::tie(convParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
 
     init_input_shapes({inputShape});
 
     auto it = configuration.find(ov::hint::inference_precision.name());
-    ov::element::Type inference_precision = (it != configuration.end()) ?
-                                            it->second.as<ov::element::Type>() : ov::element::undefined;
+    ov::element::Type inference_precision =
+        (it != configuration.end()) ? it->second.as<ov::element::Type>() : ov::element::dynamic;
     if (inference_precision == ov::element::bf16) {
         selectedType += "_BF16";
         rel_threshold = 1e-2f;
@@ -190,16 +190,6 @@ void ConvolutionLayerCPUTest::SetUp() {
 }
 
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
-    // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
-    // since tails processing for sse41 nspc layout is not supported yet (see 52736).
-    if (!inFmts.empty() && (inFmts.front() == nwc || inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
-        auto inpChannels = function->get_parameters().front()->get_partial_shape()[1].get_length();
-        auto outChannels = function->get_output_partial_shape(0)[1].get_length();
-        if ((inpChannels % 8) || (outChannels % 8)) {
-            GTEST_SKIP() << "Disabled test due to the sse41 convolution kernel does not support tails for nspc layout." << std::endl;
-        }
-    }
-
     if (!priority.empty()) {
         // Skip tests for brgconv convolution where kernel size = 1x1
         if (one_of(priority[0], "brgconv_avx512", "brgconv_avx512_amx", "brgconv_avx2")) {
@@ -340,10 +330,7 @@ const std::vector<InputShape>& inShapesGemm2D_cache() {
 
 const std::vector<CPUSpecificParams>& CPUParams_2D() {
     static const std::vector<CPUSpecificParams> CPUParams_2D = {
-        conv_sse42_2D,
-        conv_avx2_2D,
         conv_avx512_2D,
-        conv_sse42_2D_nspc,
         conv_avx2_2D_nspc,
         conv_avx2_2D_nspc_brgconv,
         conv_avx512_2D_nspc,
@@ -354,7 +341,6 @@ const std::vector<CPUSpecificParams>& CPUParams_2D() {
 
 const std::vector<CPUSpecificParams>& CPUParams_3D() {
     static const std::vector<CPUSpecificParams> CPUParams_3D = {
-        //conv_sse42_3D, // not supported jit_sse42 for 3d
         conv_avx2_3D,
         conv_avx512_3D,
         conv_avx2_3D_nspc,
@@ -479,10 +465,8 @@ const std::vector<InputShape>& inputShapes2d_dynBatch() {
 
 const std::vector<CPUSpecificParams>& CPUParams_1x1_1D() {
     static const std::vector<CPUSpecificParams> CPUParams_1x1_1D = {
-            conv_sse42_1D_1x1,
             conv_avx2_1D_1x1,
             conv_avx512_1D_1x1,
-            conv_sse42_1D_1x1_nspc,
             conv_avx2_1D_1x1_nspc,
             conv_avx2_1D_1x1_nspc_brgconv,
             conv_avx512_1D_1x1_nspc,
@@ -567,10 +551,8 @@ const std::vector<CPUSpecificParams>& CPUParams_GEMM_3D() {
 
 const std::vector<CPUSpecificParams>& CPUParams_1x1_2D() {
     static const std::vector<CPUSpecificParams> CPUParams_1x1_2D = {
-            conv_sse42_2D_1x1,
             conv_avx2_2D_1x1,
             conv_avx512_2D_1x1,
-            conv_sse42_2D_1x1_nspc,
             conv_avx2_2D_1x1_nspc,
             conv_avx2_2D_1x1_nspc_brgconv,
             conv_avx512_2D_1x1_nspc,

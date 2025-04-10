@@ -1,29 +1,27 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-# flake8: noqa
 # mypy: ignore-errors
 
 import os
+import logging
+from hashlib import sha256
+
 import torch
 import torch.overrides
-
-from hashlib import sha256
 from torch.fx import GraphModule
 
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-from openvino.runtime import Core, Type, PartialShape, serialize
+from openvino import Core, Type, PartialShape, serialize
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_config, _is_cache_dir_in_config
 
-from typing import Callable, Optional
-
-import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
-def cached_model_name(model_hash_str, device, args, cache_root, reversed = False):
+
+def cached_model_name(model_hash_str, device, args, cache_root, reversed=False):  # noqa: VNE003
     if model_hash_str is None:
         return None
 
@@ -33,19 +31,21 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed = False
         os.makedirs(model_cache_dir, exist_ok=True)
         file_name = model_cache_dir + model_hash_str + "_" + device
     except OSError as error:
-        logger.warning(f"Cache directory {cache_root} cannot be created. Model caching is disabled. Error: {error }")
+        logger.warning("Cache directory %s cannot be created. Model caching is disabled. Error: %s", cache_root, error)
         return None
 
     inputs_str = ""
-    for idx, input_data in enumerate(args):
+    for input_data in args:
+        arg_str = str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "")
         if reversed:
-            inputs_str = "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "") + inputs_str
+            inputs_str = "_" + arg_str + inputs_str
         else:
-            inputs_str += "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "")
-    inputs_str = sha256(inputs_str.encode('utf-8')).hexdigest()
+            inputs_str += "_" + arg_str
+    inputs_str = sha256(inputs_str.encode("utf-8")).hexdigest()
     file_name += inputs_str
 
     return file_name
+
 
 def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
     core = Core()
@@ -78,6 +78,7 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
 
     return compiled_model
 
+
 def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None):
     core = Core()
 
@@ -93,7 +94,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
         input_shapes = []
         input_types = []
-        for idx, input_data in enumerate(args):
+        for input_data in args:
             if isinstance(input_data, int):
                 input_types.append(torch.int64)
                 input_shapes.append(torch.Size([1]))

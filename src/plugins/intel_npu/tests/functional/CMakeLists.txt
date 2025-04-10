@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2018-2025 Intel Corporation SPDX-License-Identifier: Apache-2.0
 #
 
 if(ENABLE_LTO)
@@ -14,13 +14,14 @@ set(EXCLUDED_FUNC_TESTS_DIR "")
 set(OPTIONAL_FUNC_TESTS_INCLUDES "")
 set(OPTIONAL_FUNC_TESTS_LIBS "")
 
-if(ENABLE_DRIVER_COMPILER_ADAPTER)
-  list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
-       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler/include")
+set(SKIP_CONFIG "skip_tests.xml")
+set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_CONFIG})
 
-  list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_driver_compiler_adapter
-       openvino_npu_level_zero_backend openvino_npu_zero_result_parser)
-endif()
+list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
+      "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include")
+
+list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_driver_compiler_adapter
+      openvino_npu_level_zero_backend openvino_npu_zero_utils)
 
 ov_add_test_target(
   NAME
@@ -42,6 +43,7 @@ ov_add_test_target(
   openvino::format_reader
   openvino::reference
   openvino::runtime
+  openvino::npu_common
   openvino::npu_al)
 
 if(WIN32)
@@ -67,3 +69,9 @@ install(
   RUNTIME DESTINATION tests
           COMPONENT tests
           EXCLUDE_FROM_ALL)
+
+install(
+  FILES ${SKIP_CONFIG_PATH}
+  DESTINATION tests
+  COMPONENT tests
+  EXCLUDE_FROM_ALL)

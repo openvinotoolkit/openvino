@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -208,14 +208,6 @@ bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p) const {
         return false;
     }
 
-    // To prevent big sized filter which causes lots of CL build time.
-    const size_t acceptable_filter_size = 1024;     // This acceptable size was decided by heuristics
-    const auto& params = static_cast<const convolution_params&>(p);
-    auto filter_size = params.filterSize.x * params.filterSize.y;
-    if (filter_size >= acceptable_filter_size) {
-        return false;
-    }
-
     return true;
 }
 
@@ -244,6 +236,12 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     jit.AddConstant(MakeJitConstant("IN_BLOCK_ARRAY_SIZE", dispatchData.cldnnStyle.inputBlockArraySize));
     jit.AddConstant(MakeJitConstant("IN_BLOCK_WIDTH", dispatchData.cldnnStyle.inputBlockWidth));
     jit.AddConstant(MakeJitConstant("PREFETCH", dispatchData.cldnnStyle.prefetch));
+
+    const size_t large_filter_size = 1024;     // This acceptable size was decided by heuristics
+    auto filter_size = params.filterSize.x * params.filterSize.y;
+    if (filter_size >= large_filter_size) {
+        jit.AddConstant(MakeJitConstant("DISABLE_MANUAL_UNROLL", 1));
+    }
 
     if (leftovers) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS", leftovers));

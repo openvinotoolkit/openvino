@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,14 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/nf4.hpp"
+
+#if !defined(OS_CHROMEOS) && (defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64))
+#    define OV_CORE_USE_XBYAK_JIT
+#endif
+
+#if defined(OS_CHROMEOS) && defined(OPENVINO_ARCH_X86_64) && defined(HAVE_AVX2)
+#    define OV_CORE_USE_INTRINSICS
+#endif
 
 namespace ov {
 
@@ -27,12 +35,12 @@ namespace reference {
 namespace detail {
 
 template <typename TI, typename TO>
-typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+constexpr typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const TI v) {
     return static_cast<TO>(v);
 }
 
 template <typename TI, typename TO>
-typename std::enable_if<std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+constexpr typename std::enable_if<std::is_same<TO, char>::value, TO>::type convert(const TI v) {
     return static_cast<char>(static_cast<bool>(v));
 }
 }  // namespace detail
@@ -56,16 +64,12 @@ void convert(const TI* arg, TO* out, const size_t count) {
     std::transform(arg, arg + count, out, detail::convert<TI, TO>);
 }
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-
 template <>
 void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count);
 template <>
 void convert<float16, float>(const float16* arg, float* out, size_t count);
 template <>
 void convert<float, float16>(const float* arg, float16* out, size_t count);
-template <>
-void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
 template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count);
 template <>
@@ -75,7 +79,8 @@ void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count)
 template <>
 void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count);
 
-#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+template <>
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
 
 // Count how many f32 values is out of normal finite numbers range when converted to f16
 size_t count_out_of_f16_range(const float* arg, size_t count);
