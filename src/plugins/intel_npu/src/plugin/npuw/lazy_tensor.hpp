@@ -86,7 +86,7 @@ struct Const {
     std::size_t hash() const;
     bool operator==(const Const& other) const;
     ov::Tensor eval() const;
-    void read_weight(const ov::npuw::s11n::Weights& weights);
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
     void serialize(std::ostream& stream) const;
     static Const deserialize(std::istream& stream);
@@ -100,7 +100,7 @@ struct Concat {
     std::size_t hash() const;
     bool operator==(const Concat& other) const;
     ov::Tensor eval() const;
-    void read_weight(const ov::npuw::s11n::Weights& weights);
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
     void serialize(std::ostream& stream) const;
     static Concat deserialize(std::istream& stream);
@@ -115,7 +115,7 @@ struct Unpack {
     std::size_t hash() const;
     bool operator==(const Unpack& other) const;
     ov::Tensor eval() const;
-    void read_weight(const ov::npuw::s11n::Weights& weights);
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
     void serialize(std::ostream& stream) const;
     static Unpack deserialize(std::istream& stream);
@@ -129,7 +129,7 @@ struct Permute {
     std::size_t hash() const;
     bool operator==(const Permute& other) const;
     ov::Tensor eval() const;
-    void read_weight(const ov::npuw::s11n::Weights& weights);
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
     void serialize(std::ostream& stream) const;
     static Permute deserialize(std::istream& stream);
@@ -143,7 +143,7 @@ struct Convert {
     std::size_t hash() const;
     bool operator==(const Convert& other) const;
     ov::Tensor eval() const;
-    void read_weight(const ov::npuw::s11n::Weights& weights);
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
     void serialize(std::ostream& stream) const;
     static Convert deserialize(std::istream& stream);

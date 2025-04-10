@@ -988,6 +988,10 @@ void ov::npuw::CompiledModel::detach_memory() {
         if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
             continue;  // optimized-out OR already cleared - skip
         }
+        // Manually detach all LazyTensors just in case
+        for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
+            comp_model_desc.lazy_closure[tidx].detach();
+        }
         if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");
             proto_comp_model_desc.model.reset();
