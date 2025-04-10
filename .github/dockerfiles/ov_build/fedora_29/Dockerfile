@@ -13,7 +13,6 @@ RUN dnf update -y && dnf install -y \
     git \
     curl \
     python3 \
-    python3-rpm \
     # To build Python from source
     openssl-devel \
     sqlite-devel \
@@ -27,8 +26,7 @@ RUN dnf update -y && dnf install -y \
     gcc-c++ \
     # parallel gzip
     pigz \
-    xz \
-    rpm-devel
+    xz
 
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
