@@ -4,8 +4,7 @@
 
 #include <shared_test_classes/base/ov_subgraph.hpp>
 
-#include <random>
-
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "utils/cpu_test_utils.hpp"
 
@@ -14,18 +13,6 @@ using namespace CPUTestUtils;
 using InitGraphStatefulModelTestParams = std::tuple<std::vector<InputShape>,  // input shapes
                                                     bool                      // ReadValue Assgin Direct pair or not
                                                     >;
-
-static std::shared_ptr<ov::op::v0::Constant> create_constant_node(const ov::element::Type& type,
-                                                                  const ov::Shape& shape,
-                                                                  std::mt19937& gen) {
-    size_t count = ov::shape_size(shape);
-    std::vector<float> values(count);
-    std::uniform_real_distribution<float> dis(0, 1);
-    for (auto& value : values)
-        value = dis(gen);
-    return ov::op::v0::Constant::create(type, shape, values);
-}
-
 class InitGraphStatefulModelBase : virtual public ov::test::SubgraphBaseTest,
                                    public testing::WithParamInterface<InitGraphStatefulModelTestParams>,
                                    public CPUTestsBase {
@@ -329,26 +316,25 @@ public:
         }
 
         // Multiply_0
-        std::mt19937 gen(0);
         const ov::Shape mul_shape = {targetStaticShapes[0][0][-1]};
         const auto mul_0 = std::make_shared<ov::op::v1::Multiply>(input_params[0],
-            create_constant_node(netPrc, mul_shape, gen));
+            ov::test::utils::make_constant(netPrc, mul_shape, ov::test::utils::InputGenerateData(0, 1)));
 
         // FakeConvert_1
         const ov::Shape scale_shape = {1}, shift_shape = {1};
         const auto fake_convert_1 = std::make_shared<ov::op::v13::FakeConvert>(mul_0,
-            create_constant_node(netPrc, scale_shape, gen),
-            create_constant_node(netPrc, shift_shape, gen),
+            ov::test::utils::make_constant(netPrc, scale_shape, ov::test::utils::InputGenerateData(0, 1)),
+            ov::test::utils::make_constant(netPrc, shift_shape, ov::test::utils::InputGenerateData(0, 1)),
             ov::element::f8e4m3);
 
         // Convert_1
         const ov::Shape convert_shape = {targetStaticShapes[0][0][-1], 1};
         auto convert_1 = std::make_shared<ov::op::v0::Convert>(
-            create_constant_node(ov::element::f8e4m3, convert_shape, gen), netPrc);
+            ov::test::utils::make_constant(ov::element::f8e4m3, convert_shape, ov::test::utils::InputGenerateData(0, 1)), netPrc);
 
         // Multiply_1
         const auto mul_1 = std::make_shared<ov::op::v1::Multiply>(convert_1,
-            create_constant_node(netPrc, mul_shape, gen));
+            ov::test::utils::make_constant(netPrc, mul_shape, ov::test::utils::InputGenerateData(0, 1)));
 
         // MatMul_1
         auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(fake_convert_1, mul_1);
@@ -361,8 +347,8 @@ public:
 
         // FakeConvert_2
         std::shared_ptr<ov::Node> fake_convert_2 = std::make_shared<ov::op::v13::FakeConvert>(readvalue,
-            create_constant_node(netPrc, scale_shape, gen),
-            create_constant_node(netPrc, shift_shape, gen),
+            ov::test::utils::make_constant(netPrc, scale_shape, ov::test::utils::InputGenerateData(0, 1)),
+            ov::test::utils::make_constant(netPrc, shift_shape, ov::test::utils::InputGenerateData(0, 1)),
             ov::element::f8e4m3);
 
         // Assign
@@ -370,22 +356,22 @@ public:
 
         // Convert_2
         auto convert_2 = std::make_shared<ov::op::v0::Convert>(
-            create_constant_node(ov::element::f8e4m3, convert_shape, gen), netPrc);
+            ov::test::utils::make_constant(ov::element::f8e4m3, convert_shape, ov::test::utils::InputGenerateData(0, 1)), netPrc);
 
         // Multiply_2
         const auto mul_2 = std::make_shared<ov::op::v1::Multiply>(convert_2,
-            create_constant_node(netPrc, mul_shape, gen));
+            ov::test::utils::make_constant(netPrc, mul_shape, ov::test::utils::InputGenerateData(0, 1)));
 
         // MatMul_2
         auto matmul_2 = std::make_shared<ov::op::v0::MatMul>(fake_convert_2, mul_2);
 
         // Convert_3
         auto convert_3 = std::make_shared<ov::op::v0::Convert>(
-            create_constant_node(ov::element::f8e4m3, convert_shape, gen), netPrc);
+            ov::test::utils::make_constant(ov::element::f8e4m3, convert_shape, ov::test::utils::InputGenerateData(0, 1)), netPrc);
 
         // Multiply_3
         const auto mul_3 = std::make_shared<ov::op::v1::Multiply>(convert_3,
-            create_constant_node(netPrc, mul_shape, gen));
+            ov::test::utils::make_constant(netPrc, mul_shape, ov::test::utils::InputGenerateData(0, 1)));
 
         // MatMul_3
         auto matmul_3 = std::make_shared<ov::op::v0::MatMul>(fake_convert_1, mul_3);
@@ -401,6 +387,7 @@ public:
 
     void check_init_graph_node() override {
         CheckNumberOfNodesWithType(compiledModel, "FakeConvert", 0);
+        CheckNumberOfNodesWithType(compiledModel, "FullyConnected", 2);
     }
 
     ov::Shape get_state_shape(size_t i) override {
