@@ -50,7 +50,7 @@ void RuntimeConfigurator::reset_kernel_executor_table() const {
 
 const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const lowered::LinearIRCPtr& linear_ir) {
     // First initialization
-    if (m_io_num == 0)
+    if (m_config->io_num == 0)
         initialization(linear_ir);
 
     update(linear_ir);
@@ -64,9 +64,9 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     init_tensor_rank(linear_ir);
     init_buffer_info(linear_ir);
 
-    OPENVINO_ASSERT(m_io_num > 0, "LinearIR must have parameters and results");
-    m_config->latest_shapes.resize(m_io_num);
-    m_config->io_data_offsets.resize(m_io_num);
+    OPENVINO_ASSERT(m_config->io_num > 0, "LinearIR must have parameters and results");
+    m_config->latest_shapes.resize(m_config->io_num);
+    m_config->io_data_offsets.resize(m_config->io_num);
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
 
     RuntimeOptimizer::register_if_applicable<MHAParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this);
@@ -101,10 +101,10 @@ void RuntimeConfigurator::init_tensor_rank(const lowered::LinearIRCPtr& linear_i
 void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir) {
     const auto& parameters = linear_ir->get_parameters();
     const auto& results = linear_ir->get_results();
-    m_in_num = parameters.size();
-    m_io_num = m_in_num + results.size();
-    m_io_descs.reserve(m_io_num);
-    m_io_data_sizes.reserve(m_io_num);
+    m_config->in_num = parameters.size();
+    m_config->io_num = m_config->in_num + results.size();
+    m_io_descs.reserve(m_config->io_num);
+    m_io_data_sizes.reserve(m_config->io_num);
 
     auto update_io_parameters = [&](const PortDescriptorPtr& desc, const ov::element::Type& etype) {
         OPENVINO_ASSERT(desc, "IO Descriptor is missed!");
@@ -291,9 +291,9 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
 void RuntimeConfigurator::update_data_offsets() const {
     const auto& shapes = m_config->io_shapes;
     const auto& layouts = m_config->io_layouts;
-    OPENVINO_ASSERT(shapes.size() == m_io_num, "Number of custom shapes must be 0 or be equal to m_io_num");
-    OPENVINO_ASSERT(layouts.size() == m_io_num, "Number of custom layouts must be 0 or be equal to m_io_num");
-    for (size_t i = 0; i < m_io_num; ++i) {
+    OPENVINO_ASSERT(shapes.size() == m_config->io_num, "Number of custom shapes must be 0 or be equal to m_config->io_num");
+    OPENVINO_ASSERT(layouts.size() == m_config->io_num, "Number of custom layouts must be 0 or be equal to m_config->io_num");
+    for (size_t i = 0; i < m_config->io_num; ++i) {
         // offsets represent distance between consecutive elements of corresponding dimension.
         // If a dim size == 1, then the next dim starts immediately and the stride is 0
         // case 1:
@@ -316,7 +316,7 @@ void RuntimeConfigurator::update_data_offsets() const {
         const auto& layout = layouts[i];
         if (!layout.empty()) {
             std::vector<size_t> reordered_offsets(offsets.size());
-            const auto is_input = i < m_in_num;
+            const auto is_input = i < m_config->in_num;
             for (size_t i = 0; i < layout.size(); i++) {
                 const auto& src_idx = is_input ? layout[i] : i;
                 const auto& dst_idx = is_input ? i : layout[i];
@@ -328,15 +328,15 @@ void RuntimeConfigurator::update_data_offsets() const {
 }
 
 std::vector<VectorDims> RuntimeConfigurator::extract_shapes() const {
-    std::vector<VectorDims> shapes(m_io_num);
-    for (size_t i = 0; i < m_io_num; ++i)
+    std::vector<VectorDims> shapes(m_config->io_num);
+    for (size_t i = 0; i < m_config->io_num; ++i)
         shapes[i] = m_io_descs[i]->get_shape();
     return shapes;
 }
 
 std::vector<std::vector<size_t>> RuntimeConfigurator::extract_layouts() const {
-    std::vector<std::vector<size_t>> layouts(m_io_num);
-    for (size_t i = 0; i < m_io_num; ++i)
+    std::vector<std::vector<size_t>> layouts(m_config->io_num);
+    for (size_t i = 0; i < m_config->io_num; ++i)
         layouts[i] = m_io_descs[i]->get_layout();
     return layouts;
 }

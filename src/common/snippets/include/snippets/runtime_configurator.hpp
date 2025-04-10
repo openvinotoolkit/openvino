@@ -43,6 +43,8 @@ public:
 
     size_t tensor_rank = 0;
     size_t tile_rank = 0;
+    size_t in_num = 0;
+    size_t io_num = 0;
 
     std::vector<ov::snippets::VectorDims> io_shapes = {};
     std::vector<ov::snippets::VectorDims> io_layouts = {};
@@ -88,8 +90,6 @@ public:
 
     // Getters for private members
     std::shared_ptr<RuntimeConfig> get_config() const { return m_config; }
-    size_t get_io_num() const { return m_io_num; }
-    size_t get_in_num() const { return m_in_num; }
     const std::vector<snippets::lowered::PortDescriptorPtr>& get_io_descs() const { return m_io_descs; }
     const std::vector<size_t>& get_io_data_sizes() const { return m_io_data_sizes; }
     const std::map<size_t, std::set<lowered::BufferExpressionPtr>>& get_dynamic_buffer_clusters() const { return m_dynamic_buffer_clusters; }
@@ -190,8 +190,6 @@ protected:
 
     std::shared_ptr<RuntimeConfig> m_config = nullptr;
 
-    size_t m_io_num = 0;
-    size_t m_in_num = 0;
     std::vector<snippets::lowered::PortDescriptorPtr> m_io_descs = {};
     std::vector<size_t> m_io_data_sizes = {};
     // [cluster_id -> buffer expressions ]
