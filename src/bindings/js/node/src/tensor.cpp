@@ -196,7 +196,6 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
 void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
 
-    // Controlla che ci sia un solo argomento e che sia un oggetto
     if (info.Length() != 1 || !info[0].IsObject()) {
         Napi::TypeError::New(env, "The copyTo method requires one argument of type Tensor.").ThrowAsJavaScriptException();
         return;
