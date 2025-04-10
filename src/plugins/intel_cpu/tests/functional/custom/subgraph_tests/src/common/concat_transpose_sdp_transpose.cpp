@@ -20,10 +20,9 @@ namespace test {
 using InputShapeAndTransposeOrder = std::pair<std::vector<InputShape>, std::vector<size_t>>;
 using ConcatSDPTransposeTestParams = std::tuple<ElementType,
                                                 InputShapeAndTransposeOrder,
-                                                bool,    // has ShapeOf
-                                                bool,    // quantize by channel
-                                                size_t,  // group_size,
-                                                bool     // invalid beam_idx
+                                                bool,   // has ShapeOf
+                                                bool,   // quantize by channel
+                                                size_t  // group_size
                                                 >;
 // Subgraph:
 /*                              Parameter
@@ -58,8 +57,7 @@ public:
         bool hasShapeof;
         bool quantKeyByChannel;
         size_t groupSize;
-        bool wrongBeamIdx;
-        std::tie(inType, inputShapeAndOrders, hasShapeof, quantKeyByChannel, groupSize, wrongBeamIdx) = obj.param;
+        std::tie(inType, inputShapeAndOrders, hasShapeof, quantKeyByChannel, groupSize) = obj.param;
         std::ostringstream result;
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
@@ -80,7 +78,6 @@ public:
         result << "Prc=" << inType << "_";
         result << "HasShapeOf=" << hasShapeof << "_";
         result << "quantKeyByChannel=" << quantKeyByChannel << "_";
-        result << "wrongBeamIdx=" << wrongBeamIdx << "_";
         result << "groupSize=" << groupSize << "_";
         result << "TransposeOrder=";
         result << "(";
@@ -95,8 +92,7 @@ public:
     void SetUp() override {
         ElementType inType;
         InputShapeAndTransposeOrder inputShapeAndOrders;
-        std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, keyGroupSize, wrongBeamIdx) =
-            this->GetParam();
+        std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, keyGroupSize) = this->GetParam();
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         transposeOrder = inputShapeAndOrders.second;
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -220,7 +216,7 @@ public:
             value += stride;
         }
     }
-    void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
+    virtual void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
         auto create_input = [this](std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == ov::element::i32) {
@@ -228,14 +224,9 @@ public:
                 auto size = shape[0];
                 auto* p = static_cast<int*>(t.data());
                 auto start = static_cast<int>(val);
-
                 for (size_t i = 0; i < size; i++) {
                     p[i] = (start + i) % size;
                 }
-                if (wrongBeamIdx) {
-                    p[size - 1] = size + 1024;
-                }
-
                 inputs.insert({param, t});
             } else if (param->get_element_type() == ov::element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
@@ -273,7 +264,6 @@ public:
     size_t keyGroupSize = 0;
     bool quantKeyByChannel = false;
     bool hasShapeOf;
-    bool wrongBeamIdx;
 };
 
 class ConcatSDPTransposeTest : public ConcatSDPTransposeTestBase {
@@ -319,13 +309,7 @@ public:
 
 TEST_P(ConcatSDPTransposeTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::vector<ov::Tensor> actualOutputs;
-    if (wrongBeamIdx) {
-        ASSERT_THROW(run_test(function), ov::Exception);
-    } else {
-        actualOutputs = run_test(function);
-    }
-
+    auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
@@ -368,8 +352,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTest,
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false),
                                             ::testing::Values(false),
-                                            ::testing::Values(0),
-                                            ::testing::Values(false, true)),
+                                            ::testing::Values(0)),
                          ConcatSDPTransposeTest::getTestCaseName);
 
 const std::vector<InputShapeAndTransposeOrder> shapesWithGreedySearch = {
@@ -397,8 +380,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeByChannelTest,
                                             ::testing::ValuesIn(shapesWithGreedySearch),
                                             ::testing::Values(false),
                                             ::testing::Values(true),
-                                            ::testing::Values(8),
-                                            ::testing::Values(false)),
+                                            ::testing::Values(8)),
                          ConcatSDPTransposeTest::getTestCaseName);
 }  //  namespace
 
@@ -499,8 +481,7 @@ TEST_P(ConcatSDPTransposeTestSetState, CompareWithRefs) {
     bool hasShapeOf;
     bool quantKeyByChannel;
     size_t groupSize;
-    bool wrongBeamIdx;
-    std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize, wrongBeamIdx) = this->GetParam();
+    std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize) = this->GetParam();
 
     // skip bf16 test on avx512 platform
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
@@ -537,8 +518,72 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestSetState,
                                             ::testing::ValuesIn(inputShapeAndReordersSetState),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
-                                            ::testing::Values(0),
-                                            ::testing::Values(false)),
+                                            ::testing::Values(0)),
+                         ConcatSDPTransposeTest::getTestCaseName);
+
+class ConcatSDPTransposeTestWrongBeamIdx : public ConcatSDPTransposeTest {
+public:
+    void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        auto create_input = [this](std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
+            if (param->get_element_type() == ov::element::i32) {
+                ov::Tensor t{ov::element::i32, shape};
+                auto size = shape[0];
+                auto* p = static_cast<int*>(t.data());
+                auto start = static_cast<int>(val);
+
+                for (size_t i = 0; i < size; i++) {
+                    p[i] = (start + i) % size + 1024;
+                }
+
+                inputs.insert({param, t});
+            } else if (param->get_element_type() == ov::element::f32) {
+                ov::Tensor t{ov::element::f32, shape};
+                strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
+            } else if (param->get_element_type() == ov::element::f16) {
+                ov::Tensor t{ov::element::f16, shape};
+                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
+            } else {
+                ASSERT_TRUE(param->get_element_type() == ov::element::bf16);
+                ov::Tensor t{ov::element::bf16, shape};
+                strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
+            }
+        };
+        // q, k, v, pastkv
+        create_input(function->get_parameters()[0], targetInputStaticShapes[0], idx + 1.0f);
+        create_input(function->get_parameters()[1], targetInputStaticShapes[0], idx + 2.0f);
+        create_input(function->get_parameters()[2], targetInputStaticShapes[0], idx + 3.0f);
+        create_input(function->get_parameters()[3], targetInputStaticShapes[1], idx + 4.0f);
+        create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][0]}, idx + 0.0f);
+    }
+};
+
+TEST_P(ConcatSDPTransposeTestWrongBeamIdx, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ElementType inType;
+    InputShapeAndTransposeOrder inputShapeAndOrders;
+    bool hasShapeOf;
+    bool quantKeyByChannel;
+    size_t groupSize;
+    std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize) = this->GetParam();
+
+    // skip bf16 test on avx512 platform
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
+    ASSERT_THROW(run_test(function), ov::Exception);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestWrongBeamIdx,
+                         ConcatSDPTransposeTestWrongBeamIdx,
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
+                                            ::testing::ValuesIn(inputShapeAndReordersSetState),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0)),
                          ConcatSDPTransposeTest::getTestCaseName);
 
 }  // namespace
