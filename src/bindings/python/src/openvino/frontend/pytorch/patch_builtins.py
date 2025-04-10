@@ -11,10 +11,10 @@ originals_map = {
 
 def patched_divmod(a, b):
     if isinstance(a, torch.Tensor):
-        q = torch.div(a, b, rounding_mode='trunc')
+        q = torch.div(a, b, rounding_mode="trunc")
         r = torch.remainder(a, b)
         return q, r
-    return originals_map['divmod'](a, b)
+    return originals_map["divmod"](a, b)
 
 
 patches_map = {
