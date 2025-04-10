@@ -193,6 +193,7 @@
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 
 namespace ov::intel_cpu {

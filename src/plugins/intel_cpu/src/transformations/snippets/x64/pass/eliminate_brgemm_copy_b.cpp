@@ -5,6 +5,7 @@
 #include "eliminate_brgemm_copy_b.hpp"
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
