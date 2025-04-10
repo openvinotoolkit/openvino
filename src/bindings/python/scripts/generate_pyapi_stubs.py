@@ -28,6 +28,7 @@ def sanitize_file(file_path):
     content = [re.sub(r"__version__: str = '[^']*'", "__version__: str = 'version_string'", line) for line in content]
     content = [re.sub(r"<function <lambda> at 0x[0-9a-fA-F]+>", "<function <lambda> at memory_address>", line) for line in content]
     content = [re.sub(r": \.\.\.", ": typing.Any", line) for line in content]
+    content = [re.sub(r"from pathlib\._local import Path", "from pathlib import Path", line) for line in content]
     content = [re.sub(r"pass: MatcherPass", "matcher_pass: MatcherPass", line) for line in content]
 
     # Sort imports

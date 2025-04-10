@@ -81,7 +81,7 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
                 changes = [
                     line.lstrip('+- ') for line in diff
                     if line.startswith(('+', '-'))                                  # Changes only
-                    and not line.startswith(('+++ Committed:', '--- Generated:'))   # We don't care about diff headers
+                    and not line.startswith(('+++ Committed:', '--- Generated:'))   # Disregard diff headers
                 ]
                 if changes and not all(
                     change.startswith(("import", "from", "__all__")) or             # Import order is irrelevant
