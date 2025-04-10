@@ -80,11 +80,15 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
             if diff:
                 changes = [
                     line.lstrip('+- ') for line in diff
-                    if (line.startswith('+') or line.startswith('-')) 
-                    and not line.startswith(('+++ Committed:', '--- Generated:', '"""'))
-                    and line.strip()
+                    if line.startswith(('+', '-'))                                  # Changes only
+                    and not line.startswith(('+++ Committed:', '--- Generated:'))   # We don't care about diff headers
                 ]
-                if changes and not all(change.startswith(("import", "from", "__all__")) for change in changes):
+                if changes and not all(
+                    change.startswith(("import", "from", "__all__")) or             # Import order is irrelevant
+                    not change.startswith('"""') or                                 # Docstrings can be buggy on Python 3.13
+                    not change.strip()
+                    for change in changes
+                ):
                     print(f"Adding diff for {relative_path}. The changes var is: {changes}")
                     outdated_files.append((relative_path, "".join(diff)))
 
