@@ -69,9 +69,10 @@ auto scalar_predicate = [](const Output<Node>& output) {
 
 pass::FuseBrgemmCPUPostops::FuseBrgemmCPUPostops(std::set<size_t>& brgemm_external_params_idces)
     : m_brgemm_external_params_idces(brgemm_external_params_idces) {
+    add_matcher<FuseConvert>();
+    add_matcher<FuseUnaryEltwise>();
     add_matcher<FuseScaleShift>();
     add_matcher<FuseClip>();
-    add_matcher<FuseConvert>();
     add_matcher<FuseScalarEltwise>();
     add_matcher<FuseBinaryEltwise>(m_external_params);
 }
@@ -124,6 +125,48 @@ pass::FuseConvert::FuseConvert() {
     register_matcher(m, callback);
 }
 
+pass::FuseUnaryEltwise::FuseUnaryEltwise() {
+    MATCHER_SCOPE(FuseUnaryEltwise);
+
+    auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
+    auto m_round = wrap_type<ov::op::v5::Round>({m_brgemm});
+
+    auto callback = [=](Matcher& m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseUnaryEltwise")
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto round = ov::as_type_ptr<ov::op::v5::Round>(pattern_map.at(m_round).get_node_shared_ptr());
+        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
+
+        auto postops_config = brgemm->get_postops_config();
+        postops_config.forced_output_type = round->get_output_element_type(0);
+
+        auto append_eltwise = [&postops_config, &round](alg_kind_t alg_kind) {
+            OPENVINO_ASSERT(postops_config.post_ops.append_eltwise(1.f, alg_kind, 0.f, 0.f) == dnnl_success,
+                            "Failed to append unary eltwise ",
+                            round);
+        };
+
+        const auto mode = round->get_mode();
+        if (mode == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {
+            append_eltwise(alg_kind_t::dnnl_eltwise_round_half_to_even);
+        } else if (mode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {
+            append_eltwise(alg_kind_t::dnnl_eltwise_round_half_away_from_zero);
+        } else {
+            OPENVINO_THROW("Unsupported round mode: ");
+        }
+
+        auto new_brgemm =
+            clone_with_new_params(brgemm, postops_config, brgemm->input_values(), brgemm->get_input_port_descriptors());
+        new_brgemm->set_friendly_name(round->get_friendly_name());
+        ov::copy_runtime_info({brgemm, round}, new_brgemm);
+        ov::replace_node(round, new_brgemm);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(m_round, matcher_name);
+    register_matcher(m, callback);
+}
+
 pass::FuseScalarEltwise::FuseScalarEltwise() {
     MATCHER_SCOPE(FuseScalarEltwise);
 
@@ -153,11 +196,12 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
 
     auto m_brgemm = wrap_type<BrgemmCPU>(brgemm_predicate);
     auto m_scalar = wrap_type<Scalar>(scalar_predicate);
-    auto m_scale = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_scalar}, not_scale_shift_pattern);
-    auto m_shift = wrap_type<ov::op::v1::Add>({m_brgemm, m_scalar});
+    auto m_mul = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_scalar}, not_scale_shift_pattern);
+    auto m_add = wrap_type<ov::op::v1::Add>({m_brgemm, m_scalar});
+    auto m_sub = wrap_type<ov::op::v1::Subtract>({m_brgemm, m_scalar});
     auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_scalar}, not_clip_pattern);
     auto m_min = wrap_type<ov::op::v1::Minimum>({m_brgemm, m_scalar});
-    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_scale, m_shift, m_max, m_min});
+    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add, m_sub, m_max, m_min});
 
     auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScalarEltwise")
@@ -180,10 +224,12 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
                             beta);
         };
 
-        if (pattern_map.count(m_scale)) {
+        if (pattern_map.count(m_mul)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_linear, scalar_value, 0.f);
-        } else if (pattern_map.count(m_shift)) {
+        } else if (pattern_map.count(m_add)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.f, scalar_value);
+        } else if (pattern_map.count(m_sub)) {
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.f, -scalar_value);
         } else if (pattern_map.count(m_max)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_clip, scalar_value, std::numeric_limits<float>::max());
         } else if (pattern_map.count(m_min)) {
@@ -216,9 +262,10 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
     auto m_rank_norm = optional<RankNormalization>(m_postop_input);
     auto m_mul = wrap_type<ov::op::v1::Multiply>({m_brgemm, m_rank_norm});
     auto m_add = wrap_type<ov::op::v1::Add>({m_brgemm, m_rank_norm});
+    auto m_sub = wrap_type<ov::op::v1::Subtract>({m_brgemm, m_rank_norm});
     auto m_max = wrap_type<ov::op::v1::Maximum>({m_brgemm, m_rank_norm});
     auto m_min = wrap_type<ov::op::v1::Minimum>({m_brgemm, m_rank_norm});
-    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add, m_max, m_min});
+    auto m_postop = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_mul, m_add, m_sub, m_max, m_min});
 
     auto callback = [=](Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseScalarEltwise")
@@ -259,6 +306,8 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
             append_binary(alg_kind_t::dnnl_binary_mul);
         } else if (pattern_map.count(m_add)) {
             append_binary(alg_kind_t::dnnl_binary_add);
+        } else if (pattern_map.count(m_sub)) {
+            append_binary(alg_kind_t::dnnl_binary_sub);
         } else if (pattern_map.count(m_max)) {
             append_binary(alg_kind_t::dnnl_binary_max);
         } else if (pattern_map.count(m_min)) {
