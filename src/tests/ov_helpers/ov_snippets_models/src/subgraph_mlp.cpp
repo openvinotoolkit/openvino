@@ -4,31 +4,57 @@
 
 #include "subgraph_mlp.hpp"
 #include "openvino/opsets/opset15.hpp"
+#include "ov_lpt_models/common/builders.hpp"
+#include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "ov_lpt_models/common/dequantization_operations.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
 std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
-    auto A = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
-    auto B = std::make_shared<ov::op::v0::Parameter>(precisions[1], input_shapes[1]);
-    auto add = std::make_shared<ov::op::v0::Parameter>(precisions[2], input_shapes[2]);
+    auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, input_shapes[0]);
+    auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, input_shapes[0].to_shape(), std::vector<float>{0.1122});
+    auto add = std::make_shared<ov::op::v0::Constant>(ov::element::f32, input_shapes[0].to_shape(), std::vector<float>{0.1122});
 
-    auto matmul = std::make_shared<ov::op::v0::MatMul>(A, B);
+    ov::builder::subgraph::FakeQuantizeOnData onData = { 256, {1, 1}, { -1.28f }, { 1.27f }, { 0.f }, { 255.f }, ov::element::u8};
+    auto fq_A = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(A, precisions[0], onData);
+    auto matmul = std::make_shared<op::TypeRelaxed<ov::op::v0::MatMul>>(
+        std::vector<element::Type>{ element::f32, element::f32 },
+            std::vector<element::Type>{ element::f32 },
+            ov::op::TemporaryReplaceOutputType(fq_A, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(B, element::f32).get(), false, true);
 
     std::shared_ptr<Node> current = matmul;
 
+    current = std::make_shared<op::TypeRelaxed<ov::op::v1::Multiply>>(
+        std::vector<element::Type>{element::f32, element::f32},
+        std::vector<element::Type>{element::f32},
+        ov::op::TemporaryReplaceOutputType(matmul, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(add, element::f32).get());
     for (size_t i = 0; i < num_layers; ++i) {
-        current = std::make_shared<ov::op::v1::Add>(matmul, add);
+        auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{64}, std::vector<float>{0.1122 + i});
+        current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
+            std::vector<element::Type>{element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(constant, element::f32).get());
     }
+    current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, precisions[0], onData);
+    auto softmax = std::make_shared<ov::op::v8::Softmax>(current, 1);
+    ov::builder::subgraph::FakeQuantizeOnData onData1 = { 256, {1, 1}, { -1.28f }, { 1.27f }, { 0.f }, { 255.f }, ov::element::i8};
+    auto dq_A = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(softmax, precisions[0], onData1);
 
-    auto result = std::make_shared<ov::op::v0::Result>(current);
-    return std::make_shared<Model>(ResultVector{result}, ParameterVector{A, B, add});
+    auto result = std::make_shared<ov::op::v0::Result>(dq_A);
+    return std::make_shared<Model>(ResultVector{result}, ParameterVector{A});
 }
 
 std::shared_ptr<ov::Model> MLPSeqFunction::initReference() const {
-    // Reference implementation can be added here if needed
-    return initOriginal();
+    auto A = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
+    auto B = std::make_shared<ov::op::v0::Constant>(ov::element::u8, input_shapes[0].to_shape(), std::vector<float>{0.1122});
+    auto add = std::make_shared<ov::op::v0::Constant>(ov::element::u8, input_shapes[0].to_shape(), std::vector<uint8_t>{1});
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    return std::make_shared<Model>(ResultVector{result}, ParameterVector{A});
 }
 
 }  // namespace snippets
