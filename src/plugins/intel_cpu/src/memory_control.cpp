@@ -28,10 +28,10 @@ public:
     [[nodiscard]] void* getRawPtr() const noexcept override {
         return static_cast<uint8_t*>(m_pBlock->getRawPtr()) + m_offset;
     }
-    void setExtBuff(void* ptr, size_t size) override {
+    void setExtBuff([[maybe_unused]] void* ptr, [[maybe_unused]] size_t size) override {
         OPENVINO_THROW("Unexpected setExtBuff call to StaticPartitionMemoryBlock");
     }
-    bool resize(size_t size) override {
+    bool resize([[maybe_unused]] size_t size) override {
         // don't pass over as it's static memory
         return false;
     }
@@ -161,8 +161,7 @@ public:
     using BlockType = MemoryBlockWithReuse;
 
 public:
-    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
-        (void)syncInds;
+    void insert(const MemoryRegion& reg, [[maybe_unused]] const std::vector<size_t>& syncInds) override {
         auto block = make_unique<BlockType>();
         CPU_DEBUG_CAP_ENABLE(m_blocks.emplace_back(*block);)
         m_solution.insert({reg.id, makeDnnlMemoryBlock(std::move(block))});
@@ -192,8 +191,7 @@ private:
 
 class MemoryManagerStatic : public IMemoryManager {
 public:
-    void insert(const MemoryRegion& reg, const std::vector<size_t>& syncInds) override {
-        (void)syncInds;
+    void insert(const MemoryRegion& reg, [[maybe_unused]] const std::vector<size_t>& syncInds) override {
         OPENVINO_ASSERT(reg.size >= 0, getClassName(), ": got undefined block size");
         m_boxes.emplace_back(MemorySolver::Box{reg.start, reg.finish, reg.size, reg.id});
         reset_flag = true;

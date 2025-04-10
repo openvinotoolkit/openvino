@@ -266,7 +266,8 @@ bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, con
     return true;
 }
 
-bool Transformations::fuse_type_to_pa(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+bool Transformations::fuse_type_to_pa(const std::shared_ptr<ov::Node>& node,
+                                      [[maybe_unused]] const precisions_map& precisions) {
     auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
     if (!pa) {
         return false;
@@ -704,7 +705,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
-    auto nmsCallback = [](const_node_ptr& node) -> bool {
+    auto nmsCallback = []([[maybe_unused]] const_node_ptr& node) -> bool {
         // TODO: remove nmsCallback at all
         const bool isLegacyApi = false;
         return isLegacyApi ? false : true;
@@ -1214,8 +1215,11 @@ void Transformations::MainSnippets() {
         if (shape.is_dynamic()) {
             return false;
         }
-        const auto parallel_work_amount =
-            std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<>());
+        auto parallel_work_amount = ov::Dimension(1);
+        if (shape.size() > 2) {
+            parallel_work_amount =
+                std::accumulate(shape.rbegin() + 2, shape.rend(), parallel_work_amount, std::multiplies<>());
+        }
         // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
@@ -1256,7 +1260,11 @@ void Transformations::MainSnippets() {
                                    ov::op::v0::Sqrt,
                                    ov::op::v1::Subtract,
                                    ov::op::v4::Swish,
-                                   ov::op::v0::Tanh>(n));
+                                   ov::op::v0::Tanh,
+                                   ov::op::v1::LogicalAnd,
+                                   ov::op::v1::LogicalOr,
+                                   ov::op::v1::LogicalXor,
+                                   ov::op::v1::LogicalNot>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
@@ -1371,8 +1379,8 @@ void Transformations::MainSnippets() {
         },
         snippets::pass::TokenizeSnippets);
 
-    auto mm_supports_transpose_b = [this](const std::shared_ptr<const ov::Node>& n) {
-        MAYBE_UNUSED(config.inferencePrecision);
+    auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) {
+        [[maybe_unused]] const auto& inferencePrecision = config.inferencePrecision;
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -1389,7 +1397,7 @@ void Transformations::MainSnippets() {
             }
             ov::element::TypeVector precisions;
             auto push_precision = [&](const ov::element::Type& precision) {
-                if (config.inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
+                if (inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
                     precisions.push_back(ov::element::bf16);
                 else
                     precisions.push_back(precision);

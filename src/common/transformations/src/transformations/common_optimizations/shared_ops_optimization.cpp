@@ -45,23 +45,26 @@ public:
     void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare models");
     };
-    ov::AnyMap get_attributes_map() const {
+
+    ov::AnyMap visit_attributes(const std::shared_ptr<Node>& node) {
+        m_attributes_map.clear();
+        node->visit_attributes(*this);
         return m_attributes_map;
-    };
+    }
 
 private:
     ov::AnyMap m_attributes_map;
 };
 
 bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs) {
-    if (lhs->get_input_size() != rhs->get_input_size())
-        return false;
     size_t input_size = lhs->get_input_size();
+    if (input_size != rhs->get_input_size())
+        return false;
     for (size_t i = 0; i < input_size; ++i) {
-        if (lhs->input_value(i) == rhs->input_value(i))
+        if (ov::op::util::input_sources_are_equal(lhs, rhs, i))
             continue;
-        auto lhs_constant = as_type_ptr<v0::Constant>(lhs->get_input_node_shared_ptr(i));
-        auto rhs_constant = as_type_ptr<v0::Constant>(rhs->get_input_node_shared_ptr(i));
+        auto lhs_constant = as_type<v0::Constant>(lhs->get_input_node_ptr(i));
+        auto rhs_constant = as_type<v0::Constant>(rhs->get_input_node_ptr(i));
         if (!lhs_constant || !rhs_constant)
             return false;
         if (lhs_constant->get_element_type() != rhs_constant->get_element_type())
@@ -74,7 +77,17 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
     return true;
 }
 
-bool nodes_are_equal(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs) {
+void collect_node_attrs(const std::shared_ptr<Node>& node,
+                        std::unordered_map<std::shared_ptr<ov::Node>, ov::AnyMap>& node_attributes_cache) {
+    if (node_attributes_cache.count(node))
+        return;
+    static auto visitor = NodeComparingVisitor();
+    node_attributes_cache[node] = visitor.visit_attributes(node);
+}
+
+bool nodes_are_equal(const std::shared_ptr<Node>& lhs,
+                     const std::shared_ptr<Node>& rhs,
+                     std::unordered_map<std::shared_ptr<ov::Node>, ov::AnyMap>& node_attributes_cache) {
     // making sure that nodes are of the same type
     if (lhs->get_type_info() != rhs->get_type_info())
         return false;
@@ -86,19 +99,22 @@ bool nodes_are_equal(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Nod
     if (!rhs->get_control_dependents().empty() || !rhs->get_control_dependencies().empty())
         return false;
     // skip comparing rt_info. example: fused_name may have different strings
+    // compare inputs: should be same Output<Node> or equal constants
+    if (!inputs_from_same_source_or_equal_constants(lhs, rhs))
+        return false;
     // compare attributes
     try {
-        auto lhs_visitor = NodeComparingVisitor(), rhs_visitor = NodeComparingVisitor();
-        lhs->visit_attributes(lhs_visitor);
-        rhs->visit_attributes(rhs_visitor);
-        if (lhs_visitor.get_attributes_map() != rhs_visitor.get_attributes_map())
+        collect_node_attrs(lhs, node_attributes_cache);
+        collect_node_attrs(rhs, node_attributes_cache);
+        OPENVINO_ASSERT(node_attributes_cache.count(lhs) && node_attributes_cache.count(rhs));
+        if (node_attributes_cache[lhs] != node_attributes_cache[rhs])
             return false;
     } catch (...) {
         // we avoid errors during comparison of objects without equality operands
         // assuming they are not equal
         return false;
     }
-    return inputs_from_same_source_or_equal_constants(lhs, rhs);
+    return true;
 }
 
 bool shared_node_optimization(const shared_ptr<Model>& model) {
@@ -107,6 +123,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
     const auto& order = model->get_ordered_ops();
     for (size_t i = 0; i < order.size(); ++i)
         index_map[order[i]] = i;
+    std::unordered_map<std::shared_ptr<ov::Node>, ov::AnyMap> node_attributes_cache;
     for (const auto& op : order) {
         // Recursively apply transformation for sub-graph based operations
         if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
@@ -115,7 +132,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                     rewritten = shared_node_optimization(sub_graph) || rewritten;
             }
         }
-        for (auto& output : op->outputs()) {
+        for (const auto& output : op->outputs()) {
             const auto& target_inputs = output.get_target_inputs();
             if (target_inputs.size() <= 1)
                 continue;  // nothing to optimize
@@ -151,7 +168,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                             continue;
                         }
 
-                        if (nodes_are_equal(root_op, child_op)) {
+                        if (nodes_are_equal(root_op, child_op, node_attributes_cache)) {
                             rewritten =
                                 replace_output_update_name(child_op->output(0), root_op->output(0)) || rewritten;
                             visited_nodes[j] = true;

@@ -30,15 +30,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()
 
-if(OV_COMPILER_IS_CLANG)
-    # -Wno-delete-non-abstract-non-virtual-dtor is support > clang 9.0
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
-        ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
-    else()
-        ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
-    endif()
-endif()
-
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # 4267 4244 conversion from 'XXX' to 'YYY', possible loss of data
     ov_add_compiler_flags(/wd4244)
@@ -54,7 +45,8 @@ if(ENABLE_GPU_DEBUG_CAPS)
     add_definitions(-DENABLE_DEBUG_CAPS=1)
 endif()
 
-set(INTEL_GPU_TARGET_OCL_VERSION "200" CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
+set(INTEL_GPU_TARGET_OCL_VERSION "300"
+  CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
 
 add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 
