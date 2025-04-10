@@ -229,7 +229,7 @@ void NonMaxSuppression::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NonMaxSuppression::execute(const dnnl::stream& strm) {
+void NonMaxSuppression::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto inputs_num = inputShapes.size();
 
     size_t max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
@@ -955,7 +955,7 @@ float NonMaxSuppression::intersectionOverUnion(const float* boxesI, const float*
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
-void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name, const size_t port) {
+void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name, [[maybe_unused]] const size_t port) {
     if (shape.getRank() != 0 && shape.getRank() != 1) {
         THROW_CPU_NODE_ERR("has unsupported '", name, "' input rank: ", shape.getRank());
     }
@@ -966,7 +966,7 @@ void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name
     }
 }
 
-void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name, const size_t port) {
+void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name, [[maybe_unused]] const size_t port) {
     if (shape.getRank() != 2) {
         THROW_CPU_NODE_ERR("has unsupported '", name, "' output rank: ", shape.getRank());
     }
