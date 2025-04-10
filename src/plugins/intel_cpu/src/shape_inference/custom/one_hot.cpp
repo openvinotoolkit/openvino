@@ -22,7 +22,7 @@ Result OneHotShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
     }
     auto result = input_shapes.front().get();
     auto depth_pos = result.begin();
-    if (result.size() > 0) {
+    if (!result.empty()) {
         depth_pos += m_axis;
     }
     result.insert(depth_pos, depth);
