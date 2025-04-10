@@ -285,7 +285,6 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
         }
         FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
-        jit.AddConstant(MakeJitConstant("GATHER_CHANNEL_INDEX", GetGatherChannelIndex(params)));
     }
 
     if (params.compressed) {
