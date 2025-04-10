@@ -160,6 +160,17 @@ Pipeline::Pipeline(const Config& config,
     _logger.debug("Pipeline - initialize completed");
 }
 
+Pipeline::Pipeline(const Config& config,
+                   const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                   const std::shared_ptr<IGraph>& graph,
+                   std::string logName)
+    : _init_structs(init_structs),
+      _graph(graph),
+      _config(config),
+      _id(_graph->get_unique_id()),
+      _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
+      _logger(logName, _config.get<LOG_LEVEL>()) {}
+
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
@@ -178,7 +189,6 @@ void Pipeline::push() {
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         _command_lists.at(i)->close();
-
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (_sync_output_with_fences) {
             _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));

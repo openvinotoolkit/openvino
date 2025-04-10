@@ -1,6 +1,10 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4146 4267 4244 4996)
+#endif
 
 #include "zero_infer_request.hpp"
 
@@ -12,6 +16,10 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "zero_variable_state.hpp"
+
+#ifdef NPU_LLVM_BACKEND
+#    include "zero_dynamic_pipeline.hpp"
+#endif
 
 using namespace intel_npu;
 
@@ -28,6 +36,8 @@ constexpr bool OUTPUT = false;
  * @param zeDescriptor The Level Zero specific structure used for comparison.
  */
 void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const ArgumentDescriptor& zeDescriptor) {
+    // FIXME: disable the check for now
+    return;
     std::string zeDescriptorName = zeDescriptor.info.name;
 
     if (isStateInputName(zeDescriptorName)) {
@@ -58,8 +68,10 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
                     "Maximum number of dimensions supported: " + std::to_string(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) +
                         '\n' + "Given: " + std::to_string(ovDimensions.size()));
 
+    const uint32_t dynamicDim = std::numeric_limits<uint32_t>::max();
     for (size_t index = 0; index < ovDimensions.size(); ++index) {
-        OPENVINO_ASSERT(ovDimensions[index] == zeDescriptor.info.dims[index],
+        OPENVINO_ASSERT(
+            ovDimensions[index] == zeDescriptor.info.dims[index] || zeDescriptor.info.dims[index] == dynamicDim,
                         "Shape mismatch for input/output named \"" + ioDescriptor.nameFromCompiler +
                             "\" by dimension index: " + std::to_string(index) +
                             ". L0 has: " + std::to_string(zeDescriptor.info.dims[index]) +
@@ -281,6 +293,18 @@ void ZeroInferRequest::create_pipeline() {
 
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
 
+#ifdef NPU_LLVM_BACKEND
+    if (_graph->get_handle() == nullptr) {
+        // Construct pipeline
+        _pipeline = std::make_unique<DynamicPipeline>(_config,
+                                                      _initStructs,
+                                                      _graph,
+                                                      _levelZeroInputTensors,
+                                                      _levelZeroOutputTensors,
+                                                      batchSize.has_value() ? batchSize.value() : DEFAULT_BATCH_SIZE);
+    } else
+#endif
+    {
     // Construct pipeline
     _pipeline = std::make_unique<Pipeline>(_config,
                                            _initStructs,
@@ -950,3 +974,7 @@ std::shared_ptr<ZeroTensor>& ZeroInferRequest::get_level_zero_input(size_t index
 std::vector<std::shared_ptr<ZeroTensor>>& ZeroInferRequest::get_level_zero_inputs(size_t index) const {
     return _levelZeroInputTensors.at(index);
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif

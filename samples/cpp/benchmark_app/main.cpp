@@ -1288,7 +1288,44 @@ int main(int argc, char* argv[]) {
 
         // wait the latest inference executions
         inferRequestsQueue.wait_all();
-
+#ifdef NPU_LLVM_BACKEND
+        auto outputTensor = inferRequestsQueue.requests[0]->get_tensor("output");
+        // print 10 numbers from the output
+        std::cout << "First 10 numbers of the output: ";
+#ifdef _WIN32
+	for (size_t i = 0; i < min(outputTensor.get_size(), static_cast<size_t>(10)); i++) {
+#else
+	for (size_t i = 0; i < std::min(outputTensor.get_size(), static_cast<size_t>(10)); i++) {
+#endif
+            std::cout << outputTensor.data<float>()[i] << " ";
+        }
+        std::cout << std::endl;
+        auto inputTensor = inferRequestsQueue.requests[0]->get_tensor("input");
+        // print 10 numbers from the output
+        std::cout << "First 10 numbers of the input: ";
+#ifdef _WIN32
+        for (size_t i = 0; i < min(inputTensor.get_size(), static_cast<size_t>(10)); i++) {
+#else
+        for (size_t i = 0; i < std::min(inputTensor.get_size(), static_cast<size_t>(10)); i++) {
+#endif
+            std::cout << inputTensor.data<float>()[i] << " ";
+        }
+        std::cout << std::endl;
+        bool passed = true;
+        float ref = 3.f;
+        for (size_t i = 0; i < outputTensor.get_size(); i++) {
+            if (std::abs(outputTensor.data<float>()[i] - ref) > 1e-6) {
+                passed = false;
+                std::cout << "Test failed" << std::endl;
+                std::cout << "Output[" << i << "] = " << outputTensor.data<float>()[i] << std::endl;
+                break;
+            }
+        }
+        if (passed) {
+            std::cout << "Test passed" << std::endl;
+        }
+        std::cout << std::endl;
+#endif
         LatencyMetrics generalLatency(inferRequestsQueue.get_latencies(), "", FLAGS_latency_percentile);
         std::vector<LatencyMetrics> groupLatencies = {};
         if (FLAGS_pcseq && app_inputs_info.size() > 1) {
