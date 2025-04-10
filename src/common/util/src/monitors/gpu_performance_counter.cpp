@@ -52,7 +52,7 @@ public:
         for (std::size_t i = 0; i < deviceLuidLow.length(); i += 2) {
             luid_win.insert(0, deviceLuidLow.substr(i, 2));
         }
-        std::transform(luid_win.begin(), luid_win.end(), luid_win.begin(), std::toupper);
+        std::transform(luid_win.begin(), luid_win.end(), luid_win.begin(), ::toupper);
         std::string full3DCounterPath =
             std::string("\\GPU Engine(*_luid_*" + luid_win + "_phys*engtype_3D)\\Utilization Percentage");
         std::string fullComputeCounterPath =
