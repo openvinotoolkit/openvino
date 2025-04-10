@@ -253,6 +253,7 @@ OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_take_along_dim);
+OP_CONVERTER(translate_tensordot);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
@@ -720,6 +721,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
         {"aten::take_along_dim", op::translate_take_along_dim},
+        {"aten::tensordot", op::translate_tensordot},
         {"aten::tan", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tan>, 1>},
         {"aten::tan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tan>>},
         {"aten::tanh", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Tanh>, 1>},
