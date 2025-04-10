@@ -142,7 +142,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
             if (str.substr(0, 4) != "cpu:") {
                 continue;
             }
-            inputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            memoryFormatFilter.input.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 
@@ -154,7 +154,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
             if (str.substr(0, 4) != "cpu:") {
                 continue;
             }
-            outputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            memoryFormatFilter.output.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 
@@ -957,7 +957,7 @@ void Node::initSupportedPrimitiveDescriptors() {
 }
 
 void Node::filterSupportedPrimitiveDescriptors() {
-    if (inputMemoryFormatsFilter.empty() && outputMemoryFormatsFilter.empty()) {
+    if (memoryFormatFilter.empty()) {
         return;
     }
 
@@ -970,27 +970,27 @@ void Node::filterSupportedPrimitiveDescriptors() {
 
     auto isNotSuitableDesc = [&](const NodeDesc& desc) {
         const auto& config = desc.getConfig();
-        if (inputMemoryFormatsFilter.size() > config.inConfs.size() ||
-            outputMemoryFormatsFilter.size() > config.outConfs.size()) {
+        if (memoryFormatFilter.input.size() > config.inConfs.size() ||
+            memoryFormatFilter.output.size() > config.outConfs.size()) {
             OPENVINO_THROW("Incorrect number of input or output memory formats");
         }
 
-        for (size_t i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-            if (!areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i])) {
+        for (size_t i = 0; i < memoryFormatFilter.input.size(); i++) {
+            if (!areCompatible(*config.inConfs[i].getMemDesc(), memoryFormatFilter.input[i])) {
                 DEBUG_LOG(getName(),
                           " input memory format filter: ",
-                          inputMemoryFormatsFilter[i],
+                          memoryFormatFilter.input[i],
                           " not matched. Erase desc from supported primitive descriptors: ",
                           desc);
                 return true;
             }
         }
 
-        for (size_t i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-            if (!areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i])) {
+        for (size_t i = 0; i < memoryFormatFilter.output.size(); i++) {
+            if (!areCompatible(*config.outConfs[i].getMemDesc(), memoryFormatFilter.output[i])) {
                 DEBUG_LOG(getName(),
                           " Output memory format filter: ",
-                          outputMemoryFormatsFilter[i],
+                          memoryFormatFilter.output[i],
                           " not matched. Erase desc from supported primitive descriptors: ",
                           desc);
                 return true;

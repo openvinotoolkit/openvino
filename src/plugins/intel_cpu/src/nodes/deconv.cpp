@@ -1208,7 +1208,7 @@ Deconvolution::DeconvDNNLExecutor::DeconvDNNLExecutor(const dnnl::deconvolution_
                                                       const dnnl::memory::desc& outMemDesc,
                                                       const dnnl::engine& engine,
                                                       bool constWeight)
-    : DnnlExecutor(pd) {
+    : DnnlExecutorLegacy(pd) {
     if (inMemDesc != getDnnlSrcDesc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
     }

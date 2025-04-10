@@ -107,8 +107,8 @@ public:
     }
 
     bool compareTensors(const ov::Tensor& t1, const ov::Tensor& t2) {
-        void* data1;
-        void* data2;
+        const void* data1;
+        const void* data2;
         try {
             data1 = t1.data();
         } catch (const ov::Exception&) {
@@ -1165,10 +1165,14 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
     {
-        // model not loaded from cache as no weights on path
+        // Model loaded from cache since weightless cache with ov::Model is supported.
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
-        EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+        if (target_device == utils::DEVICE_GPU) {
+            EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
+        } else {
+            EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+        }
     }
 
     std::error_code ec;

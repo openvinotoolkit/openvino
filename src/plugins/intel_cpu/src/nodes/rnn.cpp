@@ -280,7 +280,8 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                               ov::op::v5::GRUSequence::get_type_info_static(),
                               ov::op::internal::AUGRUCell::get_type_info_static(),
                               ov::op::internal::AUGRUSequence::get_type_info_static())) {
-                if (rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh"}) {
+                if (const auto activations = std::vector<std::string>{"sigmoid", "tanh"};
+                    rnnCellBase->get_activations() != activations) {
                     errorMessage = "Not supported activation functions";
                     return false;
                 }
@@ -1479,7 +1480,7 @@ void RNN::cleanup() {
     }
 }
 
-RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutor(pd) {
+RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutorLegacy(pd) {
     wghts_iter_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(1));
     bias_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(2));
 }

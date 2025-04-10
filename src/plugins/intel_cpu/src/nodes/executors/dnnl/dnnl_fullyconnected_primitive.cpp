@@ -81,7 +81,7 @@ bool DnnlFCPrimitive::Key::operator==(const Key& rhs) const {
 
 std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memory,
                                                          const FCAttrs& attrs,
-                                                         const ExecutorContext::CPtr context,
+                                                         const ExecutorContext::CPtr& context,
                                                          const DnnlShapeAgnosticDataPtr& shapeAgnosticData) {
     const auto& srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_SRC)->getDescPtr());
     const auto& weiDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
@@ -92,7 +92,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
                   weiDesc,
                   biaDesc,
                   dstDesc,
-                  shapeAgnosticData->primAttrs.attr,
+                  shapeAgnosticData->m_primAttrs.attr,
                   attrs.sparseWeights,
                   attrs.modelType};
 
@@ -432,7 +432,9 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
                                       context,
                                       useDynamicQuantization);
 
-    return std::make_shared<DnnlShapeAgnosticData>(postOpData);
+    const auto defaultImpType = parse_impl_name(primDesc.impl_info_str());
+
+    return std::make_shared<DnnlShapeAgnosticData>(postOpData, defaultImpType);
 }
 
 static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc) {

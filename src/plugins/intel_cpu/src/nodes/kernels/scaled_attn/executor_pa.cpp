@@ -1434,7 +1434,8 @@ struct MHAHelper {
     float _d_scale;
     size_t _key_group_size = 0;
     size_t _value_group_size = 0;
-    bool _quant_key_bychannel = 0;
+    bool _quant_key_bychannel = false;
+    size_t _new_score_stride = 0;
 
     PlainTensor _weight;        // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
     PlainTensor _output;        // [nthr, 32, H, S], shared by first and second loop along bh
@@ -1475,6 +1476,11 @@ struct MHAHelper {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
     }
 
+    void resize_temporary_weight_buffer(const size_t& h) {
+        // resize temporary buffers, weight.size(3) will be aligned to block_size
+        _weight.resize<float>({static_cast<size_t>(_nthr), h, _block_size, _new_score_stride});
+    }
+
     void init(size_t H,
               size_t S,
               size_t SV,
@@ -1506,11 +1512,9 @@ struct MHAHelper {
         _sliding_window = sliding_window;
         _d_scale = d_scale;
 
-        auto prev_score_stride = _weight.stride(2);
+        auto prev_score_stride = _new_score_stride;
         auto want_score_stride = rnd_up(kv_len, _block_size);
-        auto new_score_stride = std::max(prev_score_stride, want_score_stride);
-        // resize temporary buffers, weight.size(3) will be aligned to block_size
-        _weight.resize<float>({static_cast<size_t>(_nthr), H, _block_size, new_score_stride});
+        _new_score_stride = std::max(prev_score_stride, want_score_stride);
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
         if (_quant_key_bychannel) {
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, std::max(S, SV)});
@@ -1519,7 +1523,7 @@ struct MHAHelper {
         }
 
         // TODO: kernel supports stride
-        if (_qk_gemm.empty() || prev_score_stride < new_score_stride) {
+        if (_qk_gemm.empty() || prev_score_stride < _new_score_stride) {
             _qk_gemm.resize(_block_size);
             _wv_gemm.resize(_block_size);
             _wv_gemm_acc.resize(_block_size);
@@ -1529,7 +1533,7 @@ struct MHAHelper {
                                                              S,
                                                              H * S,
                                                              _block_size,
-                                                             _weight.stride(2),
+                                                             _new_score_stride,
                                                              false,
                                                              in_type);
                 _wv_gemm[i] =
@@ -1537,7 +1541,7 @@ struct MHAHelper {
                                                    SV,
                                                    _block_size,
                                                    // if it's bf16, the stride needs double due to reuse float buffer
-                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
+                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _new_score_stride,
                                                    SV,
                                                    _output.stride(1),
                                                    false,
@@ -1547,7 +1551,7 @@ struct MHAHelper {
                                                    SV,
                                                    _block_size,
                                                    // if it's bf16, the stride needs double due to reuse float buffer
-                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _weight.stride(2),
+                                                   (in_type == ov::element::Type_t::f32 ? 1 : 2) * _new_score_stride,
                                                    SV,
                                                    _output.stride(1),
                                                    false,
@@ -1652,7 +1656,7 @@ struct MHAHelper {
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
-            auto* c_ptr = _weight.ptr<float>(ithr, h, 0, 0);
+            auto* c_ptr = _weight.ptr<float>(ithr, h - hq_beg, 0, 0);
             // for each query block, loop through all key block
             // for blocks:
             // 1 0 0 0 ...
@@ -1672,7 +1676,7 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
-                auto score = _weight.ptr<float>(ithr, h, m - q_start);
+                auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -1726,7 +1730,7 @@ struct MHAHelper {
             }
 
             // reuse float buffer, need to use float to compute offset
-            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h, 0, 0));
+            auto* w_ptr = reinterpret_cast<DATA_TYPE*>(_weight.ptr<float>(ithr, h - hq_beg, 0, 0));
             float* fp32_out_ptr =
                 q_is_xf16 ? _output.ptr<float>(ithr, 0, h, 0) : output_emb.ptr<float>(q_start, h * SV);
 
@@ -1797,7 +1801,7 @@ struct MHAHelper {
                     for (size_t h = hq_beg; h < hq_end; h++) {
                         (*_gemv)(query.ptr<DATA_TYPE>(h, pq),
                                  present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                                 _weight.ptr<float>(ithr, h, pq) + pk);
+                                 _weight.ptr<float>(ithr, h - hq_beg, pq) + pk);
                     }
                 }
             }
@@ -1811,13 +1815,13 @@ struct MHAHelper {
                         if (precision_of<KEY_CACHE_TYPE>::value == ov::element::u8 && _quant_key_bychannel) {
                             dot_product_block_by_channel(query.ptr<DATA_TYPE>(h, pq),
                                                          present_key.ptr<uint8_t>(block_number, hk),
-                                                         _weight.ptr<float>(ithr, h, pq) + pk,
+                                                         _weight.ptr<float>(ithr, h - hq_beg, pq) + pk,
                                                          S,
                                                          std::min(_block_size, cur_kv_len - pk));
                         } else {
                             dot_product_block(query.ptr<DATA_TYPE>(h, pq),
                                               present_key.ptr<KEY_CACHE_TYPE>(block_number, hk),
-                                              _weight.ptr<float>(ithr, h, pq) + pk,
+                                              _weight.ptr<float>(ithr, h - hq_beg, pq) + pk,
                                               S,
                                               std::min(_block_size, cur_kv_len - pk),
                                               _key_group_size);
@@ -1838,8 +1842,8 @@ struct MHAHelper {
                     alibi_slope = alibi_slopes.ptr<float>()[h];
                     alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
                 }
-                attn_softmax_kernel<float>(_weight.ptr<float>(ithr, h, pq),
-                                           _weight.ptr<float>(ithr, h, pq),
+                attn_softmax_kernel<float>(_weight.ptr<float>(ithr, h - hq_beg, pq),
+                                           _weight.ptr<float>(ithr, h - hq_beg, pq),
                                            _d_scale,
                                            alibi_lookup,
                                            nullptr,
@@ -1852,7 +1856,7 @@ struct MHAHelper {
                                            alibi_slope);
                 if (score_output) {
                     memcpy(score_output + h * rnd_up(cur_kv_len, 16),
-                           _weight.ptr<float>(ithr, h, pq),
+                           _weight.ptr<float>(ithr, h - hq_beg, pq),
                            cur_kv_len * sizeof(float));
                 }
             }
@@ -1870,7 +1874,7 @@ struct MHAHelper {
                         present_value.m_ptr.get() + v_stride);
                     attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
                         _output.ptr<float>(ithr, pq, h),
-                        _weight.ptr<float>(ithr, h, pq) + pv,
+                        _weight.ptr<float>(ithr, h - hq_beg, pq) + pv,
                         v_ptr,
                         SV,
                         std::min(_block_size, cur_kv_len - pv),
@@ -2271,6 +2275,8 @@ struct MHA {
                                attn_work_count * Hk <= 2 * _helper._nthr
                            ? false
                            : true;  // or less than 2 work items per thread, loop H
+        auto weight_h = loop_hk ? _helper.H / Hk : 1;
+        _helper.resize_temporary_weight_buffer(weight_h);
 
         parallel_for2d_dynamic(attn_work_count, loop_hk ? Hk : _helper.H, [&](size_t w, size_t hx) {
             size_t hk, hq_beg, hq_end;
