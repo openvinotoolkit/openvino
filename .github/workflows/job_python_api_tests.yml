@@ -74,7 +74,7 @@ jobs:
             .github/actions/install_ov_wheels/action.yml
             .github/actions/validate_pyi_files/action.yml
             .github/actions/validate_pyi_files/compare_pyi_files.py
-            src/bindings/python/scripts/generate_pyapi_stubs.sh
+            src/bindings/python/scripts/generate_pyapi_stubs.py
             src/bindings/python/**/*.pyi
           sparse-checkout-cone-mode: false
           path: 'action_root'
