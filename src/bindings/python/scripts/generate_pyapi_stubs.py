@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
+import sys
 
 # Constants
 INVALID_EXPRESSIONS = [
@@ -40,7 +41,11 @@ def sanitize_file(file_path):
         file.writelines(sorted_imports + non_imports)
 
 def main():
-    output_dir = Path(os.getenv("1", Path(__file__).parent.parent / "src"))
+    if len(sys.argv) > 1:
+        output_dir = Path(sys.argv[1])
+    else:
+        output_dir = Path(__file__).parent.parent / "src"
+    output_dir = output_dir.resolve()
 
     invalid_expressions_regex = create_regex_pattern(INVALID_EXPRESSIONS)
     invalid_identifiers_regex = create_regex_pattern(INVALID_IDENTIFIERS)
