@@ -52,8 +52,7 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
 
     auto boxesShape = op->get_input_partial_shape(0);
     size_t num_outputs = op->get_output_size();
-    if (p.use_new_shape_infer() && op->get_output_partial_shape(0).is_dynamic()) {
-        // Case of NMSIEInternal op with dynamic output shape
+    if (p.use_new_shape_infer()) {
         auto NMSLayerName = layer_type_name_ID(op);
         auto prim = cldnn::non_max_suppression(
                 NMSLayerName,
@@ -78,48 +77,26 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
 
         p.add_primitive(*op, prim);
 
-        auto NMSGatherLayerName = layer_type_name_ID(op) + "_NMSGather";
-        std::vector<cldnn::input_info> nms_gather_inputs;
-        const std::vector<cldnn::input_info> nms_gather_input_list = {
-            cldnn::input_info(NMSLayerName, 0),
-            cldnn::input_info(NMSLayerName, 1),
-            cldnn::input_info(NMSLayerName, 2)
-        };
-        for (size_t i = 0; i < num_outputs; i++) {
-            nms_gather_inputs.push_back(nms_gather_input_list[i]);
+        // NMS_Gather primitive is added for dynamic output shape
+        if (op->get_output_partial_shape(0).is_dynamic()) {
+            auto NMSGatherLayerName = layer_type_name_ID(op) + "_NMSGather";
+            std::vector<cldnn::input_info> nms_gather_inputs;
+            const std::vector<cldnn::input_info> nms_gather_input_list = {
+                cldnn::input_info(NMSLayerName, 0),
+                cldnn::input_info(NMSLayerName, 1),
+                cldnn::input_info(NMSLayerName, 2)
+            };
+            for (size_t i = 0; i < num_outputs; i++) {
+                nms_gather_inputs.push_back(nms_gather_input_list[i]);
+            }
+
+            auto nms_gather_prim = cldnn::non_max_suppression_gather(
+                NMSGatherLayerName,
+                nms_gather_inputs,
+                num_outputs);
+
+            p.add_primitive(*op, nms_gather_prim);
         }
-
-        auto nms_gather_prim = cldnn::non_max_suppression_gather(
-            NMSGatherLayerName,
-            nms_gather_inputs,
-            num_outputs);
-
-        p.add_primitive(*op, nms_gather_prim);
-    } else if (p.use_new_shape_infer() && !op->get_output_partial_shape(0).is_dynamic()) {
-        // Case of NMSIEInternal op with static output shape
-        auto NMSLayerName = layer_type_name_ID(op);
-        auto prim = cldnn::non_max_suppression(
-                NMSLayerName,
-                reordered_inputs[0],
-                reordered_inputs[1],
-                0,
-                op->m_center_point_box,
-                op->m_sort_result_descending,
-                "", "", "", "", "", "", num_outputs);
-
-        prim.output_data_types = get_output_data_types(op, {{ov::element::i64, ov::element::i32}});
-        prim.rotation = rotation;
-
-        switch (reordered_inputs.size()) {
-            case 6: prim.soft_nms_sigma = reordered_inputs[5].pid;
-            case 5: prim.score_threshold = reordered_inputs[4].pid;
-            case 4: prim.iou_threshold = reordered_inputs[3].pid;
-            case 3: prim.num_select_per_class = reordered_inputs[2].pid;
-            case 2: break;
-            default: OPENVINO_THROW("Incorrect number of input primitives for layer: ", op->get_friendly_name());
-        }
-
-        p.add_primitive(*op, prim);
     } else {
         auto outputIndices = op->get_output_partial_shape(0)[0].get_length();
 
