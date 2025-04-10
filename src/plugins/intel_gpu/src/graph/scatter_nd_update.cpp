@@ -9,6 +9,7 @@
 #include <string>
 
 #include "scatter_nd_base_shape_inference.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(scatter_nd_update)
