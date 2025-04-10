@@ -151,8 +151,7 @@ RUN tar -xf Python-3.11.9.tar.xz && \
     cd Python-3.11.9 && \
     LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
     make -j $(nproc) && \
-    make altinstall && \
-    curl https://bootstrap.pypa.io/get-pip.py | python3.11 - --no-cache-dir pip==24.2
+    make altinstall
 
 # Compile Python 3.11 for ARM
 RUN cd Python-3.11.9 && make distclean && \
@@ -175,8 +174,7 @@ RUN tar -xf Python-3.12.9.tar.xz && \
     cd Python-3.12.9 && \
     LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
     make -j $(nproc) && \
-    make altinstall && \
-    curl https://bootstrap.pypa.io/get-pip.py | python3.12 - --no-cache-dir pip==24.2 numpy cython crossenv
+    make altinstall
 
 # Compile Python 3.12 for ARM
 RUN cd Python-3.12.9 && make distclean && \
@@ -199,8 +197,7 @@ RUN tar -xf Python-3.13.2.tar.xz && \
     cd Python-3.13.2 && \
     LDFLAGS="-L/usr/local/lib64" ./configure --with-openssl=/usr/local --with-openssl-rpath=auto && \
     make -j $(nproc) && \
-    make altinstall && \
-    curl https://bootstrap.pypa.io/get-pip.py | python3.13 - --no-cache-dir pip==24.2
+    make altinstall
 
 # Compile Python 3.13 for ARM
 RUN cd Python-3.13.2 && make distclean && \
@@ -214,47 +211,6 @@ RUN cd Python-3.13.2 && make distclean && \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
     make -j $(nproc) && make altinstall
-
-#
-## Python 3.10
-#RUN wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz
-#
-#RUN tar -xf Python-3.10.16.tar.xz && \
-#    cd Python-3.10.16 && \
-#    ./configure --enable-optimizations && \
-#    make -j $(nproc) && \
-#    make altinstall && \
-#    cd .. && rm -rf Python-3.10.16.tar.xz Python-3.10.16
-#
-# Python 3.11
-#RUN wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz
-#
-#RUN tar -xf Python-3.11.9.tar.xz && \
-#    cd Python-3.11.9 && \
-#    ./configure --enable-optimizations && \
-#    make -j $(nproc) && \
-#    make altinstall && \
-#    cd .. && rm -rf Python-3.11.9.tar.xz Python-3.11.9
-#
-## Python 3.12
-#RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz
-#
-#RUN tar -xf Python-3.12.9.tar.xz && \
-#    cd Python-3.12.9 && \
-#    ./configure --enable-optimizations && \
-#    make -j $(nproc) && \
-#    make altinstall && \
-#    cd .. && rm -rf Python-3.12.9.tar.xz Python-3.12.9
-#
-## Python 3.13
-#RUN wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz
-#
-#RUN tar -xf Python-3.13.2.tar.xz && \
-#    cd Python-3.13.2 && \
-#    ./configure --enable-optimizations && \
-#    make -j $(nproc) && \
-#    make altinstall && \
-#    cd .. && rm -rf Python-3.13.2.tar.xz Python-3.13.2
 
 # Setup pip
 ENV PIP_VERSION="24.0"
