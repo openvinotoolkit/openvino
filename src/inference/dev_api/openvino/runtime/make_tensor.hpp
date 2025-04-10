@@ -40,6 +40,20 @@ OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const element::Type ty
                                                           const Strides& strides = {});
 
 /**
+ * @brief Constructs Tensor using element type and shape. Wraps allocated host memory as read-only.
+ * @note Does not perform memory allocation internally
+ * @param type Tensor element type
+ * @param shape Tensor shape
+ * @param host_ptr Pointer to pre-allocated host memory
+ * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+ * on shape and element size
+ */
+OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const element::Type type,
+                                                          const Shape& shape,
+                                                          const void* host_ptr,
+                                                          const Strides& strides = {});
+
+/**
  * @brief Constructs region of interest (ROI) tensor form another tensor.
  * @note Does not perform memory allocation internally
  * @param other original tensor
