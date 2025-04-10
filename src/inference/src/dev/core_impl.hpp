@@ -243,6 +243,8 @@ private:
     }
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
+    std::vector<ov::Extension::Ptr> get_extensions_copy() const;
+
 public:
     CoreImpl();
 
