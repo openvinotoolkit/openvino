@@ -23,6 +23,7 @@ struct ArgumentDescriptor {
 namespace zeroUtils {
 
 #define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)              \
+    Logger::global().debug("call %s", step);                                            \
     if (ZE_RESULT_SUCCESS != result) {                                                  \
         OPENVINO_THROW("L0 ",                                                           \
                        step,                                                            \
@@ -38,6 +39,7 @@ namespace zeroUtils {
     }
 
 #define THROW_ON_FAIL_FOR_LEVELZERO(step, result)         \
+    Logger::global().debug("call %s", step);              \
     if (ZE_RESULT_SUCCESS != result) {                    \
         OPENVINO_THROW("L0 ",                             \
                        step,                              \
