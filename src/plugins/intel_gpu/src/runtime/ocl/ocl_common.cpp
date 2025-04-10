@@ -9,7 +9,6 @@ namespace ocl {
 
 // Ordered by value as defined by opencl
 const char *convert_cl_err_to_str(cl_int cl_status) {
-    std::cout << __func__ << std::endl;
     #define CL_STATUS_CASE(status) \
         case status: return #status
         switch (cl_status) {
