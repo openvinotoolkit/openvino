@@ -15,6 +15,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_min.hpp"
