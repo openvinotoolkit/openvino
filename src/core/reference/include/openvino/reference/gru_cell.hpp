@@ -105,14 +105,12 @@ void gru_cell(const T* X,
                                        reinterpret_cast<char*>(Ht_R_zrh[1].data()),
                                        reinterpret_cast<char*>(Ht_R_zrh[2].data())};
 
-    size_t num_b_splits = linear_before_reset ? 4 : 3;
+    const size_t num_b_splits = linear_before_reset ? 4 : 3;
     std::vector<std::vector<T>> biases_zrh(num_b_splits, std::vector<T>(B_shape[0] / num_b_splits));
-    std::vector<char*> pointers_biases = {reinterpret_cast<char*>(biases_zrh[0].data()),
-                                          reinterpret_cast<char*>(biases_zrh[1].data()),
-                                          reinterpret_cast<char*>(biases_zrh[2].data())};
-    if (linear_before_reset) {
-        pointers_biases.push_back(reinterpret_cast<char*>(biases_zrh[3].data()));
-    }
+    std::vector<char*> pointers_biases(num_b_splits);
+    std::transform(biases_zrh.begin(), biases_zrh.end(), pointers_biases.begin(), [](auto&& vec) {
+        return reinterpret_cast<char*>(vec.data());
+    });
 
     // split on gates
     reference::split(reinterpret_cast<char*>(Xt_W.data()), all_gates_shape, sizeof(T), 1, 3, pointers_XW.data());
