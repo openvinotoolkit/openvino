@@ -357,6 +357,7 @@ class InferRequest(openvino.utils.data_helpers.wrappers._InferRequestWrapper):
         Infers specified input(s) in synchronous mode.
         
                 Blocks all methods of InferRequest while request is running.
+                Calling any method will lead to throwing exceptions.
         
                 The allowed types of keys in the `inputs` dictionary are:
         
