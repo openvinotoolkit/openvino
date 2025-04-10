@@ -33,14 +33,15 @@ MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& line
     OPENVINO_ASSERT(!m_unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
     m_loops_to_split = find_loops_to_split(linear_ir, m_unsqueezed_params);
 
-    m_dim_M_idces.resize(configurator->get_io_num());
-    m_optimized_layouts.resize(configurator->get_io_num());
-    for (size_t i = 0; i < configurator->get_io_num(); ++i) {
+    const auto& config = configurator->get_config();
+    m_dim_M_idces.resize(config->io_num);
+    m_optimized_layouts.resize(config->io_num);
+    for (size_t i = 0; i < config->io_num; ++i) {
         const auto& layout = configurator->get_io_descs()[i]->get_layout();
-        const auto dim_idx = i < configurator->get_in_num() ? utils::get_input_dim_idx(layout, m_dim_M_idx)
-                                                            : utils::get_output_dim_idx(layout, m_dim_M_idx);
+        const auto dim_idx = i < config->in_num ? utils::get_input_dim_idx(layout, m_dim_M_idx)
+                                                : utils::get_output_dim_idx(layout, m_dim_M_idx);
         m_dim_M_idces[i] = dim_idx;
-        const auto m_idx = i < configurator->get_in_num() ? dim_idx : layout.size() - 2;
+        const auto m_idx = i < config->in_num ? dim_idx : layout.size() - 2;
         m_optimized_layouts[i] = SplitDimensionM::get_updated_order(layout, m_idx);
     }
 }
@@ -76,7 +77,7 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
         loop->apply(updater, updated_loops);
     }
 
-    for (size_t i = 0; i < m_configurator->get_io_num(); ++i) {
+    for (size_t i = 0; i < m_configurator->get_config()->io_num; ++i) {
         config->io_shapes[i] = m_unsqueezed_params.count(i)
                         ? SplitDimensionM::unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
                         : SplitDimensionM::reshape_m_dim(config->io_shapes[i], m_dim_M_idces[i], new_batch_dim, new_kernel_dim);
