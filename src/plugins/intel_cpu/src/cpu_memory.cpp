@@ -161,7 +161,10 @@ void Memory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
 void Memory::nullify() {
     void* dataPtr = getData();
     if (dataPtr != nullptr) {
-        memset(dataPtr, 0, getDesc().getCurrentMemSize());
+        size_t memSize = getDesc().getCurrentMemSize();
+        OPENVINO_ASSERT(memSize != MemoryDesc::UNDEFINED_SIZE,
+                        "Invalid memory size detected during nullify operation.");
+        memset(dataPtr, 0, memSize);
     }
 }
 
