@@ -67,7 +67,6 @@ Checks: >
   -google-explicit-constructor,
   -google-readability-casting,
   -google-readability-todo,
-  -readability-braces-around-statements,
   -modernize-avoid-c-arrays,
   -modernize-use-constraints,
   -modernize-use-std-numbers,
@@ -106,10 +105,10 @@ CheckOptions:
     value: "3"
   - key: modernize-use-override.AllowOverrideAndFinal
     value: true
+ # Unifies the usage of the statements
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: "1"
 ### To be considered to enable:
-#  # Unifies the usage of the statements
-#  - key: readability-braces-around-statements.ShortStatementLines
-#    value: "1"
 #  Reasonable way to enforce splitting complex code into simple functions
 #  - key: google-readability-function-size.StatementThreshold
 #    value: "800"
