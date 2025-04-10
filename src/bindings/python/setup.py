@@ -611,6 +611,7 @@ class CustomBdistWheel(bdist_wheel):
         platform_tag = os.getenv("PLATFORM_TAG")
         if platform_tag:
             self.plat_name = platform_tag
+            self.plat_name_supplied = True
             
         build_number = os.getenv("WHEEL_BUILD")
         if build_number:
