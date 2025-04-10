@@ -20,7 +20,7 @@ public:
     explicit ocl_error(cl::Error const& err);
 };
 
-#define OCL_ERR_MSG_FMT(error) ("[GPU] " + std::string(error.what()) + std::string(", error code: ") + std::to_string(error.err()))
+#define OCL_ERR_MSG_FMT(error) ("[GPU] " + std::string(error.what()) + std::string(", error code: ") + std::to_string(error.err()) + " " + std::string(cldnn::ocl::convert_cl_err_to_str(error.err())))
 
 inline bool is_device_available(const device_info& info) {
     ocl_device_detector detector;
@@ -57,6 +57,8 @@ inline void rethrow(std::string message, cl_int error, const device_info& info) 
         OPENVINO_THROW(message);
     }
 }
+
+const char *convert_cl_err_to_str(cl_int cl_status);
 
 inline void rethrow(const cl::Error& error, const device_info& info) {
     rethrow(OCL_ERR_MSG_FMT(error), error.err(), info);
