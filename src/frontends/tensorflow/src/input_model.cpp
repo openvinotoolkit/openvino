@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iterator>
 #include <queue>
+#include <stack>
 
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"

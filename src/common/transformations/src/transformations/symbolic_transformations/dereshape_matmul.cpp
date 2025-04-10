@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"

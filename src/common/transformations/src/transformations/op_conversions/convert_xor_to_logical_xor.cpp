@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/logical_xor.hpp"
 #include "openvino/op/xor.hpp"

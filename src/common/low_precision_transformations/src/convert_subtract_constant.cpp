@@ -12,6 +12,7 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov;
 

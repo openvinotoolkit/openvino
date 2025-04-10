@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"

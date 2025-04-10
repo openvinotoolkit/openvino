@@ -5,6 +5,7 @@
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/roi_align.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"

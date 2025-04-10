@@ -4,6 +4,8 @@
 
 #include "bound_evaluate.hpp"
 
+#include <stack>
+
 #include "compare.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -13,6 +15,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_min.hpp"

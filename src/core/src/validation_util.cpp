@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <numeric>
+#include <stack>
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"

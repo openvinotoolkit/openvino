@@ -4,6 +4,7 @@
 
 #include "index_loop_getitem_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"

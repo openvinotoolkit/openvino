@@ -15,6 +15,7 @@
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

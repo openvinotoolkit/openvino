@@ -12,6 +12,7 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

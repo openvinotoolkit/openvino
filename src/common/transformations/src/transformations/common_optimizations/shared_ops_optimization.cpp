@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/shape_of.hpp"

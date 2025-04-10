@@ -21,6 +21,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/any.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;

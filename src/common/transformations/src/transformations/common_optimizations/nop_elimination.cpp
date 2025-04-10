@@ -11,6 +11,7 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
