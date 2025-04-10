@@ -802,17 +802,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         const bool skipCompatibility =
             npu_plugin_properties.find(DISABLE_VERSION_CHECK::key().data()) != npu_plugin_properties.end() &&
             npu_plugin_properties[DISABLE_VERSION_CHECK::key().data()].as<bool>() == true;
-        std::unique_ptr<MetadataBase> metadata = nullptr;
-        size_t blobSize = MetadataBase::getFileSize(stream);
+        std::unique_ptr<MetadataBase> metadata = read_metadata_from(stream);
+        size_t blobSize = metadata->get_blob_size();
         if (!skipCompatibility) {
             // Read only metadata from the stream and check if blob is compatible. Load blob into memory only in case it
             // passes compatibility checks.
-            metadata = read_metadata_from(stream);
             if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
-            blobSize = metadata->get_blob_size();
         }
+
+        _logger.debug("Current blob type from Metadata: %d", metadata->get_blob_type());
+        if (metadata->get_blob_type() == BlobType::LLVM) {
+            // If blob is LLVMIR, shall use HostCompile mode to use dynamic pipeline
+            npu_plugin_properties[COMPILATION_MODE::key().data()] = "HostCompile";
+        }
+
         ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
         ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {

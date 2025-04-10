@@ -89,11 +89,23 @@ Metadata<METADATA_VERSION_2_3>::Metadata(uint64_t blobSize,
                                          const std::optional<std::vector<uint64_t>>& initSizes,
                                          const std::optional<int64_t> batchSize,
                                          const std::optional<std::vector<ov::Layout>>& inputLayouts,
-                                         const std::optional<std::vector<ov::Layout>>& outputLayouts)
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts，)
     : Metadata<METADATA_VERSION_2_2>{blobSize, ovVersion, initSizes, batchSize},
       _inputLayouts{inputLayouts},
       _outputLayouts{outputLayouts} {
     _version = METADATA_VERSION_2_3;
+}
+
+Metadata<METADATA_VERSION_2_4>::Metadata(uint64_t blobSize,
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<int64_t> batchSize,
+                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts,
+                                         BlobType blobType)
+    : Metadata<METADATA_VERSION_2_3>{blobSize, ovVersion, initSizes, batchSize, inputLayouts, outputLayouts},
+      _blobType{blobType} {
+    _version = METADATA_VERSION_2_4;{
 }
 
 void MetadataBase::read(std::istream& tensor) {
@@ -208,6 +220,11 @@ void Metadata<METADATA_VERSION_2_3>::read() {
     _outputLayouts = readNLayouts(numberOfOutputLayouts, "Output");
 }
 
+void Metadata<METADATA_VERSION_2_4>::read() {
+    Metadata<METADATA_VERSION_2_3>::read();
+    read_data_from_source(reinterpret_cast<char*>(&_blobType), sizeof(_blobType));
+}
+
 void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
     _ovVersion.write(stream);
@@ -258,6 +275,11 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
     append_padding_blob_size_and_magic(stream);
 }
 
+void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_3>::write(stream);
+    stream.write(reinterpret_cast<const char*>(&_blobType), sizeof(_blobType));
+}
+
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
     if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
         MetadataBase::get_minor(version) >= CURRENT_METADATA_MINOR_VERSION) {
@@ -270,6 +292,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     case METADATA_VERSION_2_1:
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize);
     case METADATA_VERSION_2_2:
+        return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
+    case METADATA_VERSION_2_4:
         return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
     default:
         OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
@@ -326,6 +350,11 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
+    // // TODO: Need to define the format of IR to get metadata from stream, then can check version
+    // if (!isELFBlob(stream)) {
+    //     return std::make_unique<Metadata<METADATA_VERSION_2_0>>(MetadataBase::getFileSize(stream), std::nullopt);
+    // }
+
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);
@@ -468,6 +497,14 @@ size_t Metadata<METADATA_VERSION_2_3>::get_metadata_size() const {
     }
 
     return metadataSize;
+}
+
+size_t Metadata<METADATA_VERSION_2_4>::get_metadata_size() const {
+    return Metadata<METADATA_VERSION_2_3>::get_metadata_size() + sizeof(_blobType);
+}
+
+BlobType MetadataBase::get_blob_type() const {
+    return BlobType::ELF;  // Default blob type, can be overridden in derived classes
 }
 
 }  // namespace intel_npu

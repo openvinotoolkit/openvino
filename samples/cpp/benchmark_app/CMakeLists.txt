@@ -12,6 +12,10 @@ ov_add_sample(NAME ${TARGET_NAME}
               HEADERS ${HDR}
               DEPENDENCIES ${GFLAGS_TARGET} format_reader ie_samples_utils)
 
+if(ENABLE_LLVM_BACKEND)
+    target_compile_definitions(benchmark_app PRIVATE NPU_LLVM_BACKEND)
+endif()
+
 # Required nlohmann_json dependency
 
 if(NOT TARGET nlohmann_json::nlohmann_json)
