@@ -101,6 +101,7 @@ ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHold
     _logger.debug("-SupportAPIGraphQueryNetworkV1: %d", SupportAPIGraphQueryNetworkV1(_graphExtVersion));
     _logger.debug("-SupportAPIGraphQueryNetworkV2 :%d", SupportAPIGraphQueryNetworkV2(_graphExtVersion));
     _logger.debug("-SupportpfnCreate2 :%d", !NotSupportGraph2(_graphExtVersion));
+    _logger.debug("-SupportpfnCreate3 :%d", !NotSupportGraph3(_graphExtVersion));
     _logger.debug("-SupportArgumentMetadata :%d", !NotSupportArgumentMetadata(_graphExtVersion));
     _logger.debug("-UseCopyForNativeBinary :%d", UseCopyForNativeBinary(_graphExtVersion));
 }
