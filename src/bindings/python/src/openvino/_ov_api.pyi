@@ -1,7 +1,6 @@
 # type: ignore
-from builtins import traceback as TracebackType
 from __future__ import annotations
-from openvino.package_utils import deprecatedclassproperty
+from builtins import traceback as TracebackType
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import Core as CoreBase
@@ -9,9 +8,10 @@ from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
+from openvino.package_utils import deprecatedclassproperty
 from openvino.utils.data_helpers.data_dispatcher import _data_dispatch
-from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
 from openvino.utils.data_helpers.wrappers import OVDict
+from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
 from openvino.utils.data_helpers.wrappers import tensor_from_file
 from pathlib import Path
 from typing import Any
@@ -357,7 +357,6 @@ class InferRequest(openvino.utils.data_helpers.wrappers._InferRequestWrapper):
         Infers specified input(s) in synchronous mode.
         
                 Blocks all methods of InferRequest while request is running.
-                Calling any method will lead to throwing exceptions.
         
                 The allowed types of keys in the `inputs` dictionary are:
         

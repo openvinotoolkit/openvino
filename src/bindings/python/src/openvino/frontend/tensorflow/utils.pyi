@@ -3,8 +3,8 @@ from __future__ import annotations
 from openvino._pyopenvino import Dimension
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Type
-from packaging.version import parse
 from packaging.version import Version
+from packaging.version import parse
 import logging as log
 import numpy as np
 import openvino._pyopenvino
