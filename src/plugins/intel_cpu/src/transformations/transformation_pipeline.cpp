@@ -1215,8 +1215,11 @@ void Transformations::MainSnippets() {
         if (shape.is_dynamic()) {
             return false;
         }
-        const auto parallel_work_amount =
-            std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<>());
+        auto parallel_work_amount = ov::Dimension(1);
+        if (shape.size() > 2) {
+            parallel_work_amount =
+                std::accumulate(shape.rbegin() + 2, shape.rend(), parallel_work_amount, std::multiplies<>());
+        }
         // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
