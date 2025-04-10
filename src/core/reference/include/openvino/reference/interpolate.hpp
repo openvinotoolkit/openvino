@@ -29,7 +29,9 @@ using InterpolateMode = op::v4::Interpolate::InterpolateMode;
 /// \param mode the calculation mode
 ///
 /// \return The function to calculate the nearest pixel.
-std::function<int64_t(float, bool)> get_func(Nearest_mode mode);
+using NearestFuncPtr = int64_t (*)(float, bool);
+NearestFuncPtr get_func(Nearest_mode mode);
+
 /// \brief Calculation of nearest pixel.
 class GetNearestPixel final {
 public:
@@ -54,9 +56,7 @@ public:
     }
 
 private:
-    using Func = std::function<int64_t(float, bool)>;
-
-    Func m_func;
+    NearestFuncPtr m_func;
 };
 
 /// \brief Gets the function to calculate the source coordinate.
@@ -64,7 +64,8 @@ private:
 /// \param mode the calculation mode
 ///
 /// \return The function to calculate the source coordinate.
-std::function<float(float, float, float, float)> get_func(Transform_mode mode);
+using TransformFuncPtr = float (*)(float, float, float, float);
+TransformFuncPtr get_func(Transform_mode mode);
 
 /// \brief Calculation of the source coordinate using the resized coordinate
 class GetOriginalCoordinate final {
@@ -95,9 +96,7 @@ public:
     }
 
 private:
-    using Func = std::function<float(float, float, float, float)>;
-
-    Func m_func;
+    TransformFuncPtr m_func;
 };
 
 /// \brief Helper class to implent non-template parts of the interpolation calculation.
@@ -654,7 +653,7 @@ void interpolate(const T* input_data,
 }
 
 template <typename T>
-void interpolate(T* input_data,
+void interpolate(const T* input_data,
                  const PartialShape& input_data_shape,
                  T* out,
                  const Shape& out_shape,
@@ -668,7 +667,7 @@ void interpolate(T* input_data,
     size_t bytes_in_padded_input = shape_size(padded_input_shape) * sizeof(T);
     std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
     uint8_t* padded_data_ptr = padded_input_data.data();
-    pad_input_data(reinterpret_cast<uint8_t*>(input_data),
+    pad_input_data(reinterpret_cast<const uint8_t*>(input_data),
                    padded_data_ptr,
                    sizeof(T),
                    input_data_shape.to_shape(),

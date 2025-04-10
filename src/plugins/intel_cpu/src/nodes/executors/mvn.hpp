@@ -53,7 +53,7 @@ using MVNExecutorCPtr = std::shared_ptr<const MVNExecutor>;
 
 class MVNExecutorBuilder {
 public:
-    ~MVNExecutorBuilder() = default;
+    virtual ~MVNExecutorBuilder() = default;
     [[nodiscard]] virtual bool isSupported(const MVNAttrs& mvnAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
