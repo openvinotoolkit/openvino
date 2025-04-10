@@ -7,6 +7,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "onednn/iml_type_mapper.h"
 
