@@ -256,7 +256,7 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
     std::mt19937 gen(0);
     uniformDistribution<T2> distribution(rand_min, rand_max);
     for (size_t i = 0; i < tensor_size; i++) {
-        data[i] = static_cast<T>(distribution(gen));
+        data[i] = 0;
     }
 
     return tensor;
