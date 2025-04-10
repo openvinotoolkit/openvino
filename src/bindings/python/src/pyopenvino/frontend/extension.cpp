@@ -227,7 +227,7 @@ void regclass_frontend_OpExtension(py::module m) {
             py::arg("attr_values_map") = std::map<std::string, py::object>());
 
     ext.def(py::init([](py::object dtype, const std::string& ov_type_name) {
-                auto ptr = std::make_shared<PyFrontendOpExtension>(ov_type_name);
+                auto ptr = std::make_shared<PyFrontendOpExtension>(dtype, ov_type_name);
                 ptr->impl = std::make_shared<OpExtension<PyOp>>(ov_type_name);
                 return ptr;
             }),
