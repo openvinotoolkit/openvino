@@ -44,7 +44,7 @@ RUN cd /usr/src/Python-3.9.9 && \
 # Use Python 3.9 as default
 RUN python3.9 -m venv venv
 ENV PATH="/venv/bin:$PATH"
-RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1
+RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 
 # Setup pip
 ENV PIP_VERSION="24.0"
