@@ -38,8 +38,8 @@ RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.9.9/Python-3.9.9.tar.xz && \
     tar xvf Python-3.9.9.tar.xz
 RUN cd /usr/src/Python-3.9.9 && \
-    ./configure --prefix=/usr --enable-shared --enable-optimizations --enable-loadable-sqlite-extensions && \
-    make altinstall && ldconfig
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
 
 # Use Python 3.9 as default
 RUN python3.9 -m venv venv
