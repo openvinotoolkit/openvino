@@ -39,6 +39,7 @@ JitConstants SDPAKernelRef::GetJitConstants(const sdpa_params& params) const {
     jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));
 
     TransposedDimensionAccessHelperJit dims_q(params.inputs[0], params.input0_order);
+    TransposedDimensionAccessHelperJit dims_v(params.inputs[2], params.input2_order);
     jit.AddConstant(MakeJitConstant("HEAD_SIZE", dims_q.x()));
 
     size_t scale_idx = params.conf.has_const_attn_mask_val ? 3 : 4;
@@ -48,8 +49,8 @@ JitConstants SDPAKernelRef::GetJitConstants(const sdpa_params& params) const {
         jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", params.conf.scale_val));
         jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", 1.0f / params.conf.scale_val));
     } else {
-        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(params.conf.head_size))));
-        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(params.conf.head_size))));
+        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(params.conf.k_head_size))));
+        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(params.conf.k_head_size))));
     }
 
     return jit;
