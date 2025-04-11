@@ -162,7 +162,7 @@ bool MatMul::canFuse(const NodePtr& node) const {
     return canFuseSimpleOperation(node);
 }
 
-void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool initWeights = false) {
+void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, [[maybe_unused]] bool initWeights = false) {
     dnnl::post_ops ops;
 
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
@@ -456,8 +456,8 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     return {Shape(inDims0), Shape(inDims1)};
 }
 
-void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                              const std::vector<MemoryDescPtr>& outputDesc) {
+void MatMul::createDescriptor([[maybe_unused]] const std::vector<MemoryDescPtr>& inputDesc,
+                              [[maybe_unused]] const std::vector<MemoryDescPtr>& outputDesc) {
     const auto attr = initPrimitiveAttr();
     dnnl::matmul::primitive_desc matmul_desc;
     if (withBiases) {
@@ -662,14 +662,14 @@ void MatMul::prepareParams() {
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
         if (found) {
-            return std::make_shared<DnnlExecutor>(prim_desc);
+            return std::make_shared<DnnlExecutorLegacy>(prim_desc);
         }
 
         // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
         // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
         // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
         // undefined input shapes but not available for primitive_desc with input batch 1.
-        return std::make_shared<DnnlExecutor>(first_desc);
+        return std::make_shared<DnnlExecutorLegacy>(first_desc);
     };
 
     auto cache = context->getParamsCache();
