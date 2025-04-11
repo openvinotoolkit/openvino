@@ -1288,6 +1288,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                     auto input_layout = fc_node.get_input_layout();
                     if (input_layout.format.dimension() > 4) {
                         expected = format::bfyx;
+                        node.set_preferred_input_fmt(0, format::bfyx);
                     }
                 }
             }
