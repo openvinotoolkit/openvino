@@ -109,6 +109,23 @@ ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
     return ov_status_e::OK;
 }
 
+ov_status_e ov_tensor_set_string_data(ov_tensor_t* tensor, const char** string_array, const size_t array_size) {
+    if (!tensor || !string_array || tensor->object->get_element_type() != ov::element::string ||
+        tensor->object->get_size() != array_size) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        for (size_t i = 0; i < array_size; ++i) {
+            if (!string_array[i]) {
+                return ov_status_e::INVALID_C_PARAM;
+            }
+        }
+        std::copy_n(string_array, array_size, tensor->object->data<std::string>());
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_tensor_get_element_type(const ov_tensor_t* tensor, ov_element_type_e* type) {
     if (!tensor || !type) {
         return ov_status_e::INVALID_C_PARAM;

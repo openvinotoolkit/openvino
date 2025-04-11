@@ -631,6 +631,14 @@ This struct represents OpenVINO entity and allows you to manipulate with plugins
 
   - Return value: Status code of the operation: OK(0) for success.
 
+- `ov_status_e ov_core_add_extension(const ov_core_t* core, const char* library_path)`
+
+  - Description: Adds an extension to the core.
+  - Parameters:
+    - `core` - A pointer `ov_core_t` instance.
+    - `library_path` - Path to an extension.
+  - Return value: Status code of the operation: OK(0) for success.
+
 ## OV Model
 
 This struct contains the information about the model read from IR and allows you to manipulate with some model parameters such as layers affinity and output layers.
@@ -1106,6 +1114,14 @@ This struct provides an interface to infer requests of `ov_compiled_model_t` and
   - Parameters:
     - `tensor` - A point to ov_tensor_t
     - `data` - A point to host memory.
+  -  Return value: Status code of the operation: OK(0) for success.
+
+- `ov_status_e ov_tensor_set_string_data(ov_tensor_t* tensor, const char** string_array, size_t array_size)`
+  - Description: Set string data for tensor
+  - Parameters:
+    - `tensor` - A point to ov_tensor_t
+    - `string_array` - String array
+    - `array_size` - Number of elements in string array
   -  Return value: Status code of the operation: OK(0) for success.
 
 - `void ov_tensor_free(ov_tensor_t* tensor)`
