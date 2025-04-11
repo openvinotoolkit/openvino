@@ -113,7 +113,7 @@ std::shared_ptr<Node> optional(const OutputVector& inputs, const Attributes& att
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const std::initializer_list<Output<Node>>& inputs, const Attributes& attrs = {}) {
+std::shared_ptr<Node> optional(std::initializer_list<Output<Node>>&& inputs, const Attributes& attrs = {}) {
     return optional<NodeTypes...>(OutputVector(inputs), attrs);
 }
 

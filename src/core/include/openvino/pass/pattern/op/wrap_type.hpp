@@ -86,7 +86,7 @@ std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const Attributes& at
 }
 
 template <class... Args>
-std::shared_ptr<Node> wrap_type(const std::initializer_list<Output<Node>>& inputs, const Attributes& attrs = {}) {
+std::shared_ptr<Node> wrap_type(std::initializer_list<Output<Node>>&& inputs, const Attributes& attrs = {}) {
     return wrap_type<Args...>(OutputVector(inputs), attrs);
 }
 
