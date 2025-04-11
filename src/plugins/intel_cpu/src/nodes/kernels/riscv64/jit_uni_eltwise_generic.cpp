@@ -107,8 +107,9 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
     size_t min_src_size = jep.dst_size;
     for (size_t i = 0; i < jep.inputs_number; i++) {
-        if (jep.src_size[i] != 1)
+        if (jep.src_size[i] != 1) {
             min_src_size = std::min(min_src_size, jep.src_size[i]);
+        }
     }
 
     if (min_src_size == jep.dst_size) {
@@ -142,12 +143,14 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
     if (min_src_size != jep.dst_size) {
         bool is_valid_configuration = true;
-        if (jep.dst_size % min_src_size != 0)
+        if (jep.dst_size % min_src_size != 0) {
             is_valid_configuration = false;
+        }
 
         for (size_t i = 0; i < jep.inputs_number; i++) {
-            if (jep.src_size[i] != 1 && jep.src_size[i] != min_src_size && jep.src_size[i] != jep.dst_size)
+            if (jep.src_size[i] != 1 && jep.src_size[i] != min_src_size && jep.src_size[i] != jep.dst_size) {
                 is_valid_configuration = false;
+            }
         }
 
         OPENVINO_ASSERT(is_valid_configuration, "Eltwise jitter has invalid configuration for Eltwise node");
@@ -209,8 +212,9 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::update_vlen(const Xbyak_riscv::Reg& gpr_work_amount, Xbyak_riscv::SEW sew, Xbyak_riscv::LMUL lmul, bool force) {
-    if (!force && current_lmul == lmul && current_sew == sew)
+    if (!force && current_lmul == lmul && current_sew == sew) {
         return;
+    }
 
     vsetvli(reg_vlen, gpr_work_amount, sew, lmul);
     current_lmul = lmul;
@@ -299,10 +303,11 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak_riscv::Reg& gpr_work
             const auto needed_lmul = float2lmul(lmul_c * lmul2float(exec_lmul));
             const auto needed_sew = bytes2sew(sew);
             update_vlen(gpr_work_amount, needed_sew, needed_lmul);
-            if (src_prc.is_signed())
+            if (src_prc.is_signed()) {
                 vnclip_wi(dst, src, 0);
-            else
+            } else {
                 vnclipu_wi(dst, src, 0);
+            }
         };
         vnclip(aux_vec(), dst_vec(), 0.5f, 2);
         vnclip(dst_vec(), aux_vec(), 0.25f, 1);
@@ -341,8 +346,9 @@ Xbyak_riscv::LMUL jit_uni_eltwise_generic<isa>::get_max_lmul(const ov::element::
     }
 
     // aux vec is needed for intermediate conversion in load/store
-    if (jep_.src_prc[input_count - 1].size() < exec_prc.size() || jep_.dst_prc.size() < exec_prc.size())
+    if (jep_.src_prc[input_count - 1].size() < exec_prc.size() || jep_.dst_prc.size() < exec_prc.size()) {
         max_aux_vec_count = std::max(max_aux_vec_count, 1lu);
+    }
 
     const auto needed_vec_count = input_count + output_count + max_aux_vec_count + 1; // 1 - mask vec register
     const auto mul = static_cast<size_t>(vec_count / needed_vec_count);
