@@ -1070,6 +1070,10 @@ void einsum(ov::TensorVector& outputs, const ov::TensorVector& inputs, const std
         einsum_impl<float>(inputs, outputs, equation);
     } else if (input_type == element::Type_t::i32) {
         einsum_impl<int>(inputs, outputs, equation);
+    } else if (input_type == element::Type_t::f16) {
+        einsum_impl<float16>(inputs, outputs, equation);
+    } else if (input_type == element::Type_t::f64) {
+        einsum_impl<double>(inputs, outputs, equation);
     } else {
         OPENVINO_ASSERT(false, "Unsupported input type for Einsum operation.");
     }
