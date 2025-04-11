@@ -83,6 +83,26 @@ protected:
         inType = outType = input_precision;
         function = init_subgraph(input_params, input_precision);
     }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        for (size_t i = 0lu; i < funcInputs.size(); i++) {
+            const auto& funcInput = funcInputs[i];
+            ov::Tensor tensor;
+            if (funcInput.get_element_type().is_real()) {
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 10;
+                in_data.resolution = 1000;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            } else {
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            }
+
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
+    }
 };
 
 TEST_P(GatherElementsPaddingInputTest, Inference) {
@@ -100,7 +120,7 @@ const std::vector<std::tuple<std::vector<ov::Shape>, std::vector<int64_t>, std::
     {{{1, 20, 30, 5, 5, 20}, {1, 20, 15, 5, 5, 5}, {1, 20, 15, 5, 5, 5}}, {2, 5}, {15, 15}},
 };
 
-INSTANTIATE_TEST_SUITE_P(Smoke_GatherElementsPaddingInput,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherElementsPaddingInput,
                          GatherElementsPaddingInputTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(input_precisions)),
