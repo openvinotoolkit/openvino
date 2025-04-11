@@ -22,6 +22,7 @@
 #include "common/ie_lpt_exception.hpp"
 #include "layer_transformation.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

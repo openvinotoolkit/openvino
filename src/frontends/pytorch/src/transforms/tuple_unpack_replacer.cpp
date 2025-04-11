@@ -4,6 +4,7 @@
 
 #include "tuple_unpack_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"

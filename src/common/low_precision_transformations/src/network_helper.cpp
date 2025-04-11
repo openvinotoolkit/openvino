@@ -25,6 +25,7 @@
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {
