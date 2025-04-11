@@ -32,6 +32,7 @@
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 #include "ov_plugins.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
@@ -1456,11 +1457,12 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& arguments) const {
-    ov::AnyMap properties;
-    if (arguments.count(ov::device::priorities.name())) {
-        properties[ov::device::priorities.name()] = arguments.at(ov::device::priorities.name()).as<std::string>();
+    ov::AnyMap properties_to_virtual_dev = {};
+    if (ov::is_virtual_device(plugin.get_name())) {
+        properties_to_virtual_dev = arguments;
+        properties_to_virtual_dev[ov::intel_auto::cache_ablility_checked.name()] = true;
     }
-    return plugin.supports_model_caching(properties);
+    return plugin.supports_model_caching(properties_to_virtual_dev);
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
