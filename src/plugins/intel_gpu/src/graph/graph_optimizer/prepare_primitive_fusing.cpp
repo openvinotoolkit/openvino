@@ -199,10 +199,11 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
                 continue;
             // TODO: For per-channel quantized models(# of decompression scale groups = 1), 2FCs+SwiGLU fusion is disabled due to accuracy issue
             bool has_scale = !fc_node.get_primitive()->decompression_scale.empty();
-            size_t offset = fc_node.get_primitive()->bias.empty() ? 2 : 3;
+            size_t scale_idx = fc_node.get_primitive()->bias.empty() ? 2 : 3;
             if (has_scale &&
-                fc_node.get_input_layout(offset).is_static() &&
-                fc_node.get_input_layout(offset).feature() == 1)
+                fc_node.get_input_layout(1).is_static() &&
+                fc_node.get_input_layout(scale_idx).is_static() &&
+                fc_node.get_input_layout(1).batch() == fc_node.get_input_layout(scale_idx).get_linear_size())
                 continue;
             if (swiglu_prim->glu_type != ov::op::internal::GLU::GluType::Swish ||
                !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1))
