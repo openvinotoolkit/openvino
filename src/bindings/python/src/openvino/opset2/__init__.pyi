@@ -1,6 +1,7 @@
 # type: ignore
-from __future__ import annotations
 from . import ops
+from __future__ import annotations
+from openvino._pyopenvino.op import tensor_iterator
 from openvino.opset1.ops import absolute
 from openvino.opset1.ops import absolute as abs
 from openvino.opset1.ops import acos
@@ -54,8 +55,8 @@ from openvino.opset1.ops import logical_xor
 from openvino.opset1.ops import lrn
 from openvino.opset1.ops import lstm_cell
 from openvino.opset1.ops import matmul
-from openvino.opset1.ops import maximum
 from openvino.opset1.ops import max_pool
+from openvino.opset1.ops import maximum
 from openvino.opset1.ops import minimum
 from openvino.opset1.ops import mod
 from openvino.opset1.ops import multiply
@@ -113,5 +114,4 @@ from openvino.opset2.ops import mvn
 from openvino.opset2.ops import reorg_yolo
 from openvino.opset2.ops import roi_pooling
 from openvino.opset2.ops import space_to_batch
-from openvino._pyopenvino.op import tensor_iterator
 __all__ = ['abs', 'absolute', 'acos', 'add', 'asin', 'atan', 'avg_pool', 'batch_norm_inference', 'batch_to_space', 'binary_convolution', 'broadcast', 'ceil', 'ceiling', 'clamp', 'concat', 'constant', 'convert', 'convert_like', 'convolution', 'convolution_backprop_data', 'cos', 'cosh', 'ctc_greedy_decoder', 'deformable_convolution', 'deformable_psroi_pooling', 'depth_to_space', 'detection_output', 'divide', 'elu', 'equal', 'erf', 'exp', 'fake_quantize', 'floor', 'floor_mod', 'gather', 'gather_tree', 'gelu', 'greater', 'greater_equal', 'grn', 'group_convolution', 'group_convolution_backprop_data', 'hard_sigmoid', 'interpolate', 'less', 'less_equal', 'log', 'logical_and', 'logical_not', 'logical_or', 'logical_xor', 'lrn', 'lstm_cell', 'matmul', 'max_pool', 'maximum', 'minimum', 'mod', 'multiply', 'mvn', 'negative', 'non_max_suppression', 'normalize_l2', 'not_equal', 'one_hot', 'ops', 'pad', 'parameter', 'power', 'prelu', 'prior_box', 'prior_box_clustered', 'proposal', 'psroi_pooling', 'range', 'reduce_logical_and', 'reduce_logical_or', 'reduce_max', 'reduce_mean', 'reduce_min', 'reduce_prod', 'reduce_sum', 'region_yolo', 'relu', 'reorg_yolo', 'reshape', 'result', 'reverse_sequence', 'roi_pooling', 'select', 'selu', 'shape_of', 'sigmoid', 'sign', 'sin', 'sinh', 'softmax', 'space_to_batch', 'space_to_depth', 'split', 'sqrt', 'squared_difference', 'squeeze', 'strided_slice', 'subtract', 'tan', 'tanh', 'tensor_iterator', 'tile', 'topk', 'transpose', 'unsqueeze', 'variadic_split']

@@ -1,9 +1,6 @@
 # type: ignore
-"""
-Factory functions for all ngraph ops.
-"""
-from functools import partial
 from __future__ import annotations
+from functools import partial
 from openvino._pyopenvino import Node
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import _get_node_factory
@@ -12,6 +9,9 @@ from openvino.utils.types import as_nodes
 import functools
 import openvino._pyopenvino
 import typing
+"""
+Factory functions for all ngraph ops.
+"""
 __all__ = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'group_normalization', 'nameable_op', 'pad', 'partial', 'scatter_elements_update']
 def group_normalization(*args, **kwargs) -> openvino._pyopenvino.Node:
     """

@@ -1,7 +1,7 @@
 # type: ignore
-from collections import namedtuple
-from collections import OrderedDict
 from __future__ import annotations
+from collections import OrderedDict
+from collections import namedtuple
 from openvino._pyopenvino import Dimension
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Type
