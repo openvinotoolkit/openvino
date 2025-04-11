@@ -14,7 +14,7 @@ FillEmptyRows
 
 **Detailed description**:
 
-Operation FillEmptyRows is an implementation of ``tf.sparse.fill_empty_rows``.
+Operation FillEmptyRows is an implementation of ``tf.raw_ops.SparseFillEmptyRows``.
 
 The input sparse tensor is represented by the three inputs: 
 
