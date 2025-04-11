@@ -54,13 +54,13 @@ Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
     if (is_conv1d) {
         // Reshape input from [N, C, L] to [N, C, 1, L]
         auto unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {2});
-        input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, unsqueeze_axis));
+        input = context.mark_node(<ov::opset1::Unsqueeze>(input, unsqueeze_axis));
 
         // Reshape weight from [O, I, K] to [O, I, 1, K]
         auto weight_shape = weight.get_partial_shape();
         if (weight_shape.rank().is_static() && weight_shape.rank().get_length() == 3) {
             auto weight_unsqueeze_axis = v0::Constant::create(element::i64, Shape{1}, {2});
-            weight = context.mark_node(std::make_shared<v0::Unsqueeze>(weight, weight_unsqueeze_axis));
+            weight = context.mark_node(std::make_shared<ov::opset1::Unsqueeze>(weight, weight_unsqueeze_axis));
         }
 
         // Adjust strides, pads, and dilations for 2D convolution
