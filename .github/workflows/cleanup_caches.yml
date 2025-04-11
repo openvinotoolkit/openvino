@@ -92,7 +92,7 @@ jobs:
 
   Cleanup_ccache_win:
     name: Cleanup Windows ccache
-    runs-on: 'aks-win-4-cores-8gb'
+    runs-on: 'aks-win-4-cores-8gb-staging'
     env:
       CCACHE_PATH: C:\\mount\\caches\\ccache
 
