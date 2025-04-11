@@ -80,7 +80,7 @@ Napi::Function AsyncInferQueue::get_class(Napi::Env env) {
                        "AsyncInferQueue",
                        {
                            InstanceMethod("getIdleRequestId", &AsyncInferQueue::get_idle_request_id),
-                        //    InstanceMethod("waitAll", &AsyncInferQueue::wait_all),
+                           //    InstanceMethod("waitAll", &AsyncInferQueue::wait_all),
                            InstanceMethod("setCallback", &AsyncInferQueue::set_custom_callbacks),
                            InstanceMethod("startAsync", &AsyncInferQueue::start_async),
                        });
