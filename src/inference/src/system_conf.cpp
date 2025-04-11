@@ -499,6 +499,16 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     std::cout << "step 20 cpu_size = " << cpu_size << std::endl;
+    std::cout << "step 21 _cpu_mapping_table " << std::endl;
+    for (auto &row : cpu._cpu_mapping_table)
+    {
+        for (auto &i : row)
+        {
+            std::cout << i << ",";
+        }
+        std::cout << std::endl;
+    }
+
     if (cpu_size > 0) {
         for (int i = 0; i < cpu_size; i++) {
             if (cpu_ids[i] < cpu._processors) {
@@ -506,6 +516,24 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
             }
         }
         ov::threading::update_proc_type_table(cpu._cpu_mapping_table, cpu._numa_nodes, cpu._proc_type_table);
+    }
+    std::cout << "step 22 _cpu_mapping_table " << std::endl;
+    for (auto &row : cpu._cpu_mapping_table)
+    {
+        for (auto &i : row)
+        {
+            std::cout << i << ",";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "step 23 _proc_type_table " << std::endl;
+    for (auto &row : cpu._proc_type_table)
+    {
+        for (auto &i : row)
+        {
+            std::cout << i << ",";
+        }
+        std::cout << std::endl;
     }
 }
 
