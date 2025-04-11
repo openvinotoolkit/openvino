@@ -584,7 +584,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 if (end_constant_node == nullptr)
                     return false;
                 auto end_values = end_constant_node->cast_vector<int64_t>();
-                if (end_values[concat_axis] == std::numeric_limits<int64_t>::max())
+                if (end_values[concat_axis] > concat->get_shape()[concat_axis])
                     end_values[concat_axis] = concat->get_shape()[concat_axis];
 
                 slice_out_index_in_concat.push_back(
@@ -624,6 +624,9 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
         if (mismatch_slices.empty())
             return true;
 
+        if (mismatch_slices.size() == slice_out_index_in_concat.size())
+            return false;
+
         int64_t new_start_value{std::numeric_limits<int64_t>::max()};
         int64_t new_end_value{0};
         for (const auto& [slice_node, slice_begin, slice_end] : mismatch_slices) {
@@ -657,8 +660,6 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 new_concat_in_nodes.push_back(concat_input_node);
             }
         }
-        if (new_concat_in_nodes.size() == concat_inputs.size())
-            return false;
 
         auto new_concat_node = concat->clone_with_new_inputs(ov::as_output_vector(new_concat_in_nodes));
         replace_output_update_name(concat, new_concat_node);
