@@ -12,9 +12,7 @@
 using namespace ov;
 using namespace ov::frontend;
 
-InputModel::~InputModel() {
-    std::cout << "Input model destructor" << std::endl;
-};
+InputModel::~InputModel() = default;
 
 std::vector<Place::Ptr> InputModel::get_inputs() const {
     if (!m_actual) {

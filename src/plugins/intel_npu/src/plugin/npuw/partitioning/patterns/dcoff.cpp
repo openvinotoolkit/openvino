@@ -139,12 +139,13 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
             auto transforms = fcall._lazy_closure[i].get_transformations();
             if (transforms.size() == 2 && std::holds_alternative<ov::npuw::weights::op::Permute>(transforms[0])) {
                 // Assuming we only match weights where DQ did set Transpose after - thus nothing extra to do here
-                std::cout << "NOT EVALUATING TENSOR IN DCOFF" << std::endl;
                 new_closure.push_back(fcall._closure[i]);
-                
             } else {
-                new_closure.push_back(m.weights_to_unpack.count(i) ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
-                if (m.weights_to_unpack.count(i)) {
+                bool weight_to_unpack = m.weights_to_unpack.count(i) > 0;
+                new_closure.push_back(weight_to_unpack ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
+                // Note: It's important here to manually detach LazyTensor since it's not going to be present in the
+                // bank - thus left in memory
+                if (weight_to_unpack) {
                     fcall._lazy_closure[i].detach();
                 }
             }
@@ -157,6 +158,8 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
                                                                : ov::Tensor());
         new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
                                                                : m.zero_points[i]);
+        // Note: It's important here to manually detach LazyTensor since it's not going to be present in the bank - thus
+        // left in memory
         if (scale_iter != m.scale_remap.end()) {
             fcall._lazy_closure[scale_iter->second].detach();
         }
@@ -295,7 +298,6 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             m_params_to.get().scales[matched_paramB] = matched_paramA;
 
             // Disconnect Multiply and Convert from their outputs
-            // FIXME: can we use get_node_shared_ptr() with at_or_at()
             auto matched_mulply = uat::_(node_to_output).at_or_at(transposeopt, mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
             auto drop_outputs = [](std::shared_ptr<ov::Node> node) {

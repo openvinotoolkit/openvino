@@ -6,7 +6,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <thread>
 
 #include "accuracy/comparator.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -474,10 +473,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
     };  // compile
 
-    std::cout << "before compile" << std::endl;
-    using namespace std::chrono_literals;
-    std::this_thread::sleep_for(10000ms);
-
     // Parallel compilation is unstable so is disabled by default.
     const bool par_opt = m_cfg.get<::intel_npu::NPUW_PARALLEL_COMPILE>();
     if (par_opt) {
@@ -489,17 +484,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
     }
 
-    std::cout << "before bank allocation" << std::endl;
-    using namespace std::chrono_literals;
-    std::this_thread::sleep_for(10000ms);
-
     // Finalize memory in closures and weight banks
     finalize_weights_bank();
     detach_memory();
-
-    std::cout << "model compiled" << std::endl;
-    using namespace std::chrono_literals;
-    std::this_thread::sleep_for(10000ms);
 
     // Print stats report when possible
     {
@@ -919,7 +906,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
         for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
             if (comp_model_desc.closure[tidx]) {
-                std::cout << "host-side closure not in bank" << std::endl;
                 continue;  // host-side closure
             }
             comp_model_desc.closure_uid[tidx] =
@@ -953,9 +939,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             comp_model_desc.closure[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
             // FIXME: find a more reliable way to do so
             comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(uid);
-            if (!comp_model_desc.is_remote[tidx]) {
-                std::cout << "ALARM - not remote" << std::endl;
-            }
         }
     }
 
@@ -990,10 +973,6 @@ void ov::npuw::CompiledModel::detach_memory() {
         auto& proto_comp_model_desc = m_compiled_submodels[comp_model_desc.replaced_by.value_or(idx)];
         if (!proto_comp_model_desc.model || !proto_comp_model_desc.compiled_model) {
             continue;  // optimized-out OR already cleared - skip
-        }
-        // Manually detach all LazyTensors just in case
-        for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
-            comp_model_desc.lazy_closure[tidx].detach();
         }
         if (proto_comp_model_desc.device_it + 1 == m_dev_list.end()) {
             LOG_INFO("No fallback expected - clear the OV model for Subgraph[" << idx << "]");

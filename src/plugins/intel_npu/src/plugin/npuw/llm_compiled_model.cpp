@@ -19,7 +19,6 @@
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
-#include <thread>
 
 namespace opp = ov::pass::pattern;
 
@@ -691,10 +690,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
-    
-    std::cout << "LLMCompiled both model compiled" << std::endl;
-    using namespace std::chrono_literals;
-    std::this_thread::sleep_for(10000ms);
 
     implement_properties();
     LOG_DEBUG("Done");

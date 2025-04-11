@@ -32,6 +32,7 @@ Const::Const(std::shared_ptr<ov::op::v0::Constant> n) : m_node(n) {
         m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
     }
 }
+
 std::size_t Const::hash() const {
     std::size_t seed = std::hash<const void*>()(m_cached_ptr) + 0x9e3779b9;
     seed ^= m_cached_type.hash() + 0x9e3779b9;
@@ -40,40 +41,43 @@ std::size_t Const::hash() const {
     }
     return seed;
 }
+
 bool Const::operator==(const Const& other) const {
     return (m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
             m_cached_ptr == other.m_cached_ptr);
 }
+
 ov::Tensor Const::eval() const {
     if (m_node) {
-        auto t = ov::npuw::util::tensor_from_const(m_node);
-        return t;
+        return ov::npuw::util::tensor_from_const(m_node);
     }
 
-    NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first!");
-    auto t = m_read_from_bin;
-    return t;
+    NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first! Or the tensor is already detached.");
+    return m_read_from_bin;
 }
+
 void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     NPUW_ASSERT(!m_node &&
-        "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
+                "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
     m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
 
     if (ctx.weights) {
-    std::memcpy(m_read_from_bin.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
+        std::memcpy(m_read_from_bin.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
     } else {
-    auto it = ctx.consts_cache.find({m_offset, m_byte_size});
-    NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
-    auto tensor = ov::npuw::util::tensor_from_const(it->second);
-    NPUW_ASSERT(tensor.get_byte_size() == m_byte_size && tensor.get_shape() == m_cached_shape &&
-                tensor.get_element_type() == m_cached_type);
-    tensor.copy_to(m_read_from_bin);
+        auto it = ctx.consts_cache.find({m_offset, m_byte_size});
+        NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
+        auto tensor = ov::npuw::util::tensor_from_const(it->second);
+        NPUW_ASSERT(tensor.get_byte_size() == m_byte_size && tensor.get_shape() == m_cached_shape &&
+                    tensor.get_element_type() == m_cached_type);
+        tensor.copy_to(m_read_from_bin);
     }
 }
+
 void Const::detach() {
     m_node.reset();
     m_read_from_bin = ov::Tensor();
 }
+
 void Const::serialize(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
     write(stream, m_cached_type.to_string());
@@ -81,6 +85,7 @@ void Const::serialize(std::ostream& stream) const {
     write(stream, m_offset);
     write(stream, m_byte_size);
 }
+
 Const Const::deserialize(std::istream& stream) {
     using namespace ov::npuw::s11n;
     Const c;
@@ -100,9 +105,11 @@ std::size_t Concat::hash() const {
     }
     return seed;
 }
+
 bool Concat::operator==(const Concat& other) const {
     return (axis == other.axis && tensors == other.tensors);
 }
+
 ov::Tensor Concat::eval() const {
     std::vector<ov::Tensor> to_concat;
     for (const auto& lt : tensors) {
@@ -110,21 +117,25 @@ ov::Tensor Concat::eval() const {
     }
     return ov::npuw::util::concat(to_concat, axis);
 }
+
 void Concat::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     for (auto& lt : tensors) {
         lt.read_weight(ctx);
     }
 }
+
 void Concat::detach() {
     for (auto&& lt : tensors) {
         lt.detach();
     }
 }
+
 void Concat::serialize(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
     write(stream, axis);
     write(stream, tensors);
 }
+
 Concat Concat::deserialize(std::istream& stream) {
     using namespace ov::npuw::s11n;
     Concat c;
@@ -143,9 +154,11 @@ std::size_t Unpack::hash() const {
     }
     return seed;
 }
+
 bool Unpack::operator==(const Unpack& other) const {
     return (type == other.type && shape == other.shape && w == other.w && z == other.z && s == other.s);
 }
+
 ov::Tensor Unpack::eval() const {
     const auto& gti = ov::get_tensor_impl;
     const auto& tw = w.eval();
@@ -162,6 +175,7 @@ ov::Tensor Unpack::eval() const {
     }
     return dst;
 }
+
 void Unpack::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     w.read_weight(ctx);
     if (z) {  // could be empty
@@ -169,11 +183,13 @@ void Unpack::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     }
     s.read_weight(ctx);
 }
+
 void Unpack::detach() {
     w.detach();
     z.detach();
     s.detach();
 }
+
 void Unpack::serialize(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
     write(stream, type.to_string());
@@ -182,6 +198,7 @@ void Unpack::serialize(std::ostream& stream) const {
     write(stream, z);
     write(stream, s);
 }
+
 Unpack Unpack::deserialize(std::istream& stream) {
     using namespace ov::npuw::s11n;
     Unpack u;
@@ -202,23 +219,29 @@ std::size_t Permute::hash() const {
     }
     return seed;
 }
+
 bool Permute::operator==(const Permute& other) const {
     return (axes == other.axes && tensor == other.tensor);
 }
+
 ov::Tensor Permute::eval() const {
     return ov::npuw::util::permute(tensor.eval(), axes);
 }
+
 void Permute::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     tensor.read_weight(ctx);
 }
+
 void Permute::detach() {
     tensor.detach();
 }
+
 void Permute::serialize(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
     write(stream, axes);
     write(stream, tensor);
 }
+
 Permute Permute::deserialize(std::istream& stream) {
     using namespace ov::npuw::s11n;
     Permute p;
@@ -232,24 +255,30 @@ std::size_t Convert::hash() const {
     seed ^= tensor.get_hash() + 0x9e3779b9;
     return seed;
 }
+
 bool Convert::operator==(const Convert& other) const {
     return (type == other.type && tensor == other.tensor);
 }
+
 ov::Tensor Convert::eval() const {
     NPUW_ASSERT(ov::element::f16 == type);
     return ov::npuw::util::to_f16(tensor.eval());
 }
+
 void Convert::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     tensor.read_weight(ctx);
 }
+
 void Convert::detach() {
     tensor.detach();
 }
+
 void Convert::serialize(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
     write(stream, type.to_string());
     write(stream, tensor);
 }
+
 Convert Convert::deserialize(std::istream& stream) {
     using namespace ov::npuw::s11n;
     Convert c;
@@ -264,7 +293,6 @@ Convert Convert::deserialize(std::istream& stream) {
 enum class TransformType : int { CONST = 0, CONCAT, UNPACK, PERMUTE, CONVERT };
 
 struct LazyTensorImpl {
-public:
     LazyTensorImpl() = default;
     explicit LazyTensorImpl(LazyTensor::Transform&& t);
     bool operator==(const LazyTensorImpl& other) const;
@@ -344,7 +372,7 @@ void LazyTensorImpl::get_transformations(std::vector<LazyTensor::Transform>& vec
                                   vec.insert(vec.end(), next_tr.begin(), next_tr.end());
                               }
                           },
-                          [&vec](const op::Const& op) {
+                          [](const op::Const& op) {
                               // do nothing
                           },
                           [&vec](const op::Convert& op) {
@@ -432,23 +460,23 @@ std::shared_ptr<LazyTensorImpl> LazyTensorImpl::deserialize(std::istream& stream
 LazyTensor::LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr)
     : m_impl(std::make_shared<LazyTensorImpl>(op::Const(const_ptr))) {}
 LazyTensor::LazyTensor(const std::vector<LazyTensor>& to_concat, const std::size_t axis)
-    : m_impl(std::make_shared<LazyTensorImpl>(op::Concat{to_concat, axis})) {}
+    : m_impl(std::make_shared<LazyTensorImpl>(op::Concat(to_concat, axis))) {}
 LazyTensor::LazyTensor(const LazyTensor& cw,
                        const LazyTensor& cz,
                        const LazyTensor& cs,
                        const ov::element::Type& type,
                        const ov::Shape& shape)
-    : m_impl(std::make_shared<LazyTensorImpl>(op::Unpack{cw, cz, cs, type, shape})) {}
+    : m_impl(std::make_shared<LazyTensorImpl>(op::Unpack(cw, cz, cs, type, shape))) {}
 
 LazyTensor LazyTensor::permute(const std::vector<std::size_t>& axes) {
     LazyTensor new_lt;
-    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Permute{*this, axes});
+    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Permute(*this, axes));
     return new_lt;
 }
 
 LazyTensor LazyTensor::convert(const ov::element::Type& type) {
     LazyTensor new_lt;
-    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Convert{*this, type});
+    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Convert(*this, type));
     return new_lt;
 }
 

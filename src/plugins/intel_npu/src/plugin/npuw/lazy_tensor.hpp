@@ -21,11 +21,11 @@ class LazyTensor;
 struct LazyTensorImpl;
 
 namespace op {
-struct Const;
-struct Concat;
-struct Unpack;
-struct Permute;
-struct Convert;
+class Const;
+class Concat;
+class Unpack;
+class Permute;
+class Convert;
 }  // namespace op
 
 class LazyTensor {
@@ -71,15 +71,10 @@ private:
 };
 
 namespace op {
-struct Const {
-    std::shared_ptr<ov::op::v0::Constant> m_node = nullptr;
-    ov::element::Type m_cached_type;
-    ov::Shape m_cached_shape;
-    const void* m_cached_ptr = nullptr;
-    std::size_t m_offset = 0;
-    std::size_t m_byte_size = 0;
-    ov::Tensor m_read_from_bin;
+class Const {
+    friend class ov::npuw::weights::LazyTensorImpl;
 
+public:
     Const() = default;
 
     explicit Const(std::shared_ptr<ov::op::v0::Constant> n);
@@ -90,12 +85,23 @@ struct Const {
     void detach();
     void serialize(std::ostream& stream) const;
     static Const deserialize(std::istream& stream);
-};
-struct Concat {
-    std::vector<LazyTensor> tensors;
-    std::size_t axis;
 
+private:
+    std::shared_ptr<ov::op::v0::Constant> m_node = nullptr;
+    ov::element::Type m_cached_type;
+    ov::Shape m_cached_shape;
+    const void* m_cached_ptr = nullptr;
+    std::size_t m_offset = 0;
+    std::size_t m_byte_size = 0;
+    ov::Tensor m_read_from_bin;
+};
+
+class Concat {
+    friend class ov::npuw::weights::LazyTensorImpl;
+
+public:
     Concat() = default;
+    Concat(const std::vector<LazyTensor>& _tensors, std::size_t _axis) : tensors(_tensors), axis(_axis){};
 
     std::size_t hash() const;
     bool operator==(const Concat& other) const;
@@ -104,13 +110,23 @@ struct Concat {
     void detach();
     void serialize(std::ostream& stream) const;
     static Concat deserialize(std::istream& stream);
-};
-struct Unpack {
-    LazyTensor w, z, s;
-    ov::element::Type type;
-    ov::Shape shape;
 
+private:
+    std::vector<LazyTensor> tensors;
+    std::size_t axis;
+};
+
+class Unpack {
+    friend class ov::npuw::weights::LazyTensorImpl;
+
+public:
     Unpack() = default;
+    Unpack(const LazyTensor& _w, const LazyTensor& _z, const LazyTensor& _s, ov::element::Type _type, ov::Shape _shape)
+        : w(_w),
+          z(_z),
+          s(_s),
+          type(_type),
+          shape(_shape){};
 
     std::size_t hash() const;
     bool operator==(const Unpack& other) const;
@@ -119,12 +135,19 @@ struct Unpack {
     void detach();
     void serialize(std::ostream& stream) const;
     static Unpack deserialize(std::istream& stream);
-};
-struct Permute {
-    LazyTensor tensor;
-    std::vector<std::size_t> axes;
 
+private:
+    LazyTensor w, z, s;
+    ov::element::Type type;
+    ov::Shape shape;
+};
+
+class Permute {
+    friend class ov::npuw::weights::LazyTensorImpl;
+
+public:
     Permute() = default;
+    Permute(const LazyTensor& _tensor, const std::vector<std::size_t>& _axes) : tensor(_tensor), axes(_axes){};
 
     std::size_t hash() const;
     bool operator==(const Permute& other) const;
@@ -133,12 +156,18 @@ struct Permute {
     void detach();
     void serialize(std::ostream& stream) const;
     static Permute deserialize(std::istream& stream);
-};
-struct Convert {
-    LazyTensor tensor;
-    ov::element::Type type;
 
+private:
+    LazyTensor tensor;
+    std::vector<std::size_t> axes;
+};
+
+class Convert {
+    friend class ov::npuw::weights::LazyTensorImpl;
+
+public:
     Convert() = default;
+    Convert(const LazyTensor& _tensor, ov::element::Type _type) : tensor(_tensor), type(_type){};
 
     std::size_t hash() const;
     bool operator==(const Convert& other) const;
@@ -147,6 +176,10 @@ struct Convert {
     void detach();
     void serialize(std::ostream& stream) const;
     static Convert deserialize(std::istream& stream);
+
+private:
+    LazyTensor tensor;
+    ov::element::Type type;
 };
 }  // namespace op
 

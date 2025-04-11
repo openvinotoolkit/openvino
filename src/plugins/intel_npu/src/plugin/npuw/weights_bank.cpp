@@ -38,7 +38,6 @@ private:
 
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
-    std::cout << "register on device " << device_for_alloc << std::endl;
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
@@ -47,13 +46,11 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
 
     auto iter_registered = device_bank.registered_tensors.find(tensor);
     if (iter_registered == device_bank.registered_tensors.end()) {
-        std::cout << "Register new tensor in bank" << std::endl;
         auto uid = uid_count++;
         device_bank.registered_tensors[tensor] = uid;
         device_bank.storage[uid] = {tensor, ov::Tensor()};
         return uid;
     } else {
-        std::cout << "Already registered in the bank" << std::endl;
         // Already registered - can be safely detach the incoming tensor
         const_cast<LazyTensor&>(tensor).detach();
     }
@@ -63,8 +60,6 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
 
 ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
-
-    std::cout << "get on device " << device_for_alloc << std::endl;
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
@@ -86,8 +81,6 @@ void Bank::evaluate_and_allocate() {
         const auto& device_for_alloc = bank.first;
         auto& device_bank = bank.second;
 
-        std::cout << "considering device " << device_for_alloc << std::endl;
-
         std::vector<LazyTensor> vec;
 
         std::unique_lock storage_guard(device_bank.mutex);
@@ -96,8 +89,6 @@ void Bank::evaluate_and_allocate() {
             // Add non-allocated tensors for furter evaluation and allocation
             if (!el.second.tensor) {
                 vec.push_back(el.second.lt);
-            } else {
-                std::cout << "not considering for alloc" << std::endl;
             }
         }
         storage_guard.unlock();
@@ -109,14 +100,10 @@ void Bank::evaluate_and_allocate() {
             NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                         "Tensor should be registered first!");
             if (device_bank.storage[iter_device_registered->second].tensor) {
-                std::cout << "already allocated" << std::endl;
                 // Already allocated
-                const_cast<LazyTensor&>(lt).detach();
                 return;
             }
             dev_guard.unlock();
-
-            std::cout << "allocating" << std::endl;
 
             // Allocation and/or evaluation needed
             // Evaluate concurrently, lock the device
