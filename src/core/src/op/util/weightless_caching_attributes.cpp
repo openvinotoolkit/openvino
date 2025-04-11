@@ -4,8 +4,8 @@
 
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 
-#include "openvino/op/convert.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 
 bool ov::WeightlessCacheAttribute::is_copyable() const {
     return false;
