@@ -8,6 +8,7 @@
 #include <onnx/shape_inference/implementation.h>
 
 #include <fstream>
+#include <stack>
 
 #include "detail/subgraph_extraction.hpp"
 #include "edge_mapper.hpp"
