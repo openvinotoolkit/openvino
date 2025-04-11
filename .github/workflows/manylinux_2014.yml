@@ -165,19 +165,15 @@ jobs:
               cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/api_tests --component tests
             "
             
-      - name: Pack Artifacts
-        run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-        working-directory: ${{ env.INSTALL_DIR }}
-            
       - name: Build Python API (Python 3.9-3.13)
         run: |
-          SUPPORTED_PYTHON_VERSIONS=("39" "310" "311" "312" "313")
+          SUPPORTED_PYTHON_VERSIONS=("3.9" "3.10" "3.11" "3.12" "3.13")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
-            python_path=/opt/python/cp${PY_VER}-cp${PY_VER}/bin
             docker run --rm \
               -v ${{ env.OPENVINO_REPO }}:/work/src \
               -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
               -v ${{ env.PIP_CACHE_PATH }}:/work/pip_cache \
+              -v ${{ env.INSTALL_DIR }}:/work/install \
               -v ov_build_cache:/work/build \
               -e SCCACHE_AZURE_BLOB_CONTAINER \
               -e SCCACHE_AZURE_CONNECTION_STRING \
@@ -192,15 +188,21 @@ jobs:
               -w /work/src \
               ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
               /bin/bash -c "
-                export PATH=${python_path}:\$PATH
+                py_exec_folder=$(python$py_version -c "import sys; print(sys.exec_prefix + '/bin')")
+                export PATH=${py_exec_folder}:\$PATH
                 PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
                 export "PIP_CACHE_DIR=/work/pip_cache/${PIP_VER}"
                 python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt &&
                 cmake -DOpenVINODeveloperPackage_DIR=/work/build -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src/src/bindings/python -B /work/build_py${PY_VER} &&
                 cmake --build /work/build_py${PY_VER} --parallel $(nproc) --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} &&
                 cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
+                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/isntall --component pyopenvino_python${PY_VER}
               "
           done
+
+      - name: Pack Artifacts
+        run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Pack openvino_tests
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
