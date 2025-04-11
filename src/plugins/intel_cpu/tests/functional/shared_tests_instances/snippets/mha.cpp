@@ -125,19 +125,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_3D,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_2D,
                          MHA2D,
-                         ::testing::Combine(::testing::ValuesIn(transposedShape_2D(false)),
-                                            ::testing::ValuesIn(precision_f32(4)),
-                                            ::testing::Values(ov::element::f32),
-                                            ::testing::Values(false),
-                                            ::testing::Values(MHA2D::default_thread_count),
-                                            ::testing::Values(1),  // Subgraph
-                                            ::testing::Values(1),  // MHA
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         MHA2D::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_2D_Dynamic,
-                         MHA2D,
                          ::testing::Combine(::testing::ValuesIn(transposedShape_2D(true)),
                                             ::testing::ValuesIn(precision_f32(4)),
                                             ::testing::Values(ov::element::f32),

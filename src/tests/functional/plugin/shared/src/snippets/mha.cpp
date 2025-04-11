@@ -154,7 +154,6 @@ std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() const {
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHA2D::get_subgraph() const {
-    bool is_with_reshape = std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const PartialShape& ps){ return ps.is_static(); });
     return std::make_shared<ov::test::snippets::MHA2DFunction>(inputDynamicShapes, m_input_types);
 }
 
