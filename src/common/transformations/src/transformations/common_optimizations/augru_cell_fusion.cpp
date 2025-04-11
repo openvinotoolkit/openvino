@@ -16,9 +16,10 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/augru_cell.hpp"
@@ -26,6 +27,31 @@
 using namespace std;
 using namespace ov::element;
 using namespace ov::pass::pattern;
+
+static std::shared_ptr<ov::Node> get_bias_add(std::shared_ptr<ov::Node> bias_add, ov::pass::NodeRegistry& rg) {
+    auto input_source_1_ps = bias_add->input_value(1).get_partial_shape();
+    if (input_source_1_ps.is_static() && input_source_1_ps.rank().get_length() == 1) {
+        auto unsqueeze =
+            rg.make<ov::op::v0::Unsqueeze>(bias_add->input_value(1),
+                                           ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+        bias_add->input(1).replace_source_output(unsqueeze);
+    }
+
+    return bias_add;
+}
+
+static std::shared_ptr<ov::Node> get_weights_matmul(std::shared_ptr<ov::Node> mat_mul, ov::pass::NodeRegistry& rg) {
+    if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(mat_mul)) {
+        if (!matmul->get_transpose_b()) {
+            auto transpose =
+                rg.make<ov::op::v1::Transpose>(matmul->input_value(1),
+                                               ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0}));
+            matmul->input(1).replace_source_output(transpose);
+        }
+    }
+
+    return mat_mul;
+}
 
 ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
     MATCHER_SCOPE(AUGRUCellFusion);
@@ -76,25 +102,16 @@ ov::pass::AUGRUCellFusion::AUGRUCellFusion() {
 
         auto A = pattern_map.at(subtract_1)->input_value(1);
         // biases are required
-        auto bias_add_1 = pattern_map.at(add_1);
-        auto unsqueeze = rg.make<ov::op::v0::Unsqueeze>(bias_add_1->input_value(1), ov::op::v0::Constant::create(element::i32, Shape{}, {0}));
-        bias_add_1->input(1).replace_source_output(unsqueeze);
+        auto bias_add_1 = get_bias_add(pattern_map.at(add_1), rg);
         auto split_bias_r_z = rg.make<ov::op::v1::Split>(bias_add_1->input_value(1), axis_1, 2);
-        auto bias_add_2 = pattern_map.at(add_2);
-        auto unsqueeze2 = rg.make<ov::op::v0::Unsqueeze>(bias_add_2->input_value(1), ov::op::v0::Constant::create(element::i32, Shape{}, {0}));
-        bias_add_2->input(1).replace_source_output(unsqueeze2);
-
-        std::cout << "split_bias_r_z->output(1): " << split_bias_r_z->output(1) << std::endl;
-        std::cout << "split_bias_r_z->output(0): " << split_bias_r_z->output(0) << std::endl;
-        std::cout << "bias_add_2->input_value(1): " << bias_add_2->input_value(1) << std::endl;
+        auto bias_add_2 = get_bias_add(pattern_map.at(add_2), rg);
 
         auto B = rg.make<ov::op::v0::Concat>(
             OutputVector{split_bias_r_z->output(1), split_bias_r_z->output(0), bias_add_2->input_value(1)},
             1);
-        std::cout << "B: " << B << std::endl;
 
-        auto WRrz = pattern_map.at(matmul_1)->input_value(1);
-        auto WRh = pattern_map.at(matmul_2)->input_value(1);
+        auto WRrz = get_weights_matmul(pattern_map.at(matmul_1), rg)->input_value(1);
+        auto WRh = get_weights_matmul(pattern_map.at(matmul_2), rg)->input_value(1);
 
         auto split_lenghts = rg.make<ov::op::v0::Constant>(i64, Shape{2}, vector<int64_t>{input_size, hidden_size});
         auto split_WRrz = rg.make<ov::op::v1::VariadicSplit>(WRrz, axis_1, split_lenghts);
