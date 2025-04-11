@@ -171,25 +171,8 @@ std::shared_ptr<ov::Model> MHA2DFunction::initOriginal() const {
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(matmul_parent0, matmul_parent1);
     const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
 
-    auto softmax_out = add->output(0);
-    if (with_reshape) {
-        const auto interm_shape = add->get_output_shape(0);
-        const auto batch =
-            std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + (rank - 1), 1, std::multiplies<size_t>());
-        const auto reshape0ConstData = std::vector<int64_t>{ batch, -1 };
-        const auto reshape1ConstData = interm_shape;
-        const auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape0ConstData.size()}, reshape0ConstData);
-        const auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape1ConstData.size()}, reshape1ConstData);
-
-        const auto reshape0 = std::make_shared<ov::opset1::Reshape>(add, reshape0Const, true);
-        const auto softMax = std::make_shared<ov::opset1::Softmax>(reshape0, 1);
-        const auto reshape1 = std::make_shared<ov::opset1::Reshape>(softMax, reshape1Const, true);
-        softmax_out = reshape1->output(0);
-    } else {
-        const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
-        softmax_out = softMax->output(0);
-    }
-
+    const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
+    auto softmax_out = softMax->output(0);
 
     std::shared_ptr<ov::Node> matmul_parent2 = transpose2Param;
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax_out, matmul_parent2);

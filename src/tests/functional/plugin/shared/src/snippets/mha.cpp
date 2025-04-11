@@ -150,7 +150,14 @@ void MHAWithDynamicMul::init_params(std::vector<InputShape>& input_shapes, ov::e
 
 std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() const {
     bool is_with_reshape = std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const PartialShape& ps){ return ps.is_static(); });
-    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul, is_with_reshape);
+    bool is_2d_shape = std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const PartialShape& ps) {
+        return ps.rank().is_static() && ps.rank().get_length() == 2;
+    });
+    if (is_2d_shape) {
+        return std::make_shared<ov::test::snippets::MHA2DFunction>(inputDynamicShapes, m_input_types, m_with_mul, is_with_reshape);
+    } else {
+        return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul, is_with_reshape);
+    }
 }
 
 void MHA::init_thresholds() {
