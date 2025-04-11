@@ -359,6 +359,7 @@ public:
     }
 
     void set_shape(ov::Shape new_shape) {
+        OPENVINO_ASSERT(new_shape.size() >= m_shape.size());
         const auto last_new_dim = new_shape.crend();
         auto new_dim = new_shape.crbegin();
         for (auto max_dim = m_capacity.crbegin(); new_dim != last_new_dim && max_dim != m_capacity.crend();

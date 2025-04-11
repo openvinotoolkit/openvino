@@ -687,6 +687,7 @@ TEST_F(OVTensorTest, setShapeInvalidExpandRoiRank) {
     OV_EXPECT_THROW(roi_tensor.set_shape({1, 2, 1, 2, 2}), ov::Exception, _);
     OV_EXPECT_THROW(roi_tensor.set_shape({2, 1, 1}), ov::Exception, _);
     OV_EXPECT_THROW(roi_tensor.set_shape({2, 1, 1, 1}), ov::Exception, _);
+    OV_EXPECT_THROW(roi_tensor.set_shape({2}), ov::Exception, _);
 }
 
 TEST_F(OVTensorTest, cannotSetShapeOnRoiStringTensor) {
