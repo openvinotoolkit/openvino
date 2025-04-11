@@ -353,6 +353,7 @@ protected:
         auto desc = params.typed_desc<moe_expert>();
         jit.make("GATHER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->get_hidden_size());
+        jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         return jit;
     }
 
@@ -392,6 +393,7 @@ protected:
         auto desc = params.typed_desc<moe_expert>();
         jit.make("SCATTER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->get_hidden_size());
+        jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         return jit;
     }
 
@@ -438,20 +440,40 @@ public:
             if (shape.size() == 3) {
                 _dnnl_weights[i].ic = static_cast<int>(shape[1] * shape[2]);
                 _dnnl_weights[i].ic_group_size = static_cast<int>(shape[2]);
+                if (mlp_params.param[i].zp) {
+                    auto zp_shape = mlp_params.param[i].zp->get_layout().get_shape();
+                    OPENVINO_ASSERT(zp_shape.size() == 3);
+                    OPENVINO_ASSERT(zp_shape[0] == shape[1] && zp_shape[1] == shape[0] && zp_shape[2] == 1);
+                }
+                if (mlp_params.param[i].scale) {
+                    auto scale_shape = mlp_params.param[i].scale->get_layout().get_shape();
+                    OPENVINO_ASSERT(scale_shape.size() == 3);
+                    OPENVINO_ASSERT(scale_shape[0] == shape[1] && scale_shape[1] == shape[0] && scale_shape[2] == 1);
+                }
             } else {
                 OPENVINO_ASSERT(shape.size() == 2);
                 _dnnl_weights[i].ic = static_cast<int>(shape[1]);
                 _dnnl_weights[i].ic_group_size = static_cast<int>(shape[1]);
+                if (mlp_params.param[i].zp) {
+                    auto zp_shape = mlp_params.param[i].zp->get_layout().get_shape();
+                    OPENVINO_ASSERT(zp_shape.size() == 2);
+                    OPENVINO_ASSERT(zp_shape[0] == shape[0]);
+                }
+                if (mlp_params.param[i].scale) {
+                    auto scale_shape = mlp_params.param[i].scale->get_layout().get_shape();
+                    OPENVINO_ASSERT(scale_shape.size() == 2);
+                    OPENVINO_ASSERT(scale_shape[0] == shape[0]);
+                }
             }
             if (mlp_params.param[i].scale) {
                 _dnnl_weights[i].scale = convert2dnnl(mlp_params.param[i].scale,
                     {_dnnl_weights[i].ic / _dnnl_weights[i].ic_group_size, _dnnl_weights[i].oc},
-                    dnnl::memory::format_tag::ba);
+                    dnnl::memory::format_tag::ab);
             }
             if (mlp_params.param[i].zp) {
                 _dnnl_weights[i].zp = convert2dnnl(mlp_params.param[i].zp,
                     {_dnnl_weights[i].ic / _dnnl_weights[i].ic_group_size, _dnnl_weights[i].oc},
-                    dnnl::memory::format_tag::ba);
+                    dnnl::memory::format_tag::ab);
             }
             if (mlp_params.param[i].weight) {
                 _dnnl_weights[i].weight = convert2dnnl(mlp_params.param[i].weight, 
@@ -473,7 +495,7 @@ public:
     }
 
     bool is_cpu() const override {
-        return true;
+        return false;
     }
 
     // [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
@@ -521,6 +543,10 @@ public:
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
         auto moe = instance.get_typed_desc<moe_expert>();
+
+        instance.update_output_layout();
+        instance.update_output_memory(expert_no == 0);
+
         if (!cur_net.has_scratch<expert_mask_scratch>(expert_mask_scratch_key)) {
             cur_net.set_scratch<expert_mask_scratch>(expert_mask_scratch_key, {});
         }
@@ -551,16 +577,11 @@ public:
 
         OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
         auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
-        std::vector<event::ptr> output_events;
         if (can_skip_subgraph) {
-            auto output_mem_ptr = instance.input_memory_ptr(0);
-            auto output_layout = instance.dependencies()[0].first->get_output_layout();
-            GPU_DEBUG_LOG << "    set output layout : " << output_layout.to_short_string() << std::endl;
-            instance.set_output_layout(output_layout, 0);
-            instance.set_output_memory(output_mem_ptr, 0);
-            instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
+            if (instance.needs_completion_event())
+                return stream.enqueue_marker({});
 
-            return stream.group_events(output_events);
+            return {};
         }
 
         auto key = expert_mask_mem_scratch_key + std::to_string(expert_no);
@@ -577,7 +598,8 @@ public:
             auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
             return std::make_tuple(mem, layout);
         };
-        auto [final_hidden_states_mem_ptr, final_hidden_states_layout] = input_info(0);
+        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+        auto final_hidden_states_layout = instance.get_output_layout(0);
         auto [expert_mask_mem_ptr, expert_mask_layout] = input_info(1);
         auto [hidden_states_mem_ptr, hidden_states_layout] = input_info(2);
         auto [routing_mem_ptr, routing_layout] = input_info(3);
@@ -683,8 +705,6 @@ public:
             result_event = execute_stage(events, instance, *scatter, {scratch.y, expert_mask_mem.batch},
                 {final_hidden_states_mem_ptr}, {static_cast<size_t>(n_token), static_cast<size_t>(hidden_size)}, {1, 1});
         }
-        instance.update_output_layout();
-        instance.postprocess_output_memory();
 
         return result_event;
     }

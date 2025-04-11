@@ -9,12 +9,12 @@
 #if GATHER_ENABLE
 
 KERNEL (gather_2d_ref)(
-    const __global half* src_tok,
-    const __global half* src_rweight,
+    const __global TYPE* src_tok,
+    const __global TYPE* src_rweight,
     __global int * tok_index,
     __global int * top_index,
-    __global half* dst_tok,
-    __global half* dst_rweight) {
+    __global TYPE* dst_tok,
+    __global TYPE* dst_rweight) {
 
     int k = get_global_id(0);
     int off = get_global_id(1);
@@ -33,9 +33,9 @@ KERNEL (gather_2d_ref)(
 
 #elif SCATTER_ENABLE
 
-KERNEL (index_add_)(const __global half* src_tok,
+KERNEL (index_add_)(const __global TYPE* src_tok,
     __global int * tok_index,
-    __global half* dst_tok) {
+    __global TYPE* dst_tok) {
 
     int k = get_global_id(0);
     int off = get_global_id(1);

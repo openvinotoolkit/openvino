@@ -37,9 +37,16 @@ struct expert_mask_tmp_scratch {
     size_t max_size = 0;
 };
 
+struct expert_mask_output_scratch {
+    memory::ptr buf;
+    layout buf_layout;
+    size_t max_size = 0;
+};
+
 static constexpr const char* expert_mask_scratch_key = "expert_mask_scratch";
 static constexpr const char* expert_mask_mem_scratch_key = "expert_mask_scratch_mem";
 static constexpr const char* expert_mask_tmp_scratch_key = "expert_mask_scratch_tmp";
+static constexpr const char* expert_mask_output_scratch_key = "expert_mask_scratch_output";
 
 template <>
 struct typed_program_node<moe_expert> : public typed_program_node_base<moe_expert> {
@@ -94,7 +101,7 @@ public:
                                  expert_mask_mem_scratch& expert_mask_mem);
 
     void update_output_layout();
-    void postprocess_output_memory();
+    void update_output_memory(bool need_reset);
     void get_tmp_memory(data_types type, int m, int hidden_size, int inter_size, int topk, expert_mask_tmp_scratch& scratch);
 
 private:

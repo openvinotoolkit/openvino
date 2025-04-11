@@ -33,12 +33,31 @@ public:
         return result.str();
     }
 
-    static std::vector<uint8_t> genList(size_t len, size_t start, size_t end) {
-        OPENVINO_ASSERT(start < end);
-        std::vector<uint8_t> result(len);
-        for (size_t i = 0; i < len; i++) {
-            result[i] = (start + i) % end;
+    template<typename IT, typename T>
+    static void strided_iota(IT first, size_t n, T value, T stride) {
+        for (size_t i = 0; i < n; i++) {
+            *first++ = value;
+            value += stride;
         }
+    }
+
+    static std::vector<uint8_t> genList(size_t len, size_t start, size_t end) {
+        std::vector<uint8_t> result(len);
+        if (start == end) {
+            for (size_t i = 0; i < len; i++) {
+                result[i] = start;
+            }
+        } else {
+            for (size_t i = 0; i < len; i++) {
+                result[i] = (start + i) % end;
+            }
+        }
+        return result;
+    }
+
+    static std::vector<float> genList(size_t len, float start, float stride) {
+        std::vector<float> result(len);
+        strided_iota(result.begin(), len, start, stride);
         return result;
     }
 
@@ -79,37 +98,38 @@ public:
         auto index_add__Broadcast_25 = makeOP<opset3::Broadcast>({index_add__Reshape_2, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});   //  tensor_array<i32[?,2048]> __module.model.model.layers.0.mlp/aten::index_add_/Broadcast_25(__module.model.model.layers.0.mlp/aten::index_add_/Reshape_2, __module.model.model.layers.0.mlp/aten::index_add_/ShapeOf_22)
         auto index_Gather_4 = makeOP<opset8::Gather>({hidden_states/*unsqueeze_Unsqueeze*/, index_add__Convert_2, 1}, {{"batch_dims", 0}});   //  tensor_array<f32[1,?,2048]> __module.model.model.layers.0.mlp/aten::index/Gather_4(__module.model.model.layers.0.mlp/aten::unsqueeze/Unsqueeze, __module.model.model.layers.0.mlp/aten::index_add_/Convert_2, __module.model.model.layers.0.mlp/aten::index/Constant_4)
         auto reshape_Reshape_2 = makeOP<opset1::Reshape>({index_Gather_4, {-1,2048}}, {{"special_zero", true}});   //  tensor_array<f32[?,2048]> __module.model.model.layers.0.mlp/aten::reshape/Reshape_2(__module.model.model.layers.0.mlp/aten::index/Gather_4, Constant_3162063)
-        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight = makeConst(element::u4, ov::Shape({768,16,128,}), {5});
+        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight = makeConst(element::u4, ov::Shape({768,16,128,}), {1});
         auto Convert_3988397 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight}, {{"destination_type", "f16"}});   //  tensor_array<f16[768,16,128]> Convert_3988397(self.model.model.layers.0.mlp.experts.2.gate_proj.weight)
-        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point = makeConst(element::u4, ov::Shape({768,16,1,}), genList(768 * 16, 1, 3));
+        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point = makeConst(element::u4, ov::Shape({768,16,1,}), genList(768 * 16, size_t{0}, size_t{2}));
         auto Convert_3988400 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point}, {{"destination_type", "f16"}});   //  tensor_array<f16[768,16,1]> Convert_3988400(self.model.model.layers.0.mlp.experts.2.gate_proj.weight/zero_point)
         pass::disable_constant_folding(Convert_3988400);
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract = makeOP<opset1::Subtract>({Convert_3988397, Convert_3988400}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f16[768,16,128]> self.model.model.layers.0.mlp.experts.2.gate_proj.weight/zero_point/subtract(Convert_3988397, Convert_3988400)
-        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale = makeConst(element::f16, ov::Shape({768,16,1,}), {1e-4f});
+        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale = makeConst(element::f16, ov::Shape({768,16,1,}), genList(768 * 16, -0.5f, 0.00001f));
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1 = makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract, self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f16[768,16,128]> self.model.model.layers.0.mlp.experts.2.gate_proj.weight/fq_weights_1(self.model.model.layers.0.mlp.experts.2.gate_proj.weight/zero_point/subtract, self.model.model.layers.0.mlp.experts.2.gate_proj.weight/scale)
         auto Reshape_3988406 = makeOP<opset1::Reshape>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1, {768,2048}}, {{"special_zero", false}});   //  tensor_array<f16[768,2048]> Reshape_3988406(self.model.model.layers.0.mlp.experts.2.gate_proj.weight/fq_weights_1, Constant_3988405)
         auto gate_linear_Convert = makeOP<opset1::Convert>({Reshape_3988406}, {{"destination_type", "f32"}});   //  tensor_array<f32[768,2048]> __module.model.model.layers.0.mlp.experts.2.gate_proj/ov_ext::linear/Convert(Reshape_3988406)
         mark_as_decompression(gate_linear_Convert);
         auto gate_linear_MatMul = makeOP<opset1::MatMul>({reshape_Reshape_2, gate_linear_Convert}, {{"transpose_a", false}, {"transpose_b", true}});   //  tensor_array<f32[?,768]> __module.model.model.layers.0.mlp.experts.2.gate_proj/ov_ext::linear/MatMul(__module.model.model.layers.0.mlp/aten::reshape/Reshape_2, __module.model.model.layers.0.mlp.experts.2.gate_proj/ov_ext::linear/Convert)
         auto silu_Swish = makeOP<opset4::Swish>({gate_linear_MatMul});   //  tensor_array<f32[?,768]> __module.model.model.layers.0.mlp.experts.2.act_fn/aten::silu/Swish(__module.model.model.layers.0.mlp.experts.2.gate_proj/ov_ext::linear/MatMul)
-        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight = makeConst(element::u4, ov::Shape({768,16,128,}), {5});
+        // shape[N,K], pack K dimension
+        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight = makeConst(element::u4, ov::Shape({768,16,128,}), {1}); //genList(768 * 16 * 128, 0, 2));/
         auto Convert_3984145 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight}, {{"destination_type", "f16"}});   //  tensor_array<f16[768,16,128]> Convert_3984145(self.model.model.layers.0.mlp.experts.2.up_proj.weight)
-        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point = makeConst(element::u4, ov::Shape({768,16,1,}), genList(768 * 16, 1, 3));
+        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point = makeConst(element::u4, ov::Shape({768,16,1,}), genList(768 * 16, size_t{0}, size_t{2}));
         auto Convert_3984148 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point}, {{"destination_type", "f16"}});   //  tensor_array<f16[768,16,1]> Convert_3984148(self.model.model.layers.0.mlp.experts.2.up_proj.weight/zero_point)
         auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract = makeOP<opset1::Subtract>({Convert_3984145, Convert_3984148}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f16[768,16,128]> self.model.model.layers.0.mlp.experts.2.up_proj.weight/zero_point/subtract(Convert_3984145, Convert_3984148)
-        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale = makeConst(element::f16, ov::Shape({768,16,1,}), {1e-4f});
+        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale = makeConst(element::f16, ov::Shape({768,16,1,}), {.005f});
         auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_fq_weights_1 = makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract, self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f16[768,16,128]> self.model.model.layers.0.mlp.experts.2.up_proj.weight/fq_weights_1(self.model.model.layers.0.mlp.experts.2.up_proj.weight/zero_point/subtract, self.model.model.layers.0.mlp.experts.2.up_proj.weight/scale)
         auto Reshape_3984154 = makeOP<opset1::Reshape>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_fq_weights_1, {768,2048}}, {{"special_zero", false}});   //  tensor_array<f16[768,2048]> Reshape_3984154(self.model.model.layers.0.mlp.experts.2.up_proj.weight/fq_weights_1, Constant_3984153)
         auto up_linear_Convert = makeOP<opset1::Convert>({Reshape_3984154}, {{"destination_type", "f32"}});   //  tensor_array<f32[768,2048]> __module.model.model.layers.0.mlp.experts.2.up_proj/ov_ext::linear/Convert(Reshape_3984154)
         mark_as_decompression(up_linear_Convert);
         auto up_linear_MatMul = makeOP<opset1::MatMul>({reshape_Reshape_2, up_linear_Convert}, {{"transpose_a", false}, {"transpose_b", true}});   //  tensor_array<f32[?,768]> __module.model.model.layers.0.mlp.experts.2.up_proj/ov_ext::linear/MatMul(__module.model.model.layers.0.mlp/aten::reshape/Reshape_2, __module.model.model.layers.0.mlp.experts.2.up_proj/ov_ext::linear/Convert)
         auto mul_Multiply = makeOP<opset1::Multiply>({silu_Swish, up_linear_MatMul}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f32[?,768]> __module.model.model.layers.0.mlp.experts.2/aten::mul/Multiply(__module.model.model.layers.0.mlp.experts.2.act_fn/aten::silu/Swish, __module.model.model.layers.0.mlp.experts.2.up_proj/ov_ext::linear/MatMul)
-        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight = makeConst(element::u4, ov::Shape({2048,6,128,}), {5});
+        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight = makeConst(element::u4, ov::Shape({2048,6,128,}), {1});
         auto Convert_3992649 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight}, {{"destination_type", "f16"}});   //  tensor_array<f16[2048,6,128]> Convert_3992649(self.model.model.layers.0.mlp.experts.2.down_proj.weight)
-        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point = makeConst(element::u4, ov::Shape({2048,6,1,}), genList(2048 * 6, 1, 3));
+        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point = makeConst(element::u4, ov::Shape({2048,6,1,}), genList(2048 * 6, size_t{0}, size_t{2}));
         auto Convert_3992652 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point}, {{"destination_type", "f16"}});   //  tensor_array<f16[2048,6,1]> Convert_3992652(self.model.model.layers.0.mlp.experts.2.down_proj.weight/zero_point)
         auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract = makeOP<opset1::Subtract>({Convert_3992649, Convert_3992652}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f16[2048,6,128]> self.model.model.layers.0.mlp.experts.2.down_proj.weight/zero_point/subtract(Convert_3992649, Convert_3992652)
-        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale = makeConst(element::f16, ov::Shape({2048,6,1,}), {1e-6f});
+        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale = makeConst(element::f16, ov::Shape({2048,6,1,}), {.01f});
         auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1 = makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract, self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale}, {{"auto_broadcast", "numpy"}});   //  tensor_array<f16[2048,6,128]> self.model.model.layers.0.mlp.experts.2.down_proj.weight/fq_weights_1(self.model.model.layers.0.mlp.experts.2.down_proj.weight/zero_point/subtract, self.model.model.layers.0.mlp.experts.2.down_proj.weight/scale)
         auto Reshape_3992658 = makeOP<opset1::Reshape>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1, {2048,768}}, {{"special_zero", false}});   //  tensor_array<f16[2048,768]> Reshape_3992658(self.model.model.layers.0.mlp.experts.2.down_proj.weight/fq_weights_1, Constant_3992657)
         auto down_linear_Convert = makeOP<opset1::Convert>({Reshape_3992658}, {{"destination_type", "f32"}});   //  tensor_array<f32[2048,768]> __module.model.model.layers.0.mlp.experts.2.down_proj/ov_ext::linear/Convert(Reshape_3992658)
@@ -149,32 +169,24 @@ public:
         functionRefs = BuildMoeExpert(inType, false);
     }
 
-    template<typename IT, typename T>
-    void strided_iota(IT first, size_t n, T value, T stride) {
-        for (size_t i = 0; i < n; i++) {
-            *first++ = value;
-            value += stride;
-        }
-    }
-    void generate(float idx, bool is_then) {
+    void generate(float idx, bool is_then, size_t seq_length) {
         inputs.clear();
         size_t batch = 1;
-        size_t seq_length = 210;
         size_t bs = batch * seq_length;
-        auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val) {
+        auto create_input = [this] (std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val, float stride=0) {
             if (param->get_element_type() == element::f32) {
                 ov::Tensor t{ov::element::f32, shape};
-                strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
+                strided_iota(static_cast<float*>(t.data()), t.get_size(), val, stride);
                 inputs.insert({param, t});
             } else {
                 OPENVINO_ASSERT(param->get_element_type() == element::f16);
                 ov::Tensor t{ov::element::f16, shape};
-                strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
+                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, stride);
                 inputs.insert({param, t});
             }
         };
         // final_hidden_states/f32[batch * seq_length, 2048]
-        create_input(function->get_parameters()[0], {bs, 2048}, idx + 0.01f);
+        create_input(function->get_parameters()[0], {bs, 2048}, 0.0f, 0.f);
         // expert_mask/i64[128, 8, batch]
         {
             auto param = function->get_parameters()[1];
@@ -195,9 +207,9 @@ public:
             inputs.insert({param, t});
         }
         // hidden_states/f32[1, batch * seq_length, 2048]
-        create_input(function->get_parameters()[2], {1ul, bs, 2048}, idx + 0.3f);
+        create_input(function->get_parameters()[2], {1ul, bs, 2048}, -1.f, 0.0001f);
         // routing_weights/f32[batch * 8, 1]
-        create_input(function->get_parameters()[3], {bs * 8, 1ul}, 10.f);
+        create_input(function->get_parameters()[3], {bs * 8, 1ul}, 1.f, 1.f);
     }
 
     void prepare() {
@@ -211,15 +223,18 @@ public:
         prepare();
         std::vector<ov::Tensor> outputs;
 
-        generate(-10.0f, is_then);
-        for (const auto& input : inputs) {
-            inferRequest.set_tensor(input.first, input.second);
+        size_t seqs[] = {21, 1};
+        for (auto seq : seqs) {
+            generate(0.1f, is_then, seq);
+            for (const auto& input : inputs) {
+                inferRequest.set_tensor(input.first, input.second);
+            }
+            inferRequest.infer();
+            auto outputTensor = inferRequest.get_output_tensor(0);
+            ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
+            outputTensor.copy_to(copy);
+            outputs.push_back(copy);
         }
-        inferRequest.infer();
-        auto outputTensor = inferRequest.get_output_tensor(0);
-        ov::Tensor copy{outputTensor.get_element_type(), outputTensor.get_shape()};
-        outputTensor.copy_to(copy);
-        outputs.push_back(copy);
 
         return outputs;
     }
