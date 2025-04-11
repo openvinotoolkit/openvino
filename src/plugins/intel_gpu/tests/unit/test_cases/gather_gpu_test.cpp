@@ -1205,6 +1205,39 @@ TEST(gather_gpu_fp16, d22_axisF) {
     }
 }
 
+TEST(gather_gpu_fp16, prevent_reorder_to_indices_node) {
+    auto& engine = get_test_engine();
+
+    auto data_layout = layout{ ov::PartialShape{ 4, 1, 6, 2500, 2 }, data_types::f16, format::bfzyx };
+    auto output_layout = layout{ ov::PartialShape{ 4, 1, 6, 2500}, data_types::f16, format::bfyx };
+    auto indices_layout = layout{ ov::PartialShape{ 4, 1 }, data_types::i32, format::bfyx };
+
+    int64_t input_rank = static_cast<int64_t>(data_layout.get_rank());
+    int64_t batch_dims = static_cast<int64_t>(2);
+    int64_t axis = static_cast<int64_t>(4);
+
+    topology topology(
+        input_layout("data", data_layout),
+        input_layout("indices", indices_layout),
+        gather("gather", input_info("data"), input_info("indices"), axis, input_rank, output_layout.get_shape(), batch_dims),
+        reorder("result", input_info("gather"), output_layout)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config);
+
+    ASSERT_NE(program, nullptr);
+
+    for (auto dep : program->get_node("gather").get_dependencies()) {
+        ASSERT_NE(dep.first->is_type<reorder>(), true);
+    }
+
+    auto actual_shape = program->get_node("result").get_output_layout().get_partial_shape();
+    ASSERT_EQ(output_layout.get_partial_shape(), actual_shape);
+}
+
 TEST(gather_gpu_fp32, d14_axisB) {
     //  Dictionary : 2x2x1x1
     //  Indexes : 1x4x1x1
