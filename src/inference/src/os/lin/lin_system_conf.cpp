@@ -466,7 +466,9 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                     _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
                 } else {
                     _cpu_mapping_table[core_1][CPU_MAP_CORE_TYPE] =
-                        (system_info_table[nproc][2].size() == 0) ? LP_EFFICIENT_CORE_PROC : EFFICIENT_CORE_PROC;
+                        ((system_info_table[nproc][2].size() == 0) && (_proc_type_table[0][ALL_PROC] > 0))
+                            ? LP_EFFICIENT_CORE_PROC
+                            : EFFICIENT_CORE_PROC;
                 }
 
                 for (int m = core_1; m <= core_2; m++) {
@@ -529,7 +531,10 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                     }
                 } else {
                     info_index = 1;
-                    _sockets--;
+                    _sockets = _sockets == 0 ? _sockets : _sockets - 1;
+                    if (_proc_type_table.size() == 0) {
+                        _proc_type_table.push_back(line_value_0);
+                    }
                 }
 
                 while (1) {
