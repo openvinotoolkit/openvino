@@ -67,6 +67,24 @@ public:
     ov_tensor_t* tensor;
 };
 
+class ov_string_tensor_create_test : public ::testing::Test {
+protected:
+    void SetUp() override {
+        tensor = nullptr;
+        setup_4d_shape(&shape, 4, 1, 1, 1);
+        OV_EXPECT_OK(ov_tensor_create(ov_element_type_e::STRING, shape, &tensor));
+        EXPECT_NE(nullptr, tensor);
+    }
+
+    void TearDown() override {
+        ov_shape_free(&shape);
+        ov_tensor_free(tensor);
+    }
+
+    ov_shape_t shape;
+    ov_tensor_t* tensor;
+};
+
 INSTANTIATE_TEST_SUITE_P(ov_tensor,
                          ov_tensor_create_test,
                          ::testing::Values(ov_element_type_e::BOOLEAN,
@@ -139,4 +157,17 @@ TEST_P(ov_tensor_create_test, set_tensor_shape) {
 
     ov_shape_free(&shape_update);
     ov_shape_free(&shape_res);
+}
+
+TEST_F(ov_string_tensor_create_test, set_tensor_string) {
+    const size_t number_of_strings = 4;
+    const char* string_array[number_of_strings] = {"hello", "hi", "world", ""};
+    OV_EXPECT_OK(ov_tensor_set_string_data(tensor, string_array, number_of_strings));
+    void* output_data = NULL;
+    ov_tensor_data(tensor, &output_data);
+    auto string_data = static_cast<std::string*>(output_data);
+    for (size_t i = 0; i < number_of_strings; ++i) {
+        const std::string& current_string = string_data[i];
+        EXPECT_EQ(current_string, std::string(string_array[i]));
+    }
 }
