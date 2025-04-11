@@ -118,10 +118,10 @@ ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node>& no
     NPUW_ASSERT(node->outputs().size() == 1);
     const auto port = node->output(0);
     auto cnst_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
-    return ov::Tensor(port.get_element_type(), port.get_shape(), const_cast<void*>(cnst_node->get_data_ptr()));
-    // auto tensor = ov::Tensor(port.get_element_type(), port.get_shape());
-    // std::memcpy(tensor.data(), cnst_node->get_data_ptr(), cnst_node->get_byte_size());
-    // return tensor;
+    //return ov::Tensor(port.get_element_type(), port.get_shape(), const_cast<void*>(cnst_node->get_data_ptr()));
+    auto tensor = ov::Tensor(port.get_element_type(), port.get_shape());
+    std::memcpy(tensor.data(), cnst_node->get_data_ptr(), cnst_node->get_byte_size());
+    return tensor;
 }
 
 bool ov::npuw::util::starts_with(const std::string& str, const std::string& prefix) {

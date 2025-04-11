@@ -953,6 +953,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             comp_model_desc.closure[tidx] = m_weights_bank->get(uid, *func_desc.device_it);
             // FIXME: find a more reliable way to do so
             comp_model_desc.is_remote[tidx] = m_weights_bank->is_remote(uid);
+            if (!comp_model_desc.is_remote[tidx]) {
+                std::cout << "ALARM - not remote" << std::endl;
+            }
         }
     }
 

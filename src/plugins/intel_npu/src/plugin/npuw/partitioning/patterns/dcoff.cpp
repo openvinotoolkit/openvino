@@ -144,6 +144,9 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
                 
             } else {
                 new_closure.push_back(m.weights_to_unpack.count(i) ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
+                if (m.weights_to_unpack.count(i)) {
+                    fcall._lazy_closure[i].detach();
+                }
             }
         }
 
@@ -154,6 +157,12 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
                                                                : ov::Tensor());
         new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
                                                                : m.zero_points[i]);
+        if (scale_iter != m.scale_remap.end()) {
+            fcall._lazy_closure[scale_iter->second].detach();
+        }
+        if (zerop_iter != m.zerop_remap.end()) {
+            fcall._lazy_closure[zerop_iter->second].detach();
+        }
     }
     fcall._scales = std::move(new_scales);
     fcall._zerops = std::move(new_zerops);

@@ -46,11 +46,13 @@ bool Const::operator==(const Const& other) const {
 }
 ov::Tensor Const::eval() const {
     if (m_node) {
-        return ov::npuw::util::tensor_from_const(m_node);
+        auto t = ov::npuw::util::tensor_from_const(m_node);
+        return t;
     }
 
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first!");
-    return m_read_from_bin;
+    auto t = m_read_from_bin;
+    return t;
 }
 void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     NPUW_ASSERT(!m_node &&
