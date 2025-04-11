@@ -71,10 +71,12 @@ class TestComplexReverseSequence(CommonTFLayerTest):
     def create_reverse_sequence_net(self, input_shape, seq_lengths_type, seq_dim, batch_dim):
         self.input_type = np.complex64
         self.seq_lengths_type = seq_lengths_type
-        assert 0 <= batch_dim and batch_dim < len(input_shape), "Incorrect `batch_dim` in the test case"
-        assert 0 <= seq_dim and seq_dim < len(input_shape), "Incorrect `seq_dim` in the test case"
-        self.max_seq_length = input_shape[seq_dim]
-        batch_size = input_shape[batch_dim]
+        effective_batch_dim = batch_dim if batch_dim >= 0 else len(input_shape) + batch_dim
+        effective_seq_dim = seq_dim if seq_dim >= 0 else len(input_shape) + seq_dim
+        assert 0 <= effective_batch_dim and effective_batch_dim < len(input_shape), "Incorrect `batch_dim` in the test case"
+        assert 0 <= effective_seq_dim and effective_seq_dim < len(input_shape), "Incorrect `seq_dim` in the test case"
+        self.max_seq_length = input_shape[effective_seq_dim]
+        batch_size = input_shape[effective_batch_dim]
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
