@@ -311,7 +311,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
 
     if (is_output_precision_changed) {
         ops = f->get_ordered_ops();
-        is_changed = is_output_precision_changed || is_changed;
+        is_changed = true;
     }
 
     if (!is_subgraph) {
@@ -1065,10 +1065,15 @@ bool extend_reverse_type(const std::shared_ptr<ov::Node>& node, const precisions
 
 template <typename src_type, typename dst_type>
 inline dst_type convert_value(src_type val) {
-    if (val > std::numeric_limits<dst_type>::max()) {
-        return std::numeric_limits<dst_type>::max();
-    } else if (val < std::numeric_limits<dst_type>::lowest()) {
-        return std::numeric_limits<dst_type>::lowest();
+    if (std::numeric_limits<src_type>::max() > std::numeric_limits<dst_type>::max()) {
+        if (val > std::numeric_limits<dst_type>::max()) {
+            return std::numeric_limits<dst_type>::max();
+        }
+    }
+    if (std::numeric_limits<src_type>::lowest() < std::numeric_limits<dst_type>::lowest()) {
+        if (val < std::numeric_limits<dst_type>::lowest()) {
+            return std::numeric_limits<dst_type>::lowest();
+        }
     }
     return static_cast<dst_type>(val);
 }
