@@ -3,6 +3,8 @@
 //
 
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/constant.hpp"
 
 bool ov::WeightlessCacheAttribute::is_copyable() const {
     return false;
@@ -15,5 +17,13 @@ OPENVINO_API void ov::copy_weightless_cache_attr(const std::shared_ptr<ov::Node>
 
     if (weightless_caching_attr != rt_info.end()) {
         to->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] = weightless_caching_attr->second;
+    } else if (from->get_type_info() == ov::op::v0::Convert::get_type_info_static() &&
+               to->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
+        auto convert_node = ov::as_type_ptr<ov::op::v0::Convert>(from);
+        auto const_node = convert_node->get_input_node_ptr(0);
+        weightless_caching_attr = const_node->get_rt_info().find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (weightless_caching_attr != const_node->get_rt_info().end()) {
+            to->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] = weightless_caching_attr->second;
+        }
     }
 }
