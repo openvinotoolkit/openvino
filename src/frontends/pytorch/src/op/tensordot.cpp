@@ -15,11 +15,10 @@ OutputVector translate_tensordot(const NodeContext& context) {
     
     auto a = context.get_input(0);
     auto b = context.get_input(1);
-    auto dims_a = context.get_input(2);  
-    
     auto matmul_result = context.mark_node(std::make_shared<v0::MatMul>(a, b, false, false));
     
-    if (dims_a) {
+    if (!context.input_is_none(2)) {
+        auto dims_a = context.get_input(2);  
         auto reduce_sum_result = context.mark_node(std::make_shared<v1::ReduceSum>(matmul_result, dims_a, true));
         return {reduce_sum_result};
     }
