@@ -68,6 +68,22 @@ std::vector<std::vector<InputShape>> transposedShape_3D(bool with_dynamic = true
     return shapes;
 }
 
+std::vector<std::vector<InputShape>> transposedShape_2D(bool with_dynamic = true) {
+    auto shapes = SNIPPETS_TESTS_STATIC_SHAPES(
+        {{12, 64}, {64, 12}, {12, 12}, {12, 64}},
+        {{16, 32}, {32, 16}, {16, 16}, {16, 32}},
+        {{8, 128}, {128, 8}, {8, 8}, {8, 128}});
+    if (with_dynamic) {
+        shapes.push_back({
+            {PartialShape{-1, -1}, {{12, 64}, {16, 32}, {8, 128}}},
+            {PartialShape{-1, -1}, {{64, 12}, {32, 16}, {128, 8}}},
+            {PartialShape{-1, -1}, {{12, 12}, {16, 16}, {8, 8}}},
+            {PartialShape{-1, -1}, {{12, 64}, {16, 32}, {8, 128}}},
+        });
+    }
+    return shapes;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D,
                          MHA,
                          ::testing::Combine(::testing::ValuesIn(transposedShape_4D()),
@@ -106,6 +122,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_3D,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_2D,
+                         MHA2D,
+                         ::testing::Combine(::testing::ValuesIn(transposedShape_2D(true)),
+                                            ::testing::ValuesIn(precision_f32(4)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(false),
+                                            ::testing::Values(MHA2D::default_thread_count),
+                                            ::testing::Values(1),  // Subgraph
+                                            ::testing::Values(1),  // MHA
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MHA2D::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_3D_WithScalarMul,
                          MHA,
