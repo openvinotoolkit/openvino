@@ -158,6 +158,82 @@ std::shared_ptr<ov::Model> MHAFunction::initReference() const {
 
     return std::make_shared<ov::Model>(NodeVector{subgraph}, ngraphParams);
 }
+
+std::shared_ptr<ov::Model> MHA2DFunction::initOriginal() const {
+    auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto transpose1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
+    auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+    ov::ParameterVector ngraphParam = {transpose0Param, transpose1Param, addParam, transpose2Param};
+
+    const auto rank = input_shapes[0].size();
+    std::shared_ptr<ov::Node> matmul_parent0 = transpose0Param, matmul_parent1 = transpose1Param;
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(matmul_parent0, matmul_parent1);
+    const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
+
+    auto softmax_out = add->output(0);
+    if (with_reshape) {
+        const auto interm_shape = add->get_output_shape(0);
+        const auto batch =
+            std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + (rank - 1), 1, std::multiplies<size_t>());
+        const auto reshape0ConstData = std::vector<int64_t>{ batch, -1 };
+        const auto reshape1ConstData = interm_shape;
+        const auto reshape0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape0ConstData.size()}, reshape0ConstData);
+        const auto reshape1Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape1ConstData.size()}, reshape1ConstData);
+
+        const auto reshape0 = std::make_shared<ov::opset1::Reshape>(add, reshape0Const, true);
+        const auto softMax = std::make_shared<ov::opset1::Softmax>(reshape0, 1);
+        const auto reshape1 = std::make_shared<ov::opset1::Reshape>(softMax, reshape1Const, true);
+        softmax_out = reshape1->output(0);
+    } else {
+        const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
+        softmax_out = softMax->output(0);
+    }
+
+
+    std::shared_ptr<ov::Node> matmul_parent2 = transpose2Param;
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax_out, matmul_parent2);
+    std::shared_ptr<ov::Node> transpose3 = matMul1;
+
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(transpose3)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+std::shared_ptr<ov::Model> MHA2DFunction::initReference() const {
+    auto data0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto data1 = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
+    auto data2 = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    auto data3 = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+
+    ov::ParameterVector ngraphParams = {data0, data1, data2, data3};
+
+    const auto rank = input_shapes[0].size();
+
+    std::shared_ptr<ov::Node> subgraph_parent1 = data1;
+
+    NodeVector subgraph_inputs = {data0, subgraph_parent1, data2, data3};
+
+    auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(subgraph_parent1->get_element_type(), subgraph_parent1->get_output_partial_shape(0));
+    auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    auto transpose2Param = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+
+    ov::ParameterVector subgraph_params = {transpose0Param, brgemm1Param, addParam, transpose2Param};
+
+    std::shared_ptr<ov::Node> transpose0 = transpose0Param;
+
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, brgemm1Param);
+    const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
+    const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
+    std::shared_ptr<ov::Node> transpose2 = transpose2Param;
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
+    std::shared_ptr<ov::Node> transpose3 = matMul1;
+
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
+            std::make_shared<ov::Model>(NodeVector{transpose3}, subgraph_params));
+
+    return std::make_shared<ov::Model>(NodeVector{subgraph}, ngraphParams);
+}
+
 std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
     auto data0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto data1 = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
