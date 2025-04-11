@@ -8,6 +8,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
+#include "op/quantized_linear.hpp"
 
 namespace ov {
 namespace frontend {
@@ -791,6 +792,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"quantized::conv2d_relu", op::translate_quantized_convnd_relu},
         {"quantized::hardswish", op::translate_quantized_hardswish},
         {"quantized::linear", op::translate_quantized_linear},
+        {"quantized::linear_dynamic", op::translate_quantized_linear_dynamic},
         {"quantized::mul", op::translate_quantized_mul},
         {"torchvision::deform_conv2d", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
