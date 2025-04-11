@@ -162,6 +162,8 @@ public:
     void dump(uint32_t id, uint32_t iter, std::string dump_dir_path = "");
     size_t get_total_mem_pool_size(allocation_type type);
 
+    static size_t count_users_in_padded_pool(memory_pool& pool, cldnn::memory_ptr& mem_ptr);
+
 private:
     void dump_to_screen(uint32_t id, uint32_t iter);
     void dump_to_file(uint32_t id, uint32_t iter, std::string dump_dir_path);
