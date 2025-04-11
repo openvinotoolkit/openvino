@@ -19,7 +19,7 @@ namespace utils {
  * @param in The source tensor
  * @param out The destination tensor
  */
-void copyTensor(const ov::Tensor& in, const ov::Tensor& out);
+void copyTensor(const ov::Tensor& in, ov::Tensor& out);
 
 /**
  * @brief Copies the contents of one tensor into another one which bears the same shape. Precision conversions from
@@ -28,7 +28,7 @@ void copyTensor(const ov::Tensor& in, const ov::Tensor& out);
  * @param in The source tensor
  * @param out The destination tensor
  */
-void convertTensorPrecision(const ov::Tensor& in, const ov::Tensor& out);
+void convertTensorPrecision(const ov::Tensor& in, ov::Tensor& out);
 
 /**
  * @brief Constructs a tensor with the same content as the source but with the precision converted to the specified
