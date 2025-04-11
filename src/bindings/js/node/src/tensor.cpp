@@ -44,7 +44,8 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
-                        InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
+                        InstanceMethod("isContinuous", &TensorWrap::is_continuous),
+                        InstanceMethod("copyTo", &TensorWrap::copy_to)});
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -190,4 +191,33 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
     return Napi::Boolean::New(env, _tensor.is_continuous());
+}
+
+void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    // Controlla che ci sia un solo argomento e che sia un oggetto
+    if (info.Length() != 1 || !info[0].IsObject()) {
+        Napi::TypeError::New(env, "The copyTo method requires one argument of type Tensor.").ThrowAsJavaScriptException();
+        return;
+    }
+
+    if (!info[0].InstanceOf(TensorWrap::get_class(env))) {
+        Napi::TypeError::New(env, "Argument must be an instance of Tensor.").ThrowAsJavaScriptException();
+        return;
+    }
+    TensorWrap* otherTensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].As<Napi::Object>());
+    openvino::runtime::Tensor& otherTensor = otherTensorWrap->_tensor;
+
+    if (_tensor.get_element_type() != otherTensor.get_element_type()) {
+        Napi::TypeError::New(env, "Tensors must have the same element type to copy data.").ThrowAsJavaScriptException();
+        return;
+    }
+
+    if (_tensor.get_shape() != otherTensor.get_shape()) {
+        Napi::TypeError::New(env, "Tensors must have the same shape to copy data.").ThrowAsJavaScriptException();
+        return;
+    }
+
+    _tensor.data() = otherTensor.data();
 }
