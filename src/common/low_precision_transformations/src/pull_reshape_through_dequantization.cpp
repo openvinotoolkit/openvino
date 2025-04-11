@@ -157,7 +157,7 @@ ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDeq
                 pull_reshape_through_dequantization::fuseConstant(reshape, ov::as_type_ptr<opset1::Constant>(parent));
                 reshape = nullptr;
             } else {
-                THROW_IE_LPT_EXCEPTION(*parent) << "unexpected operation type";
+                THROW_IE_LPT_EXCEPTION(*parent) << " unexpected operation type";
             }
         } while (reshape != nullptr);
 
