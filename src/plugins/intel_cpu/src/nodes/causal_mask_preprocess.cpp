@@ -86,7 +86,8 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
                 bool cmask_eq0 = (j <= row);
                 bool amask_eq0 = (pamask[j] == 0);
                 bool padding_mask = (cmask_eq0 && amask_eq0);
-                pdst[j] = (padding_mask | (!cmask_eq0)) ? min_dtype : static_cast<T>(0);
+                pdst[j] =
+                    (static_cast<int>(padding_mask) | static_cast<int>(!cmask_eq0)) ? min_dtype : static_cast<T>(0);
             }
             for (; j < kvLen; j++) {
                 bool cmask_eq0 = (j <= row);
