@@ -169,12 +169,12 @@ void PerfCountBegin::set_start_time() {
 PerfCountEnd::PerfCountEnd() : PerfCountEndBase() {}
 
 PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
-                           std::vector<std::shared_ptr<utils::Dumper>> dumpers,
+                           std::vector<std::shared_ptr<utils::Dumper>> dumper_types,
                            const std::string& params)
     : PerfCountEndBase({pc_begin}),
       accumulation(0ul),
       iteration(0u),
-      dumpers(std::move(dumpers)) {
+      dumpers(std::move(dumper_types)) {
     constructor_validate_and_infer_types();
     init_pc_begin();
     for (const auto& dumper : dumpers) {

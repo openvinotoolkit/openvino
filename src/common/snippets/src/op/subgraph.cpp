@@ -42,6 +42,7 @@
 #include "snippets/lowered/pass/insert_loops.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/insert_perf_count.hpp"
+#include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #include "snippets/lowered/pass/validate_shapes.hpp"
 #include "snippets/lowered/pass/validate_buffers.hpp"
 #include "snippets/lowered/pass/validate.hpp"
@@ -484,14 +485,6 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     validation_pipeline.register_pass<lowered::pass::Validate>();
     validation_pipeline.run(*m_linear_ir);
 
-#ifdef SNIPPETS_DEBUG_CAPS
-    if (m_linear_ir->get_config().debug_config->perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
-        const std::map<std::string, std::string> bound_names = {};
-        lowered::pass::InsertPerfCount perf_count_pass(bound_names);
-        perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
-    }
-#endif
-
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::init_shape_infer_linear_ir")
 
     // After ControlFlow transformations we should to create LinearIR for ShapeInference - clone state of LinearIR before loop decomposition.
@@ -553,6 +546,16 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
         shape_dependent_pipeline.run(*linear_ir);
     }
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    // insert before generate() to get rid of coped perf counters and output
+    if (m_linear_ir->get_config().debug_config->perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
+        // const std::map<std::string, std::string> bound_names = {};
+        // lowered::pass::InsertPerfCount perf_count_pass(bound_names);
+        lowered::pass::InsertPerfCountVerbose perf_count_pass("MatMul_benchmark");
+        perf_count_pass.run(*linear_ir, linear_ir->cbegin(), linear_ir->cend());
+    }
+#endif
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
     return {std::move(lowering_result)};
