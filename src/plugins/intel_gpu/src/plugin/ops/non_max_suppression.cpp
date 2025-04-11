@@ -15,7 +15,7 @@
 
 namespace ov::intel_gpu {
 namespace {
-std::vector<cldnn::input_info> reorder_nms_inputs_if_needed(
+    static std::vector<cldnn::input_info> reorder_nms_inputs_if_needed(
     ProgramBuilder& p,
     const std::shared_ptr<ov::Node>& op,
     const std::vector<cldnn::input_info>& inputs) {
@@ -40,7 +40,7 @@ std::vector<cldnn::input_info> reorder_nms_inputs_if_needed(
     return reordered;
 }
 
-void apply_optional_inputs(const std::shared_ptr<ov::Node>& op, cldnn::non_max_suppression& prim, const std::vector<cldnn::input_info>& inputs) {
+static void apply_optional_inputs(const std::shared_ptr<ov::Node>& op, cldnn::non_max_suppression& prim, const std::vector<cldnn::input_info>& inputs) {
     switch (inputs.size()) {
         case 6: prim.soft_nms_sigma = inputs[5].pid; [[fallthrough]];
         case 5: prim.score_threshold = inputs[4].pid; [[fallthrough]];
@@ -52,7 +52,7 @@ void apply_optional_inputs(const std::shared_ptr<ov::Node>& op, cldnn::non_max_s
     }
 }
 
-void add_nms_gather_if_needed(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, const std::string& nms_name, size_t num_outputs) {
+static void add_nms_gather_if_needed(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, const std::string& nms_name, size_t num_outputs) {
     if (!op->get_output_partial_shape(0).is_dynamic())
         return;
 
