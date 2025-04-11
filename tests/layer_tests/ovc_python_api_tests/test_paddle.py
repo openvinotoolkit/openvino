@@ -5,9 +5,9 @@ import tempfile
 import unittest
 
 import numpy as np
-import openvino.runtime as ov
+import openvino as ov
 import pytest
-from openvino.runtime import PartialShape, Model
+from openvino import PartialShape, Model
 from openvino.test_utils import compare_functions
 
 from common.mo_convert_test_class import CommonMOConvertTest

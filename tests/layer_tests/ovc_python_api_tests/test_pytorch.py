@@ -11,8 +11,8 @@ import pytest
 import torch
 from common.mo_convert_test_class import CommonMOConvertTest
 
-import openvino.runtime as ov
-from openvino.runtime import PartialShape, Dimension, Model, Type
+import openvino as ov
+from openvino import PartialShape, Dimension, Model, Type
 
 
 class MyTorchOp(torch.autograd.Function):

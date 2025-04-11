@@ -13,7 +13,7 @@ import numpy as np
 from common.constants import test_device, test_precision
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend import FrontEndManager
-from openvino.runtime import Core, Type, PartialShape
+from openvino import Core, Type, PartialShape
 import openvino.properties.hint as hints
 
 logging.basicConfig(level=logging.DEBUG)
