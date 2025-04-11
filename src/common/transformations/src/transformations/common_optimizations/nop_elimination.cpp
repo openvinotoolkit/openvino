@@ -584,8 +584,8 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 if (end_constant_node == nullptr)
                     return false;
                 auto end_values = end_constant_node->cast_vector<int64_t>();
-                if (end_values[concat_axis] > concat->get_shape()[concat_axis])
-                    end_values[concat_axis] = concat->get_shape()[concat_axis];
+                if (end_values[concat_axis] > static_cast<int64_t>(concat->get_shape()[concat_axis]))
+                    end_values[concat_axis] = static_cast<int64_t>(concat->get_shape()[concat_axis]);
 
                 slice_out_index_in_concat.push_back(
                     std::make_tuple(strided_slice_node, begin_values[concat_axis], end_values[concat_axis] - 1));
