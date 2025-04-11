@@ -359,16 +359,27 @@ public:
     }
 
     void set_shape(ov::Shape new_shape) {
-        OPENVINO_ASSERT(new_shape.size() == m_shape.size());
-        for (auto new_dim = new_shape.cbegin(), max_dim = m_capacity.cbegin(); new_dim != new_shape.cend();
+        OPENVINO_ASSERT(new_shape.size() >= m_shape.size());
+        const auto last_new_dim = new_shape.crend();
+        auto new_dim = new_shape.crbegin();
+        for (auto max_dim = m_capacity.crbegin(); new_dim != last_new_dim && max_dim != m_capacity.crend();
              ++max_dim, ++new_dim) {
             OPENVINO_ASSERT(*new_dim <= *max_dim,
                             "Cannot set new shape: ",
                             new_shape,
-                            " for ROI tensor! Dimension: ",
-                            std::distance(new_shape.cbegin(), new_dim),
+                            " for ROI tensor! New dimension at index: ",
+                            std::distance(new_shape.cbegin(), new_dim.base()) - 1,
                             " is not compatible.");
         }
+        new_dim = std::find_if(new_dim, last_new_dim, [](auto&& dim) {
+            return dim != 1;
+        });
+        OPENVINO_ASSERT(
+            new_dim == last_new_dim,
+            "Cannot set new shape: ",
+            new_shape,
+            " for ROI tensor! The expanding rank dimension(s) of ROI must be ones, but it is not at index: ",
+            std::distance(new_shape.cbegin(), new_dim.base()) - 1);
 
         m_shape = std::move(new_shape);
     }
