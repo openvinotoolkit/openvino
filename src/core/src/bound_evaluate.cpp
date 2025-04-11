@@ -4,14 +4,26 @@
 
 #include "bound_evaluate.hpp"
 
+#include <stack>
+
 #include "compare.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
 
@@ -453,7 +465,7 @@ bool ov::interval_bound_evaluator(const Node* node,
                node->evaluate(lower_output_values, *input_variants.begin());
 
     auto zero = op::v0::Constant::create(element::i64, {1}, {0});
-    const auto zero_t = ov::Tensor(element::i64, Shape{});
+    auto zero_t = ov::Tensor(element::i64, Shape{});
     *zero_t.data<int64_t>() = 0;
 
     std::vector<TensorVector> unsqueezed_output_variants;
@@ -529,8 +541,8 @@ bool ov::interval_bound_evaluator(const Node* node,
             fully_defined = false;
         } else {
             // Can not set to make_tensor_of_min_value(lower_output_values[i]->get_element_type()) yet
-            const auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
-            const auto then_data = static_cast<char*>(then.data());
+            auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
+            auto then_data = static_cast<char*>(then.data());
             std::memset(then_data, 0, then.get_byte_size());
             op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, then, lower_out[0]});
             node->get_output_tensor(i).set_lower_value(lower_out[0]);

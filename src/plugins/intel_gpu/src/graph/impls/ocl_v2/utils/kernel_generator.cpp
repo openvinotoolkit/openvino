@@ -7,6 +7,7 @@
 #include <cctype>
 
 #include "common_utils/kernel_generator_base.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "jitter.hpp"
@@ -91,12 +92,13 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     kd.params.arguments = get_arguments_desc(params);
     kd.update_dispatch_data_func = get_dispatch_data_func();
     kd.need_args_update = true;
+    kd.need_dispatch_data_update = true;
 
     return kd;
 }
 
 std::string KernelGenerator::get_entry_point(const RuntimeParams& params) const {
-    return m_kernel_name + m_stage_suffix + "_" + std::to_string(params.hash()) + (params.is_dynamic() ? "__sa" : "");
+    return m_kernel_name + "_" + m_stage_suffix + "_" + std::to_string(params.hash()) + (params.is_dynamic() ? "__sa" : "");
 }
 
 std::string KernelGenerator::get_build_options(const RuntimeParams& params) const {
@@ -135,6 +137,22 @@ Arguments KernelGenerator::get_arguments_desc(const RuntimeParams& params) const
     }
 
     return args;
+}
+
+void KernelGenerator::add_fused_ops_arguments(Arguments& args, const RuntimeParams& params) {
+    if (params.has_fused_primitives()) {
+        size_t num_fused_deps = 0;
+        for (const auto& fd : params.fused_desc) {
+            for (const auto& in_d : fd.inputs) {
+                if (in_d.m_type == cldnn::FusedInputType::EXTERNAL) {
+                    num_fused_deps++;
+                }
+            }
+        }
+        for (size_t i = 0; i < num_fused_deps; i++) {
+            args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, static_cast<uint32_t>(i)});
+        }
+    }
 }
 
 }  // namespace ov::intel_gpu::ocl

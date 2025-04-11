@@ -252,7 +252,7 @@ jobs:
     name: C++ unit tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
-    timeout-minutes: 120
+    timeout-minutes: 180
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
@@ -270,13 +270,13 @@ jobs:
       
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -499,7 +499,7 @@ jobs:
     name: C++ func tests
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
-    timeout-minutes: 120
+    timeout-minutes: 180
     runs-on: aks-linux-8-cores-16gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
@@ -524,18 +524,20 @@ jobs:
         # if gtestFilter and sanMode inputs are not specified
         if: ${{ (github.event_name == 'workflow_dispatch' && (inputs.sanitizerMode == 'All' || inputs.sanitizerMode == matrix.SANITIZER) || matrix.SANITIZER == 'AddressAndLeak')}}
         run: |
-          echo 'Sanitizer mode: ${{ inputs.sanitizerMode }}'
+          echo Sanitizer mode: "${SANITIZER_MODE}"
+        env:
+          SANITIZER_MODE: ${{ inputs.sanitizerMode }}
 
       - name: Download OpenVINO package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}

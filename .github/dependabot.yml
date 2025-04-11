@@ -32,7 +32,6 @@ updates:
       timezone: "Poland"
     open-pull-requests-limit: 3
     assignees:
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
@@ -49,7 +48,6 @@ updates:
     assignees:
       - "rkazants"
       - "andrei-kochin"
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "Wovchena"
@@ -71,7 +69,6 @@ updates:
     open-pull-requests-limit: 3
     assignees:
       - "Wovchena"
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
@@ -86,7 +83,6 @@ updates:
     open-pull-requests-limit: 3
     assignees:
       - "Wovchena"
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
@@ -101,7 +97,6 @@ updates:
     open-pull-requests-limit: 3
     assignees:
       - "Wovchena"
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
@@ -116,7 +111,6 @@ updates:
     open-pull-requests-limit: 3
     assignees:
       - "Wovchena"
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
@@ -141,7 +135,8 @@ updates:
 
   # Docker images
   - package-ecosystem: docker
-    directory: "/"
+    directories:
+      - "/.github/dockerfiles/**/*"
     schedule:
       interval: "daily"
       time: "09:00"
