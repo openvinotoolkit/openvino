@@ -599,6 +599,32 @@ def test_reshape_with_python_types_for_variable():
     )
 
 
+@pytest.mark.parametrize(("input_shapes", "new_shapes_list", "expectation", "raise_msg"), [
+    ([[], [], []], [[2, 2], [1, 3, 224, 224], [10]], does_not_raise(), ""),
+    ([[], [], []], [[2, 2], [1, 3, 224, 224], [10], [10]], pytest.raises(ValueError), "The number of new shapes must match the number of model inputs."),
+    ([[], [], []], [[2, 2], [1, 3, 224, 224]], pytest.raises(ValueError), "The number of new shapes must match the number of model inputs."),
+    ([[1, 3, 224, 224]], [[3, 224, 224]], does_not_raise(), ""),
+    ([[1], [2], [3], [4]], [[1], [2], [3], [4]], does_not_raise(), ""),
+    ([[1], [2], [3], [4]], [[10], (2, 3), "4, ?, ..5", PartialShape([6, 7])], does_not_raise(), ""),
+])
+def test_reshape_with_list_of_shapes(input_shapes, new_shapes_list, expectation, raise_msg):
+
+    def generate_model_with_inputs(input_shapes):
+        params = [ops.parameter(shape, dtype=np.float32) for shape in input_shapes]
+        relus = [ops.relu(param) for param in params]
+        return Model(relus, params)
+
+    model = generate_model_with_inputs(input_shapes)
+
+    with expectation as e:
+        model.reshape(new_shapes_list)
+        assert len(model.inputs) == len(new_shapes_list)
+        for model_input, expected_shape in zip(model.inputs, new_shapes_list):
+            assert model_input.partial_shape == PartialShape(expected_shape)
+    if e is not None:
+        assert raise_msg in str(e.value)
+
+
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_rt_info(request, tmp_path):
     version = "TestVersion"
