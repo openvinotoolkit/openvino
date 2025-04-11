@@ -1436,7 +1436,7 @@ LinuxCpuMapTestCase cache_1sockets_8cores_hyperthreading = {
     },
     {{"0-11"}},
 };
-LinuxCpuMapTestCase cache_1sockets_8cores_hyperthreading_1 = {
+LinuxCpuMapTestCase cache_1sockets_8cores = {
     8,
     1,
     1,
@@ -1465,6 +1465,34 @@ LinuxCpuMapTestCase cache_1sockets_8cores_hyperthreading_1 = {
     {
         {"0-7"},
     },
+};
+LinuxCpuMapTestCase cache_1sockets_8cores_1 = {
+    8,
+    1,
+    1,
+    8,
+    {{8, 8, 0, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, MAIN_CORE_PROC, 5, -1},
+        {6, 0, 0, 6, MAIN_CORE_PROC, 6, -1},
+        {7, 0, 0, 7, MAIN_CORE_PROC, 7, -1},
+    },
+    {
+        {"0", "0", "0-7"},
+        {"1", "1", "0-7"},
+        {"2", "2", "0-7"},
+        {"3", "3", "0-7"},
+        {"4", "4", "0-7"},
+        {"5", "5", "0-7"},
+        {"6", "6", "0-7"},
+        {"7", "7", "0-7"},
+    },
+    {},
 };
 LinuxCpuMapTestCase cache_1sockets_6cores_hyperthreading = {
     12,
@@ -1568,7 +1596,8 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          cache_1sockets_14cores,
                                          cache_1sockets_10cores_hyperthreading,
                                          cache_1sockets_8cores_hyperthreading,
-                                         cache_1sockets_8cores_hyperthreading_1,
+                                         cache_1sockets_8cores,
+                                         cache_1sockets_8cores_1,
                                          cache_1sockets_6cores_hyperthreading,
                                          cache_1sockets_4cores,
                                          cache_VM_cache_0));
