@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -154,7 +154,9 @@ public:
     void save(BinaryOutputBuffer& ob) const override {
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
-
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
+        auto prim = impl_params->typed_desc<lstm_seq>();
+        ob << static_cast<int>(prim->direction);
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
@@ -166,19 +168,51 @@ public:
         parent::load(ib);
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
-
-        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0));
-        auto initial_hidden_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1));
-        auto initial_cell_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2));
-        auto W_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(3));
-        auto R_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(4));
-        auto B_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(5));
-        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
-        auto output2_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
+        ov::op::RecurrentSequenceDirection direction;
+        int dir;
+        ib >> dir;
+        direction = static_cast<ov::op::RecurrentSequenceDirection>(dir);
+        dnnl::rnn_direction lstm_desc_dir;
+        unsigned long num_dir = 1;
+        if (direction == ov::op::RecurrentSequenceDirection::FORWARD) {
+            lstm_desc_dir = dnnl::rnn_direction::unidirectional_left2right;
+        } else if (direction == ov::op::RecurrentSequenceDirection::REVERSE) {
+            lstm_desc_dir = dnnl::rnn_direction::unidirectional_right2left;
+        } else {
+            lstm_desc_dir = dnnl::rnn_direction::bidirectional_concat;
+            num_dir = 2;
+        }
+        const auto& src_shape = impl_params->get_input_layout(0).get_shape();
+        auto mod_src_shape = src_shape;
+        std::swap(mod_src_shape[0], mod_src_shape[1]);
+        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0).clone_with_other_shape(mod_src_shape), dnnl::memory::format_tag::abc);
+        auto initial_hidden_shape_mod = impl_params->get_input_layout(1).get_shape();
+        initial_hidden_shape_mod = {1, num_dir, initial_hidden_shape_mod[0], initial_hidden_shape_mod[2]};
+        auto initial_hidden_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1).clone_with_other_shape(initial_hidden_shape_mod));
+        auto initial_cell_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2).clone_with_other_shape(initial_hidden_shape_mod));
+        auto W_shape_mod = impl_params->get_input_layout(3).get_shape();
+        W_shape_mod = {1, num_dir, W_shape_mod[1], 4, W_shape_mod[2]/4};
+        auto w_layout = impl_params->get_input_layout(3).clone_with_other_shape(W_shape_mod);
+        w_layout.format = cldnn::format::bfzyx;
+        auto W_md = onednn::layout_to_memory_desc(w_layout);
+        auto R_shape_mod = impl_params->get_input_layout(4).get_shape();
+        R_shape_mod = {1, num_dir, R_shape_mod[1], 4, R_shape_mod[2]/4};
+        auto r_layout = impl_params->get_input_layout(4).clone_with_other_shape(R_shape_mod);
+        r_layout.format = cldnn::format::bfzyx;
+        auto R_md = onednn::layout_to_memory_desc(r_layout);
+        auto B_shape_mod = impl_params->get_input_layout(5).get_shape();
+        B_shape_mod = {1, num_dir, 4, B_shape_mod[1]/4};
+        auto b_layout = impl_params->get_input_layout(5).clone_with_other_shape(B_shape_mod);
+        auto B_md = onednn::layout_to_memory_desc(b_layout);
+        auto out_shape = impl_params->get_output_layout().get_shape();
+        out_shape = {out_shape[2], out_shape[0], out_shape[3]*num_dir};
+        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout().clone_with_other_shape(out_shape), dnnl::memory::format_tag::abc);
+        auto output1_md = onednn::layout_to_memory_desc(impl_params->get_output_layout(1).clone_with_other_shape(initial_hidden_shape_mod));
+        auto output2_md = onednn::layout_to_memory_desc(impl_params->get_output_layout(2).clone_with_other_shape(initial_hidden_shape_mod));
         auto prim_desc = std::make_shared<dnnl::lstm_forward::primitive_desc>(
             ib.get_engine().get_onednn_engine(),
             dnnl::prop_kind::forward_inference,
-            dnnl::rnn_direction::undef,
+            lstm_desc_dir,
             input_md,
             initial_hidden_md,
             initial_cell_md,
@@ -186,7 +220,7 @@ public:
             R_md,
             B_md,
             output_md,
-            output_md,
+            output1_md,
             output2_md);
         _pd = *prim_desc;
 

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/read_value.hpp"
+
 #include "evaluate_node.hpp"
+#include "openvino/op/read_value.hpp"
 
 bool evaluate(const std::shared_ptr<ov::op::v3::ReadValue>& op,
               ov::TensorVector& outputs,
