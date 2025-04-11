@@ -423,7 +423,7 @@ if(NOT (DEFINED ENV{CI} OR DEFINED ENV{TF_BUILD} OR DEFINED ENV{JENKINS_URL}))
                     RESULT_VARIABLE pybind11_stubgen_result)
     string(REGEX MATCH "Version: ([\\.0-9]+)" pybind11_stubgen_version "${pybind11_stubgen_info}")
     if(pybind11_stubgen_result OR NOT pybind11_stubgen_version)
-        message(FATAL_ERROR "pybind11-stubgen package is not installed or version is not detected. This package is necessary for developing Python API.")
+        message(WARNING "pybind11-stubgen package is not installed or version is not detected. This package is necessary for developing Python API.")
     endif()
 
     # check pre-commit package    
@@ -432,7 +432,7 @@ if(NOT (DEFINED ENV{CI} OR DEFINED ENV{TF_BUILD} OR DEFINED ENV{JENKINS_URL}))
                     RESULT_VARIABLE precommit_pkg_result)
     string(REGEX MATCH "Version: ([\\.0-9]+)" precommit_pkg_version "${precommit_pkg_info}")
     if(precommit_pkg_result OR NOT precommit_pkg_version)
-        message(FATAL_ERROR "pre-commit package is not installed or version is not detected. This package is necessary for developing Python API.")
+        message(WARNING "pre-commit package is not installed or version is not detected. This package is necessary for developing Python API.")
     endif()
 
     # attach the pre-commit hook for Python stub generation
@@ -442,7 +442,7 @@ if(NOT (DEFINED ENV{CI} OR DEFINED ENV{TF_BUILD} OR DEFINED ENV{JENKINS_URL}))
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     ERROR_STRIP_TRAILING_WHITESPACE)
     if(NOT precommit_install_result EQUAL "0")
-        message(FATAL_ERROR "pre-commit hook install failed with error: ${precommit_install_error}")
+        message(WARNING "Python stub generation pre-commit hook install failed with error: ${precommit_install_error}. It necessary for developing Python API.")
     else()
         message(STATUS "pre-commit hook for Python API stub generation has been installed")
     endif()
