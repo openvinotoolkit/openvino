@@ -486,7 +486,6 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     , memory(engine, layout, type, nullptr)
     , _buffer(engine->get_usm_helper())
     , _host_buffer(engine->get_usm_helper()) {
-
     std::vector<cl_mem_properties_intel> properties;
     if (engine->get_device_info().vendor_id == INTEL_VENDOR_ID) {
         properties = {CL_MEM_FLAGS, CL_MEM_ALLOW_UNRESTRICTED_SIZE_INTEL, 0};
