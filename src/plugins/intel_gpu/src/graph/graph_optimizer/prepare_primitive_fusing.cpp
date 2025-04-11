@@ -197,7 +197,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
             auto wt_dt = fc_node.get_input_layout(1).data_type;
             if (!data_type_traits::is_i4_u4(wt_dt))
                 continue;
-            // TODO: For grouped decompression scale, 2FCs+SwiGLU fusion is disabled due to accuracy issue
+            // TODO: For per-channel quantized models(# of decompression scale groups = 1), 2FCs+SwiGLU fusion is disabled due to accuracy issue
             bool has_scale = !fc_node.get_primitive()->decompression_scale.empty();
             size_t offset = fc_node.get_primitive()->bias.empty() ? 2 : 3;
             if (has_scale &&
