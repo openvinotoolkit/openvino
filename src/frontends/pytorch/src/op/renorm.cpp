@@ -9,6 +9,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/xor.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -23,16 +24,17 @@ OutputVector translate_renorm(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     auto input = context.get_input(0);
     auto p_val = get_input_with_floating_type(context, 1);
-    int32_t dim_val = context.const_input<int32_t>(2);
-    dim_val = dim_val ^ 1;
+    auto dim_input = context.get_input(2);
+
     auto maxnorm_val = get_input_with_floating_type(context, 3);
     auto abs_input = context.mark_node(std::make_shared<v0::Abs>(input));
-    auto axis_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {dim_val}));
     auto one_const = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1.0f}));
+    auto one_i32 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto axis = context.mark_node(std::make_shared<v0::Xor>(one_i32, dim_input));
 
     // norm = (sum(|input|^p, dim, keepdim=True))^(1/p)
     auto powered = context.mark_node(std::make_shared<v1::Power>(abs_input, p_val));
-    auto sum_p = context.mark_node(std::make_shared<v1::ReduceSum>(powered, axis_const, true));
+    auto sum_p = context.mark_node(std::make_shared<v1::ReduceSum>(powered, axis, true));
     auto inv_p_const = context.mark_node(std::make_shared<v1::Divide>(one_const, p_val));
     auto norm = context.mark_node(std::make_shared<v1::Power>(sum_p, inv_p_const));
 
