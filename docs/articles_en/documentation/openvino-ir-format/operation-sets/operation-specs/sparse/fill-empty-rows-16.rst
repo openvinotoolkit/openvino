@@ -24,7 +24,7 @@ The input sparse tensor is represented by the three inputs:
 
 For each row in the input sparse tensor, this operator checks if the row is empty. If the row is empty, the operator adds an entry with the specified default value at index `[row, 0, ..., 0]`. The input may have empty columns at the end, which will not be affected by this operation.
 
-The output sparse tensor will be in row-major order and will have the same shape as the input, but with updated `output_indices` and `output_values`.
+The output sparse tensor will be in row-major order and will have the same dense shape as the `dense_shape` input, but with updated `output_indices` and `output_values`.
 
 This operator also returns a boolean vector indicating which rows were filled with the default value: ``empty_row_indicator[i] = True`` if row ``i`` was an empty row.
 
