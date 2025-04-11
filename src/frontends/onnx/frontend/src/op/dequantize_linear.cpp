@@ -32,6 +32,10 @@ std::shared_ptr<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
     if (inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
         const auto& zero_point = inputs[2];
 
+        if (zero_point.get_element_type() == ov::element::u16) {
+            return std::make_shared<v0::Convert>(zero_point, ov::element::i32);
+        }
+
         if (zero_point.get_element_type() != ov::element::f32) {
             return std::make_shared<v0::Convert>(zero_point, ov::element::f32);
         }
@@ -53,15 +57,30 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const auto& scale = inputs[1];
     const auto zero_point = detail::get_zero_point(inputs);
 
-    common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {ov::element::f32});
+    if (x.get_element_type() == ov::element::u16){
+        std::cout << "here onnx front end dq u16" << std::endl;
+        common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {ov::element::f32});
 
-    const auto converted_x = std::make_shared<v0::Convert>(x, ov::element::f32);
+        const auto converted_x = std::make_shared<v0::Convert>(x, ov::element::i32);
 
-    if (zero_point) {
-        common::validate_scalar_input("Zero point", zero_point);
-        return {std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(converted_x, zero_point), scale)};
-    } else {
-        return {std::make_shared<v1::Multiply>(converted_x, scale)};
+        if (zero_point) {
+            common::validate_scalar_input("Zero point", zero_point);
+            return {std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(std::make_shared<v1::Subtract>(converted_x, zero_point), ov::element::f32), scale)};
+        } else {
+            return {std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(converted_x, ov::element::f32), scale)};
+        }
+    }
+    else{
+        common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {ov::element::f32});
+
+        const auto converted_x = std::make_shared<v0::Convert>(x, ov::element::f32);
+
+        if (zero_point) {
+            common::validate_scalar_input("Zero point", zero_point);
+            return {std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(converted_x, zero_point), scale)};
+        } else {
+            return {std::make_shared<v1::Multiply>(converted_x, scale)};
+        }
     }
 }
 ONNX_OP("DequantizeLinear", {1, 12}, ai_onnx::opset_1::dequantize_linear);
