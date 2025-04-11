@@ -509,6 +509,8 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
 
     if (cpu_size > 0) {
         for (int i = 0; i < cpu_size; i++) {
+            std::cout << "step 30 cpu_ids[i] = " << cpu_ids[i] << std::endl;
+            std::cout << "step 31 _processors = " << cpu._processors << std::endl;
             if (cpu_ids[i] < cpu._processors) {
                 cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
             }
