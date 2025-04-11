@@ -2,11 +2,25 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+const assert = require('assert');
 const { addon: ov } = require('../..');
-const { describe, it} = require('node:test');
+const { describe, it, before } = require('node:test');
 
 describe('Tests for AsyncInferQueue.', () => {
+  const jobs = 8;
+  const numRequest = 4;
+  let core = null;
+  let compiledModel = null;
 
+  before(async () => {
+    core = new ov.Core();
+    // simple relu
+    const model = await core.readModel('model.xml'); // TODO change this model
+    compiledModel = core.compileModelSync(model, 'CPU');
+  }
+  );
+
+  // TODO move it to utils and use it in other tests
   function generateImage(shape = [1, 3, 32, 32]) {
     const lemm = shape.reduce(
       (accumulator, currentValue) => accumulator * currentValue,
@@ -22,39 +36,70 @@ describe('Tests for AsyncInferQueue.', () => {
     return tensorData;
   }
 
-  describe('AsyncInferQueue python api scenario', () => {
+  it('Test main event loop non-blocking inference', async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
 
-    it('https://github.com/openvinotoolkit/openvino/blob/6d23ba5aae91fc7c8848a4d03db50a7655490135/src/bindings/python/tests/test_runtime/test_async_infer_request.py#L31', async () => {
-      const jobs = 8;
-      const numRequest = 4;
-      const core = new ov.Core();
-      const model = await core.readModel('model.xml');
-      const compiledModel = core.compileModelSync(model, 'CPU');
-      const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+    const jobsDone = Array.from({ length: jobs }, () => ({ finished: false }));
 
-      function callback(request, jobId, err) {
-        if (err) {
-          console.error(`Job ${jobId} failed: ${err}`);
-        } else {
-          console.log(`Job ${jobId} finished successfully`);
-          const result = request.getOutputTensor().data;
-          console.log(Array.from(result).slice(0, 3), jobId);
-        }
+    function callback(request, jobId, err) {
+      if (err) {
+        console.error(`Job ${jobId} failed: ${err}`);
+      } else {
+        jobsDone[jobId].finished = true;
+        const result = request.getOutputTensor().data;
+        console.log(Array.from(result).slice(0, 3), jobId);
       }
+    }
 
-      inferQueue.setCallback(callback);
+    inferQueue.setCallback(callback);
 
-      for (let i = 0; i < jobs; i++) {
-        // await new Promise(resolve => setTimeout(resolve, 1000));
-        const img = generateImage();
-        inferQueue.startAsync({'data': img}, i);
+    for (let i = 0; i < jobs; i++) {
+      const img = generateImage();
+      // Start the inference request in non-blocking mode.
+      // The results will be available in the callback function.
+      await inferQueue.startAsync({ 'data': img }, i);
+    }
+
+    assert.strictEqual(jobsDone.filter(job => job.finished).length, jobs);
+  });
+
+  it('test Promise.all() ~ infer_queue.wait_all()', async () => {
+
+    const core = new ov.Core();
+    const model = await core.readModel('model.xml');
+    const compiledModel = core.compileModelSync(model, 'CPU');
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+
+    const jobsDone = Array.from({ length: jobs }, () => ({ finished: false }));
+
+    function callback(request, jobId, err) {
+      if (err) {
+        console.error(`Job ${jobId} failed: ${err}`);
+      } else {
+        console.log(`Job ${jobId} finished`);
+        jobsDone[jobId].finished = true;
+        const inferenceResult = request.getOutputTensor().data;
+        // TODO add test for catching errors from callback e.g. using here i instead of jobId
+        const inputAt0 = jobId * (jobId % 2 === 0 ? 1 : -1); // even positive, odd negative
+        const resultAt0 = inputAt0 > 0 ? inputAt0 : 0; // relu function
+        assert.strictEqual(inferenceResult[0], resultAt0)
+        const input = request.getInputTensor().data;
+        assert.strictEqual(input[0], inputAt0);
       }
+    }
 
-      inferQueue.waitAll(); // TODO fix
-      console.log('end of test');
+    inferQueue.setCallback(callback);
 
-    });
+    const promises = [];
+    for (let i = 0; i < jobs; i++) {
+      const img = generateImage();
+      img[0] = i * (i % 2 === 0 ? 1 : -1);
+      const promise = inferQueue.startAsync({ 'data': img }, i);
+      promises.push(promise);
+    }
 
+    await Promise.all(promises);
+    assert.strictEqual(jobsDone.filter(job => job.finished).length, jobs);
   });
 
 });

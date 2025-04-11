@@ -53,11 +53,14 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
 
         m_requests.reserve(jobs);
         m_user_ids.reserve(jobs);
+        m_user_inputs.reserve(jobs);
 
         for (size_t handle = 0; handle < jobs; handle++) {
             // TODO ? Extend InferRequestWrapper to keep model inputs and outputs.
             m_requests.emplace_back(ocm.create_infer_request());
-            m_user_ids.push_back(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 2));
+            m_user_ids.push_back(std::make_pair(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 2),
+                                                Napi::Promise::Deferred::New(env)));
+            m_user_inputs.push_back(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 2));
             m_idle_handles.push(handle);
         }
         this->set_default_callbacks();
@@ -77,7 +80,7 @@ Napi::Function AsyncInferQueue::get_class(Napi::Env env) {
                        "AsyncInferQueue",
                        {
                            InstanceMethod("getIdleRequestId", &AsyncInferQueue::get_idle_request_id),
-                           InstanceMethod("waitAll", &AsyncInferQueue::wait_all),
+                        //    InstanceMethod("waitAll", &AsyncInferQueue::wait_all),
                            InstanceMethod("setCallback", &AsyncInferQueue::set_custom_callbacks),
                            InstanceMethod("startAsync", &AsyncInferQueue::start_async),
                        });
@@ -112,7 +115,7 @@ int AsyncInferQueue::check_idle_request_id() {
 }
 
 void AsyncInferQueue::wait_all(const Napi::CallbackInfo& info) {
-    // TODO make it async method in js
+    // TODO does not work. Not needed now.
     for (auto& request : m_requests) {
         request.wait();
     }
@@ -154,7 +157,11 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                     auto callback = [this](Napi::Env env, Napi::Function jsCallback, int* handle) {
                         // std::cout << "tsfn callback" << *handle << "\n";
                         Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[*handle]);
-                        jsCallback.Call({js_ir, m_user_ids[*handle].Value()});
+                        jsCallback.Call(
+                            {js_ir, m_user_ids[*handle].first.Value()});  // performs whole callback and goes back here
+                        auto promise = m_user_ids[*handle].second;
+                        promise.Resolve(m_user_ids[*handle].first.Value());  // resolves promise, goes back here (does
+                                                                             // not wait for promise.then() completion)
                         {
                             std::lock_guard<std::mutex> lock(m_mutex);
                             m_idle_handles.push(*handle);
@@ -165,7 +172,10 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                             std::lock_guard<std::mutex> lock(m_mutex);
                             if (awaiting_requests.size() > 0) {
                                 auto& request = awaiting_requests.front();
-                                this->start_async_impl(*handle, request.first.Value(), request.second.Value());
+                                this->start_async_impl(*handle,
+                                                       std::get<2>(request),
+                                                       std::get<0>(request).Value(),
+                                                       std::get<1>(request).Value());
                                 awaiting_requests.pop();
                             }
                         }
@@ -188,14 +198,19 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
     }
 }
 
-void AsyncInferQueue::start_async_impl(const int handle, Napi::Object infer_data, Napi::Object user_data) {
-    m_user_ids[handle] = Napi::Persistent(user_data);
+void AsyncInferQueue::start_async_impl(const int handle,
+                                       Napi::Promise::Deferred deferred,
+                                       Napi::Object infer_data,
+                                       Napi::Object user_data) {
+    m_user_ids[handle] = std::make_pair(Napi::Persistent(user_data), deferred);
 
     // TODO use parse_input_data(info[0].As<Napi::Value>());
     const auto& keys = infer_data.GetPropertyNames();
     for (uint32_t i = 0; i < keys.Length(); ++i) {
         auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
         auto value = infer_data.Get(input_name);
+        m_user_inputs[handle] = Napi::Persistent(
+            value.ToObject());  // keep reference to inputs so they are not garbage collected on js side
         auto tensor = value_to_tensor(value, m_requests[handle], input_name);
 
         m_requests[handle].set_tensor(input_name, tensor);
@@ -204,16 +219,17 @@ void AsyncInferQueue::start_async_impl(const int handle, Napi::Object infer_data
     m_requests[handle].start_async();  // returns immediately, main event loop is free
 }
 
-void AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
+Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
     // TODO validate Napi::CallbackInfo
+
+    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(info.Env());
 
     const int handle = this->check_idle_request_id();
     if (handle == -1) {
         this->awaiting_requests.push(
-            std::make_pair(Napi::Persistent(info[0].ToObject()), Napi::Persistent(info[1].ToObject())));
+            std::make_tuple(Napi::Persistent(info[0].ToObject()), Napi::Persistent(info[1].ToObject()), deferred));
     } else {
-        this->start_async_impl(handle, info[0].ToObject(), info[1].ToObject());
+        this->start_async_impl(handle, deferred, info[0].ToObject(), info[1].ToObject());
     }
-
-    // TODO return some kind of handle to this request. Perhaps a Promise?
+    return deferred.Promise();
 }
