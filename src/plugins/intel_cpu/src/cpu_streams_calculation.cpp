@@ -250,14 +250,10 @@ std::vector<std::vector<int>> get_streams_info_table(
                     update_ids_method(proc_type_table[0]);
                 } else {
                     stream_info[PROC_TYPE] = ALL_PROC;
-                    n_threads_per_stream =
-                        model_prefer_threads == 0
-                            ? proc_type_table[0][ALL_PROC]
-                            : std::min(proc_type_table[0][ALL_PROC],
-                                       model_prefer_threads + proc_type_table[0][HYPER_THREADING_PROC]);
+                    n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
                 }
             } else {
-                n_threads_per_stream = proc_type_table[0][ALL_PROC];
+                n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
             }
         } else {
             size_t socket_index = 0;
