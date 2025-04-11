@@ -1080,6 +1080,14 @@ This struct provides an interface to infer requests of `ov_compiled_model_t` and
     - `tensor` - A point to ov_tensor_t
   -  Return value: Status code of the operation: OK(0) for success.
 
+- `ov_status_e ov_tensor_create_from_string_array(const char** string_array, const size_t array_size, const ov_shape_t shape, ov_tensor_t** tensor)`
+  - Description: Constructs Tensor using string array and size.
+    - `string_array` - String array
+    - `array_size` - Number of elements in string array
+    - `shape` - Tensor shape
+    - `tensor` - A point to ov_tensor_t
+  -  Return value: Status code of the operation: OK(0) for success.
+
 - `ov_status_e ov_tensor_create(const ov_element_type_e type, const ov_shape_t shape, ov_tensor_t** tensor)`
   - Description: Constructs Tensor using element type and shape. Allocate internal host storage using default allocator.
   - Parameters:
