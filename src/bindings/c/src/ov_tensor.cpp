@@ -83,6 +83,28 @@ ov_status_e ov_tensor_create_from_host_ptr(const ov_element_type_e type,
     return ov_status_e::OK;
 }
 
+ov_status_e ov_tensor_create_from_string_array(const char** string_array,
+                                               const size_t array_size,
+                                               const ov_shape_t shape,
+                                               ov_tensor_t** tensor) {
+    if (!tensor || !string_array) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        auto _tensor = std::make_unique<ov_tensor_t>();
+        ov::Shape tmp_shape;
+        std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
+        if (shape_size(tmp_shape) < array_size) {
+            return ov_status_e::INVALID_C_PARAM;
+        }
+        _tensor->object = std::make_shared<ov::Tensor>(ov::element::string, tmp_shape);
+        std::copy_n(string_array, array_size, _tensor->object->data<std::string>());
+        *tensor = _tensor.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_tensor_set_shape(ov_tensor_t* tensor, const ov_shape_t shape) {
     if (!tensor) {
         return ov_status_e::INVALID_C_PARAM;
