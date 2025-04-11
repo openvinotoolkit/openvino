@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 import torch
 import numpy as np
