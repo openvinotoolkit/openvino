@@ -294,15 +294,12 @@ class CustomBuild(build):
             binary_dir = comp_data.get("binary_dir", OPENVINO_BINARY_DIR)
             install_dir = comp_data.get("install_dir")
             prefix = comp_data.get("prefix")
-
+            
             # perform installation steps if we are not given a full path
             if not os.path.isabs(install_dir):
                 # install_dir is just a sub-dir after install prefix, let's make a full path
-
-                # even perform a build in case of binary directory does not exist
-                binary_dir = binary_dir if os.path.isabs(binary_dir) else os.path.join(self.build_temp, binary_dir)
-
                 if not os.path.exists(binary_dir):
+                    # even perform a build in case of binary directory does not exist
                     binary_dir = os.path.join(self.build_temp, binary_dir)
                     self.announce(f"Configuring {comp} cmake project", level=log.INFO)
                     self.spawn(["cmake",
