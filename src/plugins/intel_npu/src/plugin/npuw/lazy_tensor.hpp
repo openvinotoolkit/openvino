@@ -72,7 +72,7 @@ private:
 
 namespace op {
 class Const {
-    friend class ov::npuw::weights::LazyTensorImpl;
+    friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
     Const() = default;
@@ -97,7 +97,7 @@ private:
 };
 
 class Concat {
-    friend class ov::npuw::weights::LazyTensorImpl;
+    friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
     Concat() = default;
@@ -117,7 +117,7 @@ private:
 };
 
 class Unpack {
-    friend class ov::npuw::weights::LazyTensorImpl;
+    friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
     Unpack() = default;
@@ -143,7 +143,7 @@ private:
 };
 
 class Permute {
-    friend class ov::npuw::weights::LazyTensorImpl;
+    friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
     Permute() = default;
@@ -163,7 +163,7 @@ private:
 };
 
 class Convert {
-    friend class ov::npuw::weights::LazyTensorImpl;
+    friend struct ov::npuw::weights::LazyTensorImpl;
 
 public:
     Convert() = default;
