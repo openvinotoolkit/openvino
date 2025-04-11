@@ -25,7 +25,7 @@ public:
     GraphEmitter(const MemoryDescArgs& descs,
                  const Attrs& attrs,
                  const PostOps& postOps,
-                 const MemoryArgs& memory,
+                 [[maybe_unused]] const MemoryArgs& memory,
                  ExecutorContext::CPtr context,
                  const std::string& name,
                  ensureAttrsStrategy ensureAttrs = {})
@@ -38,10 +38,10 @@ public:
         OPENVINO_THROW("Graph emitter is not implemented yet!");
     }
 
-    GraphEmitter& createGraph(const MemoryDescArgs& descs,
-                              const Attrs& attrs,
-                              const PostOps& postOps,
-                              const ExecutorContext::CPtr& context) {
+    GraphEmitter& createGraph([[maybe_unused]] const MemoryDescArgs& descs,
+                              [[maybe_unused]] const Attrs& attrs,
+                              [[maybe_unused]] const PostOps& postOps,
+                              [[maybe_unused]] const ExecutorContext::CPtr& context) {
         OPENVINO_THROW("Not implemented yet!");
         return *this;
     }
@@ -100,14 +100,13 @@ public:
 
         GraphEmitter<Attrs> graphEmitter(config.descs, config.attrs, config.postOps, memory, context, name);
 
-        const auto& graphExecutor =
+        [[maybe_unused]] const auto& graphExecutor =
             graphEmitter.createGraph(fallbackConfig.descs, fallbackConfig.attrs, fallbackConfig.postOps, context)
                 .ensureAttrsMatch()
                 .ensureSrcDescsMatch()
                 .ensureDstDescsMatch()
                 .ensurePostOpsMatch()
                 .emit();
-        (void)graphExecutor;
 
         OPENVINO_THROW("Fallback logic is not implemented yet");  // return graphExecutor;
     }
