@@ -348,7 +348,7 @@ void Properties::registerProperties() {
     // 2.1 Metrics for Plugin-only (or those which need to be handled differently)
     if (_pType == PropertiesType::PLUGIN && _metrics != nullptr) {
         REGISTER_SIMPLE_METRIC(ov::available_devices, true, _metrics->GetAvailableDevicesNames());
-        REGISTER_SIMPLE_METRIC(ov::device::capabilities, true, _metrics->GetOptimizationCapabilities());
+        REGISTER_SIMPLE_METRIC(ov::device::capabilities, true, _optimizationCapabilities);
         REGISTER_SIMPLE_METRIC(
             ov::optimal_number_of_infer_requests,
             true,
