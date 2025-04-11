@@ -26,7 +26,7 @@ import zipfile
 import logging as log
 from common.common_utils import shell
 from shutil import which
-import openvino.runtime as ov
+import openvino as ov
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
