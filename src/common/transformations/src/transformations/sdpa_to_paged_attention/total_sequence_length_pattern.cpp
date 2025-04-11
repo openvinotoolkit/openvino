@@ -5,6 +5,7 @@
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
