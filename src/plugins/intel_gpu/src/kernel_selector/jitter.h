@@ -351,7 +351,7 @@ public:
                 case 6: b = idx[0]; f = idx[1]; w = idx[2]; z = idx[3]; y = idx[4]; x = idx[5]; break;
                 case 7: b = idx[0]; f = idx[1]; u = idx[2]; w = idx[3]; z = idx[4]; y = idx[5]; x = idx[6]; break;
                 case 8: b = idx[0]; f = idx[1]; v = idx[2]; u = idx[3]; w = idx[4]; z = idx[5]; y = idx[6]; x = idx[7]; break;
-                default: throw std::runtime_error("More than 8 dimenstions is not supported in fused op generator");
+                default: throw std::runtime_error("More than 8 dimensions is not supported in fused op generator");
             }
 
             if (t.Batch().v == 1) {
