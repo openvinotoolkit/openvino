@@ -55,8 +55,10 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
 
     # Assert that each file has a pair
     if generated_files != committed_files:
-        print(f"Error: One or more .pyi files are missing from the PR: {generated_files - committed_files}")
-        print(f"Error: DEBUGOne or more extra .pyi files are present in the PR: {committed_files - generated_files}")
+        if generated_files - committed_files:
+            print(f"Error: One or more .pyi files are missing from the PR: {generated_files - committed_files}")
+        if committed_files - generated_files:
+            print(f"Error: One or more extra .pyi files are present in the PR: {committed_files - generated_files}")
         sys.exit(1)
 
     # Compare file contents
@@ -66,7 +68,6 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
             continue
         generated_file: str = os.path.join(generated_dir, relative_path)
         committed_file: str = os.path.join(committed_dir, relative_path)
-        print(f"[Debug] Comparing: {generated_file} with {committed_file}")
         if not filecmp.cmp(generated_file, committed_file, shallow=False):
             with open(generated_file, 'r') as gen_file, open(committed_file, 'r') as com_file:
                 gen_lines = [line.lstrip() for line in gen_file.readlines()]
@@ -89,7 +90,6 @@ def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
                     change.strip() == ""                                            # Ignore whitespace-only changes
                     for change in changes
                 ):
-                    print(f"Adding diff for {relative_path}. The changes var is: {changes}")
                     outdated_files.append((relative_path, "".join(diff)))
 
     # Display all outdated files and their diffs

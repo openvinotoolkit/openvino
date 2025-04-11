@@ -95,7 +95,6 @@ def main():
 
     # Process each changed .pyi file
     for file_path in output_dir.rglob("*.pyi"):
-        print(f"Sanitizing file: {file_path}")
         sanitize_file(file_path)
 
 if __name__ == "__main__":
