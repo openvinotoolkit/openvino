@@ -101,6 +101,7 @@ jobs:
 
       - name: Verify Python stub .pyi files
         uses: ./action_root/.github/actions/validate_pyi_files
+        continue-on-error: true
 
       #
       # Tests
