@@ -346,10 +346,11 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         auto tokenize_transpose = [&](const std::shared_ptr<ov::opset1::Transpose>& transpose,
                                       bool is_input_transposed, size_t rank,
                                       const ov::NodeVector::const_iterator& pos) {
-            // If Transpose has valid order for the Transpose fusing (ExplicitTransposeMatMulInputs pass call), tokenize him.
-            // Otherwise, skip the Transpose.
+            // Transpose is redundant for rank <= 2
             if (rank <= 2)
                 return;
+            // If Transpose has valid order for the Transpose fusing (ExplicitTransposeMatMulInputs pass call), tokenize him.
+            // Otherwise, skip the Transpose.
             auto order = get_fusion_transpose_order(rank);
             if (!is_input_transposed) {
                 if (is_valid_transpose(transpose, config.get_mha_supported_transpose_ranks(), order)) {

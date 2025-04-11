@@ -59,18 +59,18 @@ protected:
 
 class MHA2DFunction : public SnippetsFunctionBase {
 public:
-    explicit MHA2DFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
-                           bool with_mul = true, bool with_reshape = true)
-        : SnippetsFunctionBase(inputShapes), with_mul(with_mul), with_reshape(with_reshape), precisions(precisions) {
+    explicit MHA2DFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
+        : SnippetsFunctionBase(inputShapes), precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
+        for (const auto& shape : input_shapes) {
+            OPENVINO_ASSERT(shape.rank().is_static() && shape.rank().get_length() == 2, "All input shapes must be 2D");
+        }
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
-    const bool with_mul = true;
-    const bool with_reshape = true;
     const std::vector<ov::element::Type> precisions;
 };
 

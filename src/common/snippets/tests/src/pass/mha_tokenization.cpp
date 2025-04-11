@@ -33,7 +33,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Static) {
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Dynamic) {
     const auto &f = MHA2DFunction(std::vector<PartialShape>{{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}},
-                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
+                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}));
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
@@ -41,7 +41,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Dynamic) {
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_2D_Partially_Dynamic) {
     const auto &f = MHA2DFunction(std::vector<PartialShape>{{12, 64}, {64, 12}, {-1, 12}, {12, 64}},
-                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
+                                  std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}));
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
