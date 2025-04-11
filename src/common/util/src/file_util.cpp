@@ -295,18 +295,20 @@ void ov::util::create_directory_recursive(const std::string& path) {
     create_directory_recursive(std::filesystem::path{path});
 }
 
-void ov::util::create_directory_recursive(const std::filesystem::path& dir_path) {
-    if (!directory_exists(dir_path)) {
-        if (std::error_code ec; !std::filesystem::create_directories(dir_path, ec)) {
+void ov::util::create_directory_recursive(const std::filesystem::path& path) {
+    namespace fs = std::filesystem;
+    if (auto dir_path = get_directory(fs::weakly_canonical(path)); !dir_path.empty() && !directory_exists(dir_path)) {
+        if (std::error_code ec; !fs::create_directories(dir_path, ec)) {
             std::stringstream ss;
-            ss << "Couldn't create directory [" << dir_path.string() << "], err=" << ec.message() << ")";
+            ss << "Couldn't create directory [" << dir_path << "], err=" << ec.message() << ")";
             throw std::runtime_error(ss.str());
         }
     }
 }
 
 bool ov::util::directory_exists(const ov::util::Path& path) {
-    return std::filesystem::is_directory(std::filesystem::status(path));
+    const auto path_status = std::filesystem::status(path);
+    return std::filesystem::exists(path_status) && std::filesystem::is_directory(path_status);
 }
 
 namespace {
