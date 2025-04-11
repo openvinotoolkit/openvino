@@ -39,12 +39,15 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
 Napi::Function TensorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "TensorWrap",
-                       {InstanceAccessor<&TensorWrap::get_data, &TensorWrap::set_data>("data"),
-                        InstanceMethod("getData", &TensorWrap::get_data),
-                        InstanceMethod("getShape", &TensorWrap::get_shape),
-                        InstanceMethod("getElementType", &TensorWrap::get_element_type),
-                        InstanceMethod("getSize", &TensorWrap::get_size),
-                        InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
+                       {
+                           InstanceAccessor<&TensorWrap::get_data, &TensorWrap::set_data>("data"),
+                           InstanceMethod("getData", &TensorWrap::get_data),
+                           InstanceMethod("getShape", &TensorWrap::get_shape),
+                           InstanceMethod("getElementType", &TensorWrap::get_element_type),
+                           InstanceMethod("getSize", &TensorWrap::get_size),
+                           InstanceMethod("isContinuous", &TensorWrap::is_continuous),
+                           InstanceMethod("copyTo", &TensorWrap::copy_to)  //  Added method registration by Anurag Pandey
+                       });
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -190,4 +193,31 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
     return Napi::Boolean::New(env, _tensor.is_continuous());
+}
+
+//  NEW METHOD: copyTo() By Anurag Pandey
+Napi::Value TensorWrap::copy_to(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    if (info.Length() != 1 || !info[0].IsTypedArray()) {
+        reportError(env, "copyTo() expects a single TypedArray as argument.");
+        return env.Null();
+    }
+
+    Napi::TypedArray dstArray = info[0].As<Napi::TypedArray>();
+
+    if (dstArray.ByteLength() != _tensor.get_byte_size()) {
+        reportError(env, "TypedArray size must match the Tensor byte size.");
+        return env.Null();
+    }
+
+    try {
+        void* dstData = dstArray.ArrayBuffer().Data();
+        _tensor.copy_to(dstData);
+    } catch (const std::exception& e) {
+        reportError(env, e.what());
+        return env.Null();
+    }
+
+    return env.Undefined();
 }
