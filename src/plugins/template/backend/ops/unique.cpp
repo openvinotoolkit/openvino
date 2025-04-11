@@ -5,6 +5,9 @@
 #include "openvino/reference/unique.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/unique.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 template <typename Data_t, typename Index_t, typename Count_t>
 void execute_unique(ov::TensorVector& outputs,

@@ -14,17 +14,20 @@ import pytest
 import os
 import re
 
-def compare_diffs(ov_model: ov.Model,
-                  model_id: str,
-                  use_block_indices_inputs: bool,
-                  use_score_outputs: bool,
-                  allow_cache_rotation: bool):
+def apply_transformation_and_compare_diffs(ov_model: ov.Model,
+                                           model_id: str,
+                                           use_block_indices_inputs: bool,
+                                           use_score_outputs: bool,
+                                           allow_cache_rotation: bool,
+                                           ie_device: str):
+                  
     before_map = {}
     for op in ov_model.get_ordered_ops():
         if op.get_type_name() in nodes_to_compare:
             before_map[op.get_type_name()] = before_map.get(op.get_type_name(), 0) + 1
 
     paged_attention_transformation(ov_model, use_block_indices_inputs, use_score_outputs, allow_cache_rotation)
+    ov.Core().compile_model(ov_model, ie_device)
 
     after_map = {}
     for op in ov_model.get_ordered_ops():
@@ -101,11 +104,12 @@ def run_pa(tmp_path,
            cls: Union[Type[OVModelForCausalLM], Type[OVModelForVisualCausalLM]],
            use_block_indices_inputs,
            use_score_outputs,
-           allow_cache_rotation):
+           allow_cache_rotation,
+           ie_device):
     model = cls.from_pretrained(model_id, export=True, trust_remote_code=True)
     ov_model = model.model if cls is OVModelForCausalLM else model.lm_model
 
-    compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_cache_rotation)
+    apply_transformation_and_compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_cache_rotation, ie_device)
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
@@ -116,7 +120,7 @@ def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device)
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_pa(tmp_path, model_name, model_link, OVModelForCausalLM, False, False, False)
+    run_pa(tmp_path, model_name, model_link, OVModelForCausalLM, False, False, False, ie_device)
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
@@ -127,7 +131,7 @@ def test_pa_precommit_use_cache_eviction(tmp_path, model_name, model_link, mark,
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_pa(tmp_path, model_name, model_link, OVModelForCausalLM, True, True, True)
+    run_pa(tmp_path, model_name, model_link, OVModelForCausalLM, True, True, True, ie_device)
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-vl-models-precommit")))
@@ -138,7 +142,7 @@ def test_pa_vlm(tmp_path, model_name, model_link, mark, reason, ie_device):
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_pa(tmp_path, model_name, model_link, OVModelForVisualCausalLM, False, False, False)
+    run_pa(tmp_path, model_name, model_link, OVModelForVisualCausalLM, False, False, False, ie_device)
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-vl-models-precommit")))
@@ -149,4 +153,4 @@ def test_pa_vlm_use_cache_eviction(tmp_path, model_name, model_link, mark, reaso
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_pa(tmp_path, model_name, model_link, OVModelForVisualCausalLM, True, True, True)
+    run_pa(tmp_path, model_name, model_link, OVModelForVisualCausalLM, True, True, True, ie_device)

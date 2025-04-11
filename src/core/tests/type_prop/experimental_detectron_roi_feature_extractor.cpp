@@ -8,10 +8,10 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 using namespace ov;
-using namespace ov::opset11;
+using ov::op::v0::Parameter;
 using namespace testing;
 
 class TypePropExperimentalDetectronROIFeatureExtractorV6Test

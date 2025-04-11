@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/glu_fusion.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gelu.hpp"

@@ -5,6 +5,8 @@
 #include "openvino/reference/ctc_greedy_decoder_seq_len.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
 
 namespace ctc_greedy_decoder_v6 {
 template <ov::element::Type_t T1, ov::element::Type_t T2, ov::element::Type_t TOUT>

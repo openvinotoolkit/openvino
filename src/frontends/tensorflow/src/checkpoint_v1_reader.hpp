@@ -24,8 +24,6 @@ struct VariableInfo {
     ::tensorflow::TensorShapeProto variable_shape;
     ::tensorflow::DataType variable_type;
     int32_t shard_id;
-    size_t offset;
-    size_t size;
     std::vector<int64_t> starts;
     std::vector<int64_t> lenghts;
 };

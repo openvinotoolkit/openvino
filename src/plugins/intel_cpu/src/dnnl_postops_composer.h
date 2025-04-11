@@ -11,6 +11,7 @@
 #include <dnnl_types.h>
 
 #include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "post_ops.hpp"
@@ -28,9 +29,11 @@ public:
                         const bool isINT8,
                         const int weiScaleMaskPerChannel,
                         const MemoryArgs& memory,
-                        const dnnl::memory::data_type outDataType);
+                        const dnnl::memory::data_type outDataType,
+                        const std::vector<float>& legacyDqScales = {},
+                        bool useLegacyPostOps = false,
+                        bool useLegacyZeroPoints = false);
     DnnlPrimitiveAttrs compose();
-
     void appendDecompressionScales(const MemoryCPtr& scales_ptr,
                                    bool needTranspose,
                                    ov::element::Type dstPrecision,
@@ -54,8 +57,12 @@ private:
                            bool isLastPostOp,
                            bool doRounding,
                            bool allowBinary = true);
+    void appendAttrPostOpsLegacy(const ActivationPostOp& postOp);
+    void appendAttrPostOpsLegacy(const ScaleShiftPostOp& postOp);
+    void appendAttrPostOpsLegacy(const FakeQuantizePostOp& postOp);
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
     void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
+    void appendSum(float scale, int32_t zeroPoint, ov::element::Type dataType);
     void appendRoundHTE();
     bool appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary = true);
     bool appendShift(const std::vector<float>& shift, bool allowBinary = true);
@@ -64,7 +71,15 @@ private:
                       bool isLastPostOp,
                       bool allowBinary = true);
     void appendClip(const std::vector<float>& low, const std::vector<float>& high);
-
+    void appendDepthwiseConvolution(int inH,
+                                    int inW,
+                                    int kerH,
+                                    int kerW,
+                                    int strH,
+                                    int strW,
+                                    dnnl::memory::data_type inDataType);
+    void appendZeroPoints(const MemoryArgs& memory);
+    void appendZeroPointsLegacy(const MemoryArgs& memory);
     const dnnl::engine& engine;
     const PostOps& postOps;
     const VectorDims outputDims;
@@ -73,6 +88,8 @@ private:
     const int weightScaleMaskPerChannel;
     bool weightScaleAvailable = false;
     const dnnl::memory::data_type outDataType;
+    bool useLegacyPostOps;
+    bool useLegacyZeroPoints;
 
     dnnl::primitive_attr attr;
     MemoryArgs cpuArgs;

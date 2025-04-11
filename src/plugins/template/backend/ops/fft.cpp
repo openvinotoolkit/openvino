@@ -6,6 +6,8 @@
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
+#include "openvino/op/dft.hpp"
+#include "openvino/op/idft.hpp"
 
 namespace fft_v7 {
 struct InfoForFFT7 {

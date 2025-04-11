@@ -11,6 +11,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 

@@ -12,6 +12,7 @@
 #include "openvino/op/util/assign_base.hpp"
 #include "low_precision/fake_quantize.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

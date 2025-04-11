@@ -5,6 +5,7 @@
 #include "permute_slice_n_interpolation.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/slice.hpp"

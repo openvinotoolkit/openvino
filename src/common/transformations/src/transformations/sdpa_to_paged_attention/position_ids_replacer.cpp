@@ -5,6 +5,7 @@
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"

@@ -5,13 +5,14 @@
 #pragma once
 
 #include <common_test_utils/ov_test_utils.hpp>
+#include <optional>
 
 namespace ov {
 namespace test {
 namespace snippets {
 
 struct InputData {
-    size_t cur_batch;
+    std::optional<size_t> cur_batch;
     size_t cur_m;
     size_t concurrency;
 };

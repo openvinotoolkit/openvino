@@ -9,6 +9,7 @@
 #include <string>
 
 #include "gather_shape_inference.hpp"
+#include "openvino/op/gather.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather)
@@ -47,6 +48,7 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
         switch (input_layout.format) {
         case format::bfyx:
         case format::bfzyx:
+        case format::bfwzyx:
         case format::b_fs_zyx_fsv16:
         case format::b_fs_zyx_fsv32:
             output_format = format::get_default_format(dims_converted.size());

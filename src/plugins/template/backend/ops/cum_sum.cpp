@@ -5,6 +5,8 @@
 // clang-format off
 #include "evaluate_node.hpp"
 #include "openvino/reference/cum_sum.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/cum_sum.hpp"
 // clang-format on
 
 namespace cum_sum_v0 {

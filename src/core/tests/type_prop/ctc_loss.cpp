@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/ctc_loss.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset10.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset10;
+using ov::op::v0::Parameter;
+using ov::op::v4::CTCLoss;
 using namespace testing;
 
 class TypePropCTCLossV4Test : public TypePropOpTest<op::v4::CTCLoss> {};

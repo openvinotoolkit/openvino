@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "layout_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/true.hpp"
@@ -270,7 +271,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     FunctionGuard guard(function);
     bool need_validate = false;
     auto results = function->get_results();
-    auto parameters_list = std::list<std::shared_ptr<opset8::Parameter>>(function->get_parameters().begin(),
+    auto parameters_list = std::list<std::shared_ptr<op::v0::Parameter>>(function->get_parameters().begin(),
                                                                          function->get_parameters().end());
 
     for (const auto& input_info : m_impl->m_inputs) {

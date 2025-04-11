@@ -4,11 +4,20 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset11.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "topk_shape_inference.hpp"
 
 using namespace ov;
-using namespace ov::opset11;
+using ov::op::v0::Concat;
+using ov::op::v0::Constant;
+using ov::op::v0::Parameter;
+using ov::op::v0::Squeeze;
+using ov::op::v11::TopK;
+using ov::op::v3::Broadcast;
+using ov::op::v3::ShapeOf;
 using namespace testing;
 template <typename T>
 class topk_type_prop : public TypePropOpTest<T> {
@@ -416,11 +425,11 @@ TEST_F(TypePropTopKV3Test, k_is_u32) {
 }
 
 TEST(type_prop, top_k_partial_value) {
-    const auto data = std::make_shared<opset11::Parameter>(element::f32, PartialShape{{0, 16000}});
-    const auto shape = std::make_shared<opset11::ShapeOf>(data);
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{{0, 16000}});
+    const auto shape = std::make_shared<op::v3::ShapeOf>(data);
     const auto concat =
         std::make_shared<Concat>(ov::OutputVector{shape, Constant::create(element::i64, {1}, {200})}, 0);
-    const auto reduce_min = std::make_shared<opset11::ReduceMin>(concat, Constant::create(element::i64, {1}, {0}));
+    const auto reduce_min = std::make_shared<op::v1::ReduceMin>(concat, Constant::create(element::i64, {1}, {0}));
     const auto op = std::make_shared<op::v3::TopK>(data, reduce_min, 0, "max", "value");
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{0, 200}}));
 }

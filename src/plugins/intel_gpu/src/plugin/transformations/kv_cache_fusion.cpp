@@ -25,6 +25,7 @@
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
 

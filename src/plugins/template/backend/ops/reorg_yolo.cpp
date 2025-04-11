@@ -5,6 +5,7 @@
 #include "openvino/reference/reorg_yolo.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/op/reorg_yolo.hpp"
 
 bool evaluate(const std::shared_ptr<ov::op::v0::ReorgYolo>& op,
               ov::TensorVector& outputs,

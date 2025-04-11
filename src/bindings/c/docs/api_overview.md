@@ -631,6 +631,14 @@ This struct represents OpenVINO entity and allows you to manipulate with plugins
 
   - Return value: Status code of the operation: OK(0) for success.
 
+- `ov_status_e ov_core_add_extension(const ov_core_t* core, const char* library_path)`
+
+  - Description: Adds an extension to the core.
+  - Parameters:
+    - `core` - A pointer `ov_core_t` instance.
+    - `library_path` - Path to an extension.
+  - Return value: Status code of the operation: OK(0) for success.
+
 ## OV Model
 
 This struct contains the information about the model read from IR and allows you to manipulate with some model parameters such as layers affinity and output layers.

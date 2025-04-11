@@ -18,6 +18,7 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {

@@ -13,6 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/graph_util.hpp"
 
 ov::intel_gpu::ConvertAvgPoolingToReduce::ConvertAvgPoolingToReduce() {
     // Check all AvgPool nodes
