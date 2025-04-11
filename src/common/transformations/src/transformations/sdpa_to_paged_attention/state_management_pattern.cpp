@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
