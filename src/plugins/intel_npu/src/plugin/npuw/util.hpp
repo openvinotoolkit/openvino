@@ -6,11 +6,11 @@
 
 #include <string>
 
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "llm_compiled_model_utils.hpp"
 
 namespace ov {
 namespace npuw {

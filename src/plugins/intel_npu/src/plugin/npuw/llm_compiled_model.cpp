@@ -241,7 +241,8 @@ public:
         auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, "ScaledDotProductAttentionDecomposition");
         register_matcher(m, std::move(callback));
     }
-    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node, bool use_high_precision_on_add) {
+    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node,
+                                        bool use_high_precision_on_add) {
         using namespace ov::op;
         using namespace ov;
         auto query = node->input_value(0);
@@ -295,7 +296,6 @@ public:
                     atten_mask = register_new_node<v1::Select>(inv_mask, atten_mask, minus_inf);
                 } else {
                     atten_mask = mask;
-
                 }
             } else {
                 auto target_s_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
@@ -319,7 +319,7 @@ public:
                 atten_mask.get_rt_info()[npuw::util::HighPrecisionAttr::get_type_info_static()] = attr_hp;
             }
 
-            scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask); 
+            scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
         }
 
         scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
@@ -395,7 +395,7 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     // NB: matmul parameters gets transposed, if pass applied
     return ctx.bTransposed;
 }
-}
+}  // namespace ov::npuw::util
 
 namespace {
 struct KVAxesPosition {

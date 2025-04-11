@@ -433,14 +433,15 @@ void Partitioner::identifySubgraphs() {
             input_mapping[orig_node] = orig_node;
             return orig_node;
         };
-        auto is_hp_tag = [] (auto node) {
+        auto is_hp_tag = [](auto node) {
             auto hptag = node.get_rt_info().find(ov::npuw::util::HighPrecisionAttr::get_type_info_static());
             if (hptag == node.get_rt_info().end() ||
-                hptag->second.template as<ov::npuw::util::HighPrecisionAttr>().compute_precision_type != ov::element::f32) {
+                hptag->second.template as<ov::npuw::util::HighPrecisionAttr>().compute_precision_type !=
+                    ov::element::f32) {
                 return false;
-            } 
+            }
             return true;
-        };        
+        };
         auto parameter_from = [&input_mapping, is_hp_tag, connect_in_f16](ov::Output<ov::Node> output) {
             auto orig_node = output.get_node_shared_ptr();
             auto it = input_mapping.find(orig_node);
