@@ -328,6 +328,13 @@ public:
             params.inputs[i] = convert_data_tensor(impl_param.get_input_layout(i));
         }
 
+        if (desc->scale_val.has_value()) {
+            data_inputs_num++;
+        }
+        if (desc->attn_mask_val.has_value()) {
+            data_inputs_num++;
+        }
+
         params.conf = get_sdpa_configuration(impl_param);
 
         params.input0_order = desc->input_q_transpose_order;
