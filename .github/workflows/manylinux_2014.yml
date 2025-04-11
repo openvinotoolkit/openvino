@@ -189,7 +189,9 @@ jobs:
               ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
               /bin/bash -c "
                 py_exec_folder=$(python$py_version -c "import sys; print(sys.exec_prefix + '/bin')")
+                echo "${py_exec_folder}"
                 export PATH=${py_exec_folder}:\$PATH
+                echo "${PATH}"
                 PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
                 export "PIP_CACHE_DIR=/work/pip_cache/${PIP_VER}"
                 python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt &&
