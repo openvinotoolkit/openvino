@@ -442,7 +442,7 @@ if(NOT (DEFINED ENV{CI} OR DEFINED ENV{TF_BUILD} OR DEFINED ENV{JENKINS_URL}))
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     ERROR_STRIP_TRAILING_WHITESPACE)
     if(NOT precommit_install_result EQUAL "0")
-        message(WARNING "Python stub generation pre-commit hook install failed with error: ${precommit_install_error}. It necessary for developing Python API.")
+        message(WARNING "Python stub generation pre-commit hook install failed with error: ${precommit_install_error}. It is necessary for developing Python API.")
     else()
         message(STATUS "pre-commit hook for Python API stub generation has been installed")
     endif()
