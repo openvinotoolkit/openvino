@@ -60,7 +60,6 @@
 
 #ifdef IS_SECOND_ITER // Socond kernel only
     #ifdef REDUCE_MODE
-        #define COUNT_LIMIT 4096
         #define SUM_MODE 1
         #define PROD_MODE 2
         #define MIN_MODE 3
@@ -100,7 +99,13 @@
         #endif
         }
 
-        inline uint add_count(__local int count_k[], __local int count_v[], int idx, uint valid_count)
+        inline uint add_count(
+            #if COUNT_LENGTH > COUNT_LIMIT
+            __global int count_k[], __global int count_v[], 
+            #else
+            __local int count_k[], __local int count_v[], 
+            #endif
+            int idx, uint valid_count)
         {
             for (int i = 0; i < valid_count; ++i) {
                 if (count_k[i] == idx) {
@@ -135,7 +140,6 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 )
 {
-
     const uint dim0 = get_global_id(0);
     const uint dim1 = get_global_id(1);
     const uint dim2 = get_global_id(2);
@@ -170,6 +174,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #else
     #ifdef REDUCE_MODE
+        const uint tgz = INPUT2_FEATURE_NUM * INPUT2_BATCH_NUM;
         #if OUTPUT_DIMS == 4
             const uint tgx = INPUT2_SIZE_X;
             const uint tgy = INPUT2_SIZE_Y;
@@ -180,19 +185,20 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
             const uint tgy = INPUT2_SIZE_Z * INPUT2_SIZE_W;
         #endif
-        const uint tgz = INPUT2_FEATURE_NUM * INPUT2_BATCH_NUM;
-        #if INPUT2_LENGTH == 0 || INPUT2_LENGTH > COUNT_LIMIT
-            #define COUNT_LENGTH COUNT_LIMIT   // Maximum number of elements to reduce in case of shape agnostic kernel or large shapes
+        #if COUNT_LENGTH > COUNT_LIMIT
+            __global int count_k[COUNT_LENGTH];
+            __global int count_v[COUNT_LENGTH];
+        #elif COUNT_LENGTH == 0
+            __local int count_k[1];
+            __local int count_v[1];
         #else
-            #define COUNT_LENGTH INPUT2_LENGTH
+            __local int count_k[COUNT_LENGTH];
+            __local int count_v[COUNT_LENGTH];
         #endif
-        __local int count_k[COUNT_LENGTH];
-        __local int count_v[COUNT_LENGTH];
         for (int i = 0; i < COUNT_LENGTH; ++i) {
             count_k[i] = -1;
             count_v[i] = 0;
         }
-        const uint input2_length = tgx * tgy * tgz > COUNT_LENGTH ? COUNT_LENGTH : tgx * tgy * tgz;
         #if USE_INIT_VAL == 0
             for (uint gz = 0; gz < tgz; gz++) {
                 for (uint gy = 0; gy < tgy; gy++) {
@@ -252,11 +258,7 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                      const uint output_idx = GET_OUTPUT_INDEX(ORDER);
                      val = FUNC_CALL(reduce)(output[output_idx], val);
                      output[output_idx] = val;
-                     if (valid_count < COUNT_LENGTH) {
-                        valid_count = add_count(count_k, count_v, output_idx, valid_count);
-                     } else {
-                        printf("Error: scatter_elements_update_ref on unexpected shape.\n");
-                     }
+                     valid_count = add_count(count_k, count_v, output_idx, valid_count);
                  }
              }
          }
