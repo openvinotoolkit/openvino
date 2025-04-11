@@ -520,7 +520,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
 
-    postOps = getPostOps(fusedWith);
+    attrs.postOps = getPostOps(fusedWith);
 
     const auto& srcTypes = getOriginalInputPrecisions();
     auto dstTypes = getOriginalOutputPrecisions();
@@ -554,7 +554,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     };
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
-    factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, postOps, executionContext, descs);
+    factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, executionContext, descs);
     const std::vector<MemoryDescArgs> nodeDescriptorsList = factory->getProperMemoryDescriptors(descs);
     const MemoryDescArgs& nodeDescriptors = nodeDescriptorsList.front();
 

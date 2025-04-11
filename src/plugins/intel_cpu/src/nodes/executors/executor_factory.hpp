@@ -28,16 +28,13 @@ public:
     using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
 
     ExecutorFactory(Attrs attrs,
-                    PostOps postOps,
                     ExecutorContext::CPtr context,
                     const MemoryDescArgs& descriptors,
                     const MemoryFormatFilter& memoryFormatFilter = {},
                     const std::string& implementationPriority = {})
         : m_attrs(attrs),
-          m_postOps(std::move(postOps)),
           m_context(std::move(context)),
-          m_suitableImplementations(
-              filter(m_attrs, m_postOps, descriptors, memoryFormatFilter, implementationPriority)) {
+          m_suitableImplementations(filter(m_attrs, descriptors, memoryFormatFilter, implementationPriority)) {
         OPENVINO_ASSERT(!m_suitableImplementations.empty(), "No suitable implementations found");
     }
 
@@ -59,7 +56,7 @@ public:
     [[nodiscard]] std::vector<MemoryDescArgs> getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
         DEBUG_LOG("Preconfiguring memory descriptors");
 
-        executor::Config<Attrs> config{descriptors, m_attrs, m_postOps};
+        executor::Config<Attrs> config{descriptors, m_attrs};
 
         auto getProperMemoryDescArgs = [](const ExecutorImplementationRef& impl,
                                           const executor::Config<Attrs>& config) {
@@ -92,7 +89,7 @@ public:
     ExecutorPtr make(const MemoryArgs& memory) {
         // only single executor is available
         if (m_suitableImplementations.size() == 1) {
-            auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs, m_postOps);
+            auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs);
 
             const auto& theOnlyImplementation = m_suitableImplementations.front().get();
 
@@ -104,14 +101,10 @@ public:
                                                      theOnlyImplementation.name());
             }
 
-            return theOnlyImplementation.create(m_attrs, m_postOps, memory, m_context);
+            return theOnlyImplementation.create(m_attrs, memory, m_context);
         }
 
-        return std::make_shared<VariableExecutor<Attrs>>(memory,
-                                                         m_attrs,
-                                                         m_postOps,
-                                                         m_context,
-                                                         m_suitableImplementations);
+        return std::make_shared<VariableExecutor<Attrs>>(memory, m_attrs, m_context, m_suitableImplementations);
     }
 
 private:
@@ -119,7 +112,6 @@ private:
      * @brief Filters and retrieves suitable implementations based on the provided executor configuration.
      *
      * @param attrs The attributes used for filtering implementations.
-     * @param postOps The post-operations to be applied.
      * @param descs The memory descriptor arguments.
      * @param implementationPriority Optional. The name of the implementation to prioritize.
      *        If specified, only the implementation with this name will be considered.
@@ -128,13 +120,12 @@ private:
      *       priority are considered.
      */
     static std::vector<ExecutorImplementationRef> filter(const Attrs& attrs,
-                                                         const PostOps& postOps,
                                                          const MemoryDescArgs& descs,
                                                          const MemoryFormatFilter& memoryFormatFilter = {},
                                                          const std::string& implementationPriority = {}) {
         const auto& implementations = getImplementations<Attrs>();
         std::vector<ExecutorImplementationRef> suitableImplementations;
-        const executor::Config<Attrs> config{descs, attrs, postOps};
+        const executor::Config<Attrs> config{descs, attrs};
 
         for (const auto& implementation : implementations) {
             DEBUG_LOG("Processing implementation: ", implementation.name());
@@ -167,7 +158,6 @@ private:
     }
 
     Attrs m_attrs;
-    PostOps m_postOps;
     ExecutorContext::CPtr m_context;
     std::vector<ExecutorImplementationRef> m_suitableImplementations;
 };
