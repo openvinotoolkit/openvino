@@ -49,8 +49,9 @@ jobs:
       CCACHE_MAXSIZE: 3G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
+      OPENVINO_JS_DIR: "${{ env.OPENVINO_REPO }}\\src\\bindings\\js\\node"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
-      INSTALL_DIR_JS: "${{ github.workspace }}\\openvino_install\\js"
+      INSTALL_DIR_JS: "${{ env.OPENVINO_JS_DIR }}\\bin"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       INSTALL_DEV_PACKAGE: "${{ github.workspace }}\\install\\developer_package"
@@ -82,6 +83,12 @@ jobs:
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'
+      
+      - name: Setup NodeJS
+        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: 21
 
       - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
         id: create_manifest
@@ -302,13 +309,16 @@ jobs:
       - name: Pack JS Artifacts
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         run: |
-          $file = Get-ChildItem -Path "${{ env.INSTALL_DIR_JS }}"
+          npm i
+          npm pack
+          $file = Get-ChildItem -Path "openvino-node-*.tgz"
           $compress = @{
-            Path = $file
+            Path = @("bin") + $file.FullName
             CompressionLevel = "Optimal"
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_js_package.zip"
           }
           Compress-Archive @compress
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
 
       - name: Cmake & Build - OpenVINO Contrib
         run: |
