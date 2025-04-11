@@ -774,7 +774,8 @@ TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_OPTIMIZATION_CAPABILITIES)
     OV_ASSERT_NO_THROW(capabilities = ie.get_property(target_device, ov::device::capabilities));
     std::cout << "Optimization capabilities: " << std::endl;
     std::vector<std::string> possible_capabilities{ov::device::capability::FP32, ov::device::capability::BF16,
-                                                   ov::device::capability::FP16, ov::device::capability::INT8,
+                                                   ov::device::capability::FP16, ov::device::capability::NF4,
+                                                   ov::device::capability::INT4, ov::device::capability::INT8,
                                                    ov::device::capability::INT16, ov::device::capability::BIN,
                                                    ov::device::capability::WINOGRAD, ov::device::capability::EXPORT_IMPORT};
     for (auto&& capability : capabilities) {
