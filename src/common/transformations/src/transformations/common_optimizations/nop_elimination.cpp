@@ -585,6 +585,8 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 if (end_constant_node == nullptr)
                     return false;
                 auto end_values = end_constant_node->cast_vector<int64_t>();
+                if (end_values[concat_axis] > static_cast<int64_t>(concat->get_shape()[concat_axis]))
+                    end_values[concat_axis] = static_cast<int64_t>(concat->get_shape()[concat_axis]);
 
                 slice_out_index_in_concat.push_back(
                     std::make_tuple(strided_slice_node, begin_values[concat_axis], end_values[concat_axis] - 1));
@@ -620,18 +622,23 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
             if (!matched)
                 mismatch_slices.push_back(std::make_tuple(slice_node, slice_begin, slice_end));
         }
+        if (mismatch_slices.empty())
+            return true;
+
+        if (mismatch_slices.size() == slice_out_index_in_concat.size())
+            return false;
 
         int64_t new_start_value{std::numeric_limits<int64_t>::max()};
         int64_t new_end_value{0};
         for (const auto& [slice_node, slice_begin, slice_end] : mismatch_slices) {
             for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
-                if ((concat_input_begin <= slice_begin) && (concat_input_end > slice_begin)) {
+                if ((concat_input_begin <= slice_begin) && (concat_input_end >= slice_begin)) {
                     if (concat_input_begin < new_start_value)
                         new_start_value = concat_input_begin;
                     if (concat_input_end > new_end_value)
                         new_end_value = concat_input_end;
                 }
-                if ((concat_input_begin < slice_end) && (concat_input_end >= slice_end)) {
+                if ((concat_input_begin <= slice_end) && (concat_input_end >= slice_end)) {
                     if (concat_input_begin < new_start_value)
                         new_start_value = concat_input_begin;
                     if (concat_input_end > new_end_value)
