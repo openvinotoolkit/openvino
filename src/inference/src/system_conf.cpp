@@ -498,6 +498,7 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
     CPU& cpu = cpu_info();
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     const auto cpu_size = static_cast<int>(cpu_ids.size());
+    std::cout << "step 20 cpu_size = " << cpu_size << std::endl;
     if (cpu_size > 0) {
         for (int i = 0; i < cpu_size; i++) {
             if (cpu_ids[i] < cpu._processors) {
