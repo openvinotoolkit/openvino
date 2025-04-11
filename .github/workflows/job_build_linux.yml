@@ -78,10 +78,9 @@ jobs:
       SCCACHE_LOG: warn
       GITHUB_WORKSPACE: /__w/openvino/openvino
       OPENVINO_REPO: /__w/openvino/openvino/openvino
-      OPENVINO_JS_DIR: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      INSTALL_DIR_JS: ${{ env.OPENVINO_JS_DIR }}/bin
+      INSTALL_DIR_JS: /__w/openvino/openvino/openvino/src/bindings/js/node/bin
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       INSTALL_WHEELS_DIR: /__w/openvino/openvino/install/wheels
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
@@ -254,7 +253,7 @@ jobs:
           npm i
           npm pack
           tar -cvf - bin openvino-node-*.tgz | pigz > ${BUILD_DIR}/openvino_js_package.tar.gz
-        working-directory: ${{ env.OPENVINO_JS_DIR }}
+        working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}

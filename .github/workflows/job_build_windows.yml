@@ -49,9 +49,8 @@ jobs:
       CCACHE_MAXSIZE: 3G
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
-      OPENVINO_JS_DIR: "${{ env.OPENVINO_REPO }}\\src\\bindings\\js\\node"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
-      INSTALL_DIR_JS: "${{ env.OPENVINO_JS_DIR }}\\bin"
+      INSTALL_DIR_JS: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       INSTALL_DEV_PACKAGE: "${{ github.workspace }}\\install\\developer_package"
@@ -318,7 +317,7 @@ jobs:
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_js_package.zip"
           }
           Compress-Archive @compress
-        working-directory: ${{ env.OPENVINO_JS_DIR }}
+        working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
       - name: Cmake & Build - OpenVINO Contrib
         run: |
