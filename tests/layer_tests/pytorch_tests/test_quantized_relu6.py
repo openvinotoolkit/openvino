@@ -19,7 +19,7 @@ class quantized_relu6(torch.nn.Module):
 
     def forward(self, input_tensor):
         quantized_tensor = torch.quantize_per_tensor(input_tensor, 1.0, 0, self.dtype)
-        q_relu6 = torch.ops.quantized.relu6(quantized_tensor, self.scale, self.zero_point)
+        q_relu6 = torch.ops.quantized.relu6(quantized_tensor, False)
         dequantized_tensor = torch.dequantize(q_relu6)
         return dequantized_tensor
 

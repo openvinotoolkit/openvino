@@ -12,13 +12,11 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_quantized_relu6(const NodeContext& context) {
-    num_inputs_check(context, 3, 3);
+    num_inputs_check(context, 2, 2);
     const auto x = context.get_input(0);
-    const auto scale = context.get_input(1);
-    const auto zero_point = context.get_input(2);
     auto clamped = context.mark_node(std::make_shared<ov::op::v0::Clamp>(x, 0.0, 6.0));
-    return {quantize(context, clamped, scale, zero_point, x)};
-}
+    return {clamped};
+};
 
 }  // namespace op
 }  // namespace pytorch
