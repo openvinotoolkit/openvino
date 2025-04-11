@@ -72,7 +72,7 @@ Rows 1 and 4 are empty. The output sparse tensor will be:
 * ``output_values = [a, b, default_value, c, d, default_value]``
 * ``empty_row_indicator = [False, True, False, False, True]``
 
-The output sparse tensor will be in row-major order and will have the same shape as the input.
+The output sparse tensor will be in row-major order and will have the same dense shape as the `dense_shape` input.
 
 .. code-block:: xml
 
