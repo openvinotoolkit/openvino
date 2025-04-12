@@ -11,7 +11,7 @@ import tensorflow as tf
 import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
-# import tensorflow_text  # do not delete, needed for text models
+import tensorflow_text  # do not delete, needed for text models
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
 from openvino import Core
