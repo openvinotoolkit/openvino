@@ -165,6 +165,7 @@ OP_CONVERTER(translate_maximum);
 OP_CONVERTER(translate_max_pool1d);
 OP_CONVERTER(translate_max_pool2d);
 OP_CONVERTER(translate_max_pool3d);
+OP_CONVERTER(translate_max_unpool2d);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
@@ -602,6 +603,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::max_pool2d_with_indices", op::quantizable_op<op::translate_max_pool2d>},
         {"aten::max_pool3d", op::quantizable_op<op::translate_max_pool3d>},
         {"aten::max_pool3d_with_indices", op::quantizable_op<op::translate_max_pool3d>},
+        {"aten::max_unpool2d", op::translate_max_unpool2d},
         {"aten::mean", op::quantizable_op<op::translate_mean>},
         {"aten::meshgrid", op::translate_meshgrid},
         {"aten::min", op::translate_min},
