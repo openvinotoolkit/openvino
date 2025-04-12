@@ -156,6 +156,8 @@ KERNEL(sdpa_ref)(
 
 #if HAS_SCALE_INPUT
     const OUTPUT_TYPE scale_val = *scale;
+#elif defined(STATIC_SCALE_VALUE)
+    const OUTPUT_TYPE scale_val = STATIC_SCALE_VALUE;
 #else
     const OUTPUT_TYPE scale_val = OUTPUT_VAL_ONE / sqrt(TO_OUTPUT_TYPE(INPUT1_SIZE_X));
 #endif
@@ -220,6 +222,8 @@ KERNEL(sdpa_ref)(
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
             uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0, b1, target_seq_idx, s);
             OUTPUT_TYPE attn_mask_val = attn_mask[attn_mask_offset];
+#elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
+            OUTPUT_TYPE attn_mask_val = TO_OUTPUT_TYPE(STATIC_SCALAR_ATTN_MASK_VALUE);
 #else
             OUTPUT_TYPE attn_mask_val = OUTPUT_VAL_ZERO;
 #endif

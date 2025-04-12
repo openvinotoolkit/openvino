@@ -6,9 +6,24 @@
 #include <string>
 
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/core.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+
+namespace {
+bool isGPU1Present() {
+    std::string target_device{"GPU"};
+    std::string deviceID{"1"};
+    ov::Core ie = ov::test::utils::create_core();
+    auto deviceIDs = ie.get_property(target_device, ov::available_devices);
+    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+        return false;
+    }
+    return true;
+}
+} // namespace
 
 std::vector<std::string> disabledTestPatterns() {
-    return {
+    std::vector<std::string> returnVal = {
             // These tests might fail due to accuracy loss a bit bigger than threshold
             R"(.*(GRUCellTest).*)",
             R"(.*(RNNSequenceTest).*)",
@@ -38,8 +53,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
-            // TODO: Issue 114262
-            R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.Inference/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*eltwise_op_type=Pow.*model_type=i64.*)",
             // TODO: Issue: 68712
@@ -200,6 +213,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
             // Issue: 142900
             R"(.*smoke_TestsROIAlign_.*ROIAlignV9LayerTest.*)",
+            // Use weight from model not from path hint
+            R"(.*compile_from_weightless_blob.*)",
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
@@ -207,4 +222,12 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_Check/ConstantResultSubgraphTest.Inference/SubgraphType=SINGLE_COMPONENT_IS=\[1,3,10,10\]_IT=i16_Device=GPU.*)",
 #endif
     };
+    if (!isGPU1Present()) {
+        returnVal.push_back(R"(.*nightly_OVClassSpecificDevice0Test/OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow/GPU.1.*)");
+        returnVal.push_back(R"(.*nightly_OVClassSpecificDevice0Test/OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow/GPU.1.*)");
+        returnVal.push_back(R"(.*nightly_OVClassSpecificDevice0Test/OVSpecificDeviceTestSetConfig.SetConfigSpecificDeviceNoThrow/GPU.1.*)");
+        returnVal.push_back(R"(.*nightly_OVClassSetDefaultDeviceIDPropTest/OVClassSetDefaultDeviceIDPropTest.SetDefaultDeviceIDNoThrow/0.*)");
+        returnVal.push_back(R"(.*nightly_OVClassSeveralDevicesTest/OVClassSeveralDevicesTestCompileModel.CompileModelActualSeveralDevicesNoThrow/0.*)");
+    }
+    return returnVal;
 }
