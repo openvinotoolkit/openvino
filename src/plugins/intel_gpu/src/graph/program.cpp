@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
@@ -1144,9 +1145,10 @@ void program::fuse_nodes(program_node &fused_node,
     }
 
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
-    auto fusedPadding = fused_node.get_output_layout().data_padding;
+    auto fused_layout = fused_node.get_output_layout();
+    auto fused_padding = fused_layout.data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
-                                                 fusedPadding);
+                                                 fused_padding);
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
@@ -1157,8 +1159,13 @@ void program::fuse_nodes(program_node &fused_node,
     // Add new dependencies to the fused_node
     size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
-        auto& dep = peer_node.get_dependency(i);
-        if (dep.id() == fused_node.id()) {
+        auto [dep, port] = peer_node.get_dependency_with_port(i);
+        if (dep->id() == fused_node.id()) {
+            if (fused_node.has_fused_primitives()) {
+                local_desc.inputs.emplace_back(FusedInputType::INTERNAL, fused_node.get_fused_primitives().size() - 1, fused_layout.data_type);
+            } else {
+                local_desc.inputs.emplace_back(FusedInputType::ORIGINAL, 0, fused_layout.data_type);
+            }
             deps_idx++;
             continue;
         }
@@ -1187,10 +1194,11 @@ void program::fuse_nodes(program_node &fused_node,
             }
         }
 
-        auto port_idx = fused_node.get_port_from_deps(dep.id());
-        fused_node.dependencies.push_back({&dep, port_idx});
-        local_desc.deps.emplace_back(dep.id(), deps_idx++);
-        dep.users.push_back(&fused_node);
+        auto port_idx = fused_node.get_port_from_deps(dep->id());
+        fused_node.dependencies.push_back({dep, port_idx});
+        local_desc.inputs.emplace_back(FusedInputType::EXTERNAL, fused_node.dependencies.size() - 1, dep->get_output_layout(port).data_type);
+        local_desc.deps.emplace_back(dep->id(), deps_idx++);
+        dep->users.push_back(&fused_node);
     }
     if (local_desc.deps.size()) {
         local_desc.outer_dep_start_idx = orig_fused_node_num_deps;
