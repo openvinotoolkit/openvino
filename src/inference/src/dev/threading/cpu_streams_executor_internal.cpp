@@ -169,7 +169,7 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
                             stream_conditions[j][idx] = std::make_pair("", 0);
                         }
                     }
-                    _stream_processors[stream_pos[j]].push_back(_cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+                    _stream_processors[stream_pos[j]].push_back(i);
                     _cpu_mapping_table[i][CPU_MAP_USED_FLAG] = _cpu_status;
                     if (static_cast<int>(_stream_processors[stream_pos[j]].size()) ==
                         streams_table[j][THREADS_PER_STREAM]) {
