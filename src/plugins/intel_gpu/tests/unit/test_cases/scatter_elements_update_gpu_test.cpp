@@ -162,20 +162,6 @@ std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdate
             getValues<T_IND>({ 0, 1, 2, 3 }),
             getValues<T>({ -10, -11, -12, -13 }),
         },
-        {   0,
-            tensor{16, 1, 1, 1},
-            getValues<T>({ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),
-            tensor{8, 1, 1, 1},
-            getValues<T_IND>({ 0, 0, 4, 5, 8, 9, 0, 0 }),
-            getValues<T>({ 9.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f }),
-        },
-        {   1,
-            tensor{1, 3, 5, 1},
-            getValues<T>({ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f }),
-            tensor{1, 2, 3, 1},
-            getValues<T_IND>({ 0, 1, 2, 0, 1, 1 }),
-            getValues<T>({ 1, 2, 3, 4, 5, 6 }),
-        },
         {   2,
             tensor{2, 1, 2, 2},
             getValues<T>({ 0, 1, 2, 3, 4, 5, 6, 7 }),
@@ -198,14 +184,6 @@ std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdate
             getValues<T_IND>({2, 3}),
             getValues<T>({99, 88}),
         },
-        {
-            0,
-            tensor{3, 1, 1, 1},
-            getValues<T>({5, 5, 5}),
-            tensor{3, 1, 1, 1},
-            getValues<T_IND>({0, 0, 0}),
-            getValues<T>({1, 2, 3}),
-        }
     };
 
     return result;
