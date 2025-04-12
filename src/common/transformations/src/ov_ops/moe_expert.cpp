@@ -70,7 +70,7 @@ bool MOEExpert::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-MOEExpert2::MOEExpert2(const OutputVector& args, const Config& cfg, const std::shared_ptr<ov::Model>& body) : Op(args), m_config(cfg), m_body(body) {
+MOEExpert2::MOEExpert2(const OutputVector& args, const Config& cfg, const std::vector<std::shared_ptr<ov::Model>>& body) : Op(args), m_config(cfg), m_body(body) {
     constructor_validate_and_infer_types();
 }
 
@@ -85,7 +85,11 @@ void MOEExpert2::set_config(const Config& config) {
 std::shared_ptr<ov::Node> MOEExpert2::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(internal_MOEExpert2_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<MOEExpert2>(new_args, m_config, m_body->clone());
+    std::vector<std::shared_ptr<ov::Model>> models(m_body.size());
+    for (size_t i = 0; i < m_body.size(); i++) {
+        models[i] = m_body[i]->clone();
+    }
+    return std::make_shared<MOEExpert2>(new_args, m_config, models);
 }
 
 void MOEExpert2::validate_and_infer_types() {
@@ -105,8 +109,10 @@ bool MOEExpert2::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("hidden_size", m_config.hidden_size);
     visitor.on_attribute("expert_no", m_config.expert_no);
     visitor.finish_structure();
-
-    visitor.on_attribute("body", m_body);
+    OPENVINO_ASSERT(m_config.expert_num == m_body.size());
+    m_body.resize(m_config.expert_num);
+    for (size_t i = 0; i < m_config.expert_num; i++)
+        visitor.on_attribute("body" + std::to_string(i), m_body[i]);
     return true;
 }
 

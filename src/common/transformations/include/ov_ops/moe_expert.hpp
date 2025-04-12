@@ -54,12 +54,16 @@ public:
         size_t expert_no = 0;
     };
 
-    MOEExpert2(const OutputVector& args, const Config& config, const std::shared_ptr<ov::Model>& body);
+    MOEExpert2(const OutputVector& args, const Config& config, const std::vector<std::shared_ptr<ov::Model>>& body);
 
     const Config& get_config() const;
     void set_config(const Config& config);
-    const std::shared_ptr<ov::Model> get_body() const { return m_body; }
-    std::shared_ptr<ov::Model> get_body() { return m_body; }
+    const std::vector<std::shared_ptr<ov::Model>> get_body() const { return m_body; }
+    std::vector<std::shared_ptr<ov::Model>> get_body() { return m_body; }
+    void add_body(int expert_no, std::shared_ptr<ov::Model> model) {
+        OPENVINO_ASSERT(expert_no == static_cast<int>(m_body.size()));
+        m_body.push_back(model);
+    }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -67,7 +71,7 @@ public:
 
 private:
     Config m_config{};
-    std::shared_ptr<ov::Model> m_body;
+    std::vector<std::shared_ptr<ov::Model>> m_body;
 };
 
 }  // namespace internal

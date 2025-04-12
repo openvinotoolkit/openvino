@@ -975,14 +975,21 @@ ov::pass::FuseMoeExpertPlain::FuseMoeExpertPlain() {
         new_args[1] = pattern_map.at(expert_mask).get_node_shared_ptr();
         new_args[2] = pattern_map.at(hidden_states).get_node_shared_ptr();
         new_args[3] = pattern_map.at(routing_weights).get_node_shared_ptr();
+        if (new_args[0].get_node_shared_ptr()->get_type_info() == op::internal::MOEExpert2::get_type_info_static()) {
+            auto moe = ov::as_type_ptr<op::internal::MOEExpert2>(new_args[0].get_node_shared_ptr());
+            moe->add_body(expert_no, body);
 
+            ov::replace_node(last_node, moe);
+            register_new_node(moe);
+        } else {
+            OPENVINO_ASSERT(expert_no == 0, "MOE expert must begin with 0, current: ", expert_no);
+            auto new_node = std::make_shared<op::internal::MOEExpert2>(new_args, config, std::vector<std::shared_ptr<ov::Model>>{body});
 
-        auto new_node = std::make_shared<op::internal::MOEExpert2>(new_args, config, body);
+            new_node->set_friendly_name(std::string("moe_expert") + std::to_string(expert_no));
 
-        new_node->set_friendly_name(std::string("moe_expert") + std::to_string(expert_no));
-
-        ov::replace_node(last_node, new_node);
-
+            ov::replace_node(last_node, new_node);
+            register_new_node(new_node);
+        }
         return true;
     };
 

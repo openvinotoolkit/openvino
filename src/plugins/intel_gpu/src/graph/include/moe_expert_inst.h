@@ -58,7 +58,7 @@ public:
 
     typed_program_node(std::shared_ptr<moe_expert> prim, program& prog) : parent(prim, prog), _mlp_params(prim->_mlp_params) {}
 
-    moe_expert::mlp_params get_mlp_params() const {
+    const std::vector<moe_expert::mlp_params>& get_mlp_params() const {
         return _mlp_params;
     }
 
@@ -70,7 +70,7 @@ public:
     }
 
 private:
-    moe_expert::mlp_params& _mlp_params;
+    std::vector<moe_expert::mlp_params>& _mlp_params;
 };
 
 using moe_expert_node = typed_program_node<moe_expert>;
@@ -91,7 +91,7 @@ public:
 
     memory::ptr pred_memory_ptr() const { return dep_memory_ptr(1); }
     const primitive_inst* pred_inst() const { return dependencies().at(1).first; }
-    moe_expert::mlp_params get_mlp_params() const { return node->get_mlp_params(); }
+    const std::vector<moe_expert::mlp_params>& get_mlp_params() const { return node->get_mlp_params(); }
     const MOEExpert::Config& get_config() const {
         return node->get_primitive()->_config;
     }

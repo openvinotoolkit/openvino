@@ -41,14 +41,14 @@ struct moe_expert : public primitive_base<moe_expert> {
     /// @param inputs             A list of Input primitive ids (inputs).
     moe_expert(const primitive_id& id,
             const std::vector<input_info>& inputs,
-            const MOEExpert::Config& config, const mlp_params& param)
+            const MOEExpert::Config& config, const std::vector<mlp_params>& param)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
           _config(config),
           _mlp_params(param) {
     }
 
     size_t get_hidden_size() const {
-        auto shape = _mlp_params.param[0].weight->get_layout().get_shape();
+        auto shape = _mlp_params[0].param[0].weight->get_layout().get_shape();
 
         if (shape.size() == 3) {
             return shape[1] * shape[2];
@@ -58,7 +58,7 @@ struct moe_expert : public primitive_base<moe_expert> {
     }
 
     MOEExpert::Config _config;
-    mlp_params _mlp_params;
+    std::vector<mlp_params> _mlp_params;
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))

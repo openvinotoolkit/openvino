@@ -57,8 +57,8 @@ static bool repack_zp_scale(std::vector<uint8_t>& dst, const uint8_t* src, const
     return true;
 }
 
-static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert2>& op, cldnn::moe_expert::mlp_params& params) {
-    auto internal_body = op->get_body();
+static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert2>& op, std::vector<cldnn::moe_expert::mlp_params>& params) {
+    const auto& bodys = op->get_body();
     auto alloc = [&] (const std::shared_ptr<ov::Node>& node, bool try_repack = false) {
         auto op = ov::as_type_ptr<ov::op::v0::Constant>(node);
         ov::Shape const_shape = op->get_shape();
@@ -83,22 +83,27 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
         std::memcpy(&buf[0], &data[0], layout.bytes_count());
         return mem;
     };
-    for (auto& node : internal_body->get_ordered_ops()) {
-        auto& rt = node->get_rt_info();
-        if (rt.count("__weight_const__")) {
-            auto idx = rt["__weight_const__"].as<int>();
-            OPENVINO_ASSERT(idx >= 0 && idx < 3);
-            params.param[idx].weight = alloc(node);
-        }
-        if (rt.count("__scale_const__")) {
-            auto idx = rt["__scale_const__"].as<int>();
-            OPENVINO_ASSERT(idx >= 0 && idx < 3);
-            params.param[idx].scale = alloc(node, true);
-        }
-        if (rt.count("__zp_const__")) {
-            auto idx = rt["__zp_const__"].as<int>();
-            OPENVINO_ASSERT(idx >= 0 && idx < 3);
-            params.param[idx].zp = alloc(node, true);
+    OPENVINO_ASSERT(op->get_config().expert_num == bodys.size());
+    params.resize(bodys.size());
+    for (size_t i = 0; i < bodys.size(); i++) {
+        auto internal_body = bodys[i];
+        for (auto& node : internal_body->get_ordered_ops()) {
+            auto& rt = node->get_rt_info();
+            if (rt.count("__weight_const__")) {
+                auto idx = rt["__weight_const__"].as<int>();
+                OPENVINO_ASSERT(idx >= 0 && idx < 3);
+                params[i].param[idx].weight = alloc(node);
+            }
+            if (rt.count("__scale_const__")) {
+                auto idx = rt["__scale_const__"].as<int>();
+                OPENVINO_ASSERT(idx >= 0 && idx < 3);
+                params[i].param[idx].scale = alloc(node, true);
+            }
+            if (rt.count("__zp_const__")) {
+                auto idx = rt["__zp_const__"].as<int>();
+                OPENVINO_ASSERT(idx >= 0 && idx < 3);
+                params[i].param[idx].zp = alloc(node, true);
+            }
         }
     }
 }
@@ -108,7 +113,7 @@ static void CreateMOEExpert2Op(ProgramBuilder& p, const std::shared_ptr<ov::op::
     OPENVINO_ASSERT(inputs.size() == 4, "Inputs count should be 4");
 
     const std::string layerName = layer_type_name_ID(op);
-    cldnn::moe_expert::mlp_params params;
+    std::vector<cldnn::moe_expert::mlp_params> params;
     prepare_weights(p, op, params);
 
     const cldnn::moe_expert moe(layerName,
