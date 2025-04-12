@@ -1014,7 +1014,7 @@ struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
 };
 
 //
-// SELECTED_TILES
+// TILES
 //
 
 struct TILES final : OptionBase<TILES, int64_t> {
@@ -1036,6 +1036,10 @@ struct TILES final : OptionBase<TILES, int64_t> {
 
     static bool isPublic() {
         return true;
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(5, 4);
     }
 
     static ov::PropertyMutability mutability() {
@@ -1301,7 +1305,7 @@ struct QDQ_OPTIMIZATION final : OptionBase<QDQ_OPTIMIZATION, bool> {
     }
 
     static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 5);
+        return ONEAPI_MAKE_VERSION(7, 20);
     }
 };
 

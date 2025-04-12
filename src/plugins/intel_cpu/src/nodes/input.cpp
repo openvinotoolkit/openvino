@@ -37,7 +37,9 @@ struct jit_has_special_value_base : public jit_generator {
     }
 
     fn_t get() {
-        return jit_ker() || create_kernel() == dnnl::impl::status::success ? (fn_t)jit_ker() : nullptr;
+        return jit_ker() || create_kernel() == dnnl::impl::status::success
+                   ? reinterpret_cast<fn_t>(const_cast<uint8_t*>(jit_ker()))
+                   : nullptr;
     }
 
 protected:
@@ -183,7 +185,7 @@ struct jit_has_subnormals : public jit_has_special_value_base {
     const int length = isa == sse41 ? 4 : 8;
 
     void generate() override final {
-        size_t const vlen = length;
+        const size_t vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
         auto zero = rmm4;
@@ -199,9 +201,9 @@ struct jit_has_subnormals : public jit_has_special_value_base {
 
         // Initialize necessary consts
         uni_vpxor(zero, zero, zero);
-        mov(reg_mask_addr, (size_t)exponent_mask_data);
+        mov(reg_mask_addr, reinterpret_cast<size_t>(exponent_mask_data));
         uni_vmovdqu(exponent_mask, ptr[reg_mask_addr]);
-        mov(reg_mask_addr, (size_t)mantissa_mask_data);
+        mov(reg_mask_addr, reinterpret_cast<size_t>(mantissa_mask_data));
         uni_vmovdqu(mantissa_mask, ptr[reg_mask_addr]);
 
         // Main loop
@@ -257,7 +259,7 @@ struct jit_has_bf16_overflows : public jit_has_special_value_base {
     const int length = isa == sse41 ? 4 : 8;
 
     void generate() override final {
-        size_t const vlen = length;
+        const size_t vlen = length;
         const int sh_bits = std::ilogb(vlen);
 
         auto zero = rmm4;
@@ -273,9 +275,9 @@ struct jit_has_bf16_overflows : public jit_has_special_value_base {
 
         // Initialize necessary consts
         uni_vpxor(zero, zero, zero);
-        mov(reg_mask_addr, (size_t)bf16_max_mask_data);
+        mov(reg_mask_addr, reinterpret_cast<size_t>(bf16_max_mask_data));
         uni_vmovdqu(bf16_max_mask, ptr[reg_mask_addr]);
-        mov(reg_mask_addr, (size_t)bf16_min_mask_data);
+        mov(reg_mask_addr, reinterpret_cast<size_t>(bf16_min_mask_data));
         uni_vmovdqu(bf16_min_mask, ptr[reg_mask_addr]);
 
         // Main loop
@@ -417,10 +419,11 @@ void Input::cloneBlobIfRequired() {
                 std::atomic<bool> has_bf16_overflows_local(false);
                 if (needFlushDenormalsToZero || do_bf16_saturation_check) {
                     parallel_for(iterations_num, [&](int n) {
-                        auto ptr = u32data + n * batch_size;
-                        jit_has_special_value_base::args_t args = {reinterpret_cast<float const*>(ptr),
-                                                                   std::min(batch_size, (size_t)(u32data + size - ptr)),
-                                                                   false};
+                        auto ptr = f32data + n * batch_size;
+                        jit_has_special_value_base::args_t args = {
+                            reinterpret_cast<const float*>(ptr),
+                            std::min(batch_size, static_cast<size_t>(f32data + size - ptr)),
+                            false};
 
                         if (needFlushDenormalsToZero && !has_subnormals_local) {
                             fn(&args);
@@ -597,6 +600,13 @@ Input::Input(const MemoryDescPtr& memDesc,
              const GraphContext::CPtr& context)
     : Input(memDesc->getShape(), memDesc->getPrecision(), name, type, context) {
     extMemDesc = memDesc;
+}
+
+Input::Input(const MemoryPtr& mem, const std::string& name, const std::string& type, const GraphContext::CPtr& context)
+    : Input(mem->getDesc().getShape(), mem->getDesc().getPrecision(), name, type, context) {
+    extMemDesc = mem->getDescPtr();  // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    memoryPtr = mem;                 // NOLINT(cppcoreguidelines-prefer-member-initializer) fixed in clang-tidy-18
+    constant = Node::ConstantType::Const;
 }
 
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const InputConfig& config)
