@@ -319,6 +319,7 @@ struct PrintToStringParamName {
     }
 };
 
+
 template<typename T, typename T_IND>
 struct scatter_elements_update_gpu_formats_test
         : public ::testing::TestWithParam<ScatterElementsUpdateParamsWithFormat<T, T_IND> > {
@@ -388,11 +389,11 @@ private:
             vec[i] = t.sizes()[i];
         }
         std::reverse(vec.begin() + 2, vec.end());
-
+    
         return ov::Shape(vec.begin(), vec.end());
     }
-
-
+    
+    
     static std::vector<T> generateReferenceOutput(const format fmt,
                                                   const ScatterElementsUpdateParams<T, T_IND>& p,
                                                   const ScatterElementsUpdateOp::Reduction mode,
@@ -400,7 +401,7 @@ private:
         std::vector<T> out(p.data_tensor.count());
         const auto data_shape = tensorToShape(p.data_tensor, fmt);
         const auto indices_shape = tensorToShape(p.indices_tensor, fmt);
-
+                                                
         ov::reference::scatter_elem_update<T, T_IND>(p.data.data(),
                                                      p.indices.data(),
                                                      p.updates.data(),
