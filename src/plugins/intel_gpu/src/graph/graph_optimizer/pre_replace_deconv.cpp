@@ -277,9 +277,12 @@ void pre_replace_deconv::run(program& p) {
                 p.add_connection(input_node, conv_node);
 
                 {
-                    auto weights_node_conv_rpl_ptr = p.nodes_map.find(weight_replace_node_id)->second;
-                    p.add_connection(*weights_node_conv_rpl_ptr, conv_node);
-                    p.inputs.push_back(weights_node_conv_rpl_ptr.get());
+                    auto iter = p.nodes_map.find(weight_replace_node_id);
+                    if (iter != p.nodes_map.end()) {
+                        auto weights_node_conv_rpl_ptr = iter->second;
+                        p.add_connection(*weights_node_conv_rpl_ptr, conv_node);
+                        p.inputs.push_back(weights_node_conv_rpl_ptr.get());
+                    }
                 }
 
                 float bias = 0;
