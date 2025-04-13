@@ -824,7 +824,7 @@ bool program::contains_state(const std::string& variable_id) {
 }
 
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
-    OPENVINO_ASSERT(prim != nullptr, "[Coverity] Null ptr primitive is added");
+    OPENVINO_ASSERT(prim != nullptr, "Null ptr primitive is added");
 
     auto itr = nodes_map.lower_bound(prim->id);
     if (itr != nodes_map.end() && itr->first == prim->id)

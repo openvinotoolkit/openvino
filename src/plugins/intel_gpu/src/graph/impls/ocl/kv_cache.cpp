@@ -240,7 +240,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             execute_stage(events, instance, res_events, dq_stage);
 
             auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
-            OPENVINO_ASSERT(compressed_cache_variable != nullptr, "[coverity] compressed_cache_variable should not be null.");
+            OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable should not be null.");
             compressed_cache_variable->get_compression_scale_state()->set();
 
             if (desc->get_compression_zp_inputs_num() > 0) {

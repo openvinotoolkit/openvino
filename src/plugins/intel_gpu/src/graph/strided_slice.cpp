@@ -191,7 +191,7 @@ void strided_slice_inst::on_execute() {
 }
 
 void strided_slice_inst::update_output_memory() {
-    OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "[coverity] outputs should not be null.");
+    OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "outputs should not be null.");
     if (!can_be_optimized())
         return;
 
