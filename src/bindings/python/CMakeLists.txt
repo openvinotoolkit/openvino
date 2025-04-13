@@ -337,7 +337,6 @@ if(ENABLE_PYTHON_PACKAGING)
                 build_ext
                 install
                     --no-compile
-                    --ignore-requires-python
                     --prefix "${ov_python_package_prefix}"
                     --install-lib "${ov_install_lib}"
                     --install-scripts "${ov_python_package_prefix}/bin"
