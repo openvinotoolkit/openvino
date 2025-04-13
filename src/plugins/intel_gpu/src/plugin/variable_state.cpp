@@ -98,7 +98,8 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
 }
 
 void VariableState::update_device_buffer() {
-    if (m_context == nullptr || m_layout.is_dynamic() || m_layout.bytes_count() == 0) {
+    OPENVINO_ASSERT(m_context != nullptr, "[coverity] m_context should not be null.");
+    if (m_layout.is_dynamic() || m_layout.bytes_count() == 0) {
         m_shape_predictor->reset();
         m_memory.reset();
         actual_size = 0;
