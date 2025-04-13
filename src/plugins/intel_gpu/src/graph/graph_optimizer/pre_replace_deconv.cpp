@@ -278,7 +278,7 @@ void pre_replace_deconv::run(program& p) {
 
                 {
                     auto iter = p.nodes_map.find(weight_replace_node_id);
-                    OPENVINO_ASSERT(iter != p.nodes_map.end(), "[Coverity] ", weight_replace_node_id, " is not in nodes_map.");
+                    OPENVINO_ASSERT(iter != p.nodes_map.end(), weight_replace_node_id, " is not in nodes_map.");
                     auto weights_node_conv_rpl_ptr = iter->second;
                     p.add_connection(*weights_node_conv_rpl_ptr, conv_node);
                     p.inputs.push_back(weights_node_conv_rpl_ptr.get());
