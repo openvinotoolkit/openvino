@@ -170,6 +170,7 @@ def get_concrete_func(tf_function, example_input, input_needs_packing, error_mes
 
 
 def get_signature_from_input(keras_model):
+    import tensorflow as tf
     if not hasattr(keras_model, 'input') or getattr(keras_model, 'input') is None:
         return None
     keras_input_signature = getattr(keras_model, 'input')
@@ -181,9 +182,13 @@ def get_signature_from_input(keras_model):
             # scalar case
             keras_input_signature = [keras_input_signature]
         if len(keras_input_signature) == len(input_names) and isinstance(keras_input_signature, list):
+            new_keras_input_signature = []
             for idx, elem in enumerate(keras_input_signature):
-                if hasattr(keras_input_signature[idx], 'name'):
-                    keras_input_signature[idx].name = input_names[idx]
+                new_keras_input_signature.append(tf.TensorSpec(
+                    shape=elem.shape,
+                    dtype=elem.dtype,
+                    name=input_names[idx]))
+            return new_keras_input_signature
     return keras_input_signature
 
 
