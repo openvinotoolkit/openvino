@@ -36,7 +36,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     static const std::vector<element::Type> exec_precisions_priority =
         {element::u8, element::i8, element::u16, element::i16, element::bf16, element::i32, element::f32};
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
+    const auto exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
                                                                   jep_.src_prc,
                                                                   eltwise_data_,
                                                                   exec_precisions_priority);
@@ -863,7 +863,8 @@ struct SupportedPrecisions {
 };
 }  // namespace
 
-std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(const Algorithm& algo) {
+std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(
+    [[maybe_unused]] const Algorithm& algo) {
     std::set<std::vector<element::Type>> precisions;
 
     OV_SWITCH(intel_cpu,

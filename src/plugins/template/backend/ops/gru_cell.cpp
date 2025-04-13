@@ -5,6 +5,8 @@
 #include "openvino/reference/gru_cell.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/gru_cell.hpp"
 #include "ov_ops/augru_cell.hpp"
 
 template <ov::element::Type_t ET>
