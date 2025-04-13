@@ -182,7 +182,8 @@ def get_signature_from_input(keras_model):
             keras_input_signature = [keras_input_signature]
         if len(keras_input_signature) == len(input_names) and isinstance(keras_input_signature, list):
             for idx, elem in enumerate(keras_input_signature):
-                keras_input_signature[idx].name = input_names[idx]
+                if hasattr(keras_input_signature[idx], 'name'):
+                    keras_input_signature[idx].name = input_names[idx]
     return keras_input_signature
 
 
