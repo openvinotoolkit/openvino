@@ -34,8 +34,8 @@ size_t CumSumKernelBase::GetRealAxisIndex(const cum_sum_params& params) const {
     if (params.outputs[0].Dimentions() == 6)
         return index;
     else if (params.outputs[0].Dimentions() == 5)
-        return (index < UINTMAX_MAX && index > 1) ? index + 1 : index;
-    return (index < (UINTMAX_MAX - 1) && index > 1) ? index + 2 : index;
+        return (index > 1) ? index + 1 : index;
+    return (index > 1) ? index + 2 : index;
 }
 
 JitConstants CumSumKernelBase::GetJitConstants(const cum_sum_params& params, DispatchData) const {
