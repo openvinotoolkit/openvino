@@ -252,13 +252,7 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
 bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedOpOptimization);
 
-    std::cout << "\tSharedOpOptimization start... ops_size = " << model->get_ordered_ops().size() << std::endl;
-    auto start_time = std::chrono::high_resolution_clock::now();
-
     bool rewritten = shape_of_upgrade(model);
     rewritten = shared_node_optimization(model) || rewritten;
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    std::cout << "\tSharedOpOptimization ret = " << rewritten << ", took " << duration << " ms" << std::endl;
     return rewritten;
 }

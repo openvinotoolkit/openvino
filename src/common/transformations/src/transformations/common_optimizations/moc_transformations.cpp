@@ -106,7 +106,6 @@ static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
-    std::cout << "MOCTransformations start... " << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
     // To avoid issues with dynamism we make ov::Model dynamic and after we apply all
     // transformations we restore original shapes to the ov::Model back
