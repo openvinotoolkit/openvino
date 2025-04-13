@@ -1496,7 +1496,6 @@ KERNEL(sdpa_opt)(
                                         value_seq_offset * value_pitch +
                                         heads_dim * HEAD_SIZE +
                                         (start_partition_idx + (seq_len)) * value_pitch + head_size_idx;
-
 #else
 #ifdef BEAM_TABLE_TYPE
                     const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len) + sglid, sgid * SUBGROUP_SIZE)];
@@ -1564,7 +1563,7 @@ KERNEL(sdpa_opt)(
                                         value_seq_offset * value_pitch +
                                         heads_dim * HEAD_SIZE +
                                         (start_partition_idx + (seq_len * SUBGROUP_SIZE)) * value_pitch + head_size_idx;
-#else // Not IS_PAGED_ATTENTION
+#else // !IS_PAGED_ATTENTION
 #ifdef BEAM_TABLE_TYPE
                     const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE)];
                     uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE) + sglid, sgid * SUBGROUP_SIZE);

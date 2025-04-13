@@ -275,8 +275,8 @@ CommonDispatchData SDPAKernelOpt::SetDefault(const sdpa_params& params, size_t k
             const size_t sg_num_scale = get_sg_number_scale_factor(params, head_size, kernel_idx);
             dispatch_data.gws = { batch_size * heads_num,
                                   CeilDiv(target_seq_len, target_seq_len_block_size),
-                                  Align(head_size * sg_num_scale, 16) };
-            dispatch_data.lws = { 1, 1, Align(head_size * sg_num_scale, 16) };
+                                  Align(head_size * sg_num_scale, subgroup_size) };
+            dispatch_data.lws = { 1, 1, Align(head_size * sg_num_scale, subgroup_size) };
         } else if (kernel_idx == KernelsTypes::FINALIZATION) {
             dispatch_data.gws = { batch_size * heads_num,
                                   target_seq_len,

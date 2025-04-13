@@ -533,8 +533,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             const auto optimal_subgroup_size = 16;
             // sdpa_opt is not supporthing compressed KV yet
-            if (head_size % optimal_subgroup_size != 0 && ov::element::Type(config.get_kv_cache_precision()).size() < 2) {
-                return false;
+            if (head_size % optimal_subgroup_size != 0) {
+                if (ov::element::Type(sdpa->get_input_element_type(1)).size() < 2 || ov::element::Type(sdpa->get_input_element_type(2)).size() < 2) {
+                    return false;
+                }
             }
             return true;
         });

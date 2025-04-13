@@ -207,22 +207,40 @@ void ScaledAttnLayerGPUTest::transpose_prepare(std::vector<InputShape>& shapes,
 }
 
 void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& model_inputs = function->inputs();
+    inputs.clear();
     std::vector<ov::Shape> shapes(3);
-    shapes[0] = targetInputStaticShapes[0];
-    shapes[1] = targetInputStaticShapes[1];
-    shapes[2] = targetInputStaticShapes[2];
+    {
+        // Generate QKV
+        for (int i = 0; i < 3; ++i) {
+            shapes[i] = targetInputStaticShapes[i];
+            ov::test::utils::InputGenerateData data(0, 8, 32);
+            ov::Tensor data_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[i], data);
+            inputs.insert({model_inputs[i].get_node_shared_ptr(), data_tensor});
+        }
+    }
+    ov::test::utils::InputGenerateData attn_data(-1.0f, 2, 1);
+    ov::test::utils::InputGenerateData scale_data(0.1f, 1, 10);
     if (!has_attn && has_scale) {
         shapes.push_back(ov::Shape{});
         shapes.push_back(ov::Shape{1});
+        ov::Tensor attn_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[3], attn_data);
+        inputs.insert({model_inputs[3].get_node_shared_ptr(), attn_tensor});
+        ov::Tensor scale_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[4], scale_data);
+        inputs.insert({model_inputs[4].get_node_shared_ptr(), scale_tensor});
     } else {
+        int idx = 3;
         if (has_attn) {
             shapes.push_back(targetInputStaticShapes[3]);
+            ov::Tensor attn_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[idx], attn_data);
+            inputs.insert({model_inputs[idx++].get_node_shared_ptr(), attn_tensor});
         }
         if (has_scale) {
             shapes.push_back(ov::Shape{1});
+            ov::Tensor scale_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f16, shapes[idx], scale_data);
+            inputs.insert({model_inputs[idx].get_node_shared_ptr(), scale_tensor});
         }
     }
-    SubgraphBaseTest::generate_inputs(shapes);
 }
 
 TEST_P(ScaledAttnLayerGPUTest, CompareWithRefs) {
@@ -236,7 +254,7 @@ TEST_P(ScaledAttnLayerGPUTest, CompareWithRefs) {
     run();
 }
 
-const std::vector<std::vector<InputShape>> shapes{
+const std::vector<std::vector<InputShape>> shapes {
     // normal case, shapes of q,k,v are same
     {
         // q shape
@@ -312,16 +330,16 @@ const std::vector<std::vector<InputShape>> shapes{
     },
     {
         // q shape
-        {ov::test::InputShape{ov::PartialShape{-1, 16, -1, 72},
-            {ov::Shape{1, 16, 32, 72}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 72},
+            {ov::Shape{1, 8, 100, 72}, ov::Shape{1, 8, 1, 72}}}
         },
         // kv shape
-        {ov::test::InputShape{ov::PartialShape{-1, 16, -1, 72},
-            {ov::Shape{1, 16, 32, 72}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 72},
+            {ov::Shape{1, 8, 100, 72}, ov::Shape{1, 8, 101, 72}}}
         },
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
-            {ov::Shape{1, 1, 32, 32}}}
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}}}
         },
     }
 };
