@@ -201,6 +201,7 @@ OP_CONVERTER(translate_pairwise_distance);
 OP_CONVERTER(translate_pixel_shuffle);
 OP_CONVERTER(translate_pixel_unshuffle);
 OP_CONVERTER(translate_polar);
+OP_CONVERTER(translate_pop);
 OP_CONVERTER(translate_pow);
 OP_CONVERTER(translate_prod);
 OP_CONVERTER(translate_pythonop);
@@ -213,6 +214,7 @@ OP_CONVERTER(translate_quantized_mul);
 OP_CONVERTER(translate_range_length);
 OP_CONVERTER(translate_rad2deg);
 OP_CONVERTER(translate_rand);
+OP_CONVERTER(translate_reverse);
 OP_CONVERTER(translate_randperm);
 OP_CONVERTER(translate_randn);
 OP_CONVERTER(translate_randint);
@@ -647,6 +649,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::pixel_unshuffle", op::translate_pixel_unshuffle},
         {"aten::prelu", op::translate_1to1_match_2_inputs<opset10::PRelu>},
         {"aten::polar", op::translate_polar},
+        {"aten::pop", op::translate_pop},
         {"aten::pow", op::translate_pow},
         {"aten::pow_", op::translate_pow},
         {"aten::prod", op::translate_prod},
@@ -675,6 +678,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // when complex dtype will be supported
         // for real dtypes, these operations return input tensor without changes and can be skipped
         {"aten::resolve_conj", op::skip_node},
+        {"aten::reverse", op::translate_reverse},
         {"aten::resolve_neg", op::skip_node},
         {"aten::rms_norm", op::translate_rms_norm},
         {"aten::rnn_relu", op::translate_rnn},
@@ -994,6 +998,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.permute.default", op::translate_permute},
         {"aten.permute_copy.default", op::translate_1to1_match_2_inputs<opset10::Transpose>},
         {"aten.pow.Scalar", op::translate_pow},
+        {"aten.pop.default",op::translate_pop},
         {"aten.pow.Tensor_Scalar", op::translate_pow},
         {"aten.pow.Tensor_Tensor", op::translate_pow},
         {"aten.pixel_shuffle.default", op::translate_pixel_shuffle},
@@ -1006,6 +1011,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.repeat.default", op::translate_repeat_fx},
+        {"aten.reverse.default", op::translate_reverse},
         {"aten.rms_norm.default", op::translate_rms_norm},
         {"aten.roll.default", op::translate_roll},
         {"aten.rsqrt.default", op::translate_rsqrt},
