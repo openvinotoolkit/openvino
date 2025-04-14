@@ -56,8 +56,8 @@ protected:
         axis_gatherElements = axis[1];
         std::vector<size_t> connectIndexes = {0, 1};
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(input_precision, ov::Shape(input_shape[0])),
-                                  std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape(input_shape[1])),
-                                  std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape(input_shape[2]))};
+                                  std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape(input_shape[1])),
+                                  std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape(input_shape[2]))};
         input[1]->set_friendly_name("gather0");
         input[2]->set_friendly_name("gather1");
         // Use VariadicSplit to make padding input for GatherElements. Padding is generated from buffer fusing pass
@@ -89,17 +89,17 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
+        const auto inputDataShape = function->inputs()[0].get_shape();
         for (size_t i = 0lu; i < funcInputs.size(); i++) {
             const auto& funcInput = funcInputs[i];
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = 0;
-            in_data.resolution = 1000;
+            in_data.resolution = 1;
             if (funcInput.get_node()->get_friendly_name() == "gather0" || funcInput.get_node()->get_friendly_name() == "gather1") {
-                in_data.range = funcInput.get_shape()[axis_gatherElements];
+                in_data.range = inputDataShape[axis_gatherElements];
             } else {
                 in_data.range = 1000;
             }
-
             ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
