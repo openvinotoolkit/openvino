@@ -62,7 +62,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto scale = node->get_scale();
     const auto do_rotary = node->get_do_rotary();
     const auto rotary_interleaved = node->get_rotary_interleaved();
-    const auto is_static_input = node->get_is_static_input();
     // TODO: add softcap support
 
     auto Q = node->input_value(0);
@@ -105,27 +104,27 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
         K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
     }
+    const auto is_static_input = K.get_partial_shape().is_static();
 
     auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
         return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
     };
+    if (is_static_input) {
+        const auto current_kv_len_const = register_new_node(
+            v0::Constant::create(ov::element::i64, ov::Shape{1}, {K.get_partial_shape()[2].get_length()}));
+        const auto past_kv_len_const = register_new_node(
+            v0::Constant::create(ov::element::i64, ov::Shape{1}, {past_key.get_partial_shape()[2].get_length()}));
+        past_key = register_new_node<v8::Slice>(past_key, current_kv_len_const, past_kv_len_const, one, two);
+        past_value = register_new_node<v8::Slice>(past_value, current_kv_len_const, past_kv_len_const, one, two);
+    }
     K = construct_kv_cache(past_key, K);
     V = construct_kv_cache(past_value, V);
 
+    ov::Output<ov::Node> present_k = K;
+    ov::Output<ov::Node> present_v = V;
+
     const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
     const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
-
-    ov::Output<ov::Node> present_k;
-    ov::Output<ov::Node> present_v;
-    if (is_static_input) {
-        const auto concat_kv_len_const = register_new_node(
-            v0::Constant::create(ov::element::i64, ov::Shape{1}, {K.get_partial_shape()[2].get_length()}));
-        present_k = register_new_node<v8::Slice>(K, one, concat_kv_len_const, one, two);
-        present_v = register_new_node<v8::Slice>(V, one, concat_kv_len_const, one, two);
-    } else {
-        present_k = K;
-        present_v = V;
-    }
 
     // Broadcast KV if grouped query attention
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
