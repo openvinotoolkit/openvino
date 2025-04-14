@@ -154,12 +154,13 @@ static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& 
 #elif defined(HAVE_AVX2)
     auto v_scale = _mm256_set1_ps(1 / scale);
     auto v_zp = _mm256_set1_ps(zp);
+    auto v_zero = _mm256_setzero_si256();
     for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
         auto v = mm256_uni_loadu_ps(src + i);
         v = _mm256_fmadd_ps(v, v_scale, v_zp);
         v = _mm256_round_ps(v, _MM_ROUND_NEAREST);
         auto v_i32 = _mm256_cvtps_epi32(v);
-
+        v_i32 = _mm256_max_epi32(v_i32, v_zero);
         auto high4 = _mm256_extractf128_si256(v_i32, 1);
         auto low4 = _mm256_castsi256_si128(v_i32);
         auto packed = _mm_packs_epi32(low4, high4);
@@ -474,7 +475,7 @@ static inline void quantize_block_by_dims(const ov::intel_cpu::PlainTensor& src,
     size_t S = src.m_dims[3];
     for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
          src_offset += groupe_size, dst_offset += groupe_size / sub_byte_multiplier + sizeof(float) + sizeof(float)) {
-        auto base = dst.ptr<uint8_t>(block_number, h, block_offset, 0);
+        auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, block_offset, 0);
         base += dst_offset;
         auto p = reinterpret_cast<float*>(base);
         uint8_t* ptr = base + sizeof(float) * 2;
@@ -512,7 +513,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
                                  ? (q_len - block_count * block_size)
                                  : block_size;
             size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
-            auto base = dst.ptr<uint8_t>(block_number, h, 0, 0);
+            auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
             auto p_scales = reinterpret_cast<float*>(base);
             auto p_zps = p_scales + S;
             auto p_data = base + params_offset;
@@ -532,7 +533,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
         parallel_for(total_blocks, [&](size_t block_id) {
             size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id];
             auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
-            auto base = dst.ptr<uint8_t>(block_number, h, 0, 0);
+            auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
             auto p_scales = reinterpret_cast<float*>(base);
             auto p_zps = p_scales + S;
             auto p_data = base + params_offset;

@@ -13,6 +13,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -97,6 +98,7 @@ struct PlainTensor {
     size_t m_capacity = 0;
     size_t m_element_size = 0;
     size_t m_offset = 0;
+    size_t m_sub_byte_multiplier = 1;
     ov::element::Type_t m_dt = ov::element::Type_t::dynamic;
     MemoryPtr m_mem;  // hold memory ptr reference
 
@@ -121,7 +123,7 @@ struct PlainTensor {
     }
 
     [[nodiscard]] size_t stride_bytes(int i) const {
-        return stride(i) * m_element_size / sub_byte_data_type_multiplier();
+        return stride(i) * m_element_size / m_sub_byte_multiplier;
     }
 
     template <typename T>
@@ -148,6 +150,7 @@ struct PlainTensor {
         m_element_size = other.m_element_size;
         m_capacity = other.m_capacity;
         m_offset = other.m_offset;
+        m_sub_byte_multiplier = other.m_sub_byte_multiplier;
         return *this;
     }
 
@@ -233,6 +236,7 @@ struct PlainTensor {
         sub_tensor.m_ptr = m_ptr;
         sub_tensor.m_offset = m_offset + off;
         sub_tensor.m_dt = m_dt;
+        sub_tensor.m_sub_byte_multiplier = m_sub_byte_multiplier;
         sub_tensor.m_element_size = m_element_size;
         return sub_tensor;
     }
@@ -267,6 +271,7 @@ struct PlainTensor {
         sub_tensor.m_ptr = m_ptr;
         sub_tensor.m_offset = m_offset + off;
         sub_tensor.m_dt = m_dt;
+        sub_tensor.m_sub_byte_multiplier = m_sub_byte_multiplier;
         sub_tensor.m_element_size = m_element_size;
 
         return sub_tensor;
@@ -320,6 +325,7 @@ struct PlainTensor {
         new_tensor_view.m_rank = m_rank;
         new_tensor_view.m_dt = m_dt;
         new_tensor_view.m_element_size = m_element_size;
+        new_tensor_view.m_sub_byte_multiplier = m_sub_byte_multiplier;
         new_tensor_view.m_offset = m_offset;
         auto it_order = order.begin();
         // also should check order has no repeat element
@@ -339,6 +345,7 @@ struct PlainTensor {
                 const size_t* strides = nullptr) {
         m_element_size = element_size;
         m_dt = dt;
+        m_sub_byte_multiplier = sub_byte_data_type_multiplier();
         // initialize strides for compact/dense tensor
         m_rank = new_dims.size();
         assert(m_rank <= PLAINTENSOR_RANK_MAX);
@@ -403,13 +410,28 @@ struct PlainTensor {
     }
     template <typename DT, typename... Is>
     DT* ptr(Is... indices) const {
-        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...) / sub_byte_data_type_multiplier();
+        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
+    }
+
+    template <typename DT,
+              ov::element::Type_t SRC_PREC,
+              std::enable_if_t<SRC_PREC != ov::element::u4, bool> = true,
+              typename... Is>
+    DT* ptr(Is... indices) const {
+        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
+    }
+
+    template <typename DT,
+              ov::element::Type_t SRC_PREC,
+              std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true,
+              typename... Is>
+    DT* ptr(Is... indices) const {
+        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...) / 2;
     }
 
     template <typename... Is>
     void* ptr_v(Is... indices) const {
-        return reinterpret_cast<void*>(m_ptr.get() +
-                                       offset<0>(indices...) * m_element_size / sub_byte_data_type_multiplier());
+        return reinterpret_cast<void*>(m_ptr.get() + offset<0>(indices...) * m_element_size / m_sub_byte_multiplier);
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.

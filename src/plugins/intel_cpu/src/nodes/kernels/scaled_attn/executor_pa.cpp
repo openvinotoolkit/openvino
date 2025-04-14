@@ -2470,7 +2470,7 @@ struct MHAHelper {
                         if constexpr (KEY_PREC == ov::element::u8 || KEY_PREC == ov::element::u4) {
                             dot_product_block_quantized<DATA_TYPE, KEY_PREC>(
                                 query.ptr<DATA_TYPE>(h, pq),
-                                present_key.ptr<uint8_t>(block_number, hk),
+                                present_key.ptr<uint8_t, KEY_PREC>(block_number, hk),
                                 _weight.ptr<float>(ithr, h - hq_beg, pq) + pk,
                                 S,
                                 _quant_key_bychannel,
@@ -2531,7 +2531,7 @@ struct MHAHelper {
                         attn_acc_value_block_quantized<uint8_t, VALUE_PREC>(
                             _output.ptr<float>(ithr, pq, h),
                             _weight.ptr<float>(ithr, h - hq_beg, pq) + pv,
-                            present_value.ptr<uint8_t>(block_number, hk),
+                            present_value.ptr<uint8_t, VALUE_PREC>(block_number, hk),
                             SV,
                             _quant_value_bychannel,
                             std::min(_block_size, cur_kv_len - pv),
@@ -2640,7 +2640,7 @@ struct MHAHelper {
                             if constexpr (KEY_PREC == ov::element::u8 || KEY_PREC == ov::element::u4) {
                                 dot_product_block_quantized<DATA_TYPE, KEY_PREC>(
                                     query.ptr<DATA_TYPE>(b, h, pq),
-                                    key_cache.ptr<uint8_t>(block_number, hk),
+                                    key_cache.ptr<uint8_t, KEY_PREC>(block_number, hk),
                                     _weight_bhl.ptr<float>(b, h, pq) + pk,
                                     S,
                                     _quant_key_bychannel,
@@ -2906,7 +2906,7 @@ struct MHA {
             }
 
             auto ithr = parallel_get_thread_num();
-            auto* k_ptr = k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number, hk);
+            auto* k_ptr = k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number, hk);
 
             transpose_16NxK<DATA_TYPE, KEY_PREC>(
                 _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
@@ -2920,7 +2920,7 @@ struct MHA {
                 _helper._quant_key_bychannel);  // quant_by_channel
 
             if (q_is_xf16) {
-                auto* v_ptr = v_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
+                auto* v_ptr = v_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(block_number, hk);
                 pack_32NxK<DATA_TYPE, VALUE_PREC>(
                     _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                     v_ptr,
@@ -3435,13 +3435,16 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // Rotate kv cache currently doesn't support quantized cache.
             // for u8 it only supports compilation but throws exception in the runtime
             // TODO: implement u4/u8
-            if constexpr (KEY_PREC != ov::element::u4)
+            if constexpr (KEY_PREC != ov::element::u4) {
                 rotate_kv_cache<typename ov::element_type_traits<KEY_PREC>::value_type>(
                     k_cache,
                     rotated_block_indices,
                     rotation_deltas,
                     rotation_trig_lut,
                     _helper._block_rotation_coefficient_scratch);
+            } else {
+                OPENVINO_THROW("PagedAttn doesn't support rotate_kv_cache with u4 precision");
+            }
         }
 
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
