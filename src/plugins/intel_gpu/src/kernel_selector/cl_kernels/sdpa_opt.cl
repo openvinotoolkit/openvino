@@ -951,13 +951,24 @@ KERNEL(sdpa_opt)(
 #endif
 
         if (seq_idx_end != TARGET_SEQ_LEN_BLOCK_SIZE) {
-            if (sgid * SUBGROUP_SIZE < HEAD_SIZE) {
+            if ((sgid + 1) * SUBGROUP_SIZE <= HEAD_SIZE) {
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                     INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, 1, query_input, query_offset);
 
                     slm_query[query_local_offset] = val * scale_val;
                     query_offset += query_pitch;
                     query_local_offset++;
+                }
+            } else {
+                // remainder
+                int valid_workers = HEAD_SIZE - sgid * SUBGROUP_SIZE;
+                if (sglid < valid_workers) {
+                    unroll_for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
+                        INPUT0_TYPE val = query_input[query_offset];
+                        slm_query[query_local_offset] = val * scale_val;
+                        query_offset += query_pitch;
+                        query_local_offset++;
+                    }
                 }
             }
         } else {
@@ -1204,8 +1215,6 @@ KERNEL(sdpa_opt)(
                         key_vec[key_row_idx] = TO_KEY_UNPACKED_TYPE(KEY_BLOCK_READ(key_input, sub_group_broadcast(key_offset, key_row_idx) + head_idx_index));
 #else
                         key_vec[key_row_idx] = TO_KEY_UNPACKED_TYPE(KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + head_idx_index));
-
-
 #endif
 
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
