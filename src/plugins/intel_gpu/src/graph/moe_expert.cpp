@@ -137,10 +137,10 @@ void moe_expert_inst::copy_expert_mask_to_gpu(stream& stream,
                                        _runtime_memory_dependencies,
                                        alloc_type,
                                        false,
-                                       false,
+                                       true,
                                        _node->is_dynamic());
             }
-            return pool.get_memory(alloc_layout, alloc_type, false);
+            return pool.get_memory(alloc_layout, alloc_type, true);
         };
 
         expert_mask_mem.batch = alloc_buf(expert_mask_mem.batch.get());
@@ -183,10 +183,10 @@ void moe_expert_inst::get_tmp_memory(data_types type, int m, int hidden_size, in
                                        _runtime_memory_dependencies,
                                        alloc_type,
                                        false,
-                                       false,
+                                       true,
                                        _node->is_dynamic());
             }
-            return pool.get_memory(alloc_layout, alloc_type, false);
+            return pool.get_memory(alloc_layout, alloc_type, true);
         };
 
         scratch.x = alloc_buf(scratch.x.get(), x_layout);
