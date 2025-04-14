@@ -189,8 +189,8 @@ jobs:
               ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
               /bin/bash -c "
                 which python${PY_VER}
-                python${PY_VER} -c "import sys; print(sys.exec_prefix)"
-                py_exec_folder=$(python${PY_VER} -c "import sys; print(sys.exec_prefix)")
+                python${PY_VER} -c 'import sys; print(sys.exec_prefix)'
+                py_exec_folder=$(python${PY_VER} -c 'import sys; print(sys.exec_prefix)')
                 echo "${py_exec_folder}"
                 export PATH=$(python${PY_VER} -c "import sys; print(sys.exec_prefix)")/bin:\$PATH
                 echo "${PATH}"
