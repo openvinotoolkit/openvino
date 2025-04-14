@@ -54,6 +54,8 @@ std::vector<layout> col2im_inst::calc_output_layouts(col2im_node const& node, ke
             reshaped_input.set_partial_shape({batch, num_elements, num_blocks_l});
         else
             reshaped_input.set_partial_shape({num_elements, num_blocks_l});
+    } else if (input_layout.is_dynamic()) {
+        OPENVINO_ASSERT("Col2Im only suppports static shape.");
     }
 
     ov::op::v15::Col2Im op;
