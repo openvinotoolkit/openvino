@@ -61,7 +61,7 @@ jobs:
       - name: Run flake8 on Python API
         run: python -m flake8 ./src/openvino --config=setup.cfg
         working-directory: src/bindings/python
-      
+
       - name: Create code style diff for Python API
         if: failure()
         run: |
