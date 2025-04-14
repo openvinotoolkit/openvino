@@ -197,11 +197,15 @@ jobs:
                 cmake --build /work/build_py${PY_VER} --parallel $(nproc) --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} &&
                 cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
                 cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install --component pyopenvino_python${PY_VER}
+          
+                ls -laR /work/install
               "
           done
 
       - name: Pack Artifacts
-        run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+        run: |
+          ls -laR ${{ env.INSTALL_DIR }}
+          mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Pack openvino_tests
