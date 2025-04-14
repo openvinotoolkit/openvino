@@ -62,7 +62,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                                    CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
                                    CMAKE_EXPORT_COMPILE_COMMANDS)
             if(${cmake_var})
-                list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
+                list(APPEND cmake_extra_args "-D${cmake_var}=\"${${cmake_var}}\"")
             endif()
         endforeach()
 
