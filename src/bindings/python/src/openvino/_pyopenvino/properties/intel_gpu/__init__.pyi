@@ -1,11 +1,11 @@
 # type: ignore
+from . import hint
+from __future__ import annotations
+import openvino._pyopenvino
+import typing
 """
 openvino.properties.intel_gpu submodule that simulates ov::intel_gpu
 """
-from __future__ import annotations
-from . import hint
-import openvino._pyopenvino
-import typing
 __all__ = ['CapabilityGPU', 'MemoryType', 'device_total_mem_size', 'disable_winograd_convolution', 'enable_loop_unrolling', 'execution_units_count', 'hint', 'memory_statistics', 'uarch_version']
 class CapabilityGPU:
     """

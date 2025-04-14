@@ -1,9 +1,6 @@
 # type: ignore
-"""
-Factory functions for all openvino ops.
-"""
-from functools import partial
 from __future__ import annotations
+from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino.op import Constant
@@ -15,8 +12,8 @@ from openvino.utils.input_validation import assert_list_of_ints
 from openvino.utils.input_validation import check_valid_attributes
 from openvino.utils.input_validation import is_non_negative_value
 from openvino.utils.input_validation import is_positive_value
-from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.node_factory import NodeFactory
+from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
 from openvino.utils.types import get_dtype
@@ -27,6 +24,9 @@ import functools
 import numpy as np
 import openvino._pyopenvino
 import typing
+"""
+Factory functions for all openvino ops.
+"""
 __all__ = ['Constant', 'Node', 'NodeFactory', 'NodeInput', 'NumericData', 'NumericType', 'Parameter', 'ScalarData', 'Shape', 'TensorShape', 'as_node', 'as_nodes', 'assert_list_of_ints', 'assign', 'binary_op', 'broadcast', 'bucketize', 'check_valid_attributes', 'cum_sum', 'embedding_bag_offsets_sum', 'embedding_bag_packed_sum', 'embedding_segments_sum', 'extract_image_patches', 'get_dtype', 'get_element_type', 'get_element_type_str', 'gru_cell', 'is_non_negative_value', 'is_positive_value', 'make_constant_node', 'nameable_op', 'non_max_suppression', 'non_zero', 'np', 'partial', 'read_value', 'rnn_cell', 'roi_align', 'scatter_elements_update', 'scatter_update', 'shape_of', 'shuffle_channels', 'topk', 'unary_op']
 def assign(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
