@@ -12,6 +12,7 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
@@ -399,7 +400,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::key_cache_group_size) {
         return static_cast<decltype(ov::key_cache_group_size)::value_type>(engConfig.keyCacheGroupSize);
     } else if (name == ov::value_cache_group_size) {
-        return static_cast<decltype(ov::value_cache_group_size)::value_type>(engConfig.valueCacheGroupSize);
+        return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
     }
     return get_ro_property(name, options);
 }
@@ -585,9 +586,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     auto _config = config;
     std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (_config.count(ov::internal::cached_model_buffer.name())) {
-        model_buffer = _config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
-        _config.erase(ov::internal::cached_model_buffer.name());
+    if (auto blob_it = _config.find(ov::hint::compiled_blob.name()); blob_it != _config.end()) {
+        auto compiled_blob = blob_it->second.as<ov::Tensor>();
+        model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
+                                                                      compiled_blob.get_byte_size(),
+                                                                      compiled_blob);
+        _config.erase(blob_it);
     }
 
     ModelDeserializer deserializer(

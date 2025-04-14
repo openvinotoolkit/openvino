@@ -1,4 +1,4 @@
-OpenVINO Workflow
+Traditional AI Workflow
 ================================================
 
 .. meta::
@@ -10,7 +10,7 @@ OpenVINO Workflow
    :maxdepth: 1
    :hidden:
 
-   Model Preparation <openvino-workflow/model-preparation>
+   Traditional Model Preparation <openvino-workflow/model-preparation>
    openvino-workflow/model-optimization
    Running Inference <openvino-workflow/running-inference>
    Deployment on a Local System <openvino-workflow/deployment-locally>

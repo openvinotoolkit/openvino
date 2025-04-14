@@ -9,6 +9,7 @@
 #include "common/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 
 namespace ov::intel_cpu::aarch64 {
@@ -2303,19 +2304,40 @@ void jit_prelu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    if (const auto leaky_relu = ov::as_type_ptr<LeakyReluNode>(node)) {
+        alpha = leaky_relu->get_slope();
+    } else if (ov::is_type<ov::op::v0::Relu>(node)) {
+        alpha = 0.f;
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't cast to LeakyReluNode or ReluNode");
+    }
+    prepare_table();
+}
+
+bool jit_relu_emitter::is_relu() const {
+    return alpha == 0.f;
+}
 
 jit_relu_emitter::jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                   float alpha,
                                    const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc),
+      alpha(alpha) {
+    prepare_table();
+}
 
 size_t jit_relu_emitter::get_inputs_count() const {
     return 1;
 }
 
 size_t jit_relu_emitter::get_aux_vecs_count() const {
-    return 1;
+    return (!is_relu()) ? 2 : 1;
+}
+
+size_t jit_relu_emitter::get_aux_gprs_count() const {
+    return (!is_relu()) ? 1 : 0;
 }
 
 std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -2336,13 +2358,32 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg vsrc(in_vec_idxs[0]);
+    const TReg vdst(out_vec_idxs[0]);
 
-    auto tmp = TReg(aux_vec_idxs[0]);
-    auto src = TReg(in_vec_idxs[0]);
-    auto dst = TReg(out_vec_idxs[0]);
+    if (is_relu()) {
+        // ReLU case: dst = max(src, 0)
+        const TReg vzero(aux_vec_idxs[0]);
 
-    h->movi(tmp.s, 0);
-    h->fmaxnm(dst.s, src.s, tmp.s);
+        h->eor(vzero.b16, vzero.b16, vzero.b16);  // vzero = 0
+        h->fmaxnm(vdst.s, vsrc.s, vzero.s);
+    } else {
+        // Leaky ReLU case: dst = (x > 0) ? x : alpha * x
+        const TReg vtemp1(aux_vec_idxs[0]);
+        const TReg vtemp2(aux_vec_idxs[1]);
+
+        h->ld1r(vtemp1.s, table_val2("alpha"));    // load alpha
+        h->fmul(vtemp2.s, vsrc.s, vtemp1.s);       // vtemp = alpha * x
+        h->fcmle(vtemp1.s, vsrc.s, 0.0f);          // vmask = (x > 0) ? 1 : 0
+        h->bif(vtemp2.b16, vsrc.b16, vtemp1.b16);  // vtemp2 = (x > 0) ? x : alpha * x
+        h->mov(vdst.b16, vtemp2.b16);              // dst = (x > 0) ? x : alpha * x
+    }
+}
+
+void jit_relu_emitter::register_table_entries() {
+    if (!is_relu()) {
+        push_arg_entry_of("alpha", dnnl::impl::float2int(alpha), true);
+    }
 }
 
 /// ROUND_HALF_AWAY_FROM_ZERO ///
@@ -2576,6 +2617,188 @@ void jit_sigmoid_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisions(
+    const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+/// SOFTPLUS ///
+jit_softplus_emitter::jit_softplus_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                           const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, node);
+}
+
+jit_softplus_emitter::jit_softplus_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                           const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, exec_prc);
+}
+
+size_t jit_softplus_emitter::get_inputs_count() const {
+    return 1;
+}
+
+size_t jit_softplus_emitter::get_aux_vecs_count() const {
+    return std::max<size_t>(exp_emitter->get_aux_vecs_count() + 2, 6);
+}
+
+size_t jit_softplus_emitter::get_aux_gprs_count() const {
+    return exp_emitter->get_aux_gprs_count() + 1;
+}
+
+void jit_softplus_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                     const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_softplus_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs) const {
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    const TReg vmm_src(in_vec_idxs[0]);
+    const TReg vmm_dst(out_vec_idxs[0]);
+
+    const TReg vmm_mask(aux_vec_idxs[0]);
+    const TReg vmm_aux1(aux_vec_idxs[1]);
+    const TReg vmm_aux2(aux_vec_idxs[2]);
+    const TReg vmm_aux3(aux_vec_idxs[3]);
+    const TReg vmm_aux4(aux_vec_idxs[std::max<size_t>(exp_emitter->get_aux_vecs_count(), 4)]);
+    const TReg vmm_aux0(aux_vec_idxs[std::max<size_t>(exp_emitter->get_aux_vecs_count() + 1, 5)]);
+
+    // ln(1 + exp(x)) =
+    // = ln(1 + exp(n * ln(2) + r)) // divide x by ln(2) and get quot and rem
+    // = ln(1 + 2^n * exp(r)) // simplify the exp(n*ln(2)) expression
+    // = ln(2 ^ 0 + 2^n * exp(r)) // note 1 = 2^0
+    // = ln(2 ^ (n - n) + 2^n * exp(r)) // 2^0 = 2^(n-n)
+    // = ln(2 ^ n * (2^-n + exp(r))) // factorize with 2^n
+    // = n * ln(2) + ln(2^-n + exp(r)) // take the 2^n factor out of the ln
+
+    // to prevent overflow for n = -128, which is not representable by fp32
+    // we modify the above formula to
+    // = n * ln(2) + ln((2^-(n-1) + 2 * exp(r))/2)
+
+    h->ld1r(vmm_aux0.s, table_val2("exp_ln_flt_min_f"));  // load min allowed value
+    h->mov(vmm_aux1.b16, vmm_src.b16);
+    h->fmaxnm(vmm_dst.s, vmm_aux1.s, vmm_aux0.s);
+
+    h->ld1r(vmm_aux0.s, table_val2("inv_ln2"));
+    h->fmul(vmm_aux2.s, vmm_dst.s, vmm_aux0.s);
+    h->frintm(vmm_aux3.s, vmm_aux2.s);
+    h->fcvtzs(vmm_aux4.s, vmm_aux3.s);
+
+    // Compute remainder r = x - n*ln2
+    h->scvtf(vmm_aux2.s, vmm_aux4.s);
+    h->ld1r(vmm_aux0.s, table_val2("ln2"));
+    h->fmul(vmm_aux1.s, vmm_aux0.s, vmm_aux2.s);
+    h->fsub(vmm_aux0.s, vmm_src.s, vmm_aux1.s);
+
+    exp_emitter->emit_code({vmm_aux0.getIdx()}, out_vec_idxs, aux_vec_idxs, aux_gpr_idxs);
+
+    h->scvtf(vmm_aux3.s, vmm_aux4.s);  // float n
+
+    // For positive n: ln(1+e^r*2^n)
+    // = n*ln2 + ln((2^-(n-1)+2e^r)*0.5)
+    h->ld1r(vmm_aux4.s, table_val2("bias_float"));
+    h->ld1r(vmm_aux2.s, table_val2("one"));
+    h->fsub(vmm_aux2.s, vmm_aux3.s, vmm_aux2.s);  // n-1
+    h->fneg(vmm_aux2.s, vmm_aux2.s);
+    h->fadd(vmm_aux2.s, vmm_aux2.s, vmm_aux4.s);
+    h->fcvtzu(vmm_aux2.s, vmm_aux2.s);
+    h->sqshl(vmm_aux2.d, vmm_aux2.d, 23);  // 2^-(n-1)
+
+    h->fadd(vmm_aux0.s, vmm_dst.s, vmm_dst.s);
+    h->fadd(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s);
+    h->ld1r(vmm_aux2.s, table_val2("half"));
+    h->fmul(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s);  // (2*exp(r) + 2^-(n-1))/2
+
+    h->ushr(vmm_aux1.s, vmm_aux0.s, 23);  // exponent (k)
+    h->scvtf(vmm_aux1.s, vmm_aux1.s);
+    h->ld1r(vmm_aux2.s, table_val2("one"));
+    h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s);  // k + 1
+    h->ld1r(vmm_aux2.s, table_val2("bias_float"));
+    h->fsub(vmm_aux1.s, vmm_aux1.s, vmm_aux2.s);  // unbiased exponent (k+1)
+
+    h->ld1r(vmm_aux2.s, table_val2("mantissa_mask"));
+    h->and_(vmm_aux0.b16, vmm_aux0.b16, vmm_aux2.b16);
+    h->ld1r(vmm_aux2.s, table_val2("bias_mask"));
+    h->orr(vmm_aux0.b16, vmm_aux0.b16, vmm_aux2.b16);  // normalized fraction y= 1.mantissa
+    h->ld1r(vmm_aux2.s, table_val2("half"));           // y' = y/2, y' is between (1, 0.5)
+    h->fmul(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s);
+    h->ld1r(vmm_aux2.s, table_val2("one"));
+    // y'' = 1 - y' for log computation, y'' is between (0, -0.5)
+    // for better log approximation with 8th degree polynomial
+    h->fsub(vmm_aux0.s, vmm_aux0.s, vmm_aux2.s);
+
+    // Log polynomial approximation: log(1+y'') using Taylor series
+    h->ld1r(vmm_aux2.s, table_val2("log_pol6"));
+    h->ld1r(vmm_aux4.s, table_val2("log_pol5"));
+    h->fmla(vmm_aux4.s, vmm_aux2.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
+    h->ld1r(vmm_aux4.s, table_val2("log_pol4"));
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
+    h->ld1r(vmm_aux4.s, table_val2("log_pol3"));
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
+    h->ld1r(vmm_aux4.s, table_val2("log_pol2"));
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
+    h->ld1r(vmm_aux4.s, table_val2("log_pol1"));
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
+    h->ld1r(vmm_aux4.s, table_val2("log_pol0"));
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
+    h->ld1r(vmm_aux4.s, table_val2("one"));
+    h->fmla(vmm_aux4.s, vmm_dst.s, vmm_aux0.s);
+    h->mov(vmm_dst.b16, vmm_aux4.b16);
+    h->fmul(vmm_dst.s, vmm_aux0.s, vmm_dst.s);
+
+    h->ld1r(vmm_aux4.s, table_val2("ln2"));
+    h->fadd(vmm_aux1.s, vmm_aux1.s, vmm_aux3.s);
+    h->fmla(vmm_dst.s, vmm_aux1.s, vmm_aux4.s);
+
+    // x > 20.0 returns x
+    h->ld1r(vmm_aux0.s, table_val2("threshold"));
+    h->fcmgt(vmm_mask.s, vmm_src.s, vmm_aux0.s);
+    h->bsl(vmm_mask.b16, vmm_src.b16, vmm_dst.b16);
+    h->mov(vmm_dst.b16, vmm_mask.b16);
+}
+
+void jit_softplus_emitter::register_table_entries() {
+    push_arg_entry_of("one", 0x3f800000, true);
+    push_arg_entry_of("zero", 0x00000000, true);
+    push_arg_entry_of("half", 0x3f000000, true);
+    push_arg_entry_of("bias_float", 0x42fe0000, true);
+    push_arg_entry_of("ln2", 0x3f317218, true);
+    push_arg_entry_of("inv_ln2", 0x3fb8aa3b, true);
+    push_arg_entry_of("threshold", 0x41a00000, true);
+    push_arg_entry_of("mantissa_mask", 0x007fffff, true);
+    push_arg_entry_of("bias_mask", 0x3f800000, true);
+    push_arg_entry_of("exp_ln_flt_min_f", 0xc2aeac50, true);
+    push_arg_entry_of("log_pol0", 0xbf000000, true);
+    push_arg_entry_of("log_pol1", 0x3eaaaa9f, true);
+    push_arg_entry_of("log_pol2", 0xbe800000, true);
+    push_arg_entry_of("log_pol3", 0x3e4ccccd, true);
+    push_arg_entry_of("log_pol4", 0xbe2aaac1, true);
+    push_arg_entry_of("log_pol5", 0x3e12491b, true);
+    push_arg_entry_of("log_pol6", 0xbe000000, true);
+}
+
+void jit_softplus_emitter::emit_data() const {
+    jit_emitter::emit_data();
+    exp_emitter->emit_data();
+}
+
+std::set<std::vector<element::Type>> jit_softplus_emitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }

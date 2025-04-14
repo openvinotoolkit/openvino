@@ -183,6 +183,7 @@
 #include "nodes/mha.h"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
+#include "nodes/paged_attn.h"
 #include "nodes/qkv_proj.h"
 #include "nodes/rms_norm.h"
 #include "nodes/rnn.h"
@@ -358,12 +359,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
     const bool useLpt = !defaultPrecisions.empty();
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::CompressedGatherTransformation);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
-    const auto& decompression_precisions = ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes();
+    const auto& decompression_precisions =
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(true);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
                              ov::pass::MarkDequantization,
                              decompression_precisions,
@@ -465,12 +467,28 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     cacheConfig.valueCacheGroupSize = config.valueCacheGroupSize;
     cacheConfig.keyCacheBlockSize = 32;
     cacheConfig.valueCacheBlockSize = 32;
-    // TODO enable quant_by_channel when available.
-    cacheConfig.keyCacheQuantBychannel = false;
+
+    bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode);
+    cacheConfig.keyCacheQuantBychannel = byChannel;
     cacheConfig.valueCacheQuantBychannel = false;
     cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
     cacheConfig.valueCacheDimOrder = {0, 1, 2, 3};
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig);
+    auto update_paged_attention_shape_func = [](const ov::element::Type& precision,
+                                                const bool bychannel,
+                                                const size_t group_num,
+                                                int64_t& head_size,
+                                                int64_t& block_size) {
+        if (precision == ov::element::u8) {
+            if (bychannel) {
+                block_size += 2 * sizeof(float);
+            } else {
+                head_size += sizeof(float) * 2 * group_num;
+            }
+        } else if (precision == ov::element::u4) {
+            head_size += sizeof(float) * 2 * group_num * 2;
+        }
+    };
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
