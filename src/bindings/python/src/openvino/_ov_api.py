@@ -43,32 +43,7 @@ class ModelMeta(type):
 class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if not args and not kwargs:
-
-            constructors = [
-                "1. openvino.Model(other: openvino.Model)"
-                "2. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], name: str = '')",
-                "3. openvino.Model(results: list[openvino.Node], parameters: list[openvino.op.Parameter], name: str = '')",
-                "4. openvino.Model(result: openvino.Node, parameters: list[openvino.op.Parameter], name: str = '')",
-                "5. openvino.Model(results: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
-                "6. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], name: str = '')",
-                "7. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
-                "8. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], \
-                                   variables: list[openvino.op.util.Variable], name: str = '')",
-                "9. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
-                "10. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], \
-                                    variables: list[openvino.op.util.Variable], name: str = '')",
-                "11. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], \
-                                    variables: list[openvino.op.util.Variable], name: str = '')",
-                "12. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], \
-                                    variables: list[openvino.op.util.Variable], name: str = '')",
-                "13. openvino.Model(results: list[openvino.op.Result], parameters: list[openvino.op.Parameter], \
-                                    variables: list[openvino.op.util.Variable], name: str = '')",
-                "14. openvino.Model(results: list[openvino.Output], parameters: list[openvino.op.Parameter], \
-                                    variables: list[openvino.op.util.Variable], name: str = '')",
-            ]
-
-            constructor_info = "\n".join(f"  - {ctor}" for ctor in constructors)
-            raise ValueError(f"Model cannot be instantiated without arguments.\n\nAvailable constructors:\n{constructor_info}")
+            ModelBase()  # raises TypeError with possible ctors
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
                 self.__model = ModelBase(args[0])
