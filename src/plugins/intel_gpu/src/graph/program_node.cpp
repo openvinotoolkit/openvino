@@ -204,7 +204,7 @@ void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
 }
 
 void program_node::add_memory_dependency(const program_node& dep) {
-    if (dep.likely_from_mempool() && likely_from_mempool())
+    if (dep.may_use_mempool() && may_use_mempool())
         memory_dependencies.insert(static_cast<uint32_t>(dep.get_unique_id()));
 }
 

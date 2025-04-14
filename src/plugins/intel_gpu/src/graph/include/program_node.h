@@ -216,7 +216,7 @@ public:
     // At least the following scenarios are not allocating from memory pool:
     // 1. constant nodes
     // 2. read_value nodes that are optimized out to reuse from Variables.
-    bool likely_from_mempool() const { return !(is_constant() || (is_type<read_value>() && optimized)); }
+    bool may_use_mempool() const { return !(is_constant() || (is_type<read_value>() && optimized)); }
 
     template <class PType>
     bool have_user_with_type() const {
