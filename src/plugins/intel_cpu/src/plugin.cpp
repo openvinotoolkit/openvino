@@ -228,7 +228,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             ov::element::Type_t::i32,  ov::element::Type_t::u64,     ov::element::Type_t::i64,
             ov::element::Type_t::bf16, ov::element::Type_t::f16,     ov::element::Type_t::f32,
             ov::element::Type_t::f64,  ov::element::Type_t::boolean, ov::element::Type_t::string,
-            ov::element::Type_t::nf4,  ov::element::Type_t::dynamic};
+            ov::element::Type_t::nf4,  ov::element::Type_t::f4e2m1,  ov::element::Type_t::f8e8m0,
+            ov::element::Type_t::dynamic};
 
         if (!supported_precisions.count(input_precision)) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
