@@ -16,7 +16,8 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
 
     using Attributes = ov::op::internal::DynamicQuantize::Attributes;
 
-    dynamic_quantize() : primitive_base("", {}) {}
+    dynamic_quantize() : primitive_base("", {})
+            , input_size(3) {}
 
     /// @brief Constructs dynamic_quantize primitive
     /// @param id This primitive id
