@@ -274,6 +274,11 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         }
     }
 
+    auto prim = orig_impl_param.typed_desc<fully_connected>();
+    if (prim != nullptr && prim->weights_rank > 2) {
+        can_apply_fake_alignment = false;
+    }
+
     GPU_DEBUG_IF(orig_impl_param.get_program().get_config().get_disable_fake_alignment()) {
         can_apply_fake_alignment = false;
     }
