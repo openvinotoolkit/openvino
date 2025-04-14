@@ -1,11 +1,11 @@
 # type: ignore
 from __future__ import annotations
-from openvino.frontend.frontend import FrontEnd
 from openvino._pyopenvino import InputModel
 from openvino._pyopenvino import NotImplementedFailure
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Place
 from openvino._pyopenvino import Type
+from openvino.frontend.frontend import FrontEnd
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.ovc.moc_frontend.extractor import convert_params_lists_to_dicts

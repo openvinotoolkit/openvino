@@ -1,11 +1,11 @@
 # type: ignore
-"""
-Package openvino.preprocess that wraps ov::preprocess
-"""
 from __future__ import annotations
 import numpy
 import openvino._pyopenvino
 import typing
+"""
+Package openvino.preprocess that wraps ov::preprocess
+"""
 __all__ = ['BGR', 'BGRX', 'CONSTANT', 'ColorFormat', 'GRAY', 'I420_SINGLE_PLANE', 'I420_THREE_PLANES', 'InputInfo', 'InputModelInfo', 'InputTensorInfo', 'NV12_SINGLE_PLANE', 'NV12_TWO_PLANES', 'OutputInfo', 'OutputModelInfo', 'OutputTensorInfo', 'PaddingMode', 'PostProcessSteps', 'PrePostProcessor', 'PreProcessSteps', 'REFLECT', 'RESIZE_BICUBIC_PILLOW', 'RESIZE_BILINEAR_PILLOW', 'RESIZE_CUBIC', 'RESIZE_LINEAR', 'RESIZE_NEAREST', 'RGB', 'RGBX', 'ResizeAlgorithm', 'SYMMETRIC', 'UNDEFINED']
 class ColorFormat:
     """

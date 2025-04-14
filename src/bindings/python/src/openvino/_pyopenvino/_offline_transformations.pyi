@@ -1,10 +1,10 @@
 # type: ignore
-"""
-openvino._offline_transformations is a private module contains different offline passes.
-"""
 from __future__ import annotations
 import openvino._pyopenvino.op
 import typing
+"""
+openvino._offline_transformations is a private module contains different offline passes.
+"""
 __all__ = ['apply_fused_names_cleanup', 'apply_low_latency_transformation', 'apply_make_stateful_transformation', 'apply_moc_legacy_transformations', 'apply_moc_transformations', 'apply_pruning_transformation', 'compress_model_transformation', 'compress_quantize_weights_transformation', 'convert_sequence_to_tensor_iterator_transformation', 'paged_attention_transformation', 'stateful_to_stateless_transformation']
 def apply_fused_names_cleanup(model: typing.Any) -> None:
     ...

@@ -1,7 +1,7 @@
 # type: ignore
+from __future__ import annotations
 from collections.abc import Mapping
 from functools import singledispatchmethod
-from __future__ import annotations
 from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import InferRequest as InferRequestBase
 from openvino._pyopenvino import Tensor
