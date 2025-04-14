@@ -296,7 +296,7 @@ class CompiledModel(CompiledModelBase):
         super().__init__(other)
 
     def get_runtime_model(self) -> Model:
-        return super().get_runtime_model()
+        return Model(super().get_runtime_model())
 
     def create_infer_request(self) -> InferRequest:
         """Creates an inference request object used to infer the compiled model.
@@ -730,7 +730,7 @@ def compile_model(
     message="Please use openvino.Type.dynamic instead.",
     stacklevel=2,
 )
-def undefined_deprecated(self):
+def undefined_deprecated(self):  # type: ignore
     return Type.dynamic
 
 
