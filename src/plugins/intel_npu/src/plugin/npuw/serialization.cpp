@@ -375,10 +375,9 @@ void ov::npuw::s11n::read_weightless(std::istream& stream,
             } else {
                 auto it = ctx.consts_cache.find({offset, byte_size});
                 NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
-                auto tensor = ov::npuw::util::tensor_from_const(it->second);
-                NPUW_ASSERT(tensor.get_byte_size() == byte_size && tensor.get_shape() == shape &&
-                            tensor.get_element_type() == type);
-                tensor.copy_to(t);
+                t = ov::npuw::util::copy_tensor_from_const(it->second);
+                NPUW_ASSERT(t.get_byte_size() == byte_size && t.get_shape() == shape &&
+                            t.get_element_type() == type);
             }
 
             var.push_back(t);

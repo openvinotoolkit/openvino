@@ -49,7 +49,7 @@ bool Const::operator==(const Const& other) const {
 
 ov::Tensor Const::eval() const {
     if (m_node) {
-        return ov::npuw::util::tensor_from_const(m_node);
+        return ov::npuw::util::copy_tensor_from_const(m_node);
     }
 
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first! Or the tensor is already detached.");
@@ -59,17 +59,16 @@ ov::Tensor Const::eval() const {
 void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     NPUW_ASSERT(!m_node &&
                 "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
-    m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
 
     if (ctx.weights) {
+        m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
         std::memcpy(m_read_from_bin.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
         NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
-        auto tensor = ov::npuw::util::tensor_from_const(it->second);
-        NPUW_ASSERT(tensor.get_byte_size() == m_byte_size && tensor.get_shape() == m_cached_shape &&
-                    tensor.get_element_type() == m_cached_type);
-        tensor.copy_to(m_read_from_bin);
+        m_read_from_bin = ov::npuw::util::copy_tensor_from_const(it->second);
+        NPUW_ASSERT(m_read_from_bin.get_byte_size() == m_byte_size && m_read_from_bin.get_shape() == m_cached_shape &&
+                    m_read_from_bin.get_element_type() == m_cached_type);
     }
 }
 
