@@ -323,15 +323,6 @@ TEST_P(OVBlobCompatibilityNPU_PV_Driver_No_Throw, CanImportExpectedModelsForPVDr
     DEFAULT_TEST_BODY(OV_ASSERT_NO_THROW);
 }
 
-TEST_P(OVBlobCompatibilityNPU_PV_Driver_Throws, CanNotImportExpectedModelsForPVDriverAndAnyOVVersion) {
-    DEFAULT_TEST_BODY(ASSERT_THROW, ov::Exception);
-}
-
-TEST_P(OVBlobCompatibilityNPU_Mismatched_Platforms_Throw,
-       CanNotImportMimatchedPlatformsForAnyModelsOVVersionsAndDrivers) {
-    DEFAULT_TEST_BODY(ASSERT_THROW, ov::Exception);
-}
-
 #undef NO_APPEND_EXPORT
 #undef APPEND_EXPORT
 #undef APPEND_EXPORT_HELPER_

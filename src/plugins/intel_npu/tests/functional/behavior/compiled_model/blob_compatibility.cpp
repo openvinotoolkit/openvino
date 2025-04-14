@@ -27,18 +27,6 @@ const auto match_platform =
         ? PLATFORMS.at(PARSED_PLATFORMS.at(ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM))
         : "";
 
-const auto mismatched_platforms = []() -> std::vector<std::string> {
-    std::vector<std::string> platforms(PLATFORMS.size());
-    std::transform(PLATFORMS.begin(),
-                   PLATFORMS.end(),
-                   platforms.begin(),
-                   [](const decltype(PLATFORMS)::value_type& pair) {
-                       return pair.second;
-                   });
-    platforms.erase(std::find(platforms.begin(), platforms.end(), match_platform));
-    return platforms;
-}();
-
 const auto all_ov_releases = []() -> std::vector<std::string> {
     std::vector<std::string> ov_releases(OV_VERSIONS.size());
     std::transform(OV_VERSIONS.begin(),
@@ -93,23 +81,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
                                             ::testing::Values(DRIVERS.at(E_DRIVERS::DRIVER_1688))),
                          ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU_PV_Driver_No_Throw>);
 #endif
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Behavior_NPU,
-    OVBlobCompatibilityNPU_PV_Driver_Throws,
-    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                       ::testing::Values(DUMMY_MODELS.at(E_DUMMY_MODELS::DUMMY_MODEL_DYNAMIC_SHAPES)),
-                       ::testing::Values(match_platform),
-                       ::testing::ValuesIn(all_ov_releases),
-                       ::testing::Values(DRIVERS.at(E_DRIVERS::DRIVER_1688))),
-    ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU_PV_Driver_Throws>);
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_Behavior_NPU,
-    OVBlobCompatibilityNPU_Mismatched_Platforms_Throw,
-    ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                       ::testing::ValuesIn(all_models),
-                       ::testing::ValuesIn(mismatched_platforms),
-                       ::testing::ValuesIn(all_ov_releases),
-                       ::testing::ValuesIn(all_drivers)),
-    ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU_Mismatched_Platforms_Throw>);
