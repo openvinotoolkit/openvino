@@ -2070,7 +2070,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _use_shared_kernels(node.get_program().get_config().get_enable_kernels_reuse())
     , _impl_params(node.get_kernel_impl_params())
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
-    , _runtime_memory_dependencies(node.get_memory_dependencies())
+    , _runtime_memory_dependencies(&node.get_memory_dependencies())
     , _outputs({})
     , _reordered_weights_cache(network.get_weights_cache_capacity())
     , _is_dynamic(node.is_dynamic())

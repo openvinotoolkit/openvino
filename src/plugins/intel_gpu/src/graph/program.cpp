@@ -1716,7 +1716,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
                                                                       pool,
                                                                       *node,
                                                                       *node->get_kernel_impl_params(),
-                                                                      memory_restricter<uint32_t>(node->get_memory_dependencies()),
+                                                                      memory_restricter<uint32_t>(&node->get_memory_dependencies()),
                                                                       0,
                                                                       false,
                                                                       0,
