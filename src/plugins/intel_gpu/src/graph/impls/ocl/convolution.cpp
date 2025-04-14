@@ -175,6 +175,9 @@ public:
                 auto can_swap = [](const kernel_selector::Tensor::DataTensor& dt) -> bool {
                     auto x_channel_idx = static_cast<uint32_t>(kernel_selector::Tensor::DataTensor::Channelndex(dt.GetLayout(),
                                                     kernel_selector::Tensor::DataChannelName::X));
+                    if (x_channel_idx < 0) {
+                        return false;
+                    }
                     auto x_axis_dim = dt.GetDims()[x_channel_idx];
                     return (x_axis_dim.pad.Total() == 0 && x_axis_dim.v == 1);
                 };
