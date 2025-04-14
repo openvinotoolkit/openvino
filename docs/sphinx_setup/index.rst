@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2025.0
+OpenVINO 2025.1
 ============================
 
 .. container::
@@ -40,7 +40,7 @@ OpenVINO 2025.0
 |
 
 **OpenVINO is an open-source toolkit** for deploying performant AI solutions in the cloud,
-on-prem, and on the edge alike. Develop your applications with both generative and traditional
+on-prem, and on the edge alike. Develop your applications with both generative and conventional
 AI models, coming from the most popular model frameworks.
 Convert, optimize, and run inference utilizing the full potential of Intel® hardware.
 There are three main tools in OpenVINO to meet all your deployment needs:
@@ -52,15 +52,15 @@ There are three main tools in OpenVINO to meet all your deployment needs:
 
       Run and deploy generative AI models
 
-   .. grid-item-card:: OpenVINO Runtime
+   .. grid-item-card:: OpenVINO Base Package
       :link: ./openvino-workflow.html
 
-      Run and deploy traditional AI models
+      Run and deploy conventional AI models
 
    .. grid-item-card:: OpenVINO Model Server
       :link: ./model-server/ovms_what_is_openvino_model_server.html
 
-      Deploy both generative and traditional AI inference on a server
+      Deploy both generative and conventional AI inference on a server
 
 |
 | For a quick ramp-up, check out the
@@ -211,7 +211,7 @@ Key Features
 
    GET STARTED <get-started>
    HOW TO USE - GENERATIVE AI WORKFLOW <openvino-workflow-generative>
-   HOW TO USE - TRADITIONAL AI WORKFLOW <openvino-workflow>
+   HOW TO USE - CONVENTIONAL AI WORKFLOW <openvino-workflow>
    HOW TO USE - MODEL SERVING <model-server/ovms_what_is_openvino_model_server>
    REFERENCE DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>

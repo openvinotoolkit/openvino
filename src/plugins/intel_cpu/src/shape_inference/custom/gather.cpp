@@ -4,6 +4,7 @@
 
 #include "gather.hpp"
 
+#include "openvino/op/gather.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_cpu::node {

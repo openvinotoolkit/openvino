@@ -14,6 +14,7 @@
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
 

@@ -915,7 +915,7 @@ void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCop
                              size_t K,
                              size_t K_blk,
                              size_t K_tail,
-                             size_t LDA,
+                             [[maybe_unused]] size_t LDA,
                              dnnl_data_type_t dt_in0) {
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_tag = dnnl_abcd;
@@ -931,6 +931,10 @@ void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCop
     brgCopyKernelConf.src_dt = dt_in0;
     brgCopyKernelConf.a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = false;
+
+    bool is_avx_f16_only =
+        dt_in0 == dnnl::memory::data_type::f16 && mayiuse(avx512_core_fp16) && !mayiuse(avx512_core_amx_fp16);
+    brgCopyKernelConf.isa = is_avx_f16_only ? avx512_core_fp16 : avx512_core_amx;
 
 #if defined(OPENVINO_ARCH_X86_64)
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
@@ -1556,7 +1560,7 @@ void MHA::mhaImpl() {
     });
 }
 
-void MHA::execute(const dnnl::stream& strm) {
+void MHA::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (inputPrecisions[1] == ov::element::f32) {
         mhaImpl<float>();
     } else if (inputPrecisions[1] == ov::element::bf16) {
