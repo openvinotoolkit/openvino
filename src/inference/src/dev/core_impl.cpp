@@ -1382,12 +1382,9 @@ bool ov::CoreImpl::device_supports_internal_property(const ov::Plugin& plugin, c
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& arguments) const {
-    ov::AnyMap properties_to_virtual_dev = {};
-    if (ov::is_virtual_device(plugin.get_name())) {
-        properties_to_virtual_dev = arguments;
-        properties_to_virtual_dev[ov::intel_auto::cache_ablility_checked.name()] = true;
-    }
-    return plugin.supports_model_caching(properties_to_virtual_dev);
+    ov::AnyMap properties_to_virtual_dev = arguments.empty() ? ov::AnyMap{ov::device::priorities("")} : arguments;
+    return ov::is_virtual_device(plugin.get_name()) ? plugin.supports_model_caching(properties_to_virtual_dev)
+                                                    : plugin.supports_model_caching();
 }
 
 bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {

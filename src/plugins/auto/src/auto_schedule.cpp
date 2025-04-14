@@ -144,7 +144,10 @@ void AutoSchedule::init() {
         m_compile_context[CPU].m_device_info = *cpu_iter;
         m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
             ov::hint::PerformanceMode::LATENCY;
-        std::string cache_dir = m_context->m_ov_core->get_property("", ov::cache_dir);
+        std::string cache_dir =
+            m_compile_context[ACTUALDEVICE].m_device_info.config.count(ov::cache_dir.name())
+                ? m_compile_context[ACTUALDEVICE].m_device_info.config[ov::cache_dir.name()].as<std::string>()
+                : m_context->m_ov_core->get_property("", ov::cache_dir);
         if (!cache_dir.empty() && (m_context->m_startup_fallback || m_context->m_runtime_fallback)) {
             m_compile_context[CPU].m_device_info.config[ov::cache_dir.name()] = "";
             LOG_INFO_TAG("Clear cache dir setting for CPU accelerator");

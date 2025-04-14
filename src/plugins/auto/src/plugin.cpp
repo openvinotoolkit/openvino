@@ -305,14 +305,13 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type {get_device_name()};
     } else if (name == ov::device::capabilities.name()) {
-        if (arguments.count(ov::intel_auto::cache_ablility_checked.name()) &&
-            arguments.at(ov::intel_auto::cache_ablility_checked.name()).as<bool>()) {
+        if (arguments.count(ov::device::priorities.name())) {
+            // By default, all devices are assumed to support caching ability when Core checks caching ability for AUTO.
             return std::vector<std::string>{ov::device::capability::EXPORT_IMPORT};
         }
-
-        std::vector<std::string> device_list = arguments.count(ov::device::priorities.name())
-                                                   ? m_plugin_config.parse_priorities_devices(
-                                                         arguments.at(ov::device::priorities.name()).as<std::string>())
+        std::string priorities = m_plugin_config.get_property(ov::device::priorities.name()).as<std::string>();
+        std::vector<std::string> device_list = !priorities.empty()
+                                                   ? m_plugin_config.parse_priorities_devices(priorities)
                                                    : get_core()->get_available_devices();
 
         std::vector<std::string> capabilities;
