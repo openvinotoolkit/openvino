@@ -5,6 +5,7 @@
 #include "convert_matmul_to_fc.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/convert.hpp"
