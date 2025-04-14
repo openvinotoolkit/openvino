@@ -101,7 +101,7 @@ class Concat {
 
 public:
     Concat() = default;
-    Concat(const std::vector<LazyTensor>& _tensors, std::size_t _axis) : tensors(_tensors), axis(_axis){}
+    Concat(const std::vector<LazyTensor>& _tensors, std::size_t _axis) : tensors(_tensors), axis(_axis) {}
 
     std::size_t hash() const;
     bool operator==(const Concat& other) const;
@@ -126,7 +126,7 @@ public:
           z(_z),
           s(_s),
           type(_type),
-          shape(_shape){}
+          shape(_shape) {}
 
     std::size_t hash() const;
     bool operator==(const Unpack& other) const;
@@ -147,7 +147,7 @@ class Permute {
 
 public:
     Permute() = default;
-    Permute(const LazyTensor& _tensor, const std::vector<std::size_t>& _axes) : tensor(_tensor), axes(_axes){}
+    Permute(const LazyTensor& _tensor, const std::vector<std::size_t>& _axes) : tensor(_tensor), axes(_axes) {}
 
     std::size_t hash() const;
     bool operator==(const Permute& other) const;
@@ -167,7 +167,7 @@ class Convert {
 
 public:
     Convert() = default;
-    Convert(const LazyTensor& _tensor, ov::element::Type _type) : tensor(_tensor), type(_type){}
+    Convert(const LazyTensor& _tensor, ov::element::Type _type) : tensor(_tensor), type(_type) {}
 
     std::size_t hash() const;
     bool operator==(const Convert& other) const;
