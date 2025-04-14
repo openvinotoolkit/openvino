@@ -266,21 +266,12 @@ void moe_expert_inst::update_output_layout() {
     }
 }
 
-void moe_expert_inst::postprocess_output_memory() {
+void moe_expert_inst::update_output_memory(bool need_reset) {
     _outputs.resize(outputs_memory_count());
-    auto out_mem_idx = 0;
 
-    auto mem_ptr = input_memory_ptr(0);
-    if (mem_ptr) {
-        auto layout = _impl_params->get_output_layout(out_mem_idx);
-        GPU_DEBUG_LOG << "Reshape output from " << mem_ptr->get_layout().to_short_string()
-                    << " to " << layout.to_short_string() << std::endl;
-        // Preallocation logic may allocate more memory than actually produced on current iteration, so we need to adjust output buffers layout
-        mem_ptr = get_network().get_engine().reinterpret_buffer(*mem_ptr, layout);
+    _outputs[0] = input_memory_ptr(0);
+    if (need_reset) {
+        add_dep_event(_outputs[0]->fill(_network.get_stream(), false));
     }
-
-    _outputs[out_mem_idx] = mem_ptr;
-    if (mem_ptr)
-        GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
 }
 }  // namespace cldnn

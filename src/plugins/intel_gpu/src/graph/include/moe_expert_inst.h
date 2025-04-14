@@ -37,9 +37,16 @@ struct expert_mask_tmp_scratch {
     size_t max_size = 0;
 };
 
+struct expert_mask_output_scratch {
+    memory::ptr buf;
+    layout buf_layout;
+    size_t max_size = 0;
+};
+
 static constexpr const char* expert_mask_scratch_key = "expert_mask_scratch";
 static constexpr const char* expert_mask_mem_scratch_key = "expert_mask_scratch_mem";
 static constexpr const char* expert_mask_tmp_scratch_key = "expert_mask_scratch_tmp";
+static constexpr const char* expert_mask_output_scratch_key = "expert_mask_scratch_output";
 
 template <>
 struct typed_program_node<moe_expert> : public typed_program_node_base<moe_expert> {
@@ -51,7 +58,7 @@ public:
 
     typed_program_node(std::shared_ptr<moe_expert> prim, program& prog) : parent(prim, prog), _mlp_params(prim->_mlp_params) {}
 
-    moe_expert::mlp_params get_mlp_params() const {
+    const std::vector<moe_expert::mlp_params>& get_mlp_params() const {
         return _mlp_params;
     }
 
@@ -63,7 +70,7 @@ public:
     }
 
 private:
-    moe_expert::mlp_params& _mlp_params;
+    std::vector<moe_expert::mlp_params>& _mlp_params;
 };
 
 using moe_expert_node = typed_program_node<moe_expert>;
@@ -84,7 +91,7 @@ public:
 
     memory::ptr pred_memory_ptr() const { return dep_memory_ptr(1); }
     const primitive_inst* pred_inst() const { return dependencies().at(1).first; }
-    moe_expert::mlp_params get_mlp_params() const { return node->get_mlp_params(); }
+    const std::vector<moe_expert::mlp_params>& get_mlp_params() const { return node->get_mlp_params(); }
     const MOEExpert::Config& get_config() const {
         return node->get_primitive()->_config;
     }
@@ -94,7 +101,7 @@ public:
                                  expert_mask_mem_scratch& expert_mask_mem);
 
     void update_output_layout();
-    void postprocess_output_memory();
+    void update_output_memory(bool need_reset);
     void get_tmp_memory(data_types type, int m, int hidden_size, int inter_size, int topk, expert_mask_tmp_scratch& scratch);
 
 private:
