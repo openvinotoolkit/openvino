@@ -43,7 +43,7 @@ class ModelMeta(type):
 class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if not args and not kwargs:
-            ModelBase()  # raises TypeError with possible ctors
+            self.__model = ModelBase()
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
                 self.__model = ModelBase(args[0])
