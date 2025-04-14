@@ -20,7 +20,9 @@ enum class RegType {
     gpr,
     vec,
     mask,
-    ignored,  // Used to mark regs that should be ignored by the code generation logic, as they are handled outside the snippets pipeline.
+    // Ticket: 166071
+    // Need to move this type to a separate class
+    address,  // address type should be ignored by the code generation logic, as it is handled outside the snippets pipeline.
     undefined
 };
 /**
@@ -32,8 +34,8 @@ struct Reg {
     Reg() = default;
     Reg(RegType type_, size_t idx_) : type(type_), idx(idx_) {}
 
-    bool is_defined() const  { return type == RegType::ignored || (type != RegType::undefined && idx != UNDEFINED_IDX); }
-    bool is_ignored() const { return type == RegType::ignored; }
+    bool is_address() const { return type == RegType::address; }
+    bool is_defined() const { return is_address() || (type != RegType::undefined && idx != UNDEFINED_IDX); }
     RegType type = RegType::undefined;
     size_t idx = UNDEFINED_IDX;
 
