@@ -29,7 +29,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     std::vector<snippets::Reg> data_ptr_regs;
     for (const auto& param : parameters) {
         const auto& reg = param->get_output_port_descriptor(0)->get_reg();
-        if (!reg.is_ignored()) {
+        if (!reg.is_address()) {
             data_ptr_regs.push_back(reg);
         }
     }

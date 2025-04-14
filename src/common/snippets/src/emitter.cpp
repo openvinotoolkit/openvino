@@ -33,8 +33,8 @@ std::ostream& operator<<(std::ostream& s, const Reg& r) {
                 return "mask";
             case RegType::undefined:
                  return "undefined";
-            case RegType::ignored:
-                 return "ignored";
+            case RegType::address:
+                 return "address";
             default:
                 OPENVINO_THROW("Unexpected RegType");
         }
