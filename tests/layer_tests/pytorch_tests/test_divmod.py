@@ -4,7 +4,6 @@
 import numpy.testing as npt
 import openvino as ov
 import pytest
-import sys
 import torch
 
 
@@ -22,12 +21,9 @@ class TestBuiltinDivmod():
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("fw_model,inputs", [
-        (builtin_divmod(), torch.randn(2, 3, 28)),
-    ])
-    def test_builtin_divmod(self, fw_model, inputs, ie_device, precision):
-        if sys.platform != "win32":
-            pytest.skip(reason="Only on Windows, pytest runs in the single worker.")
+    def test_builtin_divmod(self, ie_device, precision):
+        fw_model = self.builtin_divmod()
+        inputs = torch.randn(2, 3, 28)
 
         example_input = inputs
         ov_model = ov.convert_model(input_model=fw_model, example_input=example_input)
