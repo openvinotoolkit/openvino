@@ -28,8 +28,8 @@ patches_map = {
 
 
 class FunctionsPatcher:
-    """
-    Patch different Python functions including built-in routines such as divmod()
+    """ Patch different Python functions including built-in routines such as divmod().
+
     For example, TorchScript is unable to trace divmod() with torch.Tensor input type
     """
     def __enter__(self) -> None:
