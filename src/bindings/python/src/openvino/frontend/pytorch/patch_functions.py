@@ -12,13 +12,14 @@ originals_map = {
 
 
 def patched_divmod(lhs: Any, rhs: Any) -> Tuple[Any, Any]:
-    # patch only a case with torch.Tensor input type
-    # to help TorchScript to trace
-    # others cases are handled without change
+    # TorchScript tracing outputs torch.Tensor for `x.shape[-1]` instead of scalar.
+    # For example, it leads to TypeError issue during tracing of `divmod(x.shape[-1], 5)`
+    # since builtin `divmod()` expects both scalar inputs.
+    # So the patch for `divmod` is required to adjust operands to scalar type
     if isinstance(lhs, torch.Tensor):
-        div_res = torch.div(lhs, rhs, rounding_mode="trunc")
-        rem = torch.remainder(lhs, rhs)
-        return div_res, rem
+        lhs = lhs.item()
+    if isinstance(rhs, torch.Tensor):
+        rhs = rhs.item()
     return originals_map["divmod"](lhs, rhs)
 
 
