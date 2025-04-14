@@ -188,9 +188,9 @@ jobs:
               -w /work/src \
               ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
               /bin/bash -c "
-                py_exec_folder=$(python${PY_VER} -c "import sys; print(sys.exec_prefix + '/bin')")
+                py_exec_folder=$(python${PY_VER} -c "import sys; print(sys.exec_prefix)")
                 echo "${py_exec_folder}"
-                export PATH=${py_exec_folder}:\$PATH
+                export PATH=${py_exec_folder}/bin:\$PATH
                 echo "${PATH}"
                 PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
                 export "PIP_CACHE_DIR=/work/pip_cache/${PIP_VER}"
