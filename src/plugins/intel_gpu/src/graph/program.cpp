@@ -748,8 +748,7 @@ void program::prepare_memory_dependencies() {
     if (!_config.get_enable_memory_pool())
         return;
     for (auto& node : get_processing_order()) {
-        if (node->likely_from_mempool())
-            node->add_memory_dependency(node->get_unique_id());
+        node->add_memory_dependency(*node);
     }
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();

@@ -288,16 +288,10 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     p.add_connection(in_shift_node, new_quantize_node);
     p.add_connection(out_scale_node, new_quantize_node);
     p.add_connection(out_shift_node, new_quantize_node);
-    if (new_quantize_node.likely_from_mempool()) {
-        if (in_scale_node.likely_from_mempool())
-            new_quantize_node.add_memory_dependency(in_scale_node.get_unique_id());
-        if (in_shift_node.likely_from_mempool())
-            new_quantize_node.add_memory_dependency(in_shift_node.get_unique_id());
-        if (out_scale_node.likely_from_mempool())
-            new_quantize_node.add_memory_dependency(out_scale_node.get_unique_id());
-        if (out_shift_node.likely_from_mempool())
-            new_quantize_node.add_memory_dependency(out_shift_node.get_unique_id());
-    }
+    new_quantize_node.add_memory_dependency(in_scale_node);
+    new_quantize_node.add_memory_dependency(in_shift_node);
+    new_quantize_node.add_memory_dependency(out_scale_node);
+    new_quantize_node.add_memory_dependency(out_shift_node);
     p.get_processing_order().insert(&new_quantize_node, &in_shift_node);
     p.get_processing_order().insert(&new_quantize_node, &in_scale_node);
     p.get_processing_order().insert(&new_quantize_node, &out_shift_node);

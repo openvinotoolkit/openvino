@@ -197,12 +197,15 @@ void program_node::remove_dependency(size_t idx) {
 
 const std::unordered_set<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
 
-void program_node::add_memory_dependency(size_t prim) { memory_dependencies.insert(static_cast<uint32_t>(prim)); }
-
 void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     for (size_t val : prim_list) {
         memory_dependencies.insert(static_cast<uint32_t>(val));
     }
+}
+
+void program_node::add_memory_dependency(const program_node& dep) {
+    if (dep.likely_from_mempool() && likely_from_mempool())
+        memory_dependencies.insert(static_cast<uint32_t>(dep.get_unique_id()));
 }
 
 std::unique_ptr<json_composite> program_node::desc_to_json() const {
