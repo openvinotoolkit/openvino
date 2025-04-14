@@ -308,9 +308,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_CheckWeightlessCacheAccuracyLowPrecision,
                          CheckWeightlessCacheAccuracy::get_test_case_name);
 
 TEST(smoke_CheckWeightlessCacheAccuracy, ConstantFoldingAttrPropagation) {
-    std::vector<ov::float16> data(4, 0.f);
-    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4}, data);
-    auto attr = ov::WeightlessCacheAttribute(4 * sizeof(ov::float16), 0, ov::element::f16);
+    const auto num_elements = 4;
+    std::vector<ov::float16> data(num_elements, 0.f);
+    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{num_elements}, data);
+    auto attr = ov::WeightlessCacheAttribute(num_elements * sizeof(ov::float16), 0, ov::element::f16);
     constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] = attr;
 
     ov::ParameterVector inputParams;
