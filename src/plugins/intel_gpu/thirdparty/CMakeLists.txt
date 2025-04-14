@@ -56,10 +56,11 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         # pass common variables
         foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
-                                   CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE
+                                   CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE CMAKE_FIND_ROOT_PATH
                                    CMAKE_VERBOSE_MAKEFILE CMAKE_GENERATOR
-                                   CMAKE_CXX_COMPILER CMAKE_C_COMPILER
-                                   CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
+                                   CMAKE_CXX_COMPILER CMAKE_C_COMPILER CMAKE_MAKE_PROGRAM
+                                   CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
+                                   CMAKE_EXPORT_COMPILE_COMMANDS)
             if(${cmake_var})
                 list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
             endif()
@@ -88,6 +89,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
         if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.15 AND DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
             list(APPEND cmake_extra_args "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}")
         endif()
+
+        # bypass all variables specified to Android toolchain
+        foreach(flag_var IN ITEMS ANDROID_ABI ANDROID_ARM_MODE ANDROID_NATIVE_API_LEVEL ANDROID_PLATFORM ANDROID_STL
+                                  ANDROID_NDK CMAKE_ANDROID_ARCH_ABI CMAKE_ANDROID_NDK)
+            if(${flag_var})
+                list(APPEND cmake_extra_args "-D${flag_var}=${${flag_var}}")
+            endif()
+        endforeach()
 
         # propogate OpenCL if explicitly specified
         if(OpenCL_LIBRARY)
