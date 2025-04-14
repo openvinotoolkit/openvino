@@ -334,6 +334,7 @@ TEST(smoke_CheckWeightlessCacheAccuracy, ConstantFoldingAttrPropagation) {
     auto transformed_constant_rt_info = (*constant_it)->get_rt_info();
     auto attr_it = transformed_constant_rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
     ASSERT_NE(attr_it, transformed_constant_rt_info.end());
+    ASSERT_EQ(attr_it->second.as<ov::WeightlessCacheAttribute>().original_size, num_elements * sizeof(ov::float16));
 }
 
 }  // namespace
