@@ -937,7 +937,7 @@ public:
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         // FlashAttn v1 or v2?
-        config.set_property(ov::intel_gpu::hint::disable_flashattnv2_optimization(p.disable_flashattn_v2));
+        config.set_property(ov::intel_gpu::disable_flashattnv2_optimization(p.disable_flashattn_v2));
 
         network::ptr network = get_network(get_test_engine(), topology, config, get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);

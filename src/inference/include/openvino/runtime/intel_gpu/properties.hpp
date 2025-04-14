@@ -124,8 +124,6 @@ static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SI
  */
 static constexpr Property<bool> enable_sdpa_optimization{"GPU_ENABLE_SDPA_OPTIMIZATION"};
 
-static constexpr Property<bool> disable_flashattnv2_optimization{"GPU_DISABLE_FLASHATTNV2_OPTIMIZATION"};
-
 /**
  * @brief Turning on this property enables kernels reuse between implementations, resulting in a lower memory footprint.
  * However, as a drawback, OpenCL set_arguments() call will be made more often, resulting in higher host pressure

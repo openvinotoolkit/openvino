@@ -26,7 +26,6 @@ typedef std::tuple<ov::element::Type,                // netPrecision
                    bool,                             // is_causal
                    bool,                             // has_attn
                    bool,                             // has_scale
-                   bool,                             // enable/disable_flashattn_v2_tricks
                    std::vector<std::vector<int64_t>> // input_transpose
                    > ScaledAttnGPUTestParams;
 
@@ -42,7 +41,6 @@ protected:
     bool is_causal;
     bool has_attn;
     bool has_scale;
-    bool disable_flashattn_v2;
 };
 
 std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo<ScaledAttnGPUTestParams>& obj) {
@@ -53,8 +51,7 @@ std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo
     bool has_attn;
     bool has_scale;
     bool transpose_enable;
-    bool disable_flashattn_v2;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, disable_flashattn_v2, input_transpose) = obj.param;
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, input_transpose) = obj.param;
 
     transpose_enable = (input_transpose.size() != 0);
     std::ostringstream result;
@@ -73,8 +70,7 @@ std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo
     result << "is_causal=" << is_causal << "_";
     result << "has_attn=" << has_attn << "_";
     result << "has_scale=" << has_scale << "_";
-    result << "with_transpose=" << transpose_enable << "_";
-    result << "disable_flashattn_v2=" << disable_flashattn_v2 << "_";
+    result << "with_transpose" << transpose_enable << "_";
 
     return result.str();
 }
@@ -86,10 +82,7 @@ void ScaledAttnLayerGPUTest::SetUp() {
 
     targetDevice = ov::test::utils::DEVICE_GPU;
 
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, disable_flashattn_v2, input_transpose) = this->GetParam();
-
-    // FlashAttn v1 or v2?
-    configuration.emplace(ov::intel_gpu::hint::disable_flashattnv2_optimization(disable_flashattn_v2));
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, input_transpose) = this->GetParam();
 
     transpose_prepare(inputShapes, input_transpose);
     init_input_shapes(inputShapes);
@@ -240,8 +233,7 @@ TEST_P(ScaledAttnLayerGPUTest, CompareWithRefs) {
     bool is_causal;
     bool has_attn;
     bool has_scale;
-    bool disable_flashattn_v2;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, disable_flashattn_v2, input_transpose) = this->GetParam();
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, input_transpose) = this->GetParam();
     run();
 }
 
@@ -330,7 +322,6 @@ const auto dynamic_shape_params = testing::Combine(testing::Values(ov::element::
                                                    testing::Values(true, false),
                                                    testing::Values(true, false),
                                                    testing::Values(true, false),
-                                                   testing::Values(true, false),  // enable/disable_flashattn_v2_tricks
                                                    testing::ValuesIn({disable_transpose, transpose_value}));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttn_GPU,
@@ -375,7 +366,6 @@ const auto static_shape_params = testing::Combine(testing::Values(ov::element::f
                                                   testing::Values(true, false),
                                                   testing::Values(true, false),
                                                   testing::Values(true, false),
-                                                  testing::Values(true, false),  // enable/disable_flashattn_v2_tricks
                                                   testing::ValuesIn({disable_transpose, transpose_all}));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic_GPU,
