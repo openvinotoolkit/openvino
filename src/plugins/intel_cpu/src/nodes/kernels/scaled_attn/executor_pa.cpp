@@ -2170,10 +2170,11 @@ struct MHAHelper {
         auto want_score_stride = rnd_up(kv_len, _block_size);
         _new_score_stride = std::max(prev_score_stride, want_score_stride);
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
-        if (_quant_key_bychannel || _quant_value_bychannel)
+        if (_quant_key_bychannel || _quant_value_bychannel) {
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, std::max(S, SV)});
-        else
+        } else {
             _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, SV});
+        }
 
         // TODO: kernel supports stride
         if (_qk_gemm.empty() || prev_score_stride < _new_score_stride) {
@@ -2729,7 +2730,7 @@ struct MHAHelper {
                             attn_acc_value_block_quantized<uint8_t, VALUE_PREC>(
                                 _output_bhl.ptr<float>(ithr, b, pq, h),
                                 _weight_bhl.ptr<float>(b, h, pq) + pv,
-                                value_cache.ptr<uint8_t>(block_number, hk),
+                                value_cache.ptr<uint8_t, VALUE_PREC>(block_number, hk),
                                 SV,
                                 _quant_value_bychannel,
                                 std::min(_block_size, context_len - pv),
@@ -2934,7 +2935,7 @@ struct MHA {
                 // need to decompress
                 if (!q_cache_is_same) {
                     auto* v_ptr =
-                        v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
+                        v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(block_number, hk);
                     dequant<DATA_TYPE, VALUE_PREC>(
                         _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                         v_ptr,
@@ -3196,15 +3197,13 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             _helper._key_group_size ? k_cache.size(3) / (_helper._key_group_size + key_params_size) : 1;
         size_t value_group_num =
             _helper._value_group_size ? v_cache.size(3) / (_helper._value_group_size + value_params_size) : 1;
-        // auto SV = v_cache.size(3) - (v_cache.get_precision().is_real() ? 0 : value_params_size * value_group_num);
-        // // revise group_size if it's zero.
-        // _helper._value_group_size = _helper._value_group_size ? _helper._value_group_size : SV;
 
         // check by_hidden_dims parameter of value cache
-        if (!value_group_num && v_cache.get_precision().is_integral())
+        if (!value_group_num && v_cache.get_precision().is_integral()) {
             OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
                            _helper._value_group_size,
                            " should be smaller than hidden_dims");
+        }
         size_t S = 0;
         // check parameter of quantized key cache
         if (k_cache.get_precision().is_integral()) {
@@ -3357,7 +3356,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                 parallel_for2d(Hk, zero_tokens, [&](size_t h, size_t l) {
                     // zero out key cache
                     auto* key_cache_ptr =
-                        k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(block_number,
+                        k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number,
                                                                                             h,
                                                                                             block_offset + l);
                     std::memset(key_cache_ptr,
@@ -3365,7 +3364,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                                 S * k_cache.m_element_size / get_sub_byte_multiplier(k_cache.get_precision()));
                     // zero out value cache
                     auto* value_cache_ptr =
-                        v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type>(block_number,
+                        v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(block_number,
                                                                                               h,
                                                                                               block_offset + l);
                     std::memset(value_cache_ptr,

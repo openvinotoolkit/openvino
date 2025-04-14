@@ -234,8 +234,9 @@ static void find_params_by_channel(const T* src,
             min = std::min(min, tmp);
         }
         float temp_scale = (max - min) / integer_range;
-        if (temp_scale == 0)
+        if (temp_scale == 0) {
             temp_scale = 0.0001f;
+        }
         float temp_zp = -min / temp_scale;
         scale[j] = temp_scale;
         zp[j] = temp_zp;
@@ -528,7 +529,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
         auto prev_nums = past_len % block_size;
         size_t block_offset = block_number_start + past_len / block_size;
         auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_offset;
-        for (size_t block_id = 0; block_id < total_blocks; block_id++) {
+        parallel_for(total_blocks, [&](size_t block_id) {
             size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id];
             auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
             auto base = dst.ptr<uint8_t>(block_number, h, 0, 0);
@@ -542,7 +543,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
             } else {
                 // first block may have pre-filled data, the offset of first block is prev_nums, following
                 // blocks have offset = block_size
-                valid_length = std::min(static_cast<size_t>(q_len) - block_size * block_id - prev_nums, block_size);
+                valid_length = std::min(static_cast<size_t>(q_len) + prev_nums - block_size * block_id, block_size);
             }
             if (is_first_block && prev_nums) {
                 attn_dequant_by_channel_kernel<float, DST_PREC>(p_data,
@@ -572,7 +573,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
                                                  p_scales,
                                                  p_zps);
             }
-        }
+        });
     }
 }
 
@@ -715,8 +716,9 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     } else {
         parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
             auto slot = slot_mapping.ptr<int32_t>(b)[m];
-            if (slot < 0)
+            if (slot < 0) {
                 return;
+            }
             auto block_number = slot / block_size;
             auto block_offset = slot % block_size;
             quantize_block_by_dims<T, KEY_DST_PREC>(k_src, k_dst, b, h, m, block_number, block_offset, key_group_size);
