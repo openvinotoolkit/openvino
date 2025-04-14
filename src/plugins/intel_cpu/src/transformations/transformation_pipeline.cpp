@@ -986,8 +986,9 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
-    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true, false); //TODO: think if we need the lsat parameter
+    CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true, false);
+    std::cout << "disabled pass" << std::endl;
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 

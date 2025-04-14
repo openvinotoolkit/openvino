@@ -1038,7 +1038,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // not working properly.
         manager.register_pass<ov::pass::Validate>();
 
-        manager.register_pass<ov::pass::RoPEFusion>(true);
+        manager.register_pass<ov::pass::RoPEFusion>(true, false);
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();

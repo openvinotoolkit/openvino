@@ -21,8 +21,43 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace ov::gen_pattern;
+
+bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(RoPEFusion);
+    std::cout << "SETTING UP RoPEFusion" << std::endl;
+
+    ov::pass::SymbolicOptimizations symbolic_optimizations(m_full_run);
+    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
+    // optional heads & tails are fused in separate matcher pass,
+    // after RoPENode has been created.
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionCosSinPreprocess>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionIOSlicing>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionPreprocess>();
+
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1);
+    if (m_support_2d_rope) {
+        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0, true);
+        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1, true);
+    }
+
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(0);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(1);
+
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
+
+    std::cout << "About to run the transformations" << std::endl;
+    bool a = symbolic_ctx_manager->run_passes(model);
+    std::cout << "Run the transformations" << std::endl;
+    return a;
+}
 
 // This is a utility function used in the work around in ChatGLM pattern.
 // Since the existing implementation of Symbols don't allow for checking
@@ -90,6 +125,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     auto result = y;
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        std::cout << "START OF RoPEFusionFlux" << std::endl;
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -126,6 +162,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
 
         // this new node may match following additional matchers
         register_new_node(new_node);
+        std::cout << "END OF RoPEFusionFlux" << std::endl;
 
         return true;
     };
