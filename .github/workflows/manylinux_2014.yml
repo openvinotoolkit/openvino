@@ -192,7 +192,7 @@ jobs:
                 python${PY_VER} -c 'import sys; print(sys.exec_prefix)'
                 py_exec_folder=$(python${PY_VER} -c 'import sys; print(sys.exec_prefix)')
                 echo "${py_exec_folder}"
-                export PATH=$(python${PY_VER} -c "import sys; print(sys.exec_prefix)")/bin:\$PATH
+                export PATH=$(python${PY_VER} -c 'import sys; print(sys.exec_prefix)')/bin:\$PATH
                 echo "${PATH}"
                 PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
                 export "PIP_CACHE_DIR=/work/pip_cache/${PIP_VER}"
