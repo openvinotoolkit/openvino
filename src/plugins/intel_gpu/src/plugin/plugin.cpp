@@ -639,6 +639,8 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
         capabilities.emplace_back(ov::device::capability::INT8);
     if (info.supports_immad)
         capabilities.emplace_back(ov::intel_gpu::capability::HW_MATMUL);
+    if (info.supports_usm)
+        capabilities.emplace_back(ov::intel_gpu::capability::USM_MEMORY);
     capabilities.emplace_back(ov::device::capability::EXPORT_IMPORT);
 
     return capabilities;

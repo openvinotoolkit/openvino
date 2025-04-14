@@ -166,6 +166,12 @@ namespace capability {
  */
 constexpr static const auto HW_MATMUL = "GPU_HW_MATMUL";
 
+/**
+ * @brief Device supports unified shared memory
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+constexpr static const auto USM_MEMORY = "GPU_USM_MEMORY";
+
 }  // namespace capability
 }  // namespace intel_gpu
 }  // namespace ov
