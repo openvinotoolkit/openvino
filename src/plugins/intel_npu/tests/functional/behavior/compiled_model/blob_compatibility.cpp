@@ -11,36 +11,6 @@
 
 using namespace ov::test::behavior;
 
-enum class E_DUMMY_MODELS { DUMMY_MODEL, DUMMY_MODEL_STATEFUL, DUMMY_MODEL_DYNAMIC_SHAPES };
-
-const std::map<E_DUMMY_MODELS, std::string> DUMMY_MODELS{
-    {E_DUMMY_MODELS::DUMMY_MODEL, "dummy_model"},
-    {E_DUMMY_MODELS::DUMMY_MODEL_STATEFUL, "dummy_model_stateful"},
-    {E_DUMMY_MODELS::DUMMY_MODEL_DYNAMIC_SHAPES, "dummy_model_dynamic_shapes"}};
-
-enum class E_PLATFORMS {
-    MTL,
-    LNL,
-};
-
-const std::map<E_PLATFORMS, std::string> PLATFORMS{{E_PLATFORMS::MTL, "MTL"}, {E_PLATFORMS::LNL, "LNL"}};
-const std::map<std::string, E_PLATFORMS> PARSED_PLATFORMS{{"NPU3720", E_PLATFORMS::MTL}, {"NPU4000", E_PLATFORMS::LNL}};
-
-enum class E_OV_VERSIONS {
-    OV_2024_6_0,
-    OV_2025_0_0,
-    OV_2025_1_0,
-};
-
-const std::map<E_OV_VERSIONS, std::string> OV_VERSIONS{{E_OV_VERSIONS::OV_2024_6_0, "ov_2024_6_0"},
-                                                       {E_OV_VERSIONS::OV_2025_0_0, "ov_2025_0_0"},
-                                                       {E_OV_VERSIONS::OV_2025_1_0, "ov_2025_1_0"}};
-
-enum class E_DRIVERS { DRIVER_1688, DRIVER_3967 };
-
-const std::map<E_DRIVERS, std::string> DRIVERS{{E_DRIVERS::DRIVER_1688, "driver_1688"},
-                                               {E_DRIVERS::DRIVER_3967, "driver_1003967"}};
-
 const auto all_models = []() -> std::vector<std::string> {
     std::vector<std::string> models(DUMMY_MODELS.size());
     std::transform(DUMMY_MODELS.begin(),
@@ -53,7 +23,9 @@ const auto all_models = []() -> std::vector<std::string> {
 }();
 
 const auto match_platform =
-    PLATFORMS.at(PARSED_PLATFORMS.at(ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM));
+    !ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM.empty()
+        ? PLATFORMS.at(PARSED_PLATFORMS.at(ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM))
+        : "";
 
 const auto mismatched_platforms = []() -> std::vector<std::string> {
     std::vector<std::string> platforms(PLATFORMS.size());
@@ -111,6 +83,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
                                             ::testing::ValuesIn(all_drivers_except_pv)),
                          ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU>);
 
+#ifdef _WIN32  // Linux supports only ELF backend
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
                          OVBlobCompatibilityNPU_PV_Driver_No_Throw,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
@@ -119,6 +92,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Behavior_NPU,
                                             ::testing::ValuesIn(all_ov_releases),
                                             ::testing::Values(DRIVERS.at(E_DRIVERS::DRIVER_1688))),
                          ov::test::utils::appendPlatformTypeTestName<OVBlobCompatibilityNPU_PV_Driver_No_Throw>);
+#endif
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Behavior_NPU,
