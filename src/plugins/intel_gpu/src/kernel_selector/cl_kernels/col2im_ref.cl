@@ -28,6 +28,24 @@ KERNEL(col2im_ref)(const __global INPUT0_TYPE* input,
         const int width_offset = column % kernel_size[1];
         const int height_offset = (column / kernel_size[1]) % kernel_size[0];
         const int channel_idx = column / kernel_product;
+        for (int column_height_idx = 0; column_height_idx < ORIG_HEIGHT; ++column_height_idx) {
+            const int image_height_idx = column_height_idx * strides[0] - pads_begin[0] + height_offset * dilations[0];
+            if (image_height_idx >= 0 && image_height_idx < output_size[0]) {
+                for (int column_width_idx = 0; column_width_idx < ORIG_WIDTH; ++column_width_idx) {
+                    const int image_width_idx = column_width_idx * strides[1] - pads_begin[1] + width_offset * dilations[1];
+                    if (image_width_idx >= 0 && image_width_idx < output_size[1]) {
+                        const int img_idx = ((batch * channel_count + channel_idx) * output_size[0] + image_height_idx) * output_size[1] + image_width_idx;
+                        output[img_idx] = 0;
+                    }
+                }
+            }
+        }
+    }
+
+    for (int column = 0; column < channels_per_column; ++column) {
+        const int width_offset = column % kernel_size[1];
+        const int height_offset = (column / kernel_size[1]) % kernel_size[0];
+        const int channel_idx = column / kernel_product;
 
         for (int column_height_idx = 0; column_height_idx < ORIG_HEIGHT; ++column_height_idx) {
             const int image_height_idx = column_height_idx * strides[0] - pads_begin[0] + height_offset * dilations[0];
