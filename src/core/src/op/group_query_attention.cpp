@@ -25,10 +25,14 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
 
 void GroupQueryAttention::validate_and_infer_types() {
     OV_OP_SCOPE(GroupQueryAttention_validate_and_infer_types);
-    // GQA expectes the following inputs: query, key, value, past_key, past_value, seqlens_k, cos_cache, sin_cache
-    // All qkv's should have the shape [batch, num_heads, seq_len, head_size] ([B, N, S, H])
-    // It has three outputs: output of shape [B, S, N * H], and present_key/value of shape [B, N, S, H]
-    // seqlens_k is number of 1's in the attention_mask minus 1
+    // GroupQueryAttention expects the following inputs:
+    // query, key, value, past_key, past_value, seqlens_k, cos_cache, sin_cache.
+    // All qkv tensors should have the shape [batch, num_heads, seq_len, head_size] ([B, N, S, H]).
+    // The operation produces three outputs:
+    // 1. Output tensor of shape [B, S, N * H].
+    // 2. Present_key tensor of shape [B, N, S, H].
+    // 3. Present_value tensor of shape [B, N, S, H].
+    // Note: seqlens_k represents the number of 1's in the attention_mask minus 1.
 
     const auto& q_shape = get_input_partial_shape(0);
     const auto& batch_size = q_shape[0];
@@ -38,12 +42,12 @@ void GroupQueryAttention::validate_and_infer_types() {
 
     ov::Dimension output_kv_len;
     if (past_sequence_len.is_static() && sequence_len.is_static()) {
-        // NPU case. Assume past_k.shape[2] + k.shape[2] = max_seqlen, there is padding in the front of past_k.
-        // We throw away the first row of present_k, so that there is still one slot available for the next inference.
-        output_kv_len = past_sequence_len + sequence_len - 1;
-        m_is_static_input = true;
+        // For static shapes, the output length is equal to the past sequence length.
+        // This is typically used in NPU cases.
+        output_kv_len = past_sequence_len;
     } else {
-        // CPU and GPU case. Assume past KV and input QKV contain valid data, no padding.
+        // For dynamic shapes, concatenate the past and current sequence lengths.
+        // This is commonly used in CPU and GPU cases.
         output_kv_len = past_sequence_len + sequence_len;   
     }
 
