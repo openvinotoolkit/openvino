@@ -1,10 +1,10 @@
 # type: ignore
-"""
-openvino.properties.intel_cpu submodule that simulates ov::intel_cpu
-"""
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+"""
+openvino.properties.intel_cpu submodule that simulates ov::intel_cpu
+"""
 __all__ = ['denormals_optimization', 'sparse_weights_decompression_rate']
 @typing.overload
 def denormals_optimization() -> str:
