@@ -543,7 +543,7 @@ struct FusedOpsConfiguration {
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
     bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
     int GetDimIndexFromOrder(Tensor::DataChannelName val) const {
-        size_t dims_num = bfzyx_idx_order.size();
+        int dims_num = bfzyx_idx_order.size();
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
             return 0;
         } else if (val == Tensor::DataChannelName::FEATURE && dims_num >= 2) {
