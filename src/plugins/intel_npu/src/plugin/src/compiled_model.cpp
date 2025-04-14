@@ -132,10 +132,12 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     size_t mainBlobSizeBeforeVersioning = _graph->export_blob(stream);
-    size_t initBlobSizeBeforeVersioning = _initGraph->export_blob(stream);
+    size_t initBlobSizeBeforeVersioning = _initGraph ? _initGraph->export_blob(stream) : 0;
+    const std::vector<uint64_t> initBlobSizes =
+        _initGraph ? std::vector<uint64_t>{initBlobSizeBeforeVersioning} : std::vector<uint64_t>{};
     auto meta = Metadata<CURRENT_METADATA_VERSION>(initBlobSizeBeforeVersioning + mainBlobSizeBeforeVersioning,
                                                    CURRENT_OPENVINO_VERSION,
-                                                   {initBlobSizeBeforeVersioning});
+                                                   initBlobSizes);
     meta.write(stream);
 }
 
