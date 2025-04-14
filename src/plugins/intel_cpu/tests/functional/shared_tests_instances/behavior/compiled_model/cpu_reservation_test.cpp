@@ -109,7 +109,7 @@ TEST_F(CpuReservationTest, Cpu_Reservation_CpuPinning) {
     ASSERT_EQ(res_cpu_pinning, cpu_pinning);
 }
 
-TEST_F(CpuReservationTest, Cpu_Reservation_CompiledModel_Release) {
+TEST_F(CpuReservationTest, smoke_Cpu_Reservation_CompiledModel_Release) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
