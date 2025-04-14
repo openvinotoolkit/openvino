@@ -13,7 +13,7 @@
 namespace ov::intel_gpu::ocl {
 namespace {
 
-static std::vector<size_t> get_origin_size(const kernel_impl_params& params) {
+static std::vector<size_t> get_orig_size(const kernel_impl_params& params) {
     constexpr size_t spatial_dims = 2;
     const auto& desc = params.typed_desc<col2im>();
 
@@ -32,9 +32,9 @@ static std::vector<size_t> get_origin_size(const kernel_impl_params& params) {
     return orig_size;
 }
 
-bool check_ool2im_contain_batch(const kernel_impl_params& params) {
+bool check_col2im_contain_batch(const kernel_impl_params& params) {
     auto input_layout = params.get_input_layout();
-    auto orig_size = get_origin_size(params);
+    auto orig_size = get_orig_size(params);
 
     // Check input size L which is the total number of blocks : product from d=1
     // to 2 of origin size
@@ -56,10 +56,10 @@ protected:
 
         auto input_layout = params.get_input_layout();
 
-        auto orig_size = get_origin_size(params);
+        auto orig_size = get_orig_size(params);
 
         // Consider input tensor : (N, C * Product(kernel_size), L)
-        bool is_batched = check_ool2im_contain_batch(params);
+        bool is_batched = check_col2im_contain_batch(params);
 
         const auto num_blocks = is_batched ? input_layout.spatial(1) : input_layout.feature();
 
@@ -111,7 +111,7 @@ protected:
             auto input_layout = params.get_input_layout();
             auto output_layout = params.get_output_layout();
 
-            bool is_batched = check_ool2im_contain_batch(params);
+            bool is_batched = check_col2im_contain_batch(params);
 
             const auto batches = is_batched ? (size_t)output_layout.batch() : (size_t)1;
 

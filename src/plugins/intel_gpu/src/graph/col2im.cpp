@@ -39,7 +39,7 @@ std::vector<layout> col2im_inst::calc_output_layouts(col2im_node const& node, ke
     auto output_format = input_layout.format;
 
     auto reshaped_input = input_layout;
-    if (input_layout.get_rank() >= 4) {
+    if (input_layout.is_static() && input_layout.get_rank() >= 4) {
         bool is_batched = true;
         auto num_blocks_l = input_layout.spatial(1);
         if (num_blocks_l == 1 && !validate_num_blocks(impl_param, input_layout.spatial(1))) {
