@@ -67,12 +67,12 @@ void PortDescriptor::set_subtensor(const VectorDims& subtensor) {
 }
 
 void PortDescriptor::set_reg(Reg reg) {
-    OPENVINO_ASSERT(m_reg.type != RegType::ignored, "Failed to set reg: reg with 'ignored' type mustn't be changed");
+    OPENVINO_ASSERT(m_reg.type != RegType::address, "Failed to set reg: reg with 'address' type mustn't be changed");
     m_reg = std::move(reg);
 }
 
 void PortDescriptor::set_reg_type(RegType type) {
-    OPENVINO_ASSERT(m_reg.type != RegType::ignored, "Failed to set reg type: ignored reg type mustn't be changed");
+    OPENVINO_ASSERT(m_reg.type != RegType::address, "Failed to set reg type: address reg type mustn't be changed");
     m_reg.type = type;
 }
 
@@ -214,13 +214,13 @@ PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const Output<cons
 
 void PortDescriptorUtils::set_ignored_reg_type(const ov::Input<ov::Node>& in) {
     auto desc = get_port_descriptor_ptr(in);
-    desc->set_reg_type(RegType::ignored);
+    desc->set_reg_type(RegType::address);
     set_port_descriptor_ptr(in, desc);
 }
 
 void PortDescriptorUtils::set_ignored_reg_type(const ov::Output<ov::Node>& out) {
     auto desc = get_port_descriptor_ptr(out);
-    desc->set_reg_type(RegType::ignored);
+    desc->set_reg_type(RegType::address);
     set_port_descriptor_ptr(out, desc);
 }
 

@@ -24,7 +24,7 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
         std::vector<ExpressionPtr> internal_parameters;
         internal_parameters.reserve(linear_ir.get_parameters().size());
         for (const auto& param : linear_ir.get_parameters()) {
-            if (!param->get_output_port_descriptor(0)->get_reg().is_ignored()) {
+            if (!param->get_output_port_descriptor(0)->get_reg().is_address()) {
                 internal_parameters.push_back(param);
             }
         }
@@ -189,12 +189,12 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             mapped_live_regs.insert(assigned_reg_map[live_reg]);
         expr->set_live_regs(mapped_live_regs);
         for (const auto& in : expr->get_input_port_descriptors()) {
-            if (!in->get_reg().is_ignored()) {
+            if (!in->get_reg().is_address()) {
                 in->set_reg(assigned_reg_map[in->get_reg()]);
             }
         }
         for (const auto& out : expr->get_output_port_descriptors()) {
-            if (!out->get_reg().is_ignored()) {
+            if (!out->get_reg().is_address()) {
                 out->set_reg(assigned_reg_map[out->get_reg()]);
             }
         }
