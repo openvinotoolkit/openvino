@@ -89,7 +89,7 @@ jobs:
       os: 'ubuntu_20_04'
       build-contrib: true
       build-debian-packages: true
-      build-js: true
+      build-js: false
       build-rpm-packages: false
       cmake-options: >- 
             -G 'Ninja Multi-Config'
