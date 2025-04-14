@@ -44,6 +44,7 @@ public:
     }
 
 protected:
+    int64_t axis_gatherElements;
     std::shared_ptr<ov::Model> init_subgraph(std::tuple<std::vector<ov::Shape>, std::vector<int64_t>, std::vector<size_t>>& input_params,
                                              const ov::element::Type input_precision) {
         std::vector<ov::Shape> input_shape;
@@ -52,12 +53,13 @@ protected:
         std::tie(input_shape, axis, numSplits) = input_params;
 
         int64_t axis_variadicSplit = axis[0];
-        int64_t axis_gatherElements = axis[1];
+        axis_gatherElements = axis[1];
         std::vector<size_t> connectIndexes = {0, 1};
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(input_precision, ov::Shape(input_shape[0])),
                                   std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape(input_shape[1])),
                                   std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape(input_shape[2]))};
-
+        input[1]->set_friendly_name("gather0");
+        input[2]->set_friendly_name("gather1");
         // Use VariadicSplit to make padding input for GatherElements. Padding is generated from buffer fusing pass
         auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, axis_variadicSplit);
         auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{numSplits.size()}, numSplits);
@@ -89,17 +91,16 @@ protected:
         const auto& funcInputs = function->inputs();
         for (size_t i = 0lu; i < funcInputs.size(); i++) {
             const auto& funcInput = funcInputs[i];
-            ov::Tensor tensor;
-            if (funcInput.get_element_type().is_real()) {
-                ov::test::utils::InputGenerateData in_data;
-                in_data.start_from = 0;
-                in_data.range = 10;
-                in_data.resolution = 1000;
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = 0;
+            in_data.resolution = 1000;
+            if (funcInput.get_node()->get_friendly_name() == "gather0" || funcInput.get_node()->get_friendly_name() == "gather1") {
+                in_data.range = funcInput.get_shape()[axis_gatherElements];
             } else {
-                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                in_data.range = 1000;
             }
 
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
