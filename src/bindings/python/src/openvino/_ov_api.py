@@ -4,7 +4,7 @@
 
 import io
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict
+from typing import Any, Iterator, Union, Optional, Dict
 from typing import Type as TypingType
 from pathlib import Path
 import traceback  # noqa: F811
@@ -296,7 +296,7 @@ class CompiledModel(CompiledModelBase):
         super().__init__(other)
 
     def get_runtime_model(self) -> Model:
-        return Model(super().get_runtime_model())
+        return super().get_runtime_model()
 
     def create_infer_request(self) -> InferRequest:
         """Creates an inference request object used to infer the compiled model.
@@ -467,7 +467,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
     a simple pipeline.
     """
 
-    def __iter__(self) -> Iterable[InferRequest]:
+    def __iter__(self) -> Iterator[InferRequest]:
         """Allows to iterate over AsyncInferQueue.
 
         Resulting objects are guaranteed to work with read-only methods like getting tensors.
@@ -730,7 +730,7 @@ def compile_model(
     message="Please use openvino.Type.dynamic instead.",
     stacklevel=2,
 )
-def undefined_deprecated(self):  # type: ignore
+def undefined_deprecated(self):
     return Type.dynamic
 
 
