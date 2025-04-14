@@ -239,3 +239,10 @@ ov_property_key_enable_mmap;
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_auto_batch_timeout;
+
+/**
+ * @brief Read-write property
+ * @ingroup ov_property_key_intel_gpu_config_file
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_intel_gpu_config_file;
