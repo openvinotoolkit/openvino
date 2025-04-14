@@ -79,6 +79,7 @@ template <>
 class typed_primitive_inst<moe_expert> : public typed_primitive_inst_base<moe_expert> {
     using parent = typed_primitive_inst_base<moe_expert>;
     using parent::parent;
+    using primitive_inst::update_output_memory;
 
 public:
     template<typename ShapeType>

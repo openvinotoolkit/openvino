@@ -354,6 +354,7 @@ protected:
         jit.make("GATHER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->get_hidden_size());
         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
     }
 
@@ -394,6 +395,7 @@ protected:
         jit.make("SCATTER_ENABLE", 1);
         jit.make("HIDDEN_SIZE", desc->get_hidden_size());
         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
     }
 
@@ -622,13 +624,14 @@ public:
             } else {
                 x = scratch.x;
                 // gather
+                OPENVINO_ASSERT(hidden_size % 16 == 0);
                 execute_stage(events,
                               instance,
                               *gather,
                               {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem->batch, expert_mask_mem->topk},
                               {x, scratch.routing_weights},
                               {static_cast<size_t>(n_token), static_cast<size_t>(hidden_size)},
-                              {1, 1});
+                              {1, 16});
             }
             {
                 // up
@@ -712,13 +715,14 @@ public:
                                convert2dnnl(scratch.y, {static_cast<int>(n_token), hidden_size}, dnnl::memory::format_tag::ab),
                                convert2dnnl(scratch.routing_weights, {n_token * max_topk}, dnnl::memory::format_tag::a));
                 // index add
+                OPENVINO_ASSERT(hidden_size % 16 == 0);
                 execute_stage(events,
                               instance,
                               *scatter,
                               {scratch.y, expert_mask_mem->batch},
                               {final_hidden_states_mem_ptr},
                               {static_cast<size_t>(n_token), static_cast<size_t>(hidden_size)},
-                              {1, 1});
+                              {1, 16});
             }
         }
         cldnn::event::ptr result_event;

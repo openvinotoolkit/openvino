@@ -7,7 +7,7 @@
 
 
 #if GATHER_ENABLE
-
+__attribute__((intel_reqd_sub_group_size(16)))
 KERNEL (gather_2d_ref)(
     const __global TYPE* src_tok,
     const __global TYPE* src_rweight,
@@ -23,7 +23,15 @@ KERNEL (gather_2d_ref)(
     src_tok += tok_idx * HIDDEN_SIZE;
     dst_tok += k * HIDDEN_SIZE;
 
-    dst_tok[off] = src_tok[off];
+    #if TYPE_SIZE == 2
+        ushort value = intel_sub_group_block_read_us((const __global ushort *)(src_tok + off));
+        intel_sub_group_block_write_us((__global ushort *)(dst_tok + off), value);
+    #elif TYPE_SIZE == 4
+        uint value = intel_sub_group_block_read((const __global uint *)(src_tok + off));
+        intel_sub_group_block_write((__global uint *)(dst_tok + off), value);
+    #else
+        dst_tok[off] = src_tok[off];
+    #endif
 
     if (off == 0) {
         int top_idx = top_index[k];
@@ -33,6 +41,7 @@ KERNEL (gather_2d_ref)(
 
 #elif SCATTER_ENABLE
 
+__attribute__((intel_reqd_sub_group_size(16)))
 KERNEL (index_add_)(const __global TYPE* src_tok,
     __global int * tok_index,
     __global TYPE* dst_tok) {
