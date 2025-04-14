@@ -3,8 +3,14 @@
 
 import numpy.testing as npt
 import openvino as ov
+import os
 import pytest
 import torch
+
+
+def get_num_pytest_workers():
+    # PYTEST_XDIST_WORKER_COUNT is set by pytest-xdist when running with -n
+    return int(os.environ.get("PYTEST_XDIST_WORKER_COUNT", "1"))
 
 
 # do not test via PytorchLayerTest since PytorchLayerTest triggers own TorchScript tracing
@@ -25,6 +31,8 @@ class TestBuiltinDivmod():
         (builtin_divmod(), torch.randn(2, 3, 28)),
     ])
     def test_builtin_divmod(self, fw_model, inputs, ie_device, precision):
+        if get_num_pytest_workers() != 1:
+            pytest.skip(reason="test passes only for the single worker in pytest.")
 
         example_input = inputs
         ov_model = ov.convert_model(input_model=fw_model, example_input=example_input)
