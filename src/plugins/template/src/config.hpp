@@ -53,7 +53,6 @@ struct Configuration {
     bool enableCpuPinning = false;
     bool enableHyperThreading = false;
     int compilation_thread_num = 1;
-  
     EncryptionCallbacks encryption_callbacks{};
     std::filesystem::path weights_path{};
     AnyMap compiled_model_runtime_properties{};
