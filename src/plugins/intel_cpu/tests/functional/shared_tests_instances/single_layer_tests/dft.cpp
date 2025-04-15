@@ -57,15 +57,14 @@ const auto testCase1D = ::testing::Combine(::testing::ValuesIn(input_shapes),
 const std::vector<std::vector<int64_t>> axes2D = {{0, 1}, {2, 1}, {2, 3}, {2, 0}, {1, 3}, {-1, -2}};
 const std::vector<std::vector<int64_t>> signalSizes2D = {{}, {5, 7}, {4, 10}, {16, 8}};
 
-const auto testCase2D =
-    ::testing::Combine(::testing::ValuesIn(input_shapes),
-                       ::testing::ValuesIn(input_type),
-                       ::testing::ValuesIn(axes2D),
-                       ::testing::ValuesIn(signalSizes2D),
-                       ::testing::ValuesIn(op_types),
-                       ::testing::Values(ov::test::utils::DEVICE_CPU),
-                       ::testing::ValuesIn(axes_in_type),
-                       ::testing::ValuesIn(signal_size_in_type));
+const auto testCase2D = ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                           ::testing::ValuesIn(input_type),
+                                           ::testing::ValuesIn(axes2D),
+                                           ::testing::ValuesIn(signalSizes2D),
+                                           ::testing::ValuesIn(op_types),
+                                           ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                           ::testing::ValuesIn(axes_in_type),
+                                           ::testing::ValuesIn(signal_size_in_type));
 
 /* 3D DFT */
 
@@ -95,7 +94,7 @@ const std::vector<std::vector<int64_t>> axes4D = {{0, 1, 2, 3}, {-1, 2, 0, 1}};
 const std::vector<std::vector<int64_t>> signalSizes4D = {{}, {5, 2, 5, 2}};
 
 const auto testCase4D =
-    ::testing::Combine(::testing::ValuesIn(input_shapes),
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
                        ::testing::ValuesIn(input_type),
                        ::testing::ValuesIn(axes4D),
                        ::testing::ValuesIn(signalSizes4D),
