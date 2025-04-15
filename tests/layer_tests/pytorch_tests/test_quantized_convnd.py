@@ -69,7 +69,7 @@ class TestQuantizedConv1D(PytorchLayerTest):
     @pytest.mark.parametrize("zero_point", [0, 1])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_quantized_conv1d(self, params, bias, ie_device, precision, ir_version, scale, zero_point):
+    def test_conv1d(self, params, bias, ie_device, precision, ir_version, scale, zero_point):
         self._test(*self.create_model(**params, bias=bias, scale=scale, zero_point=zero_point),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, quantized_ops=True, quant_size=scale)
 
@@ -152,5 +152,3 @@ class TestQuantizedConv2D(PytorchLayerTest):
                                scale=scale, zero_point=zero_point),
             ie_device, precision, ir_version, trace_model=True, freeze_model=False, quantized_ops=True, quant_size=scale
         )
-
-    
