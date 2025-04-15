@@ -129,9 +129,13 @@ pass::MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& convert_node = as_type_ptr<ov::op::v0::Convert>(m.get_match_root());
-        const auto& const_node = convert_node->input_value(0).get_node_shared_ptr();
-        if (convert_node == nullptr || const_node == nullptr)
+        if (convert_node == nullptr)
             return false;
+
+        const auto& const_node = convert_node->input_value(0).get_node_shared_ptr();
+        if (const_node == nullptr)
+            return false;
+
         if (convert_node->get_destination_type() != element::f32)
             return false;
         if (const_node->get_output_element_type(0) != element::f16 &&
