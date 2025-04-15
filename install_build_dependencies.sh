@@ -93,6 +93,7 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
     yum update
     # RHEL 8 / CentOS 7 / Fedora 29
     if [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
+        cat /etc/redhat-release
         if [[ "$ID" == "fedora" ]]; then
             yum install -y fedora-repos
         else
