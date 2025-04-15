@@ -1747,6 +1747,57 @@ TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcatMismatch) {
     }
 }
 
+TEST_F(TransformationTestsF, EliminateConcatStridedSliceTopKConcat) {
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 10, 3});
+        auto param2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 10, 4});
+        auto concat = make_shared<ov::op::v0::Concat>(ov::as_output_vector({param1, param2}), axis);
+
+        auto begin_const1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0});
+        auto end_const1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
+        auto strided_slice1 = std::make_shared<ov::op::v1::StridedSlice>(concat,
+                                                                         begin_const1,
+                                                                         end_const1,
+                                                                         std::vector<int64_t>{1, 1, 0},
+                                                                         std::vector<int64_t>{1, 1, 0});
+        auto topk = std::make_shared<ov::op::v1::TopK>(strided_slice1,
+                                                       ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
+                                                       axis,
+                                                       op::v1::TopK::Mode::MAX,
+                                                       op::v1::TopK::SortType::NONE);
+
+        auto begin_const2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 3});
+        auto end_const2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 7});
+        auto strided_slice2 = std::make_shared<ov::op::v1::StridedSlice>(concat,
+                                                                         begin_const2,
+                                                                         end_const2,
+                                                                         std::vector<int64_t>{1, 1, 0},
+                                                                         std::vector<int64_t>{1, 1, 0});
+        auto topk_values = std::make_shared<ov::op::v0::Result>(topk->output(0));
+        auto concat1 = make_shared<ov::op::v0::Concat>(ov::as_output_vector({topk_values, strided_slice2}), axis);
+
+        auto result = std::make_shared<op::v0::Result>(concat1);
+        model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2});
+        manager.register_pass<ov::pass::EliminateConcatStridedSlice>();
+    }
+    {
+        int64_t axis = 2;
+        auto param1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 10, 3});
+        auto param2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 10, 4});
+        auto axis_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, axis);
+        auto topk = std::make_shared<ov::op::v1::TopK>(param1,
+                                                       ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
+                                                       axis,
+                                                       op::v1::TopK::Mode::MAX,
+                                                       op::v1::TopK::SortType::NONE);
+        auto topk_values = std::make_shared<ov::op::v0::Result>(topk->output(0));
+        auto concat = make_shared<ov::op::v0::Concat>(ov::as_output_vector({topk_values, param2}), axis);
+        auto result = std::make_shared<op::v0::Result>(concat);
+        model_ref = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param1, param2});
+    }
+}
+
 TEST_F(TransformationTestsF, EliminateConcatStridedSliceConcatDiffAxis) {
     {
         int64_t axis = 2;
