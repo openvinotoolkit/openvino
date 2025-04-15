@@ -28,11 +28,11 @@ using namespace std;
 using namespace ov::element;
 using namespace ov::pass::pattern;
 
-// The parameters of the inner loop have different
-// shapes in the newer version of the model,
-// so we need to use Unsqueeze and Transpose to
-// obtain the shapes the transfomation expects.
-static std::shared_ptr<ov::Node> get_bias_add(std::shared_ptr<ov::Node> bias_add, ov::pass::NodeRegistry& rg) {
+// The 1st input to the Add op is automatically broadcasted
+// from 1d to 2d tensor, but to be compatible with what
+// the transformation code expectes we have to broadcast the
+// input manually from 1d to 2d using an Unsqueeze operation.
+static std::shared_ptr<ov::Node> get_bias_add(const std::shared_ptr<ov::Node>& bias_add, ov::pass::NodeRegistry& rg) {
     auto input_source_1_ps = bias_add->input_value(1).get_partial_shape();
     if (input_source_1_ps.is_static() && input_source_1_ps.rank().get_length() == 1) {
         auto unsqueeze =
@@ -44,7 +44,14 @@ static std::shared_ptr<ov::Node> get_bias_add(std::shared_ptr<ov::Node> bias_add
     return bias_add;
 }
 
-static std::shared_ptr<ov::Node> get_weights_matmul(std::shared_ptr<ov::Node> mat_mul, ov::pass::NodeRegistry& rg) {
+// Originally, the transformation code expects
+// the 1st input to be transposed via the attribute
+// of Matmul 'transpose_b' (hence the input tensor of the 1st
+// input is in the specific shape). However, in the
+// newer version of the model it doesn't seem to be the case,
+// so we need to insert a Transpose operation to make it
+// compatible with the code of the transformation.
+static std::shared_ptr<ov::Node> get_weights_matmul(const std::shared_ptr<ov::Node>& mat_mul, ov::pass::NodeRegistry& rg) {
     if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(mat_mul)) {
         if (!matmul->get_transpose_b()) {
             auto transpose =
