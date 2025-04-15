@@ -124,8 +124,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                     }
                     auto& weights_reorder_node = node.get_dependency(i);
                     weights_reorder_node.get_output_layout(false);
-                } else if (!((node.type() == convolution::type_id()) &&
-                             (node.get_dependency(i).get_output_layout().get_rank() == node.get_dependency(0).get_output_layout().get_rank()))) {
+                } else {
                     auto weights_reorder = _rf.get_weights_reorder(prev_node.id(), weights_reorder_params);
                     // insert new weights reorder node to topology
                     p.add_intermediate(weights_reorder.first, node, i, !weights_reorder.second);
