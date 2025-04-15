@@ -720,6 +720,10 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties,
     bool enable_runtime_cpu = properties.count(ov::intel_auto::enable_runtime_fallback.name())
                                   ? properties.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
                                   : true;
+    bool is_cumulative_tput =
+        get_device_name() != "AUTO" ||
+        (properties.count(ov::hint::performance_mode.name()) &&
+         properties.at(ov::hint::performance_mode.name()).as<std::string>() == "CUMULATIVE_THROUGHPUT");
     if (device_list_config != properties.end() && !(device_list_config->second.as<std::string>().empty())) {
         auto priorities = device_list_config->second;
         // parsing the string and splitting the comma-separated tokens
@@ -729,7 +733,8 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties,
         std::string cache_dir = properties.count(ov::cache_dir.name())
                                     ? properties.at(ov::cache_dir.name()).as<std::string>()
                                     : get_core()->get_property("", ov::cache_dir);
-        bool if_need_cache_check = enable_startup_cpu && (model || !model_path.empty()) && !cache_dir.empty();
+        bool if_need_cache_check =
+            !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) && !cache_dir.empty();
         if (if_need_cache_check) {
             for (auto&& device : devices_to_be_merged) {
                 ov::DeviceIDParser parsed{device};
