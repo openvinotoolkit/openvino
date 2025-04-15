@@ -2267,7 +2267,8 @@ TEST(reduce_f32_fw_gpu, large_buffer) {
     auto input = network.get_output_memory("input");
     {
         mem_lock<float, mem_lock_type::write> l(input, get_test_stream());
-        for (size_t i = 0; i < ov::shape_size(sz_8gb); i++) {
+        const size_t test_size = ov::shape_size(sz_8gb);        
+        for (size_t i = 0; i < test_size; i++) {
             l[i] = static_cast<float>(i) / s0;
         }
     }
