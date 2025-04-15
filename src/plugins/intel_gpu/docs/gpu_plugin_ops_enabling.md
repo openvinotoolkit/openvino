@@ -21,7 +21,6 @@
         * For example, [replace reduce with pooling](https://github.com/openvinotoolkit/openvino/blob/6af35c0ae5fee43955ce5bffb4cffbce9ba0e11a/src/plugins/intel_gpu/src/plugin/transformations_pipeline.cpp#L659).
 
 1. Add new / extend existing GPU primitive according to the operation spec.
-    1. Existing primitive can be located in [legacy infra](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/src/graph/impls/ocl) or in [new infra](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/src/graph/impls/ocl_v2) for unified kernel selection
     1. This phase is to enable primitive within GPU plugin, without exposing it to IE.
     1. Implement **reference parallel kernel** that supports all parameters of the operation and all input/output data types and layouts.
 
@@ -35,9 +34,7 @@
         | [src/graph/group_normalization.cpp](https://github.com/openvinotoolkit/openvino/blob/102ebddb3ce484cfc99142038b4dd1e48057b703/src/plugins/intel_gpu/src/graph/group_normalization.cpp) | Code for group_normalization_inst.h |
         | [primitives/group_normalization.hpp](https://github.com/openvinotoolkit/openvino/blob/102ebddb3ce484cfc99142038b4dd1e48057b703/src/plugins/intel_gpu/include/intel_gpu/primitives/group_normalization.hpp) | GPU primitive definition |
         | [common_types.h](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/src/kernel_selector/common_types.h) | Enum declaration for KernelType and arguments |
-        * Legacy infra for OCL kernels has seperate primitive registration for input specifications and kernel parameters. (e.g. [scatter_elements_update.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/src/graph/impls/ocl/scatter_elements_update.cpp))
-            But new infra `ocl_v2` approach does not need it.
-        * For porting existing kernels to `ocl_v2` approach, it should remove legacy primitive registration at [impls/ocl/register.(cpp,hpp)](https://github.com/openvinotoolkit/openvino/blob/102ebddb3ce484cfc99142038b4dd1e48057b703/src/plugins/intel_gpu/src/graph/impls/ocl/register.hpp).
+        * For porting existing kernels to `ocl_v2` approach, it should remove legacy primitive registration at [impls/ocl/register.(cpp,hpp)](https://github.com/openvinotoolkit/openvino/blob/102ebddb3ce484cfc99142038b4dd1e48057b703/src/plugins/intel_gpu/src/graph/impls/ocl/register.hpp). Also primitive registration for input specifications and kernel parameters is not necessary for `ocl_v2`.(e.g.  [scatter_elements_update.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/src/graph/impls/ocl/scatter_elements_update.cpp))
     1. Add unit tests for the new operation.
 
         | File | Description |
