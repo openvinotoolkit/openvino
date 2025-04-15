@@ -94,15 +94,15 @@ OutputVector translate_quantized_convnd(const NodeContext& context) {
     return {quantize(context, translate_quantized_convnd_base(context, false), scale, zero_point, context.get_input(0))};
 }
 
-OutputVector translate_quantized_conv1d_relu(const NodeContext& context) {
+// OutputVector translate_quantized_conv1d_relu(const NodeContext& context) {
 
-    num_inputs_check(context, 4, 4);
-    auto scale = context.get_input(2);
-    auto zero_point = context.get_input(3);
-    auto conv = translate_quantized_convnd_base(context, true);
-    auto relu = context.mark_node(std::make_shared<v0::Relu>(conv));
-    return {quantize(context, relu->output(0), scale, zero_point, context.get_input(0))};
-}
+//     num_inputs_check(context, 4, 4);
+//     auto scale = context.get_input(2);
+//     auto zero_point = context.get_input(3);
+//     auto conv = translate_quantized_convnd_base(context, true);
+//     auto relu = context.mark_node(std::make_shared<v0::Relu>(conv));
+//     return {quantize(context, relu->output(0), scale, zero_point, context.get_input(0))};
+// }
 
 
 OutputVector translate_quantized_convnd_relu(const NodeContext& context) {
