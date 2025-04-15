@@ -369,6 +369,13 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
     std::map<std::string, std::string> config;
 
     std::ifstream file(FLAGS_c);
+
+    // Check if the file exists, throws exception if it doesn't
+    if (!file.is_open() && !FLAGS_c.empty()) {
+        throw std::runtime_error("[ERROR] Configuration file " + FLAGS_c + " cannot be opened. " +
+                                 "Check if the file path is correct and that the file exists");
+    }
+
     if (file.is_open()) {
         std::string option;
         while (std::getline(file, option)) {
