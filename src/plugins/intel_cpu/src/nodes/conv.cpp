@@ -317,7 +317,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
         std::vector<impl_desc_type> result;
         std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result), [](impl_desc_type type) {
-            return !(type & impl_desc_type::brgconv);
+            return (type & impl_desc_type::brgconv) == 0;
         });
         return result;
     }();
@@ -491,9 +491,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         };
 
         for (const auto& desc : nodeDescriptors) {
-            if (m_atoi.count(desc.first)) {
+            if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
                 const auto& inputDesc = desc.second;
-                nodeConfig.inConfs[m_atoi[desc.first]] = {inputDesc, getBlockedMask(inputDesc, m_attrs.isGrouped)};
+                nodeConfig.inConfs[it->second] = {inputDesc, getBlockedMask(inputDesc, m_attrs.isGrouped)};
             }
         }
 
