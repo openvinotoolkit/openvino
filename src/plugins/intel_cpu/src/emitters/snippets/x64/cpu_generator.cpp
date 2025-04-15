@@ -79,9 +79,9 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
     // default active for typical tensor memory access emitters
     bool ret = false;
     ret = is_load_emitter(emitter) || is_store_emitter(emitter) ||
-          dynamic_cast<const intel_cpu::jit_brgemm_emitter*>(emitter) ||
-          dynamic_cast<const intel_cpu::jit_brgemm_copy_b_emitter*>(emitter) ||
-          dynamic_cast<const intel_cpu::jit_kernel_emitter*>(emitter);
+          (dynamic_cast<const intel_cpu::jit_brgemm_emitter*>(emitter) != nullptr) ||
+          (dynamic_cast<const intel_cpu::jit_brgemm_copy_b_emitter*>(emitter) != nullptr) ||
+          (dynamic_cast<const intel_cpu::jit_kernel_emitter*>(emitter) != nullptr);
     return ret;
     // use below code to active all emitters for extend usage
     // return !dynamic_cast<const jit_nop_emitter*>(emitter);
@@ -130,25 +130,24 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
                 return e_type::get_supported_precisions(n);                                               \
             }                                                                                             \
     }
-
-#define CREATE_CPU_EMITTER(e_type)                                                                   \
-    {                                                                                                \
-        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            return std::make_shared<e_type>(h.get(), isa, expr->get_node());                         \
-        },                                                                                           \
-            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                return e_type::get_supported_precisions(n);                                          \
-            }                                                                                        \
+#define CREATE_CPU_EMITTER(e_type)                                                                                    \
+    {                                                                                                                 \
+        [this]([[maybe_unused]] const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+            return std::make_shared<e_type>(h.get(), isa, expr->get_node());                                          \
+        },                                                                                                            \
+            []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
+                return e_type::get_supported_precisions(n);                                                           \
+            }                                                                                                         \
     }
 
-#define CREATE_UNDEFINED_EMITTER(supported_precisions)                                           \
-    {                                                                                            \
-        [](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            return nullptr;                                                                      \
-        },                                                                                       \
-            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {     \
-                return supported_precisions;                                                     \
-            }                                                                                    \
+#define CREATE_UNDEFINED_EMITTER(supported_precisions)                                                            \
+    {                                                                                                             \
+        []([[maybe_unused]] const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+            return nullptr;                                                                                       \
+        },                                                                                                        \
+            []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {     \
+                return supported_precisions;                                                                      \
+            }                                                                                                     \
     }
 
 class jit_snippet : public dnnl::impl::cpu::x64::jit_generator {

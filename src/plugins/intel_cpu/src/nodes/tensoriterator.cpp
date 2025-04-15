@@ -164,14 +164,14 @@ public:
 
 class IterCountPortHelper : public PortMapHelper {
 public:
-    IterCountPortHelper(const MemoryPtr& to, const dnnl::engine& eng) {
+    IterCountPortHelper(const MemoryPtr& to, [[maybe_unused]] const dnnl::engine& eng) {
         // Only scalar I32 tensor is supported
         OPENVINO_ASSERT(to->getDataType() == memory::data_type::s32);
         OPENVINO_ASSERT(to->getShape() == Shape(VectorDims{1}));
         mem_holder_dst = to->getPrimitive();
     }
 
-    void execute(const dnnl::stream& strm, int n_iter) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm, int n_iter) override {
         auto mem = mem_holder_dst;
         auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
         if (data_ptr == nullptr) {
@@ -558,7 +558,7 @@ void TensorIterator::createPrimitive() {
     }
     if (loopExecutionConditionIdx == -1) {
         initial_cond_check = std::make_shared<staticValueCheck>(true);
-        lastUsedCond = initial_cond_check->getStatus();
+        lastUsedCond = (initial_cond_check->getStatus() != 0);
     }
 
     if (runAsDynamic()) {
@@ -644,7 +644,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
 
     sub_graph.ResetInferCount();
 
-    bool continue_cond = initial_cond_check->getStatus();
+    bool continue_cond = initial_cond_check->getStatus() != 0;
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
@@ -660,7 +660,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
 
         sub_graph.Infer();
 
-        continue_cond = continue_cond_check->getStatus();
+        continue_cond = (continue_cond_check->getStatus() != 0);
 
         // copy data from subgraph iteration to outputs
         // or to the next iteration inputs
@@ -678,7 +678,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& eng = getEngine();
     sub_graph.ResetInferCount();
 
-    bool continue_cond = initial_cond_check->getStatus();
+    bool continue_cond = initial_cond_check->getStatus() != 0;
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
@@ -697,7 +697,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
 
         sub_graph.Infer();
 
-        continue_cond = continue_cond_check->getStatus();
+        continue_cond = (continue_cond_check->getStatus() != 0);
 
         for (auto& buffer : buffers) {
             buffer->execute(eng, i);
@@ -805,7 +805,7 @@ void TensorIterator::prepareInitialCond(const bool compileStage) {
         auto mem = edge->getMemoryPtr();
         initial_cond_check = std::make_shared<asBoolCheck>(mem);
         if (IMPLICATION(compileStage, edge->getParent()->isConstant())) {
-            lastUsedCond = initial_cond_check->getStatus();
+            lastUsedCond = (initial_cond_check->getStatus() != 0);
         }
     }
 }

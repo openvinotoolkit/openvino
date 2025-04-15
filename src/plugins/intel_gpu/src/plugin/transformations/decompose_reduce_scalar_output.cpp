@@ -17,6 +17,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
 
 #define CREATE_REDUCE(input, reduce_const, keep_dims)                                          \
     if (ov::is_type<ov::op::v1::ReduceSum>(reduce_orig))                                       \
@@ -33,6 +34,7 @@
 ov::intel_gpu::DecomposeReduceForScalarOutput::DecomposeReduceForScalarOutput() {
     auto check_reduce_shape = [=](Output<Node> output) -> bool {
         const auto reduce = ov::as_type_ptr<op::util::ArithmeticReductionKeepDims>(output.get_node_shared_ptr());
+        OPENVINO_ASSERT(reduce != nullptr, "output is not reduce.");
         auto& input_shape = reduce->input_value(0).get_partial_shape();
         auto& reduce_shape = reduce->input_value(1).get_partial_shape();
         if (reduce_shape.is_dynamic() || reduce_shape.size() != 1) {

@@ -55,7 +55,7 @@ bool SpaceToDepth::evaluate(TensorVector& outputs, const TensorVector& inputs) c
     OPENVINO_ASSERT(outputs.size() == 1);
 
     const auto& in = inputs[0];
-    const auto& out = outputs[0];
+    auto& out = outputs[0];
     reference::space_to_depth(static_cast<const char*>(in.data()),
                               in.get_shape(),
                               static_cast<char*>(out.data()),

@@ -34,6 +34,35 @@ public:
     }
 };
 
+class ov_core_test_gpu : public ov_capi_test_base {
+public:
+    void SetUp() override {
+        core = nullptr;
+        OV_EXPECT_OK(ov_core_create(&core));
+        EXPECT_NE(nullptr, core);
+
+        // Check gpu plugin and hardware available.
+        bool gpu_device_available = false;
+        char* info = nullptr;
+        const char* key = ov_property_key_available_devices;
+        if (ov_core_get_property(core, "GPU", key, &info) == ov_status_e::OK) {
+            if (strlen(info) > 0) {
+                gpu_device_available = true;
+            }
+        }
+        ov_free(info);
+        if (!gpu_device_available) {
+            GTEST_SKIP();
+        }
+    }
+
+    void TearDown() override {
+        ov_core_free(core);
+    }
+
+    ov_core_t* core;
+};
+
 INSTANTIATE_TEST_SUITE_P(ov_core, ov_core_test, ::testing::Values("CPU"));
 
 TEST_P(ov_core_test, ov_core_create_with_config) {
@@ -123,6 +152,15 @@ TEST_P(ov_core_test, ov_core_compile_model) {
 
     ov_compiled_model_free(compiled_model);
     ov_model_free(model);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core_test, ov_core_add_extension) {
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    OV_EXPECT_OK(ov_core_add_extension(core, extension_file_path.c_str()));
     ov_core_free(core);
 }
 
@@ -720,6 +758,25 @@ TEST_P(ov_core_test, ov_core_compile_model_from_file_unicode) {
     ov_core_free(core);
 }
 #endif
+
+INSTANTIATE_TEST_SUITE_P(ov_core_gpu, ov_core_test_gpu, ::testing::Values("GPU"));
+
+TEST_P(ov_core_test_gpu, ov_core_set_get_property_gpu) {
+    auto device_name = GetParam();
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    const char* key_config = ov_property_key_intel_gpu_config_file;
+
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_config, TEST_CUSTOM_OP_CONFIG_PATH));
+
+    char* property_value_config = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_config, &property_value_config));
+    EXPECT_STREQ(TEST_CUSTOM_OP_CONFIG_PATH, property_value_config);
+
+    ov_core_free(core);
+}
 
 using ov_util_test = ov_core_test;
 INSTANTIATE_TEST_SUITE_P(ov_capi_test, ov_util_test, ::testing::Values("CPU"));
