@@ -606,6 +606,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
         }
 
         node_index_info_map mismatch_slices{};
+        bool model_changed = false;
         for (const auto& [slice_node, slice_begin, slice_end] : slice_out_index_in_concat) {
             bool matched = false;
             for (const auto& [concat_input_node, concat_input_begin, concat_input_end] : in_index_in_concat) {
@@ -613,6 +614,7 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                     auto slice_outputs = slice_node->outputs();
                     for (auto& slice_output : slice_outputs) {
                         replace_output_update_name(slice_output, concat_input_node);
+                        model_changed = true;
                     }
                     matched = true;
                     break;
@@ -622,10 +624,10 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 mismatch_slices.push_back(std::make_tuple(slice_node, slice_begin, slice_end));
         }
         if (mismatch_slices.empty())
-            return true;
+            return model_changed;
 
         if (mismatch_slices.size() == slice_out_index_in_concat.size())
-            return false;
+            return model_changed;
 
         int64_t new_start_value{std::numeric_limits<int64_t>::max()};
         int64_t new_end_value{0};
