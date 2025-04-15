@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "intel_gpu/runtime/engine.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/strides.hpp"
-
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/split.hpp"
-
-#include "openvino/opsets/opset13.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
-#include "intel_gpu/runtime/engine.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
