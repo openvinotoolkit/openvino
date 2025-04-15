@@ -1,11 +1,7 @@
 # type: ignore
-"""
-Factory functions for ops added to openvino opset13.
-"""
+from __future__ import annotations
 from functools import partial
 from functools import singledispatch
-from __future__ import annotations
-from openvino.opset1.ops import convert_like
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Output
 from openvino._pyopenvino import Shape
@@ -13,6 +9,7 @@ from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
 from openvino._pyopenvino.op import Constant
 from openvino._pyopenvino.op import Result
+from openvino.opset1.ops import convert_like
 from openvino.utils.decorators import binary_op
 from openvino.utils.decorators import nameable_op
 from openvino.utils.decorators import overloading
@@ -26,6 +23,9 @@ import numpy as np
 import openvino._pyopenvino
 import openvino.utils.decorators
 import typing
+"""
+Factory functions for ops added to openvino opset13.
+"""
 __all__ = ['Constant', 'Node', 'NodeInput', 'NumericData', 'NumericType', 'Output', 'Result', 'Shape', 'Tensor', 'Type', 'as_node', 'as_nodes', 'binary_op', 'bitwise_and', 'bitwise_not', 'bitwise_or', 'bitwise_xor', 'constant', 'convert_like', 'fake_convert', 'fake_quantize', 'log', 'logging', 'multinomial', 'nameable_op', 'nms_rotated', 'np', 'overloading', 'partial', 'result', 'scaled_dot_product_attention', 'singledispatch', 'unary_op']
 def bitwise_and(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     """
