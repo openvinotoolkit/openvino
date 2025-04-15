@@ -368,6 +368,7 @@ jobs:
             ${{ env.BUILD_DIR }}/deb
             ${{ env.MANIFEST_PATH }}
             ${{ env.STORE_JS == 'true' && format('{0}/openvino_js_package.tar.gz', env.BUILD_DIR) || '' }}
+            ${{ env.STORE_JS == 'true' && format('{0}/{1}', env.BUILD_DIR, ${{ steps.openvino_node_npm_package.outputs.archive_name }}) || '' }}
             ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}

@@ -86,6 +86,8 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       BUILD_DIR: ${{ github.workspace }}/build
     if: "!needs.smart_ci.outputs.skip_workflow"
+    outputs:
+      openvino_npm_archive_name: ${{ steps.openvino_node_npm_package.outputs.archive_name }}
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -414,5 +416,6 @@ jobs:
             ${{ env.ARTIFACTS_DIR }}/developer_package.tar.gz
             ${{ env.WHEELS_DIR }}
             ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/openvino_js_package.tar.gz', env.ARTIFACTS_DIR) || '' }}
+            ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/{1}', env.ARTIFACTS_DIR, ${{ needs.Build.outputs.openvino_npm_archive_name }}) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
