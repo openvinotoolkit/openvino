@@ -183,16 +183,12 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                 endif()
 
                 if(tbb_libs_dir STREQUAL dir)
-                    file(GLOB _tbb_libs ${TBBROOT}/${tbb_libs_dir}/*)
-                    foreach(_tbb_lib IN LISTS _tbb_libs)
-                        if(_tbb_lib MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
-                            # resolve absolute path to avoid issues with installation
-                            get_filename_component(_tbb_lib "${_tbb_lib}" REALPATH)
-                            install(PROGRAMS "${_tbb_lib}"
-                                    DESTINATION "${OV_TBBROOT_INSTALL}/${dir}"
-                                    COMPONENT ${tbb_component})
-                        endif()
-                    endforeach()
+                    install(DIRECTORY "${TBBROOT}/${dir}/"
+                            DESTINATION "${OV_TBBROOT_INSTALL}/${dir}"
+                            COMPONENT ${tbb_component}
+                            FILES_MATCHING
+                            PATTERN "*${CMAKE_SHARED_LIBRARY_SUFFIX}*"
+                            ${exclude_pattern})
                 else()
                     install(DIRECTORY "${TBBROOT}/${dir}/"
                             DESTINATION "${OV_TBBROOT_INSTALL}/${dir}"
@@ -216,12 +212,18 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         list(APPEND core_dev_components tbb_dev)
 
         if(WIN32)
-        # .lib files are needed only for Windows
-        install(DIRECTORY "${TBBROOT}/lib"
-                DESTINATION "${OV_TBBROOT_INSTALL}"
-                COMPONENT tbb_dev
-                ${OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL}
-                PATTERN "cmake" EXCLUDE)
+            # .lib files are needed only for Windows
+            install(DIRECTORY "${TBBROOT}/lib"
+                    DESTINATION "${OV_TBBROOT_INSTALL}"
+                    COMPONENT tbb_dev
+                    ${OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL}
+                    PATTERN "cmake" EXCLUDE)
+            # .pdb files are needed only for Windows
+            install(DIRECTORY "${TBBROOT}/${tbb_libs_dir}/"
+                    DESTINATION "${OV_TBBROOT_INSTALL}/${tbb_libs_dir}"
+                    COMPONENT pdb
+                    EXCLUDE_FROM_ALL
+                    FILES_MATCHING PATTERN "*.pdb")
         endif()
 
         set(TBB_LIB_INSTALL_DIR "${OV_TBBROOT_INSTALL}/${tbb_libs_dir}" CACHE PATH "TBB library install directory" FORCE)
@@ -231,6 +233,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
 
         if(WIN32)
             set(_ov_tbb_libs_path "${TBBROOT}/bin")
+            set(ov_tbb_exclude PATTERN "*.pdb" EXCLUDE)
         else()
             set(_ov_tbb_libs_path "${TBBROOT}/lib")
             set(ov_tbb_exclude PATTERN "cmake" EXCLUDE)
@@ -293,6 +296,12 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     COMPONENT tbb_dev
                     ${OV_CPACK_COMP_TBB_DEV_EXCLUDE_ALL}
                     PATTERN "cmake" EXCLUDE)
+            # .pdb files are needed only for Windows
+            install(DIRECTORY "${_ov_tbb_libs_path}"
+                    DESTINATION "${OV_TBB_DIR_INSTALL}"
+                    COMPONENT pdb
+                    EXCLUDE_FROM_ALL
+                    FILES_MATCHING PATTERN "*.pdb")
         endif()
 
         set(TBB_LIB_INSTALL_DIR "${OV_TBB_DIR_INSTALL}/${lib_subfolder}" CACHE PATH "TBB library install directory" FORCE)

@@ -15,7 +15,7 @@ are different depending on the PaddlePaddle model format.
    PaddlePaddle model serialized in a file can be loaded by ``openvino.Core.read_model``
    or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing
    OpenVINO IR first. Refer to the
-   :doc:`inference example <../running-inference/integrate-openvino-with-your-application>`
+   :doc:`inference example <../running-inference>`
    for more details. Using ``openvino.convert_model`` is still recommended if model load
    latency matters for the inference application.
 

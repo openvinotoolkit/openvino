@@ -12,6 +12,7 @@
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -316,6 +317,7 @@ public:
                                        bool runtime_alloc = false);
 
     const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
+    size_t get_max_output_layout_count(size_t idx = 0) const { return _max_output_layout_count[idx]; }
 
     std::string get_implementation_name() const;
 
@@ -363,7 +365,7 @@ protected:
     // it should be added to this set
     std::vector<std::pair<primitive_inst*, int32_t>> _deps;
 
-    // List of depandant shape_of primitives for shape_of subgraphs
+    // List of dependant shape_of primitives for shape_of subgraphs
     std::vector<primitive_inst*> dependant_shape_of_insts;
 
     std::vector<primitive_inst*> _users;
@@ -513,7 +515,6 @@ struct typed_primitive_impl : public primitive_impl {
 
     using primitive_impl::primitive_impl;
 
-private:
     event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");

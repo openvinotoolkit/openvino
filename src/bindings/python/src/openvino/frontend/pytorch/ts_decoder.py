@@ -75,8 +75,8 @@ class TorchScriptPythonDecoder(Decoder):
                     help_msg = ("Tracing sometimes provide better results, "
                                 "please provide valid 'example_input' argument.\n")
                 raise RuntimeError(
-                    f"Couldn't get TorchScript module by {msg}.\n{help_msg} "
-                    "You can also provide TorchScript module that you obtained"
+                    f"Couldn't get TorchScript module by {msg}.\nException:\n{e}\n"
+                    f"{help_msg} You can also provide TorchScript module that you obtained"
                     " yourself, please refer to PyTorch documentation: "
                     "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html."
                 ) from e
@@ -199,9 +199,6 @@ class TorchScriptPythonDecoder(Decoder):
 
     def inputs(self) -> list:
         return [x.unique() for x in self.raw_inputs]
-
-    def get_input(self, index: int):
-        return self.inputs()[index]
 
     def get_input_debug_name(self, index: int) -> str:
         return self._raw_input(index).debugName()

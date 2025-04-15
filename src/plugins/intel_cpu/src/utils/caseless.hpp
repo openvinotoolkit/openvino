@@ -59,9 +59,9 @@ public:
 template <class T>
 class CaselessHash : public std::hash<T> {
 public:
-    size_t operator()(const T& __val) const noexcept {
+    size_t operator()(const T& _val) const noexcept {
         T lc;
-        std::transform(std::begin(__val), std::end(__val), std::back_inserter(lc), [](typename T::value_type ch) {
+        std::transform(std::begin(_val), std::end(_val), std::back_inserter(lc), [](typename T::value_type ch) {
             return std::tolower(ch);
         });
         return std::hash<T>()(lc);

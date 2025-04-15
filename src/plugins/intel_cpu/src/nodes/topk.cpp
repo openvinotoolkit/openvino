@@ -18,6 +18,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/topk.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/ngraph_utils.hpp"
 
 using namespace dnnl;
@@ -1985,11 +1986,9 @@ void TopK::initSupportedPrimitiveDescriptors() {
                                                            ov::element::u8};
 
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
-    if (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core)) {
-        THROW_CPU_NODE_ERR("gets incorrect isa for BF16! AVX512 must be supported!");
-    }
     bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision) !=
                               std::end(supportedPrecision);
+    precisionSupported = (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core)) ? false : precisionSupported;
     if (!precisionSupported) {
         if (dataPrecision.is_real()) {
             dataPrecision = ov::element::f32;
@@ -2040,15 +2039,15 @@ void TopK::preset_params() {
         blk_size = 8;
     }
 
+    bool can_use_heap_sort =
+        (layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost;
+    bool use_bubble_sort = stable || !can_use_heap_sort;
     if (isDynamicNode()) {
-        if (stable) {
+        if (use_bubble_sort) {
             algorithm = TopKAlgorithm::topk_bubble_sort;
             bubble_inplace = false;
-        } else if ((layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost) {
-            algorithm = TopKAlgorithm::topk_heap_sort;
         } else {
-            algorithm = TopKAlgorithm::topk_bubble_sort;
-            bubble_inplace = false;
+            algorithm = TopKAlgorithm::topk_heap_sort;
         }
     }
 }
@@ -2219,7 +2218,7 @@ void TopK::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void TopK::execute(const dnnl::stream& strm) {
+void TopK::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
     auto dstMemPtr = getDstMemoryAtPort(TOPK_DATA);
     auto dstIndexesMemPtr = getDstMemoryAtPort(TOPK_INDEX);
