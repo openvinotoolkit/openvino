@@ -345,7 +345,7 @@ void RegionYolo::createPrimitive() {
 }
 
 inline float RegionYolo::logistic_scalar(float src) {
-    U aux2;
+    U aux2{};
     aux2.as_float_value = src;
     int sign = aux2.as_int_value >> 31;
     if (sign == 0) {

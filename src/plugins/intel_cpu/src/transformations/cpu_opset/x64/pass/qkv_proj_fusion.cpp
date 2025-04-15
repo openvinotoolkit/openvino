@@ -151,7 +151,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             }
         }
 
-        QKVProjectionNode::Config config;
+        QKVProjectionNode::Config config{};
         config.quantized = is_quantized_int8;
         config.hidden_size = hidden_size;
         config.weights_combined = false;
@@ -251,7 +251,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
             return false;
         }
 
-        QKVProjectionNode::Config config;
+        QKVProjectionNode::Config config{};
         config.quantized = is_quantized_int8;
         config.hidden_size = w_shape[1];
         config.weights_combined = true;

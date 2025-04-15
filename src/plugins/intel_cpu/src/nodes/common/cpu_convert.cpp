@@ -519,7 +519,7 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertContext& ctx) {
         auto src = static_cast<const src_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
-        src_t lbound, ubound;
+        src_t lbound{}, ubound{};
         std::tie(lbound, ubound) = ctx.range<src_t>();
 
         // Align with the behavior of ngraph ref and jit implementation. Conversion from f8e4m3-inf
@@ -603,7 +603,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        src_t lbound, ubound;
+        src_t lbound{}, ubound{};
         std::tie(lbound, ubound) = ctx.range<src_t>();
 
         if (std::is_integral<src_t>::value) {

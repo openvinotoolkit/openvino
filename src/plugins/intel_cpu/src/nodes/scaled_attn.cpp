@@ -226,13 +226,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     using dt = dnnl::memory::data_type;
     size_t m_threads_num = 0lu;
     struct brgemmKey {
-        size_t M;
-        size_t N;
-        size_t K;
-        size_t lda;
-        size_t ldb;
-        size_t ldc;
-        bool b_transposed;
+        size_t M{};
+        size_t N{};
+        size_t K{};
+        size_t lda{};
+        size_t ldb{};
+        size_t ldc{};
+        bool b_transposed{};
         ov::element::Type in_type;
         [[nodiscard]] size_t hash() const {
             using namespace dnnl::impl;

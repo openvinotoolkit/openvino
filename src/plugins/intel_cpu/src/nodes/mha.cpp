@@ -1371,7 +1371,7 @@ void MHA::mhaImpl() {
                                                        inputPrecisions[3].size();  // order 0213
 
         if (convertTransposeKernel) {
-            jit_convert_transpose_call_args call_args;
+            jit_convert_transpose_call_args call_args{};
             call_args.p_in = pTranspose1In0_aux;
             call_args.p_out = pTranspose1Out_aux;
             call_args.p_scales = fqScales0.data();
@@ -1501,7 +1501,7 @@ void MHA::mhaImpl() {
 
             auto pMulIn1 = reinterpret_cast<float*>(mulScales.empty() ? nullptr : mulScales.data());
             for (size_t m = 0; m < cur_M_blk; m++) {
-                jit_mul_add_softmax_call_args call_args;
+                jit_mul_add_softmax_call_args call_args{};
                 call_args.p_in0 = pMatMul0Out + m * N0 * accPrecision0.size();
                 call_args.p_mul_in1 = mulScales.size() > 1 ? pMulIn1 + i1 : pMulIn1;
                 call_args.p_add_in1 = pAddIn1_aux;
@@ -1544,7 +1544,7 @@ void MHA::mhaImpl() {
             }
 
             if (convertReorderKernel) {
-                jit_convert_reorder_call_args call_args;
+                jit_convert_reorder_call_args call_args{};
                 call_args.p_in = pMatMul1Out;
                 call_args.p_out = pOut_aux + (mb * M_blk * batch1 * N1) * outPrcSize;
                 call_args.p_scales = fqScales3.data();

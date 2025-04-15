@@ -5,10 +5,8 @@
 #
 ### Scopes to be enabled:
 #
-# cppcoreguidelines-*,
 # readability-*,
 # modernize-*,
-# bugprone-*,
 #
 ### Checks that are turned off for a reason:
 #
@@ -45,12 +43,11 @@
 Checks: >
   -*,
   bugprone-*,
+  cppcoreguidelines-*,
   performance-*,
   google-*,
   modernize-*,
   misc-*,
-  cppcoreguidelines-prefer-member-initializer,
-  cppcoreguidelines-pro-type-cstyle-cast,
   readability-container-size-empty,
   readability-else-after-return,
   readability-implicit-bool-conversion,
@@ -60,8 +57,26 @@ Checks: >
   -bugprone-incorrect-roundings,
   -bugprone-narrowing-conversions,
   -bugprone-signed-char-misuse,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-const-or-ref-data-members,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-explicit-virtual-functions,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-misleading-capture-default-by-value,
   -cppcoreguidelines-narrowing-conversions,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-init-variables,
+  -cppcoreguidelines-pro-type-const-cast,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-rvalue-reference-param-not-moved,
+  -cppcoreguidelines-special-member-functions,
   -google-build-using-namespace,
   -google-explicit-constructor,
   -google-readability-casting,

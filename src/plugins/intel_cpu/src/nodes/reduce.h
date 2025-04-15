@@ -142,7 +142,7 @@ private:
     std::vector<int> update_src_dims();
     bool canApplyJIT(const ov::element::Type& input_prec, const ov::element::Type& output_prec) const;
 
-    size_t blk_size;
+    size_t blk_size = 0;
     static const size_t REDUCE_DATA = 0;
     static const size_t REDUCE_INDEXES = 1;
     bool jit_beyond_5D = false;
@@ -162,15 +162,15 @@ private:
     bool use_aux_kernel = false;
     bool set_use_aux_kernel = false;
     bool empty_input = false;
-    bool ReduceN, ReduceC, ReduceD, ReduceH, ReduceW;
-    size_t IB, IC, ID, IH, IW;
-    size_t OB, OC, OD, OH, OW;
-    size_t PD, PH, PW;
-    size_t src_data_size, dst_data_size, prc_data_size, intermediate_data_size, tmp_data_size;
-    size_t dst_size, prc_size, intermediate_size, tmp_size;
-    size_t reduce_stride;
-    uint8_t* tmp_ptr;
-    ReduceLayoutType layout;
+    bool ReduceN = false, ReduceC = false, ReduceD = false, ReduceH = false, ReduceW = false;
+    size_t IB = 0, IC = 0, ID = 0, IH = 0, IW = 0;
+    size_t OB = 0, OC = 0, OD = 0, OH = 0, OW = 0;
+    size_t PD = 0, PH = 0, PW = 0;
+    size_t src_data_size = 0, dst_data_size = 0, prc_data_size = 0, intermediate_data_size = 0, tmp_data_size = 0;
+    size_t dst_size = 0, prc_size = 0, intermediate_size = 0, tmp_size = 0;
+    size_t reduce_stride = 0;
+    uint8_t* tmp_ptr = nullptr;
+    ReduceLayoutType layout = reduce_ncsp;
     ov::element::Type input_prec, output_prec, intermediate_prec, tmp_prec;
     VectorDims src_dims;
     VectorDims process_dst_dims;
@@ -178,8 +178,8 @@ private:
     std::vector<int> raw_axes;
     std::vector<uint8_t> intermediate_buf;
 
-    jit_reduce_config_params jcp;
-    jit_reduce_config_params aux_jcp;
+    jit_reduce_config_params jcp{};
+    jit_reduce_config_params aux_jcp{};
 
     dnnl::primitive_attr attr;
 

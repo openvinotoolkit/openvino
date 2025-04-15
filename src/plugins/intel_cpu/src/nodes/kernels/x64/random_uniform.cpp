@@ -742,7 +742,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
 
     // Initialize constants based on the requested data type
     if (m_jcp.out_data_type == element::f32) {
-        FloatAsBits val;
+        FloatAsBits val{};
         val.f = 1.0f / (1 << 24);
         BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 24) - 1))
@@ -750,7 +750,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
         BROADCAST_PARAM(vpbroadcastd, v_range, r64_aux, GET_MERSENNE_OFFSET(range_ptr))
         BROADCAST_PARAM(vpbroadcastd, v_min, r64_aux, GET_MERSENNE_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-        FloatAsBits val;
+        FloatAsBits val{};
         val.f = 1.0f / (1 << 11);
         BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 11) - 1))
@@ -759,7 +759,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
         BROADCAST_PARAM(vpbroadcastw, v_range, r64_aux, GET_MERSENNE_OFFSET(range_ptr))
         BROADCAST_PARAM(vpbroadcastw, v_min, r64_aux, GET_MERSENNE_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
-        FloatAsBits val;
+        FloatAsBits val{};
         val.f = 1.0f / (1 << 8);
         BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 8) - 1))

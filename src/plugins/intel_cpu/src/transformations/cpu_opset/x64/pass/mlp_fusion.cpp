@@ -206,7 +206,7 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
             return false;
         }
 
-        LLMMLPNode::Config config;
+        LLMMLPNode::Config config{};
         OutputVector new_args;
         std::shared_ptr<Node> gate_act;
 

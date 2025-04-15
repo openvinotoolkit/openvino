@@ -238,7 +238,7 @@ void Multinomial::execute_convert_type() {
                 }
 
                 if (class_selected) {
-                    P class_probability;
+                    P class_probability{};
                     if (selected_class) {
                         class_probability = m_cdf[idx_input + selected_class] - m_cdf[idx_input + selected_class - 1];
                     } else {

@@ -76,9 +76,9 @@ private:
 
     VectorDims m_out_shape = {};
     uint64_t m_output_elements_count = 1lu;
-    OutputType m_min_val;
-    OutputType m_max_val;
-    OutputType m_range_val;
+    OutputType m_min_val{};
+    OutputType m_max_val{};
+    OutputType m_range_val{};
     AlgorithmType m_algo = STL;
 
     /////////////////////////////////////////////////////////////////////////////////

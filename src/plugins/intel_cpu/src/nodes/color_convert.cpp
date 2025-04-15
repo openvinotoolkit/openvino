@@ -117,7 +117,7 @@ protected:
                     const variable<float[N]>& c,
                     const variable<size_t>& size);
 
-    function_t _fn;
+    function_t _fn{};
     variable<const float*> _consts;
 };
 
@@ -557,7 +557,7 @@ public:
         const size_t stride_uv = height * width * 3 / 2;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
+            typename jit_uni_converter::Params args{};
             args.y = y + batch * stride_y + h * width;
             args.u = args.v = uv + batch * stride_uv + (h / 2) * width;
             args.dst = dst + (batch * width * height + h * width) * 3;
@@ -591,7 +591,7 @@ public:
         const size_t stride_uv = height * width / 2;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
+            typename jit_uni_converter::Params args{};
             args.y = y + batch * stride_y + h * width;
             args.u = args.v = uv + batch * stride_uv + (h / 2) * width;
             args.dst = dst + (batch * width * height + h * width) * 3;
@@ -890,7 +890,7 @@ public:
         const size_t stride_uv = height * width * 3 / 2;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
+            typename jit_uni_converter::Params args{};
             args.y = y + batch * stride_y + h * width;
             args.u = u + batch * stride_uv + (h / 2) * (width / 2);
             args.v = v + batch * stride_uv + (h / 2) * (width / 2);
@@ -926,7 +926,7 @@ public:
         const size_t stride_uv = height * width / 4;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
+            typename jit_uni_converter::Params args{};
             args.y = y + batch * stride_y + h * width;
             args.u = u + batch * stride_uv + (h / 2) * (width / 2);
             args.v = v + batch * stride_uv + (h / 2) * (width / 2);

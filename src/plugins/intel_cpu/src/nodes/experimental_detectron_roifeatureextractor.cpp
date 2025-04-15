@@ -58,7 +58,7 @@ void pre_calc_for_bilinear_interpolate(const int height,
                     // deal with: inverse elements are out of feature map boundary
                     if (y < -1.0 || y > height || x < -1.0 || x > width) {
                         // empty
-                        PreCalc<T> pc;
+                        PreCalc<T> pc{};
                         pc.pos1 = 0;
                         pc.pos2 = 0;
                         pc.pos3 = 0;
@@ -104,7 +104,7 @@ void pre_calc_for_bilinear_interpolate(const int height,
                     T w1 = hy * hx, w2 = hy * lx, w3 = ly * hx, w4 = ly * lx;
 
                     // save weights and indices
-                    PreCalc<T> pc;
+                    PreCalc<T> pc{};
                     pc.pos1 = y_low * width + x_low;
                     pc.pos2 = y_low * width + x_high;
                     pc.pos3 = y_high * width + x_low;
