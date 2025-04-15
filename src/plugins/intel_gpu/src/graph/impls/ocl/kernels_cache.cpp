@@ -527,6 +527,8 @@ bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
     auto kernel = casted->get_handle();
     try {
         auto casted_dev = dynamic_cast<ocl::ocl_device*>(_device.get());
+        OPENVINO_ASSERT(casted_dev != nullptr, "device is nullptr");
+
         auto device = casted_dev->get_device();
         cl::Context ctx(device);
 
