@@ -542,10 +542,10 @@ void DataTensor::SwapXY() {
 
     std::vector<Dim> vec(ChannelsCount(l));
 
-    vec[static_cast<size_t>(x_idx)] = y;
-    vec[static_cast<size_t>(y_idx)] = x;
-    vec[static_cast<size_t>(f_idx)] = Feature();
-    vec[static_cast<size_t>(b_idx)] = Batch();
+    vec[x_idx] = y;
+    vec[y_idx] = x;
+    vec[f_idx] = Feature();
+    vec[b_idx] = Batch();
 
     *this = {vec, dtype, l};
 }
