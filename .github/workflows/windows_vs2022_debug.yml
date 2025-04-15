@@ -58,16 +58,14 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Debug'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
-      cmake-options: |-
-        -G "Ninja" `
-        -DENABLE_PYTHON=OFF `
-        -DENABLE_CPPLINT=OFF `
-        -DENABLE_TESTS=ON `
-        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
-        -DENABLE_STRICT_DEPENDENCIES=OFF `
-        -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
-        -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" `
-        -DOPENVINO_EXTRA_MODULES="${env:OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${env:OPENVINO_CONTRIB_REPO}/modules/java_api"
+      cmake-options: >-
+        -G 'Ninja'
+        -DENABLE_PYTHON=OFF
+        -DENABLE_CPPLINT=OFF
+        -DENABLE_TESTS=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
 
   CXX_Unit_Tests:
     name: C++ unit tests

@@ -4,7 +4,8 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "frontend_test.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 #ifndef __APPLE__  // TODO: add getVmRSSInKB() for Apple platform
 

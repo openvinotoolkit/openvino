@@ -415,7 +415,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
     auto elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
 
     mov(r64Ones, 0xFFFFFFFFFFFFFFFF);
-    for (uint8_t i = 0; i < elPerVec; i++) {
+    for (uint64_t i = 0; i < elPerVec; i++) {
         cmp(rWorkRest, i);
         jle(lEnd, T_NEAR);
 
@@ -448,7 +448,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
     uni_vpxor(ymmDstMask, ymmDstMask, ymmDstMask);
     for (uint8_t i = 0; i < 2; i++) {
         Xbyak::Label lPerm;
-        for (uint8_t j = 0; j < elPerVec; j++) {
+        for (uint64_t j = 0; j < elPerVec; j++) {
             cmp(rWorkRest, i * elPerVec + j);
             jle(i == 0 ? lEnd : lPerm, T_NEAR);
 

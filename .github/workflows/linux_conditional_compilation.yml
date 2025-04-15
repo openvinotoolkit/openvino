@@ -95,6 +95,7 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
@@ -107,7 +108,6 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release_faster_build
-    if: ${{ github.event_name != 'merge_group' }}
 
     steps:
       - name: Clone OpenVINO
@@ -163,7 +163,6 @@ jobs:
             -DENABLE_CPPLINT=OFF \
             -DENABLE_CLANG_TIDY=ON \
             -DENABLE_NCC_STYLE=OFF \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_FASTER_BUILD=ON \
@@ -188,13 +187,11 @@ jobs:
 
       - name: Build C++ samples - OpenVINO build tree
         run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DOpenVINO_DIR=${BUILD_DIR} -S ${INSTALL_DIR}/samples/cpp -B ${BUILD_DIR}/cpp_samples
+          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${BUILD_DIR} -S ${INSTALL_DIR}/samples/cpp -B ${BUILD_DIR}/cpp_samples
           cmake --build ${BUILD_DIR}/cpp_samples --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
 
       - name: Build C samples - OpenVINO install tree
         run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
-        env:
-          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
       - name: Ctest - OpenVINO unit tests
         run: ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${BUILD_DIR} -V -L UNIT
@@ -265,7 +262,7 @@ jobs:
   CC_Build:
     name: Conditional Compilation
     needs: [Build, Docker]
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -306,7 +303,7 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}

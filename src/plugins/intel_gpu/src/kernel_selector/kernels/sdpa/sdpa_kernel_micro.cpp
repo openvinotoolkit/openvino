@@ -145,13 +145,14 @@ sdpa_config_t xehpc_h256 = {16, 32, 32, 32, 8, 4, 8, 4};
 sdpa_config_t xehpc_h256_s64 = {16, 32, 32, 32, 8, 1, 8, 1};
 sdpa_config_t xehpc_h256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized) {
+sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa) {
     if (head_size <= 32) {
         if (quantized && seq >= 128) {
             if (thin_q) return &xehpg_q_h32_2nd;
             return &xehpg_q_h32;
         }
         if (thin_q) return &xehpg_h32_2nd;
+        if (seq <= 0 && is_pa) return &xehpg_h32;
         if (seq <= 32) return &xehpg_h32_s32;
         if (seq <= 64) return &xehpg_h32_s64;
         if (seq <= 256) return &xehpg_h32_s256;
@@ -162,6 +163,7 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             return &xehpg_q_h64;
         }
         if (thin_q) return &xehpg_h64_2nd;
+        if (seq <= 0 && is_pa) return &xehpg_h64;
         if (seq <= 64) return &xehpg_h64_s64;
         if (seq <= 128) return &xehpg_h64_s128;
         return &xehpg_h64;
@@ -178,6 +180,7 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             if (seq <= 256) return &xehpg_h128_s256_2nd;
             return &xehpg_h128_2nd;
         }
+        if (seq <= 0 && is_pa) return &xehpg_h128;
         if (seq <= 32) return &xehpg_h128_s32;
         return &xehpg_h128;
     } else if (head_size <= 256) {
@@ -186,6 +189,7 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             if (seq <= 64) return &xehpg_h256_s64_2nd;
             return &xehpg_h256_2nd;
         }
+        if (seq <= 0 && is_pa) return &xehpg_h256;
         if (seq <= 32) return &xehpg_h256_s32;
         if (seq <= 128) return &xehpg_h256_s128;
         return &xehpg_h256;
@@ -193,9 +197,10 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
     return nullptr;
 }
 
-sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized) {
+sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_pa) {
     if (head_size <= 32) {
         if (thin_q) return &xehpc_h32_2nd;
+        if (seq <= 0 && is_pa) return &xehpc_h32;
         if (seq <= 32) return &xehpc_h32_s32;
         return &xehpc_h32;
     } else if (head_size <= 64) {
@@ -204,6 +209,7 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
             return &xehpc_h64_2nd;
         }
         if (quantized && seq >= 256) return &xehpc_q_h64;
+        if (seq <= 0 && is_pa) return &xehpc_h64;
         if (seq <= 32) return &xehpc_h64_s32;
         if (seq <= 64) return &xehpc_h64_s64;
         return &xehpc_h64;
@@ -218,11 +224,13 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
             return &xehpc_q_h128;
         }
         if (thin_q) return &xehpc_h128_2nd;
+        if (seq <= 0 && is_pa) return &xehpc_h128;
         if (seq <= 32) return &xehpc_h128_s32;
         if (seq <= 64) return &xehpc_h128_s64;
         return &xehpc_h128;
     } else if (head_size <= 256) {
         if (thin_q) return &xehpc_h256_2nd;
+        if (seq <= 0 && is_pa) return &xehpc_h256;
         if (seq <= 64) return &xehpc_h256_s64;
         return &xehpc_h256;
     }
@@ -259,16 +267,15 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     bool is_quantized = (K.GetDType() == Datatype::UINT8 || K.GetDType() == Datatype::INT8) ||
                         (V.GetDType() == Datatype::UINT8 || V.GetDType() == Datatype::INT8);
-
     switch (params.engineInfo.arch) {
         case gpu_arch::xe_hpg: {
-            config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized);
+            config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized, params.conf.is_paged_attention);
             break;
         }
         case gpu_arch::xe_hpc:
         case gpu_arch::xe2:
         case gpu_arch::xe3: {
-            config = choose_config_xehpc(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized);
+            config = choose_config_xehpc(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized, params.conf.is_paged_attention);
             break;
         }
         default: break;
@@ -442,7 +449,6 @@ ParamsKey SDPAKernelMicro::GetSupportedKey() const {
 bool SDPAKernelMicro::Validate(const Params& p) const {
     if (!Parent::Validate(p))
         return false;
-
     const sdpa_params& params = static_cast<const sdpa_params&>(p);
 
     if (params.should_use_sdpa_opt)
@@ -468,14 +474,28 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (params.conf.head_size > 256)
         return false;
 
-    // Do not use sdpa_micro kernel with a scalar-value mask
-    const auto scale_idx = params.conf.is_paged_attention ? 4lu : 3lu;
-    if (params.inputs.size() > scale_idx && !params.inputs[scale_idx].is_dynamic() && params.inputs[scale_idx].LogicalSize() == 1)
+    // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
+    if (!params.conf.is_paged_attention) {
+        const auto mask_idx = 3lu;
+        if (!params.conf.has_const_attn_mask_val && params.inputs.size() > mask_idx && !params.inputs[mask_idx].is_dynamic() &&
+            params.inputs[mask_idx].LogicalSize() == 1) {
+            return false;
+        }
+    }
+
+    const auto scale_idx = params.conf.is_paged_attention || params.conf.has_const_attn_mask_val ? 4lu : 3lu;
+    if (!params.conf.has_const_scale_val && params.inputs.size() > scale_idx && !params.inputs[scale_idx].is_dynamic() &&
+        params.inputs[scale_idx].LogicalSize() == 1) {
         return false;
+    }
 
     // Scores output is not supported
     if (params.conf.is_paged_attention && params.outputs.size() > 1)
         return false;
+
+    if (params.conf.is_paged_attention && params.conf.paged_attention_sliding_window != 0) {
+        return false;
+    }
 
     // Alibi is not supported
     if (params.conf.is_paged_attention && params.conf.has_alibi_input)
@@ -513,10 +533,28 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     jit.AddConstant(MakeJitConstant("INVERT_SCALE", false));
     jit.AddConstant(MakeJitConstant("SCALE_DATA_T", "half"));
     jit.AddConstant(MakeJitConstant("HEAD_SIZE", head_size));
-    jit.AddConstant(MakeJitConstant("WITH_CAUSAL_MASK", params.conf.is_causal));
 
-    jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > 3));
-    jit.AddConstant(MakeJitConstant("WITH_SCALE", data_inputs > 4));
+    size_t attn_input_idx = 3;
+    size_t scale_input_idx = 4;
+    if (!params.conf.is_paged_attention) {
+        if (params.conf.has_const_attn_mask_val) {
+            jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
+            jit.AddConstant(MakeJitConstant("STATIC_SCALAR_ATTN_MASK_VALUE", params.conf.attn_mask_val));
+            scale_input_idx -= 1;
+        } else {
+            jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > attn_input_idx));
+        }
+    } else {
+        jit.AddConstant(MakeJitConstant("WITH_CAUSAL_MASK", params.conf.is_causal));
+        jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
+    }
+
+    if (params.conf.has_const_scale_val) {
+        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", params.conf.scale_val));
+        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", 1.0f / params.conf.scale_val));
+    } else {
+        jit.AddConstant(MakeJitConstant("WITH_SCALE", data_inputs > scale_input_idx));
+    }
     jit.AddConstant(MakeJitConstant("Q_ALIGN", micro::alignment_for_ld(ldq)));
     jit.AddConstant(MakeJitConstant("K_ALIGN", micro::alignment_for_ld(ldk)));
     jit.AddConstant(MakeJitConstant("V_ALIGN", micro::alignment_for_ld(ldv)));
@@ -673,7 +711,7 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     jit.Merge(unit_parameters("VAL"));
     jit.Merge(unit_parameters("DST"));
 
-    if (params.inputs.size() > 3) {
+    if (params.inputs.size() > 3 && !params.conf.has_const_attn_mask_val) {
         jit.Merge(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}));
         jit.Merge(unit_parameters("MSK"));
     }
@@ -746,10 +784,12 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
 
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3}); // paged attention helper buffer
     } else {
-        if (params.inputs.size() >= 4)
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3}); // mask
-        if (params.inputs.size() >= 5)
-            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 4}); // Scale
+        uint32_t attn_mask_idx = 3;
+        uint32_t scale_idx = params.conf.has_const_attn_mask_val ? 3 : 4;
+        if (params.inputs.size() > attn_mask_idx && !params.conf.has_const_attn_mask_val)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx}); // mask
+        if (params.inputs.size() > scale_idx && !params.conf.has_const_scale_val)
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, scale_idx}); // Scale
 
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0}); // D
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 1}); // K

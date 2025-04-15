@@ -120,8 +120,8 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
         // equation is in implicit mode so recover output subscript
         output_subscript = "";
         for (size_t ind = 0; ind < input_subscripts.size(); ++ind) {
-            auto const& input_subscript = input_subscripts[ind];
-            for (auto const& label : extract_labels(input_subscript)) {
+            const auto& input_subscript = input_subscripts[ind];
+            for (const auto& label : extract_labels(input_subscript)) {
                 if (label != ellipsis && (is_label_elsewhere(input_subscripts, label, {ind}) == false)) {
                     output_subscript += label;
                 }
@@ -139,11 +139,6 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
         OPENVINO_ASSERT(is_subscript_correct(output_subscript, output_is_ellipsis_met),
                         "Output subscript of Einsum equation must consist of either only "
                         "alphabetic letters or alphabetic letters with one ellipsis.");
-
-        // if the ellipsis is met in input subscripts, one ellipsis must be in the output subscript
-        OPENVINO_ASSERT(is_ellipsis_met == output_is_ellipsis_met,
-                        "Output subscript of Einsum equation must contain one ellipsis if "
-                        "ellipsis is met in any input subscript.");
     }
 }
 
