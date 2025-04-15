@@ -26,8 +26,8 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
         {
-            ov::device::Type deviceType = core->get_property(targetDevice, ov::device::type);
-            if (deviceType == ov::device::Type::INTEGRATED)
+            auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+            if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
                 GTEST_SKIP();
         }
         auto inType = ov::element::f16;
