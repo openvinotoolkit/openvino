@@ -174,6 +174,7 @@ jobs:
     runs-on: 'aks-win-4-cores-8gb'
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node"
+      OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
       NODE_VERSION: 21
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
@@ -190,12 +191,12 @@ jobs:
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           pattern: openvino_[js]*
-          path: ${{ env.OPENVINO_JS_DIR }}
+          path: ${{ env.OPENVINO_JS_LIBS_DIR }}
           merge-multiple: true
 
       - name: Extract OpenVINO packages
         run: Expand-Archive openvino_js_package.zip -DestinationPath .
-        working-directory: ${{ env.OPENVINO_JS_DIR }}
+        working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
