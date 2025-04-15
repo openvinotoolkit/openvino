@@ -241,9 +241,9 @@ struct CPUStreamsExecutor::Impl {
         private:
             // disable all copy and move semantics, user only can use fetch()
             // to create a new instance with a shared count num;
-            ThreadTracker(ThreadTracker const&) = default;
+            ThreadTracker(const ThreadTracker&) = default;
             ThreadTracker(ThreadTracker&&) = delete;
-            ThreadTracker& operator=(ThreadTracker const&) = delete;
+            ThreadTracker& operator=(const ThreadTracker&) = delete;
             ThreadTracker& operator=(ThreadTracker&&) = delete;
             std::thread::id _id;
             std::shared_ptr<std::atomic_int> _count_ptr;

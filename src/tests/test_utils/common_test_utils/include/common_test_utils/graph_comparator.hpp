@@ -14,6 +14,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/pass/pass.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 
