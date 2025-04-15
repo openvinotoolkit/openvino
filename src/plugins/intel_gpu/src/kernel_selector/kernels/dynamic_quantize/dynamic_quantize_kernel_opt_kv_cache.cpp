@@ -120,9 +120,7 @@ JitConstants DynamicQuantizeKernelKVCache::GetJitConstants(const dynamic_quantiz
     const auto total_grouped_elements = get_elements_number_per_group(params);
     const auto total_subgroups_number = total_grouped_elements / input_dims.back().v;
     const auto per_iter_elements_number = get_per_iter_elements_number(params);
-    if (per_iter_elements_number == 0) {
-        throw std::runtime_error("Invalid configuration: per_iter_elements_number is zero, division by zero would occur.");
-    }
+    OPENVINO_ASSERT(per_iter_elements_number > 0, "[GPU] per_iter_elements_number is zero, division by zero would occur.");
 
     // Drop the last dimensions, since it will be processed in the kernel's loop
     grouped_dims.pop_back();
