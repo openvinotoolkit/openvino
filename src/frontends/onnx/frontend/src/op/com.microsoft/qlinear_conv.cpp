@@ -51,7 +51,6 @@ ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
                                 "Provided kernel_shape does not match weight tensor dimensions.");
     }
 
-    // **Dequantize inputs**
     ov::Output<ov::Node> x_dequantized = std::make_shared<v1::Multiply>(
         x_scale,
         std::make_shared<v0::Convert>(std::make_shared<v1::Subtract>(x, x_zero_point), x_scale.get_element_type()));
@@ -60,27 +59,26 @@ ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
         w_scale,
         std::make_shared<v0::Convert>(std::make_shared<v1::Subtract>(w, w_zero_point), w_scale.get_element_type()));
 
-    bool need_reorder_output = false;
+    //bool need_reorder_output = false;
 
-    // **Handle NHWC → NCHW conversion**
-    auto x_shape = x.get_partial_shape();
-    if (channels_last && x_shape.rank().is_static() && x_shape.rank().get_length() > 2) {
-        std::vector<int64_t> transpose_order(x_shape.rank().get_length());
-        transpose_order[0] = 0;      // Batch dim remains the same
-        transpose_order.back() = 1;  // Move channels to second position
-        for (size_t i = 1; i < transpose_order.size() - 1; ++i) {
-            transpose_order[i] = i + 1;
-        }
+    //// **Handle NHWC → NCHW conversion**
+    //auto x_shape = x.get_partial_shape();
+    //if (channels_last && x_shape.rank().is_static() && x_shape.rank().get_length() > 2) {
+    //    std::vector<int64_t> transpose_order(x_shape.rank().get_length());
+    //    transpose_order[0] = 0;      // Batch dim remains the same
+    //    transpose_order.back() = 1;  // Move channels to second position
+    //    for (size_t i = 1; i < transpose_order.size() - 1; ++i) {
+    //        transpose_order[i] = i + 1;
+    //    }
 
-        auto order_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                  ov::Shape{transpose_order.size()},
-                                                                  transpose_order);
+    //    auto order_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+    //                                                              ov::Shape{transpose_order.size()},
+    //                                                              transpose_order);
 
-        x_dequantized = std::make_shared<v1::Transpose>(x_dequantized, order_const)->output(0);
-        need_reorder_output = true;
-    }
+    //    x_dequantized = std::make_shared<v1::Transpose>(x_dequantized, order_const)->output(0);
+    //    need_reorder_output = true;
+    //}
 
-    // **Convolution operation**
     ov::Output<ov::Node> conv_node = conv_factory::make_ng_convolution(x_dequantized,
                                                                        w_dequantized,
                                                                        strides,
@@ -95,18 +93,15 @@ ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
         conv_node = std::make_shared<v1::Add>(conv_node, bias)->output(0);
     }
 
-    // First, divide the convolution result by the output scale
     auto result_divided = std::make_shared<v1::Divide>(conv_node, y_scale);
 
     auto y_zero_point_float = std::make_shared<v0::Convert>(y_zero_point, y_scale.get_element_type());
 
-    // Add zero-point
     auto result_shifted = std::make_shared<v1::Add>(result_divided, y_zero_point_float);
-    // Convert back to the original integer type
     auto y_quantized = std::make_shared<v0::Convert>(result_shifted, x.get_element_type())->output(0);
 
     // **Convert back to NHWC if needed**
-    if (need_reorder_output) {
+  /*  if (need_reorder_output) {
         std::vector<int64_t> reverse_transpose_order(x_shape.rank().get_length());
         reverse_transpose_order[0] = 0;
         reverse_transpose_order[1] = x_shape.rank().get_length() - 1;
@@ -119,7 +114,7 @@ ov::OutputVector qlinear_conv(const ov::frontend::onnx::Node& node) {
                                                                           reverse_transpose_order);
 
         y_quantized = std::make_shared<v1::Transpose>(y_quantized, reverse_order_const)->output(0);
-    }
+    }*/
 
     return {y_quantized};
 }
