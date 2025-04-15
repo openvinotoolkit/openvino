@@ -276,7 +276,7 @@ void DFT::execute(const dnnl::stream& strm) {
         size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
             std::vector<float> outputData(nComplex * 2);
-            float* resultBufPtr;
+            const float* resultBufPtr;
 
             fft(dst, outputData.data(), nComplex * 2, inverse, true, &resultBufPtr);
 
@@ -318,7 +318,7 @@ void DFT::dftNd(float* output,
                                      parallelIterationCounter,
                                      outputShape,
                                      outputStrides);
-                    float* resultBufPtr;
+                    const float* resultBufPtr;
                     fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse, false, &resultBufPtr);
                     applyBufferND(resultBufPtr,
                                   output,
@@ -346,8 +346,12 @@ void DFT::dftNd(float* output,
 }
 
 /* Cooley Tukey implementation of FFT */
-void DFT::fft(float* inBuffer, float* outBuffer, int64_t dataLength, bool inverse, bool parallelize, float** resultBuf)
-    const {
+void DFT::fft(float* inBuffer,
+              float* outBuffer,
+              int64_t dataLength,
+              bool inverse,
+              bool parallelize,
+              const float** resultBuf) const {
     static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
     static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
     size_t nComplex = dataLength / 2;

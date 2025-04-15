@@ -36,8 +36,12 @@ private:
                const std::vector<int32_t>& axes,
                bool inverse) const;
 
-    void fft(float* inBuffer, float* outBuffer, int64_t dataLength, bool inverse, bool parallelize, float** resultBuf)
-        const;
+    void fft(float* inBuffer,
+             float* outBuffer,
+             int64_t dataLength,
+             bool inverse,
+             bool parallelize,
+             const float** resultBuf) const;
     void naiveDFT(float* data, size_t dataLength, bool inverse) const;
 
     std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse) const;
