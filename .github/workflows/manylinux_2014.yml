@@ -202,9 +202,7 @@ jobs:
           done
 
       - name: Pack Artifacts
-        run: |
-          ls -laR ${{ env.INSTALL_DIR }}
-          mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+        run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Pack openvino_tests
