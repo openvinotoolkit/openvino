@@ -94,7 +94,8 @@ enum class AnyType : int {
     FLOAT,
     BOOL,
     CACHE_MODE,
-    ELEMENT_TYPE
+    ELEMENT_TYPE,
+    ANYMAP
 };
 
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
@@ -133,6 +134,9 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     } else if (var.is<ov::element::Type>()) {
         write(stream, static_cast<int>(AnyType::ELEMENT_TYPE));
         write(stream, var.as<ov::element::Type>());
+    } else if (var.is<ov::AnyMap>()) {
+        write(stream, static_cast<int>(AnyType::ANYMAP));
+        write(stream, var.as<ov::AnyMap>());
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -148,6 +152,14 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::CacheMode& var) {
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::element::Type& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::AnyMap& var) {
+    write(stream, var.size());
+    for (const auto& el : var) {
+        write(stream, el.first);
+        write_any(stream, el.second);
+    }
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
@@ -299,6 +311,10 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         ov::element::Type val;
         read(stream, val);
         var = val;
+    } else if (type == AnyType::ANYMAP) {
+        ov::AnyMap val;
+        read(stream, val);
+        var = val;
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -314,6 +330,18 @@ void ov::npuw::s11n::read(std::istream& stream, ov::CacheMode& var) {
 
 void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {
     stream.read(reinterpret_cast<char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::AnyMap& var) {
+    std::size_t var_size = 0;
+    read(stream, var_size);
+    for (std::size_t i = 0; i < var_size; ++i) {
+        std::string k;
+        read(stream, k);
+        ov::Any v;
+        read_any(stream, v);
+        var[k] = v;
+    }
 }
 
 // Weightless
