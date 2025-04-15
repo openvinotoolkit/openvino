@@ -28,6 +28,10 @@ using namespace std;
 using namespace ov::element;
 using namespace ov::pass::pattern;
 
+// The parameters of the inner loop have different
+// shapes in the newer version of the model,
+// so we need to use Unsqueeze and Transpose to
+// obtain the shapes the transfomation expects.
 static std::shared_ptr<ov::Node> get_bias_add(std::shared_ptr<ov::Node> bias_add, ov::pass::NodeRegistry& rg) {
     auto input_source_1_ps = bias_add->input_value(1).get_partial_shape();
     if (input_source_1_ps.is_static() && input_source_1_ps.rank().get_length() == 1) {
