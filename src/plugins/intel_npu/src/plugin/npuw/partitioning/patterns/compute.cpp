@@ -139,10 +139,10 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
-    auto fake_input = opp::any_input();
-    auto fake_convert =
-        opp::optional<ov::op::v13::FakeConvert>({fake_input->output(0), opp::any_input(), opp::any_input()});
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({fake_convert, qcvtr});
+    auto fake_convert = opp::optional<ov::op::v13::FakeConvert>({opp::any_input(), opp::any_input(), opp::any_input()});
+    auto transpose = opp::optional<ov::op::v1::Transpose>({fake_convert->output(0), opp::any_input()});
+    auto reshape = opp::optional<ov::op::v1::Reshape>({transpose->output(0), opp::any_input()});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({reshape, qcvtr});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -163,7 +163,6 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::f8e4m3 == matched_qweight->get_element_type() ||
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
-             ov::element::f4e2m1 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type() ||
              ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::element::f16 == matched_qcoeff->get_element_type() ||
@@ -186,9 +185,19 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
             auto fake_convert_iter = node_to_output.find(fake_convert);
             if (fake_convert_iter != node_to_output.end()) {
                 auto matched_fake_convert = fake_convert_iter->second.get_node_shared_ptr();
-                auto matched_fake_convert_input = node_to_output.at(fake_input).get_node_shared_ptr();
                 node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
-                node_to_gptr->at(matched_fake_convert_input)->isolate(isol_tag);
+            }
+
+            auto transpose_iter = node_to_output.find(transpose);
+            if (transpose_iter != node_to_output.end()) {
+                auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
+                node_to_gptr->at(matched_transpose)->isolate(isol_tag);
+            }
+
+            auto reshape_iter = node_to_output.find(reshape);
+            if (reshape_iter != node_to_output.end()) {
+                auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
+                node_to_gptr->at(matched_reshape)->isolate(isol_tag);
             }
         }
 
@@ -207,10 +216,10 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
 
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
-    auto fake_input = opp::any_input();
-    auto fake_convert =
-        opp::optional<ov::op::v13::FakeConvert>({fake_input->output(0), opp::any_input(), opp::any_input()});
-    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({fake_convert, qcvtm});
+    auto fake_convert = opp::optional<ov::op::v13::FakeConvert>({opp::any_input(), opp::any_input(), opp::any_input()});
+    auto transpose = opp::optional<ov::op::v1::Transpose>({fake_convert->output(0), opp::any_input()});
+    auto reshape = opp::optional<ov::op::v1::Reshape>({transpose->output(0), opp::any_input()});
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({reshape, qcvtm});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -231,7 +240,6 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
              ov::element::i8 == matched_qweight->get_element_type() ||
              ov::element::f8e4m3 == matched_qweight->get_element_type() ||
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
-             ov::element::f4e2m1 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type() ||
              ov::element::nf4 == matched_qweight->get_element_type()) &&
             (ov::element::f16 == matched_qcoeff->get_element_type() ||
@@ -252,9 +260,19 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
             auto fake_convert_iter = node_to_output.find(fake_convert);
             if (fake_convert_iter != node_to_output.end()) {
                 auto matched_fake_convert = fake_convert_iter->second.get_node_shared_ptr();
-                auto matched_fake_convert_input = node_to_output.at(fake_input).get_node_shared_ptr();
                 node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
-                node_to_gptr->at(matched_fake_convert_input)->isolate(isol_tag);
+            }
+
+            auto transpose_iter = node_to_output.find(transpose);
+            if (transpose_iter != node_to_output.end()) {
+                auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
+                node_to_gptr->at(matched_transpose)->isolate(isol_tag);
+            }
+
+            auto reshape_iter = node_to_output.find(reshape);
+            if (reshape_iter != node_to_output.end()) {
+                auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
+                node_to_gptr->at(matched_reshape)->isolate(isol_tag);
             }
         }
 
@@ -447,7 +465,8 @@ RMSNorm2::RMSNorm2(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, 
 VariadicSplit::VariadicSplit(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     auto vsplit = opp::wrap_type<ov::op::v1::VariadicSplit>({opp::any_input(), opp::any_input(), opp::any_input()});
     auto swish = opp::wrap_type<ov::op::v4::Swish>({vsplit});
-    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({vsplit, swish});
+    auto multiply1 = opp::optional<ov::op::v1::Multiply>({swish->output(0), opp::any_input()});
+    auto multiply2 = opp::wrap_type<ov::op::v1::Multiply>({vsplit, multiply1});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -457,22 +476,32 @@ VariadicSplit::VariadicSplit(const std::shared_ptr<ov::npuw::online::Snapshot>& 
 
         auto matched_vsplit = node_to_output.at(vsplit).get_node_shared_ptr();
         auto matched_swish = node_to_output.at(swish).get_node_shared_ptr();
-        auto matched_multiply = node_to_output.at(multiply).get_node_shared_ptr();
+        auto matched_multiply = node_to_output.at(multiply2).get_node_shared_ptr();
 
         node_to_gptr->at(matched_vsplit)->isolate(isol_tag);
         node_to_gptr->at(matched_swish)->isolate(isol_tag);
         node_to_gptr->at(matched_multiply)->isolate(isol_tag);
 
+        auto multiply1_iter = node_to_output.find(multiply1);
+        if (multiply1_iter != node_to_output.end()) {
+            auto matched_multiply1 = multiply1_iter->second.get_node_shared_ptr();
+            node_to_gptr->at(matched_multiply1)->isolate(isol_tag);
+        }
+
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(multiply, "TagVariadicSplit"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(multiply2, "TagVariadicSplit"), std::move(callback));
 }
 
-// TODO: visualize
+// Keep this pattern in the same subgraph:
+// -> FakeConvert -> (Transpose) -> (Reshape) -> MatMul ->
+// NB: this pattern will be optimized by the compiler
 FakeConvert::FakeConvert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
-    auto fake_input = opp::any_input();
-    auto fake_convert = opp::wrap_type<ov::op::v13::FakeConvert>({fake_input, opp::any_input(), opp::any_input()});
-    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({fake_convert, opp::any_input()});
+    auto fake_convert =
+        opp::wrap_type<ov::op::v13::FakeConvert>({opp::any_input(), opp::any_input(), opp::any_input()});
+    auto transpose = opp::optional<ov::op::v1::Transpose>({fake_convert->output(0), opp::any_input()});
+    auto reshape = opp::optional<ov::op::v1::Reshape>({transpose->output(0), opp::any_input()});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({reshape, opp::any_input()});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -480,13 +509,21 @@ FakeConvert::FakeConvert(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_fake_input = node_to_output.at(fake_input).get_node_shared_ptr();
         auto matched_fake_convert = node_to_output.at(fake_convert).get_node_shared_ptr();
         auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
 
-        node_to_gptr->at(matched_fake_input)->isolate(isol_tag);
         node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
         node_to_gptr->at(matched_matmul)->isolate(isol_tag);
+
+        if (auto transpose_iter = node_to_output.find(transpose); transpose_iter != node_to_output.end()) {
+            auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
+            node_to_gptr->at(matched_transpose)->isolate(isol_tag);
+        }
+
+        if (auto reshape_iter = node_to_output.find(reshape); reshape_iter != node_to_output.end()) {
+            auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
+            node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+        }
 
         return false;  // root hasn't changed
     };
@@ -495,8 +532,7 @@ FakeConvert::FakeConvert(const std::shared_ptr<ov::npuw::online::Snapshot>& snap
 
 // TODO: visualize
 FakeQuantize::FakeQuantize(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
-    auto fake_input = opp::any_input();
-    auto fake_quant = opp::wrap_type<ov::op::v0::FakeQuantize>({fake_input, opp::any_input(), opp::any_input()});
+    auto fake_quant = opp::wrap_type<ov::op::v0::FakeQuantize>({opp::any_input(), opp::any_input(), opp::any_input()});
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({fake_quant, opp::any_input()});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
@@ -505,11 +541,9 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        auto matched_fake_input = node_to_output.at(fake_input).get_node_shared_ptr();
         auto matched_fake_quant = node_to_output.at(fake_quant).get_node_shared_ptr();
         auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
 
-        node_to_gptr->at(matched_fake_input)->isolate(isol_tag);
         node_to_gptr->at(matched_fake_quant)->isolate(isol_tag);
         node_to_gptr->at(matched_matmul)->isolate(isol_tag);
 

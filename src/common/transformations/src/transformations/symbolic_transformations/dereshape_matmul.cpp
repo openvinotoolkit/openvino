@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/dimension.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -113,6 +114,7 @@ ov::Output<ov::Node> get_target_shape_from_sources(const ov::Output<ov::Node>& b
         if (curr_is_const && next_is_const) {
             dims[curr_i] = nullptr;
             dims[curr_i + 1] = ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::NodeVector{curr_node, next_node}, 0);
+            ov::copy_runtime_info(copy_rt_info_from, dims[curr_i + 1]);
         }
     }
     dims.erase(std::remove_if(dims.begin(),
@@ -327,7 +329,8 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
             auto other_input_reshape =
                 op::util::make_try_fold<ov::op::v1::Reshape>(add_node->input_value(non_matmul_port), pattern, true);
             add_node->input(non_matmul_port).replace_source_output(other_input_reshape->output(0));
-            ov::copy_runtime_info({in_reshape_0, in_reshape_1}, {first_batch_dim, minus_one, other_input_reshape});
+            ov::copy_runtime_info({in_reshape_0, in_reshape_1},
+                                  {first_batch_dim, minus_one, other_input_reshape, pattern});
             add_node->validate_and_infer_types();
         }
         ov::replace_output_update_name(out_reshape->output(0), out_reshape->input_value(0));
