@@ -396,6 +396,21 @@ struct KVAxesPosition {
     uint32_t seq_len;
 };
 
+// detach_head ?
+// detach_unembedding?
+// detach should happen after slice in prefil model.
+// how else can I indicate this tail?
+void detach_head(std::shared_ptr<ov::Model> model,
+                 const uint32_t input_size,
+                 const uint32_t kvcache_size,
+                 const KVAxesPosition& kv_axes_position) {
+    std::map<std::string, ov::PartialShape> new_shapes;
+    std::shared_ptr<ov::Model> head;
+    for (const auto& input : model->get_ordered_ops()) {
+
+    }
+}
+
 void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
                        const uint32_t kvcache_size,
