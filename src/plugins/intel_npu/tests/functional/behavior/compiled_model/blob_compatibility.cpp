@@ -24,7 +24,11 @@ const auto all_models = []() -> std::vector<std::string> {
 
 const auto match_platform =
     !ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM.empty()
-        ? PLATFORMS.at(PARSED_PLATFORMS.at(ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM))
+        ? (PARSED_PLATFORMS.find(ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM) !=
+                   PARSED_PLATFORMS.end()
+               ? PLATFORMS.at(
+                     PARSED_PLATFORMS.at(ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM))
+               : "")
         : "";
 
 const auto all_ov_releases = []() -> std::vector<std::string> {
