@@ -277,7 +277,6 @@ bool DnnlMatMulPrimitive::useWeightsDecompressionImpl(const ov::element::Type in
 }
 
 DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAttrs& attrs,
-                                                                      const PostOps& postOps,
                                                                       const MemoryArgs& memory,
                                                                       const ExecutorContext::CPtr& context,
                                                                       const bool cacheWeights) {
@@ -289,7 +288,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const FCAt
 
     const auto useWeightsDecompression = useWeightsDecompressionImpl(srcDesc->getPrecision(), weiDesc->getPrecision());
     const auto postOpData =
-        createPrimitiveAttrs(postOps, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
+        createPrimitiveAttrs(attrs.postOps, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
     if (!cacheWeights) {
         return std::make_shared<DnnlShapeAgnosticData>(postOpData);

@@ -391,11 +391,9 @@ std::tuple<VecMemoryDescs, MemoryDescPtr> Convolution::initMemoryDescriptors(ov:
     return {srcDescs, dstDesc};
 }
 
-ExecutorFactoryPtr<ConvAttrs> Convolution::createExecutorFactory(const MemoryDescArgs& descs,
-                                                                 const ConvAttrs& attrs,
-                                                                 const PostOps& postOps) {
+ExecutorFactoryPtr<ConvAttrs> Convolution::createExecutorFactory(const MemoryDescArgs& descs, const ConvAttrs& attrs) {
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
-    return std::make_shared<ExecutorFactory<ConvAttrs>>(attrs, postOps, executionContext, descs, memoryFormatFilter);
+    return std::make_shared<ExecutorFactory<ConvAttrs>>(attrs, executionContext, descs, memoryFormatFilter);
 }
 
 std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecision() {
@@ -466,7 +464,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
 
     const auto [dstType, sumType] = getDstAndSumPrecision();
 
-    m_postOps = getPostOps(fusedWith, sumType);
+    m_attrs.postOps = getPostOps(fusedWith, sumType);
 
     auto [srcDescs, dstDesc] = initMemoryDescriptors(dstType);
 
@@ -477,7 +475,7 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         {ARG_DST, dstDesc},
     };
 
-    m_factory = createExecutorFactory(descs, m_attrs, m_postOps);
+    m_factory = createExecutorFactory(descs, m_attrs);
 
     const std::vector<MemoryDescArgs> nodeDescriptorsList = m_factory->getProperMemoryDescriptors(descs);
 
@@ -635,7 +633,8 @@ ExecutorPtr Convolution::createFallbackExecutor() {
         return fallbackExecutor;
     }
 
-    PostOps fallbackPostOps = m_postOps;
+    ConvAttrs fallbackAttrs = m_attrs;
+    PostOps& fallbackPostOps = fallbackAttrs.postOps;
     // remove sum post-op from fallback post-ops
     auto sumPostOp =
         std::find_if(fallbackPostOps.begin(), fallbackPostOps.end(), [](const std::shared_ptr<PostOp>& postOp) {
@@ -644,7 +643,8 @@ ExecutorPtr Convolution::createFallbackExecutor() {
 
     fallbackPostOps.erase(sumPostOp, fallbackPostOps.end());
 
-    CPU_NODE_ASSERT(fallbackPostOps.size() < m_postOps.size(), "Unexpected post-ops size after sum post-op removal");
+    CPU_NODE_ASSERT(fallbackPostOps.size() < m_attrs.postOps.size(),
+                    "Unexpected post-ops size after sum post-op removal");
 
     auto dstType = getOriginalInputPrecisionAtPort(0);
 
@@ -661,7 +661,7 @@ ExecutorPtr Convolution::createFallbackExecutor() {
         {ARG_DST, dstDesc},
     };
 
-    auto fallbackFactory = createExecutorFactory(descs, m_attrs, fallbackPostOps);
+    auto fallbackFactory = createExecutorFactory(descs, fallbackAttrs);
     fallbackExecutor = fallbackFactory->make(m_memory);
     return fallbackExecutor;
 }
