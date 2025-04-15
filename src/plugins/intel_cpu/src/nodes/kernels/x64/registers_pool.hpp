@@ -219,10 +219,10 @@ protected:
         std::vector<bool> isFreeIndexVector;
     };
 
-    virtual int getFreeOpmask(int requestedIdx) {
+    virtual int getFreeOpmask([[maybe_unused]] int requestedIdx) {
         OPENVINO_THROW("getFreeOpmask: The Opmask is not supported in current instruction set");
     }
-    virtual void returnOpmaskToPool(int idx) {
+    virtual void returnOpmaskToPool([[maybe_unused]] int idx) {
         OPENVINO_THROW("returnOpmaskToPool: The Opmask is not supported in current instruction set");
     }
     [[nodiscard]] virtual size_t countUnusedOpmask() const {

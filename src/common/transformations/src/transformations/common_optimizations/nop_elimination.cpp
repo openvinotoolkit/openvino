@@ -11,6 +11,7 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -552,6 +553,24 @@ pass::EliminateConcatStridedSlice::EliminateConcatStridedSlice() {
                 if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
                     !check_mask(strided_slice_node->get_new_axis_mask()) ||
                     !check_mask(strided_slice_node->get_ellipsis_mask())) {
+                    return false;
+                }
+
+                // check that concatenated and split axis is the same
+                auto check_axis = [concat_axis](const std::vector<int64_t>& masks) {
+                    for (size_t axis = 0; axis < masks.size(); ++axis) {
+                        if (masks[axis] != 1 && axis != static_cast<size_t>(concat_axis)) {
+                            return false;
+                        }
+                        if (masks[axis] != 0 && axis == static_cast<size_t>(concat_axis)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                };
+                auto begin_mask = strided_slice_node->get_begin_mask();
+                auto end_mask = strided_slice_node->get_end_mask();
+                if (!check_axis(begin_mask) || !check_axis(end_mask)) {
                     return false;
                 }
 
