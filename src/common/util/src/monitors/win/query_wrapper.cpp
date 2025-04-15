@@ -32,44 +32,46 @@ QueryWrapper::~QueryWrapper() {
     }
 }
 
-bool QueryWrapper::pdhExpandWildCardPathW(LPCWSTR szDataSource,
-                                          LPCWSTR szWildCardPath,
-                                          PZZWSTR mszExpandedPathList,
-                                          LPDWORD pcchPathListLength,
-                                          DWORD dwFlags) {
+PDH_STATUS QueryWrapper::pdhExpandWildCardPathW(LPCWSTR szDataSource,
+                                                LPCWSTR szWildCardPath,
+                                                PZZWSTR mszExpandedPathList,
+                                                LPDWORD pcchPathListLength,
+                                                DWORD dwFlags) {
     if (!hPdh) {
-        return false;
+        return ERROR;
     }
     try {
         using PdhExpandWildCardPathW_fn = PDH_STATUS (*)(LPCWSTR, LPCWSTR, PZZWSTR, LPDWORD, DWORD);
         auto pPdhExpandWildCardPathW =
             reinterpret_cast<PdhExpandWildCardPathW_fn>(GetProcAddress(hPdh, "PdhExpandWildCardPathW"));
         if (pPdhExpandWildCardPathW) {
-            auto status =
-                pPdhExpandWildCardPathW(szDataSource, szWildCardPath, mszExpandedPathList, pcchPathListLength, dwFlags);
-            return status == ERROR_SUCCESS || status == PDH_MORE_DATA;
+            return pPdhExpandWildCardPathW(szDataSource,
+                                           szWildCardPath,
+                                           mszExpandedPathList,
+                                           pcchPathListLength,
+                                           dwFlags);
+            // return status == ERROR_SUCCESS || status == PDH_MORE_DATA;
         }
     } catch (...) {
-        return false;
+        return ERROR;
     }
-    return true;
+    return ERROR;
 }
 
-bool QueryWrapper::pdhAddCounterW(LPCWSTR szFullCounterPath, DWORD_PTR dwUserData, PDH_HCOUNTER* phCounter) {
+PDH_STATUS QueryWrapper::pdhAddCounterW(LPCWSTR szFullCounterPath, DWORD_PTR dwUserData, PDH_HCOUNTER* phCounter) {
     if (!hPdh) {
-        return false;
+        return ERROR;
     }
     try {
         using PdhAddCounterW_fn = PDH_STATUS (*)(PDH_HQUERY, LPCWSTR, DWORD_PTR, PDH_HCOUNTER*);
         auto pPdhAddCounterW = reinterpret_cast<PdhAddCounterW_fn>(GetProcAddress(hPdh, "PdhAddCounterW"));
         if (pPdhAddCounterW) {
-            auto status = pPdhAddCounterW(query, szFullCounterPath, dwUserData, phCounter);
-            return status == ERROR_SUCCESS;
+            return pPdhAddCounterW(query, szFullCounterPath, dwUserData, phCounter);
         }
     } catch (...) {
-        return false;
+        return ERROR;
     }
-    return true;
+    return ERROR;
 }
 PDH_STATUS QueryWrapper::pdhGetFormattedCounterValue(PDH_HCOUNTER hCounter,
                                                      DWORD dwFormat,
@@ -83,43 +85,44 @@ PDH_STATUS QueryWrapper::pdhGetFormattedCounterValue(PDH_HCOUNTER hCounter,
         auto pPdhGetFormattedCounterValue =
             reinterpret_cast<PdhGetFormattedCounterValue_fn>(GetProcAddress(hPdh, "PdhGetFormattedCounterValue"));
         if (pPdhGetFormattedCounterValue) {
-            return ERROR_SUCCESS == pPdhGetFormattedCounterValue(hCounter, dwFormat, lpdwType, pValue);
+            return pPdhGetFormattedCounterValue(hCounter, dwFormat, lpdwType, pValue);
         }
     } catch (...) {
         return ERROR;
     }
     return ERROR;
 }
-bool QueryWrapper::pdhCollectQueryData() {
+
+PDH_STATUS QueryWrapper::pdhCollectQueryData() {
     if (!hPdh) {
-        return false;
+        return ERROR;
     }
     try {
         using PdhCollectQueryData_fn = PDH_STATUS (*)(PDH_HQUERY);
         auto pPdhCollectQueryData =
             reinterpret_cast<PdhCollectQueryData_fn>(GetProcAddress(hPdh, "PdhCollectQueryData"));
         if (pPdhCollectQueryData) {
-            auto status = pPdhCollectQueryData(query);
-            return status == ERROR_SUCCESS;
+            return pPdhCollectQueryData(query);
         }
     } catch (...) {
-        return false;
+        return ERROR;
     }
-    return true;
+    return ERROR;
 }
-bool QueryWrapper::pdhSetCounterScaleFactor(PDH_HCOUNTER hCounter, LONG dwScaleFactor) {
+
+PDH_STATUS QueryWrapper::pdhSetCounterScaleFactor(PDH_HCOUNTER hCounter, LONG dwScaleFactor) {
     if (!hPdh) {
-        return false;
+        return ERROR;
     }
     try {
         using PdhSetCounterScaleFactor_fn = PDH_STATUS (*)(PDH_HCOUNTER, LONG);
         auto pPdhSetCounterScaleFactor =
             reinterpret_cast<PdhSetCounterScaleFactor_fn>(GetProcAddress(hPdh, "PdhSetCounterScaleFactor"));
         if (pPdhSetCounterScaleFactor) {
-            return ERROR_SUCCESS == pPdhSetCounterScaleFactor(hCounter, dwScaleFactor);
+            return pPdhSetCounterScaleFactor(hCounter, dwScaleFactor);
         }
     } catch (...) {
-        return false;
+        return ERROR;
     }
-    return true;
+    return ERROR;
 }

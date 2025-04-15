@@ -71,13 +71,13 @@ public:
         DWORD PathListLengthBufLen;
         std::vector<std::wstring> pathList;
         auto ret = query.pdhExpandWildCardPathW(NULL, WildCardPath, NULL, &PathListLength, 0);
-        if (!ret) {
+        if (ret == ERROR_SUCCESS || ret == PDH_MORE_DATA) {
             return pathList;
         }
         PathListLengthBufLen = PathListLength + 100;
         PZZWSTR ExpandedPathList = (PZZWSTR)malloc(PathListLengthBufLen * sizeof(WCHAR));
         ret = query.pdhExpandWildCardPathW(NULL, WildCardPath, ExpandedPathList, &PathListLength, 0);
-        if (!ret) {
+        if (ret == ERROR_SUCCESS || ret == PDH_MORE_DATA) {
             free(ExpandedPathList);
             return pathList;
         }
@@ -100,11 +100,11 @@ public:
         for (std::wstring path : pathList) {
             PDH_HCOUNTER Counter;
             auto ret = query.pdhAddCounterW(path.c_str(), NULL, &Counter);
-            if (!ret) {
+            if (ret != ERROR_SUCCESS) {
                 return CounterList;
             }
             ret = query.pdhSetCounterScaleFactor(Counter, -2);  // scale counter to [0, 1]
-            if (!ret) {
+            if (ret != ERROR_SUCCESS) {
                 return CounterList;
             }
             CounterList.push_back(Counter);
@@ -125,6 +125,8 @@ public:
         }
         lastTimeStamp = std::chrono::system_clock::now();
         auto ret = query.pdhCollectQueryData();
+        if (ret != ERROR_SUCCESS)
+            return {}
         PDH_FMT_COUNTERVALUE displayValue;
         std::map<std::string, double> utilizationMap;
         for (auto item : coreTimeCounters) {
@@ -134,8 +136,8 @@ public:
             for (int counterIndex = 0; counterIndex < MAX_COUNTER_INDEX; counterIndex++) {
                 auto countersList = coreCounters[counterIndex];
                 for (auto counter : countersList) {
-                    auto status = query.pdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, NULL, &displayValue);
-                    if (!status) {
+                    ret = query.pdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, NULL, &displayValue);
+                    if (ret != ERROR_SUCCESS) {
                         continue;
                     }
                     utilization += displayValue.doubleValue;
