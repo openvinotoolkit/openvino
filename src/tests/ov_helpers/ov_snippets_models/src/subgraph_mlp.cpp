@@ -22,7 +22,7 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
                                                       std::vector<float>{0.1122});
 
     ov::builder::subgraph::FakeQuantizeOnData onData =
-        {256, {1, 1}, {-1.28f}, {1.27f}, {0.f}, {255.f}, ov::element::u8};
+        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8};
     std::shared_ptr<Node> current = A;
 
     for (size_t mm_count = 0; mm_count < num_layers; ++mm_count) {
@@ -44,7 +44,7 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
             ov::op::TemporaryReplaceOutputType(add, element::f32).get());
         for (size_t i = 0; i < 2; ++i) {
             auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                                   ov::Shape{64},
+                                                                   ov::Shape{input_shapes[0].to_shape()[0]},
                                                                    std::vector<float>{0.1122f + i});
             current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
                 std::vector<element::Type>{element::f32, element::f32},
@@ -53,10 +53,12 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
                 ov::op::TemporaryReplaceOutputType(constant, element::f32).get());
         }
     }
-    current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, precisions[0], onData);
+    ov::builder::subgraph::FakeQuantizeOnData onData2 =
+        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
+    current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, precisions[0], onData2);
     auto softmax = std::make_shared<ov::op::v8::Softmax>(current, 1);
     ov::builder::subgraph::FakeQuantizeOnData onData1 =
-        {256, {1, 1}, {-1.28f}, {1.27f}, {0.f}, {255.f}, ov::element::i8};
+        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
     auto dq_A = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(softmax, precisions[0], onData1);
 
     auto result = std::make_shared<ov::op::v0::Result>(dq_A);
@@ -65,73 +67,115 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> MLPSeqFunction::initReference() const {
     auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, input_shapes[0]);
-    auto B0 = std::make_shared<ov::op::v0::Constant>(ov::element::i8, input_shapes[0].to_shape(), std::vector<float>{0.1122f + 0});
-    auto B1 = std::make_shared<ov::op::v0::Constant>(ov::element::i8, input_shapes[0].to_shape(), std::vector<float>{0.1122f + 1});
-    auto add = std::make_shared<ov::op::v0::Constant>(ov::element::i8, input_shapes[0].to_shape(), std::vector<uint8_t>{1});
-    auto trans_zeros0 = std::make_shared<ov::op::v1::Transpose>(
-        B0, ov::op::v0::Constant::create(ov::element::i8, {input_shapes[0].get_shape().size()}, std::vector<int64_t>{1, 0}));
-    auto zeros2 = std::make_shared<ov::op::v0::Constant>(precisions[0], input_shapes[0].to_shape(), std::vector<float>{0.1122});
-    auto zeros64 = std::make_shared<ov::op::v0::Constant>(precisions[0], ov::Shape{input_shapes[0].to_shape()[0]}, std::vector<float>{0.1122});
-    auto zeros64_2 = std::make_shared<ov::op::v0::Constant>(precisions[0], ov::Shape{input_shapes[0].to_shape()[0]}, std::vector<float>{0.1122 + 1});
-    auto zeros64_3 = std::make_shared<ov::op::v0::Constant>(precisions[0], ov::Shape{input_shapes[0].to_shape()[0]}, std::vector<float>{0.1122});
-    auto zeros64_4 = std::make_shared<ov::op::v0::Constant>(
-        precisions[0], ov::Shape{input_shapes[0].to_shape()[0]}, std::vector<float>{0.1122 + 1});
-    auto trans_zeros1 = std::make_shared<ov::op::v1::Transpose>(
-        B1, ov::op::v0::Constant::create(ov::element::i8, {input_shapes[0].get_shape().size()}, std::vector<int64_t>{1, 0}));
 
+    std::vector<std::shared_ptr<ov::Node>> constants;
+    for (size_t mm_count = 0; mm_count < num_layers; ++mm_count) {
+        constants.push_back(std::make_shared<ov::op::v0::Constant>(
+            ov::element::i8, input_shapes[0].to_shape(), std::vector<float>{0.1122f + mm_count}));
+    }
+
+    std::vector<std::shared_ptr<ov::Node>> transposes;
+    for (size_t mm_count = 0; mm_count < num_layers; ++mm_count) {
+        transposes.push_back(
+            std::make_shared<ov::op::v1::Transpose>(
+                constants[mm_count],
+                ov::op::v0::Constant::create(ov::element::i32, {input_shapes[0].get_shape().size()}, std::vector<int64_t>{1, 0})));
+    }
+
+    auto zeros_matrix = std::make_shared<ov::op::v0::Constant>(
+        precisions[0],
+        input_shapes[0].to_shape(),
+        std::vector<float>{0.1122});
+
+    std::vector<std::shared_ptr<ov::Node>> zero_vectors;
+    for (size_t mm_count = 0; mm_count < num_layers; ++mm_count) {
+        zero_vectors.push_back(std::make_shared<ov::op::v0::Constant>(
+            precisions[0],
+            ov::Shape{input_shapes[0].to_shape()[0]},
+            std::vector<float>{0.1122f + mm_count}));
+    }
+
+    // Create subgraph parameters (must be preserved even if similar constants exist).
     auto sub_A = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
     auto sub_trans_zeros0 = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
     auto sub_zeros2 = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
-    auto sub_zeros64 = std::make_shared<ov::op::v0::Parameter>(precisions[0], ov::Shape{input_shapes[0].to_shape()[0]});
+    auto sub_zeros64 = std::make_shared<ov::op::v0::Parameter>(
+        precisions[0],
+        ov::Shape{input_shapes[0].to_shape()[0]});
     auto sub_zeros64_2 = std::make_shared<ov::op::v0::Parameter>(precisions[0], ov::Shape{input_shapes[0].to_shape()[0]});
     auto sub_zeros64_3 = std::make_shared<ov::op::v0::Parameter>(precisions[0], ov::Shape{input_shapes[0].to_shape()[0]});
     auto sub_zeros64_4 = std::make_shared<ov::op::v0::Parameter>(precisions[0], ov::Shape{input_shapes[0].to_shape()[0]});
     auto sub_trans_zeros1 = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
+
     ov::ParameterVector subgraph_params = {
-        sub_A, sub_trans_zeros0, sub_zeros2, sub_zeros64, sub_zeros64_2, sub_trans_zeros1, sub_zeros2, sub_zeros64_3, sub_zeros64_4};
-    ov::NodeVector subgraph_nodes = {A, trans_zeros0, zeros2, zeros64, zeros64_2, trans_zeros1, zeros2, zeros64_3, zeros64_4};
+        sub_A, sub_trans_zeros0, sub_zeros2, sub_zeros64, sub_zeros64_2,
+        sub_trans_zeros1, sub_zeros2, sub_zeros64_3, sub_zeros64_4
+    };
 
-    ov::builder::subgraph::FakeQuantizeOnData onData =
-        {256, {1, 1}, {-1.28f}, {1.27f}, {0.f}, {255.f}, ov::element::u8};
-    std::shared_ptr<Node> current = subgraph_params[0];
+    ov::NodeVector subgraph_nodes = {
+        A, transposes[0], zeros_matrix, zero_vectors[0], zero_vectors[1],
+        transposes[1], zeros_matrix, zero_vectors[0], zero_vectors[1],
+    };
 
+    ov::builder::subgraph::FakeQuantizeOnData onData = {
+        256, {1, 1}, {0.0f}, {2.55f}, {0.f}, {255.f}, ov::element::u8
+    };
+
+    auto decomposed_fq = [](const ov::Output<ov::Node>& input,
+                            const ov::element::Type& out_precision,
+                            float il, float ih, float scale) -> std::shared_ptr<ov::Node> {
+        auto input_low = ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {il});
+        auto input_high = ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {ih});
+        auto output_scale = ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {scale});
+        auto max_node = std::make_shared<ov::op::v1::Maximum>(input, input_low);
+        auto min_node = std::make_shared<ov::op::v1::Minimum>(max_node, input_high);
+        return std::make_shared<ov::op::v1::Multiply>(min_node, output_scale);
+    };
+
+    std::shared_ptr<ov::Node> current = sub_A;
+    current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, precisions[0]);
     for (size_t mm_count = 0; mm_count < num_layers; ++mm_count) {
-        current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, precisions[0], onData);
+        current = decomposed_fq(current, ov::element::u8, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
+        current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::u8);
 
         current = std::make_shared<op::TypeRelaxed<ov::op::v0::MatMul>>(
-            std::vector<element::Type>{element::f32, element::f32},
-            std::vector<element::Type>{element::f32},
-            ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(mm_count == 0 ? B0 : B1, element::f32).get(),
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(sub_trans_zeros0, ov::element::f32).get(),
             false,
             true);
 
         current = std::make_shared<op::TypeRelaxed<ov::op::v1::Multiply>>(
-            std::vector<element::Type>{element::f32, element::f32},
-            std::vector<element::Type>{element::f32},
-            ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
-            ov::op::TemporaryReplaceOutputType(add, element::f32).get());
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(sub_zeros2, ov::element::f32).get());
         for (size_t i = 0; i < 2; ++i) {
-            auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                                   ov::Shape{64},
-                                                                   std::vector<float>{0.1122f + i});
+            auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{input_shapes[0].to_shape()[0]}, std::vector<float>{0.1122f + i});
             current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
-                std::vector<element::Type>{element::f32, element::f32},
-                std::vector<element::Type>{element::f32},
-                ov::op::TemporaryReplaceOutputType(current, element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(constant, element::f32).get());
+                std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+                std::vector<ov::element::Type>{ov::element::f32},
+                ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(
+                    i == 0 ? sub_zeros64 : sub_zeros64_2, ov::element::f32).get());
         }
     }
-    current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, precisions[0], onData);
-    auto softmax = std::make_shared<ov::op::v8::Softmax>(current, 1);
-    ov::builder::subgraph::FakeQuantizeOnData onData1 =
-        {256, {1, 1}, {-1.28f}, {1.27f}, {0.f}, {255.f}, ov::element::i8};
-    auto dq_A = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(softmax, precisions[0], onData1);
-    auto result_subgraph = std::make_shared<ov::op::v0::Result>(dq_A);
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraph_nodes, std::make_shared<Model>(ResultVector{result_subgraph}, subgraph_params));
+    current = decomposed_fq(current, ov::element::f32, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
+    current = std::make_shared<ov::op::v1::Subtract>(current, ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {0}));
+    current = std::make_shared<ov::op::v5::Round>(current, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+    current = std::make_shared<ov::op::v8::Softmax>(current, 1);
+    current = decomposed_fq(current, ov::element::f32, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
+    current = std::make_shared<ov::op::v1::Subtract>(current, ov::op::v0::Constant::create(ov::element::f32, {1, 1}, {0}));
+    current = std::make_shared<ov::op::v5::Round>(current, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+    auto result_subgraph = std::make_shared<ov::op::v0::Result>(current);
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
+        subgraph_nodes,
+        std::make_shared<ov::Model>(ov::ResultVector{result_subgraph}, subgraph_params));
     auto result = std::make_shared<ov::op::v0::Result>(subgraph);
-    return std::make_shared<Model>(ResultVector{result}, ParameterVector{A});
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{A});
 }
 
 }  // namespace snippets
