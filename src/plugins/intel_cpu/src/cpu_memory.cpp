@@ -161,7 +161,10 @@ void Memory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
 void Memory::nullify() {
     void* dataPtr = getData();
     if (dataPtr != nullptr) {
-        memset(dataPtr, 0, getDesc().getCurrentMemSize());
+        size_t memSize = getDesc().getCurrentMemSize();
+        OPENVINO_ASSERT(memSize != MemoryDesc::UNDEFINED_SIZE,
+                        "Invalid memory size detected during nullify operation.");
+        memset(dataPtr, 0, memSize);
     }
 }
 
@@ -268,6 +271,10 @@ void MemoryBlockWithReuse::free() {
     m_useExternalStorage = false;
 }
 
+size_t MemoryBlockWithReuse::size() const {
+    return m_memUpperBound;
+}
+
 void MemoryBlockWithReuse::release(void* ptr) {}
 
 void MemoryBlockWithReuse::destroy(void* ptr) {
@@ -299,7 +306,7 @@ StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* 
     }
 }
 
-void StringMemory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
+void StringMemory::load(const IMemory& src, [[maybe_unused]] bool ftz, [[maybe_unused]] bool bf16saturation) const {
     if (src.getDesc().getPrecision() != element::string) {
         OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
     }
@@ -435,7 +442,7 @@ void DnnlMemoryBlock::notifyUpdate() {
     }
 }
 
-StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data, bool pads_zeroing)
+StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data, [[maybe_unused]] bool pads_zeroing)
     : m_eng(std::move(eng)),
       m_pMemDesc(std::move(desc)) {
     if (m_pMemDesc->getPrecision() == element::string) {
@@ -455,13 +462,16 @@ StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* dat
 
     try {
         auto dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_pMemDesc);
-        // ========================
         // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
         // but with ability to skip pads zeroing.
-        m_prim = dnnl::memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
-        //
-        // ========================
-        m_prim.set_data_handle(m_pMemBlock->getRawPtr());
+        const auto& memory_desc = dnnl_desc->getDnnlDesc();
+        if (memory_desc.is_zero()) {
+            // dnnl memory created using an empty memory_desc is not empty, so use a default constructor
+            m_prim = dnnl::memory();
+        } else {
+            m_prim = dnnl::memory(memory_desc, m_eng, DNNL_MEMORY_NONE);
+            m_prim.set_data_handle(m_pMemBlock->getRawPtr());
+        }
     } catch (const std::exception& exc) {
         dnnlErrorCtx = exc.what();
     }
@@ -494,7 +504,7 @@ const VectorDims& StaticMemory::getStaticDims() const {
     return getShape().getStaticDims();
 }
 
-void StaticMemory::redefineDesc(MemoryDescPtr desc) {
+void StaticMemory::redefineDesc([[maybe_unused]] MemoryDescPtr desc) {
     OPENVINO_THROW("Unexpected: Memory descriptor may not be modified in StaticMemory object");
 }
 
@@ -511,9 +521,7 @@ MemoryBlockPtr StaticMemory::getMemoryBlock() const {
 
 // oneDNN specifics for backward compatibility
 dnnl::memory StaticMemory::getPrimitive() const {
-    if (!m_prim) {
-        OPENVINO_THROW("Couldn't create dnnl::memory object: ", dnnlErrorCtx);
-    }
+    OPENVINO_ASSERT(m_prim || getDesc().empty(), "Could not get dnnl::memory object ", dnnlErrorCtx);
     return m_prim;
 }
 
@@ -536,7 +544,7 @@ void* StaticMemory::StaticMemoryBlock::getRawPtr() const noexcept {
     return memBlockImpl.getRawPtr();
 }
 
-void StaticMemory::StaticMemoryBlock::setExtBuff(void* ptr, size_t size) {
+void StaticMemory::StaticMemoryBlock::setExtBuff([[maybe_unused]] void* ptr, [[maybe_unused]] size_t size) {
     OPENVINO_THROW("Unexpected: StaticMemoryBlock may not be modified");
 }
 
@@ -616,6 +624,10 @@ bool mbind_move(const MemoryCPtr& mem, int numaNodeID) {
 }
 
 bool mbind_move(const dnnl::memory& mem, int numaNodeID) {
+    if (!mem) {
+        return true;
+    }
+
     void* data = mem.get_data_handle();
     auto desc = mem.get_desc();
     auto size = desc.get_size();

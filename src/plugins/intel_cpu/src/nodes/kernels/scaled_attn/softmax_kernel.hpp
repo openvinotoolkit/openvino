@@ -241,7 +241,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm512_cvtepi8_epi32(v_maski8);
             auto kmask = _mm512_cmp_epi32_mask(v_maski32, v_zeroi32, _MM_CMPINT_NE);  // !=0
             kmask = _kxor_mask16(kmask, kmask_xor);                                   // reverse, mask at ==0
@@ -269,7 +269,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm512_cvtepi8_epi32(v_maski8);
             auto kmask = _mm512_cmp_epi32_mask(v_maski32, v_zeroi32, _MM_CMPINT_NE);  // !=0
             kmask = _kxor_mask16(kmask, kmask_xor);                                   // reverse, mask at ==0
@@ -342,7 +342,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm256_cvtepi8_epi32(v_maski8);
             v_maski32 = _mm256_cmpeq_epi32(v_maski32, v_zeroi32);                    // ==0
             v_maski32 = _mm256_xor_si256(v_maski32, v_mask_xor);                     // reverse, mask at ==0
@@ -371,7 +371,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm256_cvtepi8_epi32(v_maski8);
             v_maski32 = _mm256_cmpeq_epi32(v_maski32, v_zeroi32);                    // ==0
             v_maski32 = _mm256_xor_si256(v_maski32, v_mask_xor);                     // reverse, mask at ==0

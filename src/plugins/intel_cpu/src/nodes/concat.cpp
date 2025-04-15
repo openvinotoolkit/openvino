@@ -84,7 +84,7 @@ void Concat::getSupportedDescriptors() {
                 break;
             }
         }
-        if (incorrectDims || firstParentDims.size() == 0) {
+        if (incorrectDims || firstParentDims.empty()) {
             THROW_CPU_NODE_ERR("has incorrect input dimensions");
         }
     }
@@ -280,9 +280,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
             maxCount = it.second;
             convertTo = it.first;
         } else if (it.second == maxCount) {
-            if (context->isGraphQuantized() && it.first == LayoutType::nspc) {
-                convertTo = it.first;
-            } else if (it.first == LayoutType::nCsp8c || it.first == LayoutType::nCsp16c) {
+            if ((context->isGraphQuantized() && it.first == LayoutType::nspc) || it.first == LayoutType::nCsp8c ||
+                it.first == LayoutType::nCsp16c) {
                 convertTo = it.first;
             }
         }

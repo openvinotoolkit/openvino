@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -72,7 +73,7 @@ public:
                                                size_t OC,
                                                size_t G,
                                                ov::element::Type inferencePrecision) noexcept;
-    static ov::element::TypeVector getSupportedCompressedWeightsTypes();
+    static ov::element::TypeVector getSupportedCompressedWeightsTypes(bool apply_fp8 = false);
     static ov::element::TypeVector getSupportedCompressedActivationsTypes();
 
     bool isExecutable() const override {
@@ -93,7 +94,7 @@ protected:
     void toNumaNodeImpl(int numaID) override;
 
 private:
-    enum InputId : size_t {
+    enum InputId : uint8_t {
         DATA = 0,
         WEIGHTS,
         BIAS,

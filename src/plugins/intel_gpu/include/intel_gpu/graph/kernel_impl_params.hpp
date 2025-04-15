@@ -25,11 +25,12 @@ struct program;
 struct network;
 
 
-struct ExecutionFlags : public std::bitset<4> {
+struct ExecutionFlags : public std::bitset<5> {
     static const size_t SHAPE_CHANGED = 0;
     static const size_t IMPL_CHANGED = 1;
     static const size_t MEMORY_CHANGED = 2;
-    static const size_t SKIP = 3;
+    static const size_t ARG_UPDATE_REQUIRED = 3;
+    static const size_t SKIP = 4;
 };
 
 struct kernel_impl_params final {
@@ -174,6 +175,9 @@ struct kernel_impl_params final {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params is not initialized");
         return *prog;
     }
+
+    const device_info& get_device_info() const;
+
     stream& get_stream() const { return *strm; }
     stream::ptr get_stream_ptr() const { return strm; }
 
@@ -182,3 +186,7 @@ struct kernel_impl_params final {
 };
 
 }  // namespace cldnn
+
+namespace ov::intel_gpu {
+using RuntimeParams = cldnn::kernel_impl_params;
+}  // namespace ov::intel_gpu

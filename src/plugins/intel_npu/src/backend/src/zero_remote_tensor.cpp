@@ -6,7 +6,7 @@
 
 #include <ze_api.h>
 
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
@@ -23,6 +23,7 @@ namespace intel_npu {
 
 ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                                   const ze_device_properties_t& device_properties,
                                    const ov::element::Type& element_type,
                                    const ov::Shape& shape,
                                    const Config& config,
@@ -33,13 +34,10 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
       _config(config),
       _logger("ZeroRemoteContext", _config.get<LOG_LEVEL>()),
       _init_structs(init_structs),
+      _device_properties(device_properties),
       _tensor_type(tensor_type),
       _mem_type(mem_type),
       _mem(mem) {
-    _ze_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_init_structs->getDevice(), &_ze_properties));
-
     const auto byte_size = ov::element::get_memory_size(_element_type, shape_size(_shape));
 
     ze_device_external_memory_properties_t desc = {};
@@ -99,7 +97,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         size_t size = (bytes + STANDARD_PAGE_SIZE - 1) & ~(STANDARD_PAGE_SIZE - 1);
 
         ze_host_mem_alloc_desc_t desc = {};
-        if (_tensor_type == TensorType::INPUT && (_ze_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)) {
+        if (_tensor_type == TensorType::INPUT && (_device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)) {
             ze_host_mem_alloc_flag_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
             desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, static_cast<ze_host_mem_alloc_flags_t>(flag)};
         } else {
