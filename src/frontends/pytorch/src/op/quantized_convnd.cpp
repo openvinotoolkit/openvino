@@ -7,6 +7,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/relu.hpp"
 #include "utils.hpp"
 #include "utils_quantize.hpp"
@@ -19,8 +21,12 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
+Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context, bool is1d) {
     auto input = context.get_input(0);
+    auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    if (is1d) {
+        input = std::make_shared<v0::Unsqueeze>(input, axis_node);
+    }
     auto packed_params_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
     PYTORCH_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
     const auto& attrs = packed_params_node->get_attrs();
@@ -63,10 +69,21 @@ Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
         bias = reshape_channelwise(context, bias, conv);
     }
     conv = context.mark_node(std::make_shared<v1::Add>(conv, bias));
-
+    if (is1d) conv = std::make_shared<v0::Squeeze>(conv, axis_node);
     return conv->output(0);
 };
 };  // namespace
+
+OutputVector translate_quantized_conv1d(const NodeContext& context) {
+
+    num_inputs_check(context, 4, 4);
+    auto scale = context.get_input(2);
+    auto zero_point = context.get_input(3);
+    auto input = context.get_input(0);
+    
+    return {quantize(context, translate_quantized_convnd_base(context, true), scale, zero_point, context.get_input(0))};
+}
+
 
 OutputVector translate_quantized_convnd(const NodeContext& context) {
     // "quantized::conv2d.new(Tensor qx, __torch__.torch.classes.quantized.Conv2dPackedParamsBase packed_weight, float
@@ -74,8 +91,19 @@ OutputVector translate_quantized_convnd(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     auto scale = context.get_input(2);
     auto zero_point = context.get_input(3);
-    return {quantize(context, translate_quantized_convnd_base(context), scale, zero_point, context.get_input(0))};
+    return {quantize(context, translate_quantized_convnd_base(context, false), scale, zero_point, context.get_input(0))};
 }
+
+OutputVector translate_quantized_conv1d_relu(const NodeContext& context) {
+
+    num_inputs_check(context, 4, 4);
+    auto scale = context.get_input(2);
+    auto zero_point = context.get_input(3);
+    auto conv = translate_quantized_convnd_base(context, true);
+    auto relu = context.mark_node(std::make_shared<v0::Relu>(conv));
+    return {quantize(context, relu->output(0), scale, zero_point, context.get_input(0))};
+}
+
 
 OutputVector translate_quantized_convnd_relu(const NodeContext& context) {
     // "quantized::conv2d_relu.new(Tensor qx, __torch__.torch.classes.quantized.Conv2dPackedParamsBase packed_weight,
@@ -83,7 +111,7 @@ OutputVector translate_quantized_convnd_relu(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     auto scale = context.get_input(2);
     auto zero_point = context.get_input(3);
-    auto conv = translate_quantized_convnd_base(context);
+    auto conv = translate_quantized_convnd_base(context, false);
     auto relu = context.mark_node(std::make_shared<v0::Relu>(conv));
     return {quantize(context, relu->output(0), scale, zero_point, context.get_input(0))};
 }
