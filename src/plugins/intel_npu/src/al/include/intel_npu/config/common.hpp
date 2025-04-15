@@ -265,6 +265,16 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     static std::string toString(const ov::intel_npu::BatchMode& val);
 };
 
+struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, uint32_t> {
+    static std::string_view key() {
+        return ov::intel_npu::weightless_blob.name();
+    }
+
+    static bool defaultValue() {
+        return true;
+    }
+};
+
 struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, uint32_t> {
     static std::string_view key() {
         return ov::intel_npu::separate_weights_version.name();

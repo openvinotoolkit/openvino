@@ -303,6 +303,11 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
  */
 static constexpr ov::Property<uint32_t> separate_weights_version{"NPU_SEPARATE_WEIGHTS_VERSION"};
 
+/**
+ * @brief TODO
+ */
+static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
+
 static constexpr ov::Property<bool> benchmark_init{"NPU_BENCHMARK_INIT"};
 
 static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};

@@ -904,6 +904,11 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
                               << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
         content = std::regex_replace(content, std::regex(separateWeightsStream.str()), "");
 
+        std::ostringstream weightlessBlobStream;
+        weightlessBlobStream << ov::intel_npu::weightless_blob.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                             << "\\S+" << VALUE_DELIMITER;
+        content = std::regex_replace(content, std::regex(weightlessBlobStream.str()), "");
+
         std::ostringstream wsCompileCallNumberStream;
         wsCompileCallNumberStream << ov::intel_npu::ws_compile_call_number.name() << KEY_VALUE_SEPARATOR
                                   << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
