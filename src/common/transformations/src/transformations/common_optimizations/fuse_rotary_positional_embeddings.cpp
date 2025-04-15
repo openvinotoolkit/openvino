@@ -25,11 +25,14 @@
 
 using namespace ov::gen_pattern;
 
+ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {
+}
+
 bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(RoPEFusion);
-    std::cout << "SETTING UP RoPEFusion" << std::endl;
+    ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
 
-    ov::pass::SymbolicOptimizations symbolic_optimizations(m_full_run);
+    std::cout << "SETTING UP RoPEFusion" << std::endl;
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
@@ -47,14 +50,13 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0, true);
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1, true);
     }
-
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(0);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(1);
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
 
     std::cout << "About to run the transformations" << std::endl;
-    bool a = symbolic_ctx_manager->run_passes(model);
+    bool a = symbolic_optimizations.get_manager()->run_passes(model);
     std::cout << "Run the transformations" << std::endl;
     return a;
 }

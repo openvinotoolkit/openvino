@@ -91,9 +91,9 @@ private:
 class ov::pass::RoPEFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("RoPEFusion");
-    RoPEFusion(bool support_2d_rope = false, bool full_run = false) : m_support_2d_rope(support_2d_rope), m_full_run(full_run) {}
+    RoPEFusion(bool support_2d_rope = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
+private:
     bool m_support_2d_rope;
-    bool m_full_run;
 };
