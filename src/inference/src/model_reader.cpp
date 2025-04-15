@@ -175,7 +175,7 @@ std::shared_ptr<ov::Model> read_model(const std::string& model,
     ov::AnyVector params{&modelStream};
     if (weights) {
         std::shared_ptr<ov::AlignedBuffer> weights_buffer =
-            std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(weights.data()),
+            std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(const_cast<void*>(weights.data())),
                                                            weights.get_byte_size(),
                                                            weights);
         params.emplace_back(weights_buffer);

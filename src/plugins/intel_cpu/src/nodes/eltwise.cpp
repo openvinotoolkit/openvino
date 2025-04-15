@@ -94,240 +94,241 @@ Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shar
 const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getInitializers() {
     static const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer> initializers = {
         {ov::op::v1::Add::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseAdd;
-            node.broadcastingPolicy = determineBroadcastingPolicy(op);
+             node.algorithm = Algorithm::EltwiseAdd;
+             node.broadcastingPolicy = determineBroadcastingPolicy(op);
         }},
         {ov::op::v1::Subtract::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseSubtract;
-            node.broadcastingPolicy = determineBroadcastingPolicy(op);
+             node.algorithm = Algorithm::EltwiseSubtract;
+             node.broadcastingPolicy = determineBroadcastingPolicy(op);
         }},
         {ov::op::v1::Multiply::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseMultiply;
-            node.broadcastingPolicy = determineBroadcastingPolicy(op);
+             node.algorithm = Algorithm::EltwiseMultiply;
+             node.broadcastingPolicy = determineBroadcastingPolicy(op);
         }},
         {ov::op::v1::Divide::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseDivide;
-            node.broadcastingPolicy = determineBroadcastingPolicy(op);
+             node.algorithm = Algorithm::EltwiseDivide;
+             node.broadcastingPolicy = determineBroadcastingPolicy(op);
         }},
-        {ov::op::v0::SquaredDifference::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseSquaredDifference;
+        {ov::op::v0::SquaredDifference::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseSquaredDifference;
         }},
-        {ov::op::v1::Maximum::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseMaximum;
+        {ov::op::v1::Maximum::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseMaximum;
         }},
-        {ov::op::v1::Minimum::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseMinimum;
+        {ov::op::v1::Minimum::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseMinimum;
         }},
-        {ov::op::v1::Mod::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseMod;
+        {ov::op::v1::Mod::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseMod;
         }},
-        {ov::op::v0::Ceiling::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseCeiling;
+        {ov::op::v0::Ceiling::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseCeiling;
         }},
-        {ov::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseNegative;
+        {ov::op::v0::Negative::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseNegative;
         }},
-        {ov::op::v0::Floor::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseFloor;
+        {ov::op::v0::Floor::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseFloor;
         }},
-        {ov::op::v1::FloorMod::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseFloorMod;
+        {ov::op::v1::FloorMod::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseFloorMod;
         }},
-        {ov::op::v1::Power::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwisePowerDynamic;
+        {ov::op::v1::Power::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwisePowerDynamic;
         }},
         {PowerStaticNode::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            auto powerStatic = getNgraphOpAs<PowerStaticNode>(op);
-            node.algorithm = Algorithm::EltwisePowerStatic;
-            node.alpha = powerStatic->get_power();
-            node.beta = powerStatic->get_scale();
-            node.gamma = powerStatic->get_shift();
-            node.broadcastingPolicy = PerTensor;
+             auto powerStatic = getNgraphOpAs<PowerStaticNode>(op);
+             node.algorithm = Algorithm::EltwisePowerStatic;
+             node.alpha = powerStatic->get_power();
+             node.beta = powerStatic->get_scale();
+             node.gamma = powerStatic->get_shift();
+             node.broadcastingPolicy = PerTensor;
         }},
-        {ov::op::v1::Equal::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseEqual;
+        {ov::op::v1::Equal::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseEqual;
         }},
-        {ov::op::v1::NotEqual::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseNotEqual;
+        {ov::op::v1::NotEqual::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseNotEqual;
         }},
-        {ov::op::v10::IsFinite::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseIsFinite;
+        {ov::op::v10::IsFinite::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseIsFinite;
         }},
         {ov::op::v10::IsInf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseIsInf;
-            const auto& attributes = ov::as_type_ptr<ov::op::v10::IsInf>(op)->get_attributes();
-            node.alpha = attributes.detect_negative;
-            node.beta  = attributes.detect_positive;
+             node.algorithm = Algorithm::EltwiseIsInf;
+             const auto& attributes = ov::as_type_ptr<ov::op::v10::IsInf>(op)->get_attributes();
+             node.alpha = attributes.detect_negative;
+             node.beta = attributes.detect_positive;
         }},
-        {ov::op::v10::IsNaN::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseIsNaN;
+        {ov::op::v10::IsNaN::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseIsNaN;
         }},
-        {ov::op::v1::Greater::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseGreater;
+        {ov::op::v1::Greater::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseGreater;
         }},
-        {ov::op::v1::GreaterEqual::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseGreaterEqual;
+        {ov::op::v1::GreaterEqual::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseGreaterEqual;
         }},
-        {ov::op::v1::Less::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseLess;
+        {ov::op::v1::Less::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseLess;
         }},
-        {ov::op::v1::LessEqual::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseLessEqual;
+        {ov::op::v1::LessEqual::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseLessEqual;
         }},
-        {ov::op::v1::LogicalAnd::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseLogicalAnd;
+        {ov::op::v1::LogicalAnd::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseLogicalAnd;
         }},
-        {ov::op::v1::LogicalOr::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseLogicalOr;
+        {ov::op::v1::LogicalOr::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseLogicalOr;
         }},
-        {ov::op::v1::LogicalXor::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseLogicalXor;
+        {ov::op::v1::LogicalXor::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseLogicalXor;
         }},
-        {ov::op::v1::LogicalNot::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseLogicalNot;
+        {ov::op::v1::LogicalNot::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseLogicalNot;
         }},
-        {ov::op::v0::Relu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseRelu;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_relu;
+        {ov::op::v0::Relu::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseRelu;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_relu;
         }},
         {LeakyReluNode::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            auto leakyRelu = getNgraphOpAs<LeakyReluNode>(op);
-            node.algorithm = Algorithm::EltwiseRelu;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_relu;
-            node.alpha = leakyRelu->get_slope();
-            node.beta = 0.0f;
+             auto leakyRelu = getNgraphOpAs<LeakyReluNode>(op);
+             node.algorithm = Algorithm::EltwiseRelu;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_relu;
+             node.alpha = leakyRelu->get_slope();
+             node.beta = 0.0f;
         }},
-        {ov::op::v0::Gelu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseGeluErf;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_erf;
+        {ov::op::v0::Gelu::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseGeluErf;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_erf;
         }},
         {ov::op::v7::Gelu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            auto gelu = getNgraphOpAs<ov::op::v7::Gelu>(op);
-            ov::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
-            if (approximationMode == ov::op::GeluApproximationMode::ERF) {
-                node.algorithm = Algorithm::EltwiseGeluErf;
-                node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_erf;
-            } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {
-                node.algorithm = Algorithm::EltwiseGeluTanh;
-                node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_tanh;
-            } else {
-                OPENVINO_THROW_NOT_IMPLEMENTED(
-                    "CPU Eltwise node doesn't support ngraph operation Gelu with approximation mode: ",
-                    approximationMode);
-            }
+             auto gelu = getNgraphOpAs<ov::op::v7::Gelu>(op);
+             ov::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
+             if (approximationMode == ov::op::GeluApproximationMode::ERF) {
+                 node.algorithm = Algorithm::EltwiseGeluErf;
+                 node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_erf;
+             } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {
+                 node.algorithm = Algorithm::EltwiseGeluTanh;
+                 node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_tanh;
+             } else {
+                 OPENVINO_THROW_NOT_IMPLEMENTED(
+                     "CPU Eltwise node doesn't support ngraph operation Gelu with approximation mode: ",
+                     approximationMode);
+             }
         }},
         {ov::op::v0::Elu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            auto eluOp = getNgraphOpAs<ov::op::v0::Elu>(op);
-            node.alpha = static_cast<float>(eluOp->get_alpha());
-            node.algorithm = Algorithm::EltwiseElu;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_elu;
+             auto eluOp = getNgraphOpAs<ov::op::v0::Elu>(op);
+             node.alpha = static_cast<float>(eluOp->get_alpha());
+             node.algorithm = Algorithm::EltwiseElu;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_elu;
         }},
-        {ov::op::v0::Tanh::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseTanh;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_tanh;
+        {ov::op::v0::Tanh::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseTanh;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_tanh;
         }},
-        {ov::op::v0::Sigmoid::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseSigmoid;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_logistic;
+        {ov::op::v0::Sigmoid::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseSigmoid;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_logistic;
         }},
-        {ov::op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseAbs;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_abs;
+        {ov::op::v0::Abs::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseAbs;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_abs;
         }},
-        {ov::op::v0::Sqrt::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseSqrt;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_sqrt;
+        {ov::op::v0::Sqrt::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseSqrt;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_sqrt;
         }},
         {ov::op::v0::Clamp::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            auto clampOp = getNgraphOpAs<ov::op::v0::Clamp>(op);
-            auto alpha_ = static_cast<float>(clampOp->get_min());
-            auto beta_ = static_cast<float>(clampOp->get_max());
-            if (clampOp->get_input_element_type(0).is_integral_number()) {
-                // according to spec, when Clamp has integer element type, min and max mist be converted to integer
-                alpha_ = std::ceil(alpha_);
-                beta_ = std::floor(beta_);
-            }
-            node.alpha = alpha_;
-            node.beta = beta_;
-            node.algorithm = Algorithm::EltwiseClamp;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_clip;
+             auto clampOp = getNgraphOpAs<ov::op::v0::Clamp>(op);
+             auto alpha_ = static_cast<float>(clampOp->get_min());
+             auto beta_ = static_cast<float>(clampOp->get_max());
+             if (clampOp->get_input_element_type(0).is_integral_number()) {
+                 // according to spec, when Clamp has integer element type, min and max mist be converted to integer
+                 alpha_ = std::ceil(alpha_);
+                 beta_ = std::floor(beta_);
+             }
+             node.alpha = alpha_;
+             node.beta = beta_;
+             node.algorithm = Algorithm::EltwiseClamp;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_clip;
         }},
-        {ov::op::v0::Exp::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseExp;
+        {ov::op::v0::Exp::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseExp;
         }},
         {SwishNode::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            auto swishOp = getNgraphOpAs<SwishNode>(op);
-            node.algorithm = Algorithm::EltwiseSwish;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_swish;
-            node.alpha = swishOp->get_alpha();
+             auto swishOp = getNgraphOpAs<SwishNode>(op);
+             node.algorithm = Algorithm::EltwiseSwish;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_swish;
+             node.alpha = swishOp->get_alpha();
         }},
-        {ov::op::v4::HSwish::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            // since v3.0 version, oneDNN has flexible implementation of hardswish, ov still uses the one with hardcoded alpha and beta
-            node.alpha = 1.f / 6.f;
-            node.beta = 0.5f;
-            node.algorithm = Algorithm::EltwiseHswish;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_hardswish;
+        {ov::op::v4::HSwish::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             // since v3.0 version, oneDNN has flexible implementation of hardswish, ov still uses the one with
+             // hardcoded alpha and beta
+             node.alpha = 1.f / 6.f;
+             node.beta = 0.5f;
+             node.algorithm = Algorithm::EltwiseHswish;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_hardswish;
         }},
-        {ov::op::v4::Mish::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseMish;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_mish;
+        {ov::op::v4::Mish::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseMish;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_mish;
         }},
-        {ov::op::v5::HSigmoid::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseHsigmoid;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_hsigmoid;
+        {ov::op::v5::HSigmoid::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseHsigmoid;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_hsigmoid;
         }},
         {ov::op::v5::Round::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            auto roundOp = getNgraphOpAs<ov::op::v5::Round>(op);
+             auto roundOp = getNgraphOpAs<ov::op::v5::Round>(op);
 
-            switch (roundOp->get_mode()) {
-                case ov::op::v5::Round::RoundMode::HALF_TO_EVEN:
-                    node.algorithm = Algorithm::EltwiseRoundHalfToEven;
-                    node.onednnAlgorithm = dnnl::algorithm::eltwise_round_half_to_even;
-                    break;
-                case ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
-                    node.algorithm = Algorithm::EltwiseRoundHalfAwayFromZero;
-                    node.onednnAlgorithm = dnnl::algorithm::eltwise_round_half_away_from_zero;
-                    break;
-            }
+             switch (roundOp->get_mode()) {
+             case ov::op::v5::Round::RoundMode::HALF_TO_EVEN:
+                 node.algorithm = Algorithm::EltwiseRoundHalfToEven;
+                 node.onednnAlgorithm = dnnl::algorithm::eltwise_round_half_to_even;
+                 break;
+             case ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO:
+                 node.algorithm = Algorithm::EltwiseRoundHalfAwayFromZero;
+                 node.onednnAlgorithm = dnnl::algorithm::eltwise_round_half_away_from_zero;
+                 break;
+             }
         }},
         {ov::op::v0::PRelu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwisePrelu;
-            node.broadcastingPolicy = determineBroadcastingPolicy(op);
+             node.algorithm = Algorithm::EltwisePrelu;
+             node.broadcastingPolicy = determineBroadcastingPolicy(op);
         }},
-        {ov::op::v0::Erf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseErf;
+        {ov::op::v0::Erf::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseErf;
         }},
-        {ov::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseSoftRelu;
-            node.alpha = 1.f;
-            node.onednnAlgorithm = dnnl::algorithm::eltwise_soft_relu;
+        {ov::op::v4::SoftPlus::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseSoftRelu;
+             node.alpha = 1.f;
+             node.onednnAlgorithm = dnnl::algorithm::eltwise_soft_relu;
         }},
-        {ov::op::v9::SoftSign::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseSoftSign;
+        {ov::op::v9::SoftSign::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseSoftSign;
         }},
-        {ov::op::v1::Select::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseSelect;
+        {ov::op::v1::Select::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseSelect;
         }},
-        {ov::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseLog;
+        {ov::op::v0::Log::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseLog;
         }},
-        {op::v13::BitwiseAnd::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseBitwiseAnd;
+        {op::v13::BitwiseAnd::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseBitwiseAnd;
         }},
-        {op::v13::BitwiseNot::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseBitwiseNot;
+        {op::v13::BitwiseNot::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseBitwiseNot;
         }},
-        {op::v13::BitwiseOr::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseBitwiseOr;
+        {op::v13::BitwiseOr::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseBitwiseOr;
         }},
-        {op::v13::BitwiseXor::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseBitwiseXor;
+        {op::v13::BitwiseXor::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseBitwiseXor;
         }},
-        {op::v15::BitwiseLeftShift::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseBitwiseLeftShift;
+        {op::v15::BitwiseLeftShift::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseBitwiseLeftShift;
         }},
-        {op::v15::BitwiseRightShift::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
-            node.algorithm = Algorithm::EltwiseBitwiseRightShift;
+        {op::v15::BitwiseRightShift::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
+             node.algorithm = Algorithm::EltwiseBitwiseRightShift;
         }},
     };
     return initializers;
@@ -743,10 +744,11 @@ public:
     }
 
     static bool isSupportedOp(const Node* node,
-                              const float alpha,
-                              const float beta,
-                              const float gamma,
-                              const std::vector<ov::element::Type>& input_precisions = {}) {
+                              [[maybe_unused]] const float alpha,
+                              [[maybe_unused]] const float beta,
+                              [[maybe_unused]] const float gamma,
+                              [[maybe_unused]] const ov::element::TypeVector& input_precisions = {},
+                              [[maybe_unused]] const ov::element::TypeVector& output_precisions = {}) {
 #if defined(OPENVINO_ARCH_X86_64)
         const auto isISASupportedByJIT = mayiuse(dnnl::impl::cpu::x64::sse41);
 #elif defined(OPENVINO_ARCH_ARM64)
@@ -774,8 +776,6 @@ public:
 
 #elif defined(OPENVINO_ARCH_ARM64)
         if (one_of(algorithm,
-                   Algorithm::EltwisePowerDynamic,
-                   Algorithm::EltwiseSoftRelu,
                    Algorithm::EltwiseHsigmoid,
                    Algorithm::EltwiseErf,
                    Algorithm::EltwiseBitwiseAnd,
@@ -785,19 +785,27 @@ public:
             return false;
         }
 
-        if ((algorithm == Algorithm::EltwiseRelu) && ((alpha != 0.f) || (beta != 0.f) || (gamma != 0.f))) {
-            return false;
+        std::set<ov::element::Type> supported_input_precisions = std::set<ov::element::Type>{ov::element::f16,
+                                                                                             ov::element::f32,
+                                                                                             ov::element::i32,
+                                                                                             ov::element::i8,
+                                                                                             ov::element::u8};
+
+        std::set<ov::element::Type> supported_output_precisions = supported_input_precisions;
+        if (one_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
+            supported_input_precisions = std::set<ov::element::Type>{ov::element::f16, ov::element::f32};
         }
 
-        const std::set<ov::element::Type> supported_precisions =
+        auto fusedOps = node->getFusedWith();
+        if (!fusedOps.empty()) {
             // Divide and Floor (issue #138629) operations are supported for fp32 and fp16 only.
-            ((algorithm == Algorithm::EltwiseDivide) || (algorithm == Algorithm::EltwiseFloor))
-                ? std::set<ov::element::Type>{ov::element::f16, ov::element::f32}
-                : std::set<ov::element::Type>{ov::element::f16,
-                                              ov::element::f32,
-                                              ov::element::i32,
-                                              ov::element::i8,
-                                              ov::element::u8};
+            if (one_of(fusedOps.back()->getAlgorithm(), Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
+                supported_output_precisions = std::set<ov::element::Type>{ov::element::f16, ov::element::f32};
+            }
+        } else {
+            supported_output_precisions = supported_input_precisions;
+        }
+
 #elif defined(OPENVINO_ARCH_RISCV64)
         if (!one_of(algorithm,
                     Algorithm::EltwiseAdd,
@@ -814,28 +822,28 @@ public:
             return false;
         }
 
-        const std::set<ov::element::Type> supported_precisions = {ov::element::f32,
-                                                                  ov::element::i32,
-                                                                  ov::element::i8,
-                                                                  ov::element::u8};
+        const std::set<ov::element::Type> supported_input_precisions = {ov::element::f32,
+                                                                        ov::element::i32,
+                                                                        ov::element::i8,
+                                                                        ov::element::u8};
+        auto supported_output_precisions = supported_input_precisions;
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
-        const auto check_precisions = [](const std::vector<ov::element::Type>& input_precisions,
-                                         const std::vector<ov::element::Type>& output_precisions,
-                                         const std::set<ov::element::Type>& supported_precisions) {
+        const auto check_precisions = [&](const std::vector<ov::element::Type>& input_precisions,
+                                          const std::vector<ov::element::Type>& output_precisions) {
             if (std::any_of(input_precisions.begin(),
                             input_precisions.end(),
-                            [&supported_precisions](const ov::element::Type& precision) {
-                                return supported_precisions.find(precision) == supported_precisions.end();
+                            [&supported_input_precisions](const ov::element::Type& precision) {
+                                return supported_input_precisions.find(precision) == supported_input_precisions.end();
                             })) {
                 return false;
             }
 
             if (std::any_of(output_precisions.begin(),
                             output_precisions.end(),
-                            [&supported_precisions](const ov::element::Type& precision) {
-                                return supported_precisions.find(precision) == supported_precisions.end();
+                            [&supported_output_precisions](const ov::element::Type& precision) {
+                                return supported_output_precisions.find(precision) == supported_output_precisions.end();
                             })) {
                 return false;
             }
@@ -843,7 +851,8 @@ public:
             return true;
         };
 
-        return check_precisions(input_precisions, node->getOriginalOutputPrecisions(), supported_precisions);
+        auto out_precisions = output_precisions.empty() ? node->getOriginalOutputPrecisions() : output_precisions;
+        return check_precisions(input_precisions, out_precisions);
 #endif
 
         // Unsupported architectures should return false:
@@ -1402,7 +1411,7 @@ bool Eltwise::isWithBroadcast() {
 }
 
 void Eltwise::getSupportedDescriptors() {
-    if (getParentEdges().size() < 1) {
+    if (getParentEdges().empty()) {
         THROW_CPU_NODE_ERR("Incorrect number of input edges");
     }
     if (getChildEdges().empty()) {
@@ -2035,7 +2044,7 @@ void Eltwise::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
 
-void Eltwise::execute(const dnnl::stream& strm) {
+void Eltwise::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
         VectorDims dims_out =
@@ -2064,7 +2073,7 @@ void Eltwise::execute(const dnnl::stream& strm) {
         std::vector<MemoryPtr> dstMemory;
         dstMemory.push_back(getDstMemoryAtPort(0));
 
-        eltwiseExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
+        eltwiseExecPtr->exec(srcMemory, dstMemory, reinterpret_cast<void*>(fqDataPtrs.data()));
     } else {
         THROW_CPU_NODE_ERR("Primitive isn't created");
     }
@@ -2125,7 +2134,9 @@ void Eltwise::appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, st
     }
 }
 
-void Eltwise::appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<const void*>& postOpsMem) {
+void Eltwise::appendMemory(const std::vector<float>& data,
+                           [[maybe_unused]] MemoryPtr& memPtr,
+                           std::vector<const void*>& postOpsMem) {
     postOpsMem.push_back(data.data());
 }
 
@@ -2258,7 +2269,7 @@ void Eltwise::appendPostOps(dnnl::post_ops& ops,
 
 bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                                 bool isLastPostOp,
-                                dnnl::memory::data_type outDataType,
+                                [[maybe_unused]] dnnl::memory::data_type outDataType,
                                 bool allowBinary) {
     if (getOneDnnAlgorithm() != dnnl::algorithm::undef) {
         switch (getOneDnnAlgorithm()) {

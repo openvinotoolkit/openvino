@@ -109,7 +109,6 @@ size_t compute_inner_n_block(const ov::element::Type& precision) {
     case element::i8:
         return 64;
     case element::bf16:
-        return 32;
     case element::f16:
         return 32;
     case element::f32:
@@ -137,7 +136,7 @@ ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K,
     //    usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
     const size_t K_alignment =
         is_transposed ? brgemm_utils::get_elems_in_vec(prc) : brgemm_utils::compute_vnni_factor(prc);
-    return ov::snippets::VectorDims{new_N, ov::snippets::utils::div_up(K, K_alignment), K_alignment};
+    return ov::snippets::VectorDims{ov::snippets::utils::div_up(K, K_alignment), new_N, K_alignment};
 }
 
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
