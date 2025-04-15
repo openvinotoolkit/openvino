@@ -9,6 +9,7 @@
 #include <string>
 
 #include "gather_shape_inference.hpp"
+#include "openvino/op/gather.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather)
