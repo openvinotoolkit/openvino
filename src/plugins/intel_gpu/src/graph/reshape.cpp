@@ -254,7 +254,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
 
     auto candidate_layout = layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size()), out_pad};
     if ((!node.is_dynamic()) && areVectorsCompatible(impl_param.get_output_layout().get_shape(), output_shapes[0].get_shape())) {
-        if (impl_param.get_output_layout().format != output_format) {
+        if (impl_param.get_output_layout().format != output_format && !candidate_layout.compatible(input_layout)) {
             if (!impl_param.get_output_layout(false).compatible(candidate_layout))
                 output_format = impl_param.get_output_layout().format;
         }
