@@ -73,7 +73,13 @@ def get_output_signature_from_keras_layer(model):
     try:
         from openvino.frontend.tensorflow.utils import trace_tf_model_if_needed
         traced_model = trace_tf_model_if_needed(model, None, None, None)
-        return traced_model.structured_outputs
+        output_signature = traced_model.structured_outputs
+        if hasattr(model, "_outputs_struct") and model._outputs_struct is not None and \
+                not isinstance(model._outputs_struct, (dict, list, tuple)):
+            # adjust output signature generated during tracing for single element output (not list, not dictionary)
+            output_name = list(output_signature.keys())[0]
+            return tf.TensorSpec(shape=None, name=output_name)
+        return output_signature
     except:
         return None
 
@@ -169,4 +175,35 @@ def retrieve_inputs_info_for_signature(input_signature):
         assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
         inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
 
+    return inputs_info
+
+
+def retrieve_inputs_info_from_input_spec(input_spec, inputs):
+    inputs_info = []
+    if isinstance(input_spec, list) and isinstance(inputs, list) and len(input_spec) == len(inputs):
+        for input_spec_, input_ in zip(input_spec, inputs):
+            input_name = input_spec_.name
+            try:
+                input_type = input_.dtype
+                input_type = tf.as_dtype(input_type)
+                input_shape = []
+                if list(input_spec_.shape) == [None, None, None, 3] and input_info.dtype == tf.float32:
+                    # image classification case, let us imitate an image
+                    # that helps to avoid compute output size issue
+                    input_shape = [1, 200, 200, 3]
+                elif list(input_spec_.shape) == [None, None, None, None, 3] and input_info.dtype == tf.float32:
+                    input_shape = [1, 2, 100, 100, 3]
+                else:
+                    for dim in list(input_spec_.shape):
+                        if dim is None:
+                            input_shape.append(1)
+                        else:
+                            input_shape.append(dim)
+            except ValueError:
+                # unknown rank case
+                # assume only one dimension
+                input_shape = [3]
+                pass
+            assert input_type in type_map, "Unsupported input type: {}".format(input_type)
+            inputs_info.append((input_name, input_shape, type_map[input_type]))
     return inputs_info
