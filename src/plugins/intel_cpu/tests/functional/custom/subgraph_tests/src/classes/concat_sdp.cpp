@@ -3,6 +3,7 @@
 //
 #include "concat_sdp.hpp"
 #include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/opsets/opset13.hpp"
 
 using namespace CPUTestUtils;
 

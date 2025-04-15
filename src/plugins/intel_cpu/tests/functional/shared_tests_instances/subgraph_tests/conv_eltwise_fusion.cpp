@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/opsets/opset4.hpp"
 
 using namespace ov::test;
 

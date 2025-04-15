@@ -8,6 +8,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/opsets/opset13.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;

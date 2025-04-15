@@ -13,6 +13,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;

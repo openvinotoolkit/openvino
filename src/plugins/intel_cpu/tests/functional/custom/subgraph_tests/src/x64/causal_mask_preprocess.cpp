@@ -14,6 +14,10 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "transformations/utils/gen_pattern.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::gen_pattern;

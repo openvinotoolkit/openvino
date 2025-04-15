@@ -9,6 +9,7 @@
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "utils/convolution_params.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 using namespace CPUTestUtils;
 
