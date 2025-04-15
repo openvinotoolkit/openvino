@@ -9,6 +9,7 @@
 #include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"

@@ -85,17 +85,17 @@ jobs:
       build-debian-packages: false
       build-js: false
       build-rpm-packages: true
-      cmake-options: |- 
-            -G "Ninja" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_INTEL_NPU=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCPACK_GENERATOR=TGZ \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DCMAKE_BUILD_TYPE=Release
+      cmake-options: >-
+        -G 'Ninja'
+        -DENABLE_CPPLINT=OFF 
+        -DENABLE_NCC_STYLE=OFF 
+        -DENABLE_INTEL_NPU=OFF 
+        -DENABLE_TESTS=ON 
+        -DENABLE_STRICT_DEPENDENCIES=OFF 
+        -DENABLE_SYSTEM_OPENCL=ON 
+        -DCPACK_GENERATOR=TGZ 
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON 
+        -DCMAKE_BUILD_TYPE=Release
 
   RPM_Packages:
     name: RPM packages
@@ -112,7 +112,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO RPM packages
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: openvino_rpm_packages
           path: ${{ env.RPM_PACKAGES_DIR }}

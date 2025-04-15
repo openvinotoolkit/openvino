@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "layout_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/true.hpp"
@@ -16,6 +17,7 @@
 #include "transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp"
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
+#include "transformations/common_optimizations/gelu_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -89,12 +91,14 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
 
     // 2. Fusion transformations:
     REGISTER_PASS(manager, ConvertDivideWithConstant)
-    auto multiply_fusions = manager.register_pass<GraphRewrite>();
-    ADD_MATCHER(multiply_fusions, MultiplyConvolutionFusion)
-    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionFusion)
-    ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
-    ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
-    multiply_fusions->set_name("ov::pass::MultiplyFusions");
+    auto fusions = manager.register_pass<GraphRewrite>();
+    // Gelu fusion have to be executed before MulConv fusion because Mul(X, 0.5) might be fused to Conv weights
+    ADD_MATCHER(fusions, GeluFusion)
+    ADD_MATCHER(fusions, MultiplyConvolutionFusion)
+    ADD_MATCHER(fusions, MultiplyGroupConvolutionFusion)
+    ADD_MATCHER(fusions, MultiplyConvolutionBackpropDataFusion)
+    ADD_MATCHER(fusions, MultiplyGroupConvolutionBackpropDataFusion)
+    fusions->set_name("ov::pass::MultiplyFusions");
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
 
     // 3. CF call due to detected perf degradations
@@ -267,7 +271,7 @@ std::shared_ptr<Model> PrePostProcessor::build() {
     FunctionGuard guard(function);
     bool need_validate = false;
     auto results = function->get_results();
-    auto parameters_list = std::list<std::shared_ptr<opset8::Parameter>>(function->get_parameters().begin(),
+    auto parameters_list = std::list<std::shared_ptr<op::v0::Parameter>>(function->get_parameters().begin(),
                                                                          function->get_parameters().end());
 
     for (const auto& input_info : m_impl->m_inputs) {
@@ -375,6 +379,11 @@ InputTensorInfo& InputTensorInfo::set_from(const ov::Tensor& runtime_tensor) {
 
 PreProcessSteps::PreProcessSteps() : m_impl(std::unique_ptr<PreProcessStepsImpl>(new PreProcessStepsImpl())) {}
 PreProcessSteps::~PreProcessSteps() = default;
+
+PreProcessSteps& PreProcessSteps::clamp(double min_value, double max_value) {
+    m_impl->add_clamp(min_value, max_value);
+    return *this;
+}
 
 PreProcessSteps& PreProcessSteps::scale(float value) {
     m_impl->add_scale_impl(std::vector<float>{value});
@@ -504,6 +513,11 @@ OutputModelInfo& OutputModelInfo::set_color_format(const ov::preprocess::ColorFo
 
 PostProcessSteps::PostProcessSteps() : m_impl(std::unique_ptr<PostProcessStepsImpl>(new PostProcessStepsImpl())) {}
 PostProcessSteps::~PostProcessSteps() = default;
+
+PostProcessSteps& PostProcessSteps::clamp(double min_value, double max_value) {
+    m_impl->add_clamp(min_value, max_value);
+    return *this;
+}
 
 PostProcessSteps& PostProcessSteps::convert_element_type(const element::Type& type) {
     m_impl->add_convert_impl(type);
