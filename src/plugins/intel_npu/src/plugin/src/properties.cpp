@@ -348,7 +348,25 @@ void Properties::registerProperties() {
     // 2.1 Metrics for Plugin-only (or those which need to be handled differently)
     if (_pType == PropertiesType::PLUGIN && _metrics != nullptr) {
         REGISTER_SIMPLE_METRIC(ov::available_devices, true, _metrics->GetAvailableDevicesNames());
+
+        // Extend optimization capabilities depending on compiler version
+        CompilerAdapterFactory compilerAdapterFactory;
+        auto dummyCompiler = compilerAdapterFactory.getCompiler(_backend, _config.get<COMPILER_TYPE>());
+        auto compilerVersion = dummyCompiler->get_version();
+        // NF4 datatype support avaiable from NPU Compiler 7.2.0
+        if (compilerVersion >= ONEAPI_MAKE_VERSION(7, 2)) {
+            _optimizationCapabilities.push_back(ov::device::capability::NF4);
+        }
+        // BF16 datatype support avaiable from NPU Compiler 6.1.0
+        if (compilerVersion >= ONEAPI_MAKE_VERSION(6, 1)) {
+            _optimizationCapabilities.push_back(ov::device::capability::BF16);
+        }
+        // INT4 datatype support avaiable from NPU Compiler 5.6.0
+        if (compilerVersion >= ONEAPI_MAKE_VERSION(5, 6)) {
+            _optimizationCapabilities.push_back(ov::device::capability::INT4);
+        }
         REGISTER_SIMPLE_METRIC(ov::device::capabilities, true, _optimizationCapabilities);
+
         REGISTER_SIMPLE_METRIC(
             ov::optimal_number_of_infer_requests,
             true,
