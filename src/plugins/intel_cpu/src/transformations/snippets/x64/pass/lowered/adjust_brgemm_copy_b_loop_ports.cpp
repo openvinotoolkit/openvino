@@ -29,8 +29,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                  *  1) VNNI format is applied: KN4k for I8/U8, or KN2k for BF16
                  *  2) Zero padding is applied if N4k < 256 or N2k < 64
                  */
-                if (brgemm_utils::with_repacking(brg->get_type()) && precision != element::f32 &&
-                    loop_port.is_incremented()) {
+                if (brgemm_utils::with_repacking(brg->get_type()) && loop_port.is_incremented()) {
                     // K blocking loop: account for zero padding
                     if (loop_port.get_dim_idx() == 1) {
                         const auto ptr_incr = loop_desc.ptr_increment;

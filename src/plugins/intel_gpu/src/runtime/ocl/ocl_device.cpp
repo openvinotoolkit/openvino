@@ -6,7 +6,7 @@
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
-#include "gpu/intel/jit/jit_generator.hpp"
+#include "gpu/intel/jit/generator.hpp"
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
 #include "ocl_device.hpp"
@@ -324,7 +324,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     using namespace dnnl::impl::gpu::intel::jit;
     ngen::HW hw = ngen::HW::Unknown;
     ngen::Product product = {ngen::ProductFamily::Unknown, 0};
-    jit_generator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get(), hw, product);
+    generator_t<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get(), hw, product);
     info.arch = convert_ngen_arch(hw);
     // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
     // This is required to guarantee some level of forward compatibility for the new HW generations

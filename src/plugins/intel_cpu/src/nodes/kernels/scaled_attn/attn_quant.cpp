@@ -232,8 +232,9 @@ static void quant_u8_by_channel_kernel(const T* src,
             min = std::min(min, tmp);
         }
         float temp_scale = (max - min) / 255;
-        if (temp_scale == 0)
+        if (temp_scale == 0) {
             temp_scale = 0.0001f;
+        }
         float temp_zp = -min / temp_scale;
         scale[j] = temp_scale;
         zp[j] = temp_zp;
@@ -275,8 +276,8 @@ static void quant_u8_by_channel_kernel(const T* src,
         }
     }
 #endif
-    for (size_t i = 0; i < seq_dim; ++i) {
-        for (; j < hidden_dims; j++) {
+    for (; j < hidden_dims; j++) {
+        for (size_t i = 0; i < seq_dim; ++i) {
             float tmp = src[i * src_stride + j];
             dst[i * dst_stride + j] = static_cast<uint8_t>(std::round(tmp / scale[j] + zp[j]));
         }
@@ -603,8 +604,9 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     } else {
         parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
             auto slot = slot_mapping.ptr<int32_t>(b)[m];
-            if (slot < 0)
+            if (slot < 0) {
                 return;
+            }
             auto block_number = slot / block_size;
             auto block_offset = slot % block_size;
             // The layout for per token per head:

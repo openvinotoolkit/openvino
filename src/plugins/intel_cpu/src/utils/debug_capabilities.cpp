@@ -471,7 +471,8 @@ public:
     void append_attribute(const char* name, const char* value) {
         os << " " << name << "=" << value;
     }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+    void on_adapter(const std::string& name,
+                    [[maybe_unused]] ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         append_attribute(name.c_str(), "Model");
     }
 
@@ -687,6 +688,16 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
         }
         os << "]";
     }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record) {
+    os << "Memory profile record: " << record.id << "\n";
+    os << "Total regions: " << record.total_regions << "\n";
+    os << "Total unique blocks: " << record.total_unique_blocks << "\n";
+    os << "Total size: " << record.total_size << " bytes\n";
+    os << "Optimal total size: " << record.optimal_total_size << " bytes\n";
+    os << "Max region size: " << record.max_region_size << " bytes\n";
     return os;
 }
 

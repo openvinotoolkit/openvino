@@ -283,7 +283,6 @@ LinuxCpuStreamTypeCase _2sockets_72cores_binding_9streams = {
      {1, ALL_PROC, 4, -1, -1},
      {0, MAIN_CORE_PROC, 2, 0, 0},
      {0, MAIN_CORE_PROC, 2, 1, 1}},
-#    if defined(__linux__)
     {
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
@@ -295,19 +294,6 @@ LinuxCpuStreamTypeCase _2sockets_72cores_binding_9streams = {
         STREAM_WITH_OBSERVE,
         STREAM_WITH_OBSERVE,
     },
-#    else
-    {
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITH_NUMA_ID,
-        STREAM_WITHOUT_PARAM,
-    },
-#    endif
     {4, 4, 4, 4, 4, 4, 4, 4, 4},
     {
         MAIN_CORE_PROC,

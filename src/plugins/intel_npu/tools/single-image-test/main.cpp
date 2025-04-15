@@ -97,6 +97,7 @@ DEFINE_string(data_shape, "",
     "In case of one input size: \"[1,3,224,224]\"");
 DEFINE_string(skip_output_layers, "" , "Skip output layers from the network. Currently only applicable for"
         "RRMSE and NRMSE mode. Accept ';' separated list of output layers");
+DEFINE_bool(clamp_u8_outputs, false, "Apply clamping when converting FP to U8");
 
 // for using input image mean and scale
 static constexpr char mean_values_message[] =
@@ -145,6 +146,7 @@ DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Thresho
 DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
+DEFINE_bool(apply_soft_max, false, "Apply SoftMax for 'nrmse' mode");
 
 DEFINE_double(psnr_reference, 30.0, "PSNR reference value in dB");
 DEFINE_double(psnr_tolerance, 1e-4, "Tolerance for 'psnr' mode");
@@ -258,6 +260,7 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Mean_values [channel1,channel2,channel3]  " << FLAGS_mean_values << std::endl;
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
     std::cout << "    Skip checking output layers:              " << FLAGS_skip_output_layers << std::endl;
+    std::cout << "    Clamp U8 outputs:                         " << FLAGS_clamp_u8_outputs << std::endl;
     if (FLAGS_run_test) {
         std::cout << "    Reference files directory:                "
                   << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
@@ -319,8 +322,11 @@ std::vector<size_t> getStrides(const ov::Shape& shape) {
     return strides;
 }
 
-std::vector<cv::Mat> ovToCV(const ov::Tensor& tensor, const ov::Shape& shape, const ov::Layout& layout,
-                            size_t batchInd = 0, size_t depthInd = 0) {
+std::vector<cv::Mat> ovToCV(ov::Tensor& tensor,
+                            const ov::Shape& shape,
+                            const ov::Layout& layout,
+                            size_t batchInd = 0,
+                            size_t depthInd = 0) {
     const ov::element::Type& precision = tensor.get_element_type();
 
     OPENVINO_ASSERT(layout == ov::Layout("NCHW") || layout == ov::Layout("NCDHW"),
@@ -430,7 +436,11 @@ struct BatchIndexer {
         return sstream.str();
     }
 };
-void cvToOV(const cv::Mat& cvImg, const BatchIndexer &cvImgInBatch, const ov::Tensor& tensor, const ov::Shape& shape, const ov::Layout& layout,
+void cvToOV(const cv::Mat& cvImg,
+            const BatchIndexer& cvImgInBatch,
+            ov::Tensor& tensor,
+            const ov::Shape& shape,
+            const ov::Layout& layout,
             const std::string& colorFormat) {
     const ov::element::Type& precision = tensor.get_element_type();
 
@@ -532,13 +542,15 @@ void cvToOV(const cv::Mat& cvImg, const BatchIndexer &cvImgInBatch, const ov::Te
                           << n << " up to " << N << " with image data from the array: "
                           << cvImgInBatch.to_string() << std::endl;
             }
-            cv::Mat batch(static_cast<int>(H), static_cast<int>(W), cvType,
+            cv::Mat batch(static_cast<const int>(H),
+                          static_cast<int>(W),
+                          cvType,
                           dataBuffer + n * (out.size().area() * out.elemSize()));
             out.copyTo(batch);
         }
     } else if (layout == ov::Layout("NCHW")) {
         ov::Tensor auxTensor(precision, shape);
-        const ov::Tensor &outTensor = (cvImgInBatch.index == 0 ? tensor : auxTensor);
+        ov::Tensor& outTensor = (cvImgInBatch.index == 0 ? tensor : auxTensor);
         // only a first image from an input image array fills an original input tensor up.
         // Subsequent images (if exist) will fill batch slices of the input tensor
         // by its number in the input array respectively
@@ -743,7 +755,7 @@ std::string cleanName(std::string&& name) {
 
 ov::Tensor loadImages(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
                      const std::vector<std::string>& filePaths, const std::string& colorFormat) {
-    const ov::Tensor tensor(precision, shape);
+    ov::Tensor tensor(precision, shape);
     for (size_t fileIndex = 0; fileIndex != filePaths.size(); fileIndex++) {
         const auto &filePath = filePaths[fileIndex];
         const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
@@ -768,7 +780,7 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
     if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::dynamic) {
         std::cout << "Converting " << filePath << " input from " << dataPrecision << " to " << modelPrecision
                   << std::endl;
-        const ov::Tensor inputTensor(dataPrecision, shape);
+        ov::Tensor inputTensor(dataPrecision, shape);
         if (fileBytes == inputTensor.get_byte_size()) {
             binaryFile.read(reinterpret_cast<char*>(inputTensor.data()), static_cast<std::streamsize>(fileBytes));
             npu::utils::convertTensorPrecision(inputTensor, requestedTensor);
@@ -785,10 +797,10 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
                             " expected while converting precision from ", dataPrecision, " to ", modelPrecision);
             ov::Shape debatchedInputTensorShape(shape);
             debatchedInputTensorShape[ov::layout::batch_idx(layout)] = 1;
-            const ov::Tensor inputDebatchedTensor(dataPrecision, debatchedInputTensorShape);
+            ov::Tensor inputDebatchedTensor(dataPrecision, debatchedInputTensorShape);
             binaryFile.read(reinterpret_cast<char*>(inputDebatchedTensor.data()),
                             static_cast<std::streamsize>(fileBytes));
-            const ov::Tensor convertedPrecisionTensor(modelPrecision, debatchedInputTensorShape);
+            ov::Tensor convertedPrecisionTensor(modelPrecision, debatchedInputTensorShape);
             npu::utils::convertTensorPrecision(inputDebatchedTensor, convertedPrecisionTensor);
             std::list<ov::Tensor> tensorsToJoin;
             std::list<ov::Tensor> tensorsFromSplit = npu::utils::splitBatchedTensor(requestedTensor, layout, N);
@@ -879,7 +891,7 @@ ov::Tensor loadInput(const ov::element::Type& modelPrecision,
 }
 
 ov::Tensor loadTensor(const ov::element::Type& precision, const ov::Shape& shape, const std::string& filePath) {
-    const ov::Tensor tensor(precision, shape);
+    ov::Tensor tensor(precision, shape);
 
     std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
     OPENVINO_ASSERT(file.is_open(), "Can't open file ", filePath, " for read");
@@ -894,7 +906,7 @@ void dumpTensor(const ov::Tensor& tensor, const std::string& filePath) {
     std::ofstream file(filePath, std::ios_base::out | std::ios_base::binary);
     OPENVINO_ASSERT(file.is_open(), "Can't open file ", filePath, " for write");
 
-    const auto dataBuffer = reinterpret_cast<char*>(tensor.data());
+    const auto dataBuffer = reinterpret_cast<const char*>(tensor.data());
     file.write(dataBuffer, static_cast<std::streamsize>(tensor.get_byte_size()));
 }
 
@@ -1410,7 +1422,32 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
-bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
+std::vector<float> softmax(std::vector<float>& tensor) {
+    std::vector<double> probabilities(tensor.size());
+    std::vector<float> results(tensor.size());
+
+    // Find the maximum value for numerical stability
+    float max_value = *std::max_element(tensor.begin(), tensor.end());
+
+    // Compute the exponentials of the tensor after subtracting max_value for numerical stability
+    double sum_exp = 0.0;
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] = exp(tensor[i] - max_value);  // exp(tensor_value - max_value) for stability
+        sum_exp += probabilities[i];
+    }
+
+    // Normalize the probabilities by dividing by the sum of exponentials
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] /= sum_exp;
+    }
+
+    std::transform(probabilities.begin(), probabilities.end(), results.begin(),
+                   [](double value) { return static_cast<float>(value); });
+
+    return results;
+}
+
+bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
                 "The testcase 'nrmse' doesn't support any `override_model_batch_size` values besides 1 yet");
@@ -1424,7 +1461,7 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
     std::vector<std::string> skipped_layers;
     skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
 
-    for (const auto& [tensorName, output] : outputs) {
+    for (auto& [tensorName, output] : outputs) {
         if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
             std::cout << "Skip NRMSE test for layers: " << tensorName << std::endl;
             continue;
@@ -1432,6 +1469,25 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
 
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
+        bool applySoftMax = FLAGS_apply_soft_max;
+
+        if (applySoftMax) {
+            std::vector<float> actOutput;
+            std::vector<float> refOutput;
+
+            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actOutput));
+            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(), referencesIterator->second.get_size(),
+                std::back_insert_iterator(refOutput));
+
+            auto actSoftMax = softmax(actOutput);
+            auto refSoftMax = softmax(refOutput);
+
+            std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
+            // Why reference data is not updated?
+            std::copy_n(refSoftMax.begin(),
+                        referencesIterator->second.get_size(),
+                        const_cast<float*>(referencesIterator->second.data<float>()));
+        }
 
         std::cout << "Compare " << tensorName << " with reference" << std::endl;
         if (!computeNRMSE(output, referencesIterator->second)) {
@@ -1876,6 +1932,19 @@ std::string getRefBlobFilePath(const std::string& netFileName, const std::vector
 static int runSingleImageTest() {
     std::cout << "Run single image test" << std::endl;
     try {
+        // Flow of Single Image Test
+        // 1. Parse input and output precisions (if given)
+        // 2. Parse input and output layouts (if given)
+        // 3. Parse input files (if given)
+        // 4. Parse input files as binaries (if given) according to precision
+        // 5. Setup OpenVINO Core
+        // 6. Load network if possible, else directly load as binary
+        // 7. (For loadable networks) Configure pre-/post-processing (precision and layout)
+        // 8. (For loadable networks) Perform reshape (reshape will only be done if either
+        //    shape or override_model_batch_size is specified)
+        // 9. (For loadable networks) Compile model
+        // 10. Store compile model (if given)
+        // 11. Run inference / tests
         const std::unordered_set<std::string> allowedPrecision = {"U8", "I32", "I64", "FP16", "FP32"};
         if (!FLAGS_ip.empty()) {
             // input precision is U8, I32, I64, FP16 or FP32 only
@@ -1972,7 +2041,7 @@ static int runSingleImageTest() {
         }
 
         if (FLAGS_network.empty()) {
-            std::cout << "Not enough parameters. Check help." << std::endl;
+            std::cout << "Not enough parameters. (Network not specified). Check help." << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -1985,13 +2054,6 @@ static int runSingleImageTest() {
 
             auto model = core.read_model(FLAGS_network);
             nameIOTensors(model);
-
-            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
-            InputsInfo infoMap;
-
-            std::cout << "Performing reshape" << std::endl;
-            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
-                    FLAGS_override_model_batch_size, FLAGS_device);
 
             ov::preprocess::PrePostProcessor ppp(model);
 
@@ -2075,6 +2137,9 @@ static int runSingleImageTest() {
 
                 for (size_t i = 0; i < outputInfo.size(); ++i) {
                     ppp.output(i).tensor().set_element_type(prc_out);
+                    if (prc_out == ov::element::u8 && FLAGS_clamp_u8_outputs) {
+                        ppp.output(i).postprocess().clamp(0.0, 255.0);
+                    }
                 }
             }
 
@@ -2105,9 +2170,15 @@ static int runSingleImageTest() {
                 }
             }
 
-            if (FLAGS_shape.empty()) {
-                setModelBatch(model, FLAGS_override_model_batch_size);
-            }
+            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
+            InputsInfo infoMap;
+
+            printInputAndOutputsInfoShort(*model);
+
+            std::cout << "Performing reshape" << std::endl;
+            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
+                    FLAGS_override_model_batch_size, FLAGS_device);
+
             std::cout << "Compile model" << std::endl;
             model = ppp.build();
             printInputAndOutputsInfoShort(*model);
@@ -2230,10 +2301,10 @@ static int runSingleImageTest() {
             std::cout << "Run inference on " << FLAGS_device << std::endl;
 
             const auto startTime = Time::now();
-            const auto outInference = runInfer(inferRequest, compiledModel, inTensors, dumpedInputsPaths);
+            auto outInference = runInfer(inferRequest, compiledModel, inTensors, dumpedInputsPaths);
             const auto endTime = Time::now();
 
-            const TensorMap& outputTensors = outInference.first;
+            TensorMap& outputTensors = outInference.first;
 
             printPerformanceCountsAndLatency(numberOfTestCase, outInference.second, endTime - startTime);
 
