@@ -1,12 +1,12 @@
-FillEmptyRows
+SparseFillEmptyRows
 ======================
 
 
 .. meta::
-  :description: Learn about FillEmptyRows-16 - a sparse operation, which
+  :description: Learn about SparseFillEmptyRows-16 - a sparse operation, which
                 can be performed on four required input tensors.
 
-**Versioned name**: *FillEmptyRows-16*
+**Versioned name**: *SparseFillEmptyRows-16*
 
 **Category**: *Sparse*
 
@@ -14,7 +14,7 @@ FillEmptyRows
 
 **Detailed description**:
 
-Operation FillEmptyRows is an implementation of ``tf.raw_ops.SparseFillEmptyRows`` for 2D sparse tensors only.
+Operation SparseFillEmptyRows is an implementation of ``tf.raw_ops.SparseFillEmptyRows`` for 2D sparse tensors only.
 
 The input sparse tensor is represented by the three inputs: 
 
@@ -28,7 +28,7 @@ The output sparse tensor will be in row-major order and will have the same dense
 
 This operator also returns a boolean vector indicating which rows were filled with the default value: ``empty_row_indicator[i] = True`` if row ``i`` was an empty row.
 
-**Attributes**: FillEmptyRows-16 operation has no attributes.
+**Attributes**: SparseFillEmptyRows-16 operation has no attributes.
 
 **Inputs**:
 
@@ -76,7 +76,7 @@ The output sparse tensor will be in row-major order and will have the same dense
 
 .. code-block:: xml
 
-    <layer ... type="FillEmptyRows" ... >
+    <layer ... type="SparseFillEmptyRows" ... >
         <input>
             <port id="0" precision="FP32">      <!-- values are: [1, 3] -->
                 <dim>2</dim>
