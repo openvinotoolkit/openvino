@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/util/log.hpp"
 
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}
