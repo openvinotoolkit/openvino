@@ -37,6 +37,10 @@ static bool is_prefill_stage(const sdpa_params& sdpa_params) {
     return target_seq_len > 1;
 }
 
+static bool unaligned_head_size(const sdpa_params& sdpa_params) {
+    return sdpa_params.conf.head_size % subgroup_size != 0;
+}
+
 static size_t get_partitions_num(const sdpa_params& sdpa_params, size_t kernel_type) {
     if (sdpa_params.has_dynamic_tensors() || kernel_type == KernelsTypes::MULTI_TOKENS)
         return 1;
@@ -162,7 +166,7 @@ bool SDPAKernelOpt::Validate(const Params& p) const {
     if (params.conf.head_size < 1)
         return false;
 
-    if (params.conf.is_paged_attention && params.conf.head_size % subgroup_size != 0)
+    if (params.conf.is_paged_attention && unaligned_head_size(params))
         return false;
 
     if (params.conf.use_asymmetric_quantization && !params.conf.combine_scales_and_zp)
@@ -181,8 +185,8 @@ JitConstants SDPAKernelOpt::GetJitConstants(const sdpa_params& params, size_t ke
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("HEAD_SIZE", config.head_size));
     jit.AddConstant(MakeJitConstant("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(params, config.head_size, kernel_idx)));
-    if (config.head_size % subgroup_size > 0)
-        jit.AddConstant(MakeJitConstant("HEAD_SIZE_REMAINDER", config.head_size % subgroup_size));
+    if (unaligned_head_size(params))
+        jit.AddConstant(MakeJitConstant("HEAD_SIZE_LEFTOVER", config.head_size % subgroup_size));
 
     auto target_seq_len_block_size = kernel_idx == KernelsTypes::SINGLE_TOKEN ? 1 : get_target_seq_len_block_size();
     jit.AddConstant(MakeJitConstant("TARGET_SEQ_LEN_BLOCK_SIZE", target_seq_len_block_size));
@@ -296,7 +300,7 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
     std::vector<KernelsTypes> kernels_type;
     const auto& prim_params = static_cast<const sdpa_params&>(params);
 
-    if (prim_params.conf.is_paged_attention) {
+    if (prim_params.conf.is_paged_attention || unaligned_head_size(prim_params)) {
         kernels_type = { KernelsTypes::MULTI_TOKENS };
     } else if (params.is_shape_agnostic) {
         kernels_type = { KernelsTypes::SINGLE_TOKEN, KernelsTypes::MULTI_TOKENS, KernelsTypes::FINALIZATION };
@@ -405,12 +409,11 @@ void SDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         const auto& prim_params = static_cast<const sdpa_params&>(params);
 
         const size_t paged_attention_kernels_num = 1;
-        const size_t expected_kernels_num = prim_params.conf.is_paged_attention ? paged_attention_kernels_num
-                                                                                : KernelsTypes::TOTAL_KERNELS_NUM;
-        OPENVINO_ASSERT(kernel_data.kernels.size() == expected_kernels_num,
-                        "[GPU] Invalid kernels size for update dispatch data func of SDPA kernel");
+        const size_t expected_kernels_num =
+            prim_params.conf.is_paged_attention || unaligned_head_size(prim_params) ? paged_attention_kernels_num : KernelsTypes::TOTAL_KERNELS_NUM;
+        OPENVINO_ASSERT(kernel_data.kernels.size() == expected_kernels_num, "[GPU] Invalid kernels size for update dispatch data func of SDPA kernel");
 
-        if (prim_params.conf.is_paged_attention) {
+        if (prim_params.conf.is_paged_attention || unaligned_head_size(prim_params)) {
             auto dispatch_data = SetDefault(prim_params, KernelsTypes::MULTI_TOKENS);
             kernel_data.kernels[0].params.workGroups.global = dispatch_data.gws;
             kernel_data.kernels[0].params.workGroups.local = dispatch_data.lws;
