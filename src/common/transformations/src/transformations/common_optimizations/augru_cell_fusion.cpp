@@ -51,7 +51,8 @@ static std::shared_ptr<ov::Node> get_bias_add(const std::shared_ptr<ov::Node>& b
 // newer version of the model it doesn't seem to be the case,
 // so we need to insert a Transpose operation to make it
 // compatible with the code of the transformation.
-static std::shared_ptr<ov::Node> get_weights_matmul(const std::shared_ptr<ov::Node>& mat_mul, ov::pass::NodeRegistry& rg) {
+static std::shared_ptr<ov::Node> get_weights_matmul(const std::shared_ptr<ov::Node>& mat_mul,
+                                                    ov::pass::NodeRegistry& rg) {
     if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(mat_mul)) {
         if (!matmul->get_transpose_b()) {
             auto transpose =
