@@ -1932,6 +1932,19 @@ std::string getRefBlobFilePath(const std::string& netFileName, const std::vector
 static int runSingleImageTest() {
     std::cout << "Run single image test" << std::endl;
     try {
+        // Flow of Single Image Test
+        // 1. Parse input and output precisions (if given)
+        // 2. Parse input and output layouts (if given)
+        // 3. Parse input files (if given)
+        // 4. Parse input files as binaries (if given) according to precision
+        // 5. Setup OpenVINO Core
+        // 6. Load network if possible, else directly load as binary
+        // 7. (For loadable networks) Configure pre-/post-processing (precision and layout)
+        // 8. (For loadable networks) Perform reshape (reshape will only be done if either
+        //    shape or override_model_batch_size is specified)
+        // 9. (For loadable networks) Compile model
+        // 10. Store compile model (if given)
+        // 11. Run inference / tests
         const std::unordered_set<std::string> allowedPrecision = {"U8", "I32", "I64", "FP16", "FP32"};
         if (!FLAGS_ip.empty()) {
             // input precision is U8, I32, I64, FP16 or FP32 only
@@ -2028,7 +2041,7 @@ static int runSingleImageTest() {
         }
 
         if (FLAGS_network.empty()) {
-            std::cout << "Not enough parameters. Check help." << std::endl;
+            std::cout << "Not enough parameters. (Network not specified). Check help." << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -2041,13 +2054,6 @@ static int runSingleImageTest() {
 
             auto model = core.read_model(FLAGS_network);
             nameIOTensors(model);
-
-            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
-            InputsInfo infoMap;
-
-            std::cout << "Performing reshape" << std::endl;
-            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
-                    FLAGS_override_model_batch_size, FLAGS_device);
 
             ov::preprocess::PrePostProcessor ppp(model);
 
@@ -2164,9 +2170,15 @@ static int runSingleImageTest() {
                 }
             }
 
-            if (FLAGS_shape.empty()) {
-                setModelBatch(model, FLAGS_override_model_batch_size);
-            }
+            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
+            InputsInfo infoMap;
+
+            printInputAndOutputsInfoShort(*model);
+
+            std::cout << "Performing reshape" << std::endl;
+            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
+                    FLAGS_override_model_batch_size, FLAGS_device);
+
             std::cout << "Compile model" << std::endl;
             model = ppp.build();
             printInputAndOutputsInfoShort(*model);

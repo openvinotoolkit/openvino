@@ -82,9 +82,7 @@ private:
 
     std::tuple<ov::element::Type, ov::element::Type> getDstAndSumPrecision();
     std::tuple<VecMemoryDescs, MemoryDescPtr> initMemoryDescriptors(ov::element::Type dstType) const;
-    ExecutorFactoryPtr<ConvAttrs> createExecutorFactory(const MemoryDescArgs& descs,
-                                                        const ConvAttrs& attrs,
-                                                        const PostOps& postOps);
+    ExecutorFactoryPtr<ConvAttrs> createExecutorFactory(const MemoryDescArgs& descs, const ConvAttrs& attrs);
     ExecutorPtr createFallbackExecutor();
 
     void prepareParams() override;
@@ -108,7 +106,6 @@ private:
 
     std::unordered_map<size_t, size_t> m_atoi;  // memory argument id to input id
     ConvAttrs m_attrs;
-    PostOps m_postOps;
     MemoryArgs m_memory;
     ExecutorFactoryPtr<ConvAttrs> m_factory;
     ExecutorPtr m_executor = nullptr;
