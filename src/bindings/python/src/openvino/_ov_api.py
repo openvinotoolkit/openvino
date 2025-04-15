@@ -4,7 +4,7 @@
 
 import io
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict
+from typing import Any, Iterator, Union, Optional, Dict
 from typing import Type as TypingType
 from pathlib import Path
 import traceback  # noqa: F811
@@ -442,7 +442,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
     a simple pipeline.
     """
 
-    def __iter__(self) -> Iterable[InferRequest]:
+    def __iter__(self) -> Iterator[InferRequest]:
         """Allows to iterate over AsyncInferQueue.
 
         Resulting objects are guaranteed to work with read-only methods like getting tensors.

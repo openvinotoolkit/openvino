@@ -167,7 +167,7 @@ class _(TransformConverterBase):
 
             @custom_preprocess_function
             def broadcast_node(output: Output) -> Callable:  # type: ignore[name-defined]
-                return ops.broadcast(
+                return ops.broadcast(  # type: ignore
                     data=output,
                     target_shape=input_shape,
                 )
@@ -223,7 +223,7 @@ class _(TransformConverterBase):
 
         @custom_preprocess_function
         def pad_node(output: Output) -> Callable:
-            return ops.pad(
+            return ops.pad(  # type: ignore
                 output,
                 pad_mode=pad_mode,
                 pads_begin=pads_begin,

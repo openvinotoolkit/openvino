@@ -93,7 +93,7 @@ class _ClassPropertyDescriptor(object):
 def classproperty(func: Any) -> _ClassPropertyDescriptor:
     if not isinstance(func, (classmethod, staticmethod)):
         func = classmethod(func)
-    return _ClassPropertyDescriptor(func)
+    return _ClassPropertyDescriptor(func)  # type: ignore
 
 
 def deprecatedclassproperty(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[[Any], _ClassPropertyDescriptor]:
