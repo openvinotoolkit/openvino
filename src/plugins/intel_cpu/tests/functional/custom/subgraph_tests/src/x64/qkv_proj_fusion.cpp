@@ -92,7 +92,7 @@ protected:
         auto k_proj = std::make_shared<ov::op::v0::MatMul>(src, k_proj_weight, false, true);
         auto v_proj = std::make_shared<ov::op::v0::MatMul>(src, v_proj_weight, false, true);
 
-        function = std::make_shared<ov::Model>(ov::NodeVector{q_proj, k_proj, v_proj}, ov::ParameterVector{src});
+        function = std::make_shared<ov::Model>(ov::OutputVector{q_proj, k_proj, v_proj}, ov::ParameterVector{src});
     }
     void check_results() {
         auto exec_model = compiledModel.get_runtime_model();

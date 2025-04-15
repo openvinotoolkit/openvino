@@ -32,7 +32,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusion) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
         manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
     }
     {
@@ -42,7 +42,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusion) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low, input_high, output_low, output_high, 11);
-        model_ref = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
     }
 }
 
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionWithConvolutionAndScalarConsta
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data, filter});
+        model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data, filter});
         manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
     }
     {
@@ -81,7 +81,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionWithConvolutionAndScalarConsta
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(conv, input_low, input_high, output_low, output_high, 11);
-        model_ref = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data, filter});
+        model_ref = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data, filter});
     }
 }
 
@@ -96,7 +96,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionConstantOnFirstInput) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
         manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
     }
     {
@@ -106,7 +106,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionConstantOnFirstInput) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low, input_high, output_low, output_high, 11);
-        model_ref = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
     }
 }
 
@@ -121,7 +121,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionConstantWithEqualValues) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
         manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
     }
     {
@@ -131,7 +131,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionConstantWithEqualValues) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low, input_high, output_low, output_high, 11);
-        model_ref = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
     }
 }
 
@@ -146,7 +146,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionReshape) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
         manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
     }
     {
@@ -156,7 +156,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionReshape) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low, input_high, output_low, output_high, 11);
-        model_ref = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
     }
 }
 
@@ -171,7 +171,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionWithPerChannelConstant) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
         manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
     }
     {
@@ -181,7 +181,7 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionWithPerChannelConstant) {
         auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
         auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
         auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low, input_high, output_low, output_high, 11);
-        model_ref = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
     }
 }
 
@@ -195,7 +195,7 @@ TEST_F(TransformationTestsF, NegativeAddFakeQuantizeFusionNotAConstant) {
     auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
     auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
     auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-    model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data, add_2nd_input});
+    model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data, add_2nd_input});
     manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
 }
 
@@ -216,7 +216,7 @@ TEST_F(TransformationTestsF, NegativeAddFakeQuantizeFusionWithConvolutionAndNonS
     auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
     auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
     auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-    model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data, filter});
+    model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data, filter});
     manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
 }
 
@@ -230,7 +230,7 @@ TEST_F(TransformationTestsF, NegativeAddFakeQuantizeFusionLowPrecision) {
     auto output_low = opset5::Constant::create(element::f16, Shape{}, {0});
     auto output_high = opset5::Constant::create(element::f16, Shape{}, {10});
     auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-    model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+    model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
     model_ref = model->clone();
     manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
 }
@@ -245,7 +245,7 @@ TEST_F(TransformationTestsF, NegativeAddFakeQuantizeFusionWithNonPerChannelConst
     auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
     auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
     auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-    model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+    model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
     manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
 }
 
@@ -258,6 +258,6 @@ TEST_F(TransformationTestsF, AddFakeQuantizeFusionWithBroadcastingConstant) {
     auto output_low = opset5::Constant::create(element::f32, Shape{}, {0});
     auto output_high = opset5::Constant::create(element::f32, Shape{}, {10});
     auto fq = std::make_shared<opset5::FakeQuantize>(add, input_low, input_high, output_low, output_high, 11);
-    model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{data});
+    model = std::make_shared<Model>(OutputVector{fq}, ParameterVector{data});
     manager.register_pass<ov::pass::AddFakeQuantizeFusion>();
 }
