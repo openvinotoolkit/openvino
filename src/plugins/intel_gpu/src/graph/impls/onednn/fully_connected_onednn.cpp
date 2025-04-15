@@ -220,11 +220,11 @@ public:
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
         size_t input_size = prim->input_size;
-        size_t weigts_rank = prim->weights_rank;
+        size_t weights_rank = prim->weights_rank;
         bool has_bias = !prim->bias.empty();
         bool is_compressed = prim->compressed_weights;
         ob << input_size;
-        ob << weigts_rank;
+        ob << weights_rank;
         ob << has_bias;
         ob << is_compressed;
         ob << prim->dynamic_quantized_activation;
@@ -252,13 +252,13 @@ public:
         parent::load(ib);
 
         size_t input_size = 2;
-        size_t weigts_rank = 2;
+        size_t weights_rank = 2;
         bool has_bias = false;
         bool is_compressed = false;
         bool dynamic_quantized_activation;
         bool dynamic_quantized_activation_zp;
         ib >> input_size;
-        ib >> weigts_rank;
+        ib >> weights_rank;
         ib >> has_bias;
         ib >> is_compressed;
         ib >> dynamic_quantized_activation;
@@ -315,7 +315,7 @@ public:
                 _attrs->set_zero_points(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
         }
 
-        auto prim_desc = get_matmul_primitive_descriptor(*impl_params, ib.get_engine(), input_size, weigts_rank, has_bias, *_attrs);
+        auto prim_desc = get_matmul_primitive_descriptor(*impl_params, ib.get_engine(), input_size, weights_rank, has_bias, *_attrs);
         _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;
