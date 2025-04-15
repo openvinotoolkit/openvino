@@ -48,7 +48,7 @@ class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
                 :rtype: openvino.InferRequest
                 
         """
-    def __iter__(self) -> typing.Iterable[openvino._ov_api.InferRequest]:
+    def __iter__(self) -> typing.Iterator[openvino._ov_api.InferRequest]:
         """
         Allows to iterate over AsyncInferQueue.
         
