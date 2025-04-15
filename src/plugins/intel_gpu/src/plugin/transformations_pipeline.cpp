@@ -437,7 +437,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
-        pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
+        pass_config->set_callback<ov::pass::RMSFusion>([OV_CAPTURE_CPY_AND_THIS](const_node_ptr& root) -> bool {
             if (!root->get_input_partial_shape(0).is_static()) {
                 return false;
             }

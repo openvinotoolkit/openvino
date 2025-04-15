@@ -12,10 +12,6 @@ if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
     ov_add_compiler_flags(-Wno-unused-but-set-variable)
 endif()
 
-if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
-    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
-endif()
-
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
                   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
                   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
