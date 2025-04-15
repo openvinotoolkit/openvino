@@ -3609,3 +3609,75 @@ TEST(reorder_gpu_fp32, test_needs_completion_events) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
+
+TEST(reorder_gpu_i4, reorder_for_padding_2d)
+{
+    auto& engine = get_test_engine();
+
+    long int ifm_num = 7;
+    long int ofm_num = 4;
+
+    layout in_layout({{ofm_num, ifm_num}, data_types::i4, format::bfyx});
+    auto input = engine.allocate_memory(in_layout);
+
+    size_t input_data_size = ifm_num * ofm_num / 2;
+    std::vector<uint8_t> input_data  = {
+        0x21, 0x43, 0x65, 0x87, 0xa9, 0xcb, 0xed,
+        0x1f, 0x25, 0x83, 0x2a, 0x7d, 0x9f, 0xe8
+    };
+
+    set_values(input, input_data);
+
+    layout reorder_in_layout = in_layout.convert_to_weights_layout(false);
+    layout reorder_out_layout = reorder_in_layout;
+    reorder_out_layout.data_padding = padding::max(reorder_out_layout.data_padding,
+                                padding({0}, {0,1}));
+    auto weights_reorder_params = std::make_shared<WeightsReorderParams>(reorder_in_layout, reorder_out_layout, false, false);
+    layout out_layout(reorder_out_layout.get_partial_shape(), reorder_out_layout.data_type, format::bfyx, reorder_out_layout.data_padding);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        reorder("reorder", input_info("input"), weights_reorder_params));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+    ASSERT_EQ(output->get_layout().bytes_count(), (ofm_num * (ifm_num + 1) / 2));
+
+    uint8_t answers[16] = {
+        0x21, 0x43, 0x65, 0x80,
+        0x7a, 0x9c, 0xbe, 0xd0,
+        0x1f, 0x25, 0x83, 0x20,
+        0xa7, 0xd9, 0xfe, 0x80
+    };
+
+    uint8_t* a_ptr = answers;
+    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+
+    // std::stringstream ss_org;
+    // ss_org << "org_ptr: ";
+    // for (auto&val : input_data) {
+    //     ss_org << std::hex << static_cast<int>(val) << ",";
+    // }
+    // std::stringstream ss_act;
+    // std::stringstream ss_exp;
+    // ss_exp << "exp_ptr: ";
+    // ss_act << "act_ptr: ";
+    // for (auto&val : output_ptr) {
+    //     ss_act << std::hex << static_cast<int>(val) << ",";
+    //     ss_exp << std::hex << static_cast<int>(*(a_ptr++)) << ",";
+    // }
+    // GPU_DEBUG_COUT << "reorder_in_layout  : " << reorder_in_layout.to_string() << std::endl;
+    // GPU_DEBUG_COUT << "reorder_out_layout : " << reorder_out_layout.to_string() << std::endl;
+    // GPU_DEBUG_COUT << ss_org.str() << std::endl;
+    // GPU_DEBUG_COUT << ss_exp.str() << std::endl;
+    // GPU_DEBUG_COUT << ss_act.str() << std::endl;
+    a_ptr = answers;
+    for (auto& val : output_ptr)
+        ASSERT_EQ(*(a_ptr++), val);
+}

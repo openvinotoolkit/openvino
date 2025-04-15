@@ -873,18 +873,55 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
 }
 
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped) {
-    const auto& t = l.get_tensor().sizes(l.format);
     const auto ks_type = to_weights_type(l.data_type);
     const auto ks_layout = to_weights_layout(l.format, is_grouped);
-    std::vector<size_t> vec(kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
 
-    for (size_t i = 0; i < vec.size(); i++) {
-        const size_t tensor_index = t.size() - 1 - i;
-        const auto d = t[tensor_index];
-        vec[i] = static_cast<size_t>(d);
+    if (l.data_padding) {
+        kernel_selector::n_dims vec(kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
+        const auto& pad = l.data_padding;
+        const auto& lower_pad = layout::format_sizes(pad._lower_size, l.format);
+        const auto& upper_pad = layout::format_sizes(pad._upper_size, l.format);
+        const auto& vals_original = l.get_partial_shape();
+        ov::PartialShape vals_ordered;
+        const auto& axis_order = l.format.dims_order();
+        for (size_t i = 0; i < axis_order.size(); i++) {
+            if (axis_order[i] >= vals_original.size())
+                vals_ordered.push_back(ov::Dimension(1));
+            else
+                vals_ordered.push_back(vals_original[axis_order[i]]);
+        }
+
+        size_t pitch = 1;
+        for (size_t i = 0; i < vec.size(); i++) {
+            const size_t tensor_index = vec.size() - 1 - i;
+            const auto d = tensor_index < vals_ordered.size() ? vals_ordered[tensor_index] : ov::Dimension(1);
+            const auto lp = lower_pad[tensor_index];
+            const auto up = upper_pad[tensor_index];
+            const auto reserved_in_mem_count = d.get_length();
+
+            auto& elm = vec[i];
+            elm.v = static_cast<size_t>(d.get_length());
+            elm.pitch = pitch;
+            elm.pad.before = lp;
+            elm.pad.after = up;
+            elm.pad.is_dynamic = false;
+            elm.is_dynamic = false;
+
+            pitch *= (reserved_in_mem_count + lp + up);
+        }
+
+        return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
+    } else {
+        const auto& t = l.get_tensor().sizes(l.format);
+        std::vector<size_t> vec(kernel_selector::WeightsTensor::ChannelsCount(ks_layout));
+        for (size_t i = 0; i < vec.size(); i++) {
+            const size_t tensor_index = t.size() - 1 - i;
+            const auto d = t[tensor_index];
+            vec[i] = static_cast<size_t>(d);
+        }
+
+        return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
     }
-
-    return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
 }
 
 layout from_weights_tensor(const kernel_selector::weights_tensor& l) {
