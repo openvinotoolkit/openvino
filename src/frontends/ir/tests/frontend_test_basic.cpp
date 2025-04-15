@@ -4,9 +4,13 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "frontend_test.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/proposal.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "utils.hpp"
 
 class IRFrontendTests : public ::testing::Test, public IRFrontendTestsImpl {
