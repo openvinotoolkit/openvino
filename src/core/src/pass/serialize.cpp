@@ -19,8 +19,18 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/op/binary_convolution.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/util/avg_pool_base.hpp"
+#include "openvino/op/util/deformable_convolution_base.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/util/max_pool_base.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -87,7 +97,7 @@ class ConstantWriter {
 public:
     using FilePosition = int64_t;
     using HashValue = size_t;
-    using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, void const*>>;
+    using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, const void*>>;
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data),
@@ -100,7 +110,9 @@ public:
                        size_t size,
                        size_t& new_size,
                        bool compress_to_fp16 = false,
-                       ov::element::Type src_type = ov::element::dynamic) {
+                       ov::element::Type src_type = ov::element::dynamic,
+                       bool ptr_is_temporary = false) {  // when true, do not rely on ptr after this function call, data
+                                                         // is temporary allocated
         const FilePosition write_pos = m_binary_output.tellp();
         const auto offset = write_pos - m_blob_offset;
         new_size = size;
@@ -133,17 +145,18 @@ public:
             // Therefore we always have to compare values when finding a match in the hash multimap.
             const HashValue hash = ov::runtime::compute_hash(ptr_to_write, new_size);
 
-            auto found = m_hash_to_file_positions.find(hash);
+            auto found = m_hash_to_file_positions.equal_range(hash);
             // iterate over all matches of the key in the multimap
-            while (found != m_hash_to_file_positions.end()) {
-                if (memcmp(ptr, found->second.second, size) == 0) {
-                    return found->second.first;
+            for (auto it = found.first; it != found.second; ++it) {
+                if (memcmp(ptr, it->second.second, size) == 0) {
+                    return it->second.first;
                 }
-                found++;
             }
-            // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
-            // we store pointer to the original uncompressed blob.
-            m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
+            if (!ptr_is_temporary) {
+                // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the
+                // ostream, we store pointer to the original uncompressed blob.
+                m_hash_to_file_positions.insert({hash, {offset, static_cast<const void*>(ptr)}});
+            }
             if (m_write_hash_value) {
                 m_binary_output.write(reinterpret_cast<const char*>(&hash), sizeof(uint64_t));
             } else {
@@ -314,6 +327,7 @@ class XmlSerializer : public ov::AttributeVisitor {
     bool m_deterministic;
     bool m_compress_to_fp16;
     ov::element::Type m_output_element_type;
+    bool m_data_is_temporary;
 
     template <typename T>
     std::string create_atribute_list(ov::ValueAccessor<std::vector<T>>& adapter) {
@@ -432,14 +446,16 @@ public:
                   int64_t version,
                   bool deterministic = false,
                   bool compress_to_fp16 = false,
-                  ov::element::Type output_element_type = ov::element::dynamic)
+                  ov::element::Type output_element_type = ov::element::dynamic,
+                  bool data_is_temporary = false)
         : m_xml_node(data),
           m_node_type_name(node_type_name),
           m_constant_write_handler(constant_write_handler),
           m_version(version),
           m_deterministic(deterministic),
           m_compress_to_fp16(compress_to_fp16),
-          m_output_element_type(output_element_type) {}
+          m_output_element_type(output_element_type),
+          m_data_is_temporary(data_is_temporary) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
@@ -535,11 +551,13 @@ public:
                     a2->get_header(header_ptr, header_size);
                 }
 
-                int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(header_ptr.get()),
-                                                                header_size,
-                                                                inter_size,
-                                                                m_compress_to_fp16,
-                                                                m_output_element_type);
+                int64_t offset = m_constant_write_handler.write(
+                    reinterpret_cast<const char*>(header_ptr.get()),
+                    header_size,
+                    inter_size,
+                    m_compress_to_fp16,
+                    m_output_element_type,
+                    true);  // header_ptr is allocated in AttributeAdapter that has limited life time
                 new_size += inter_size;
 
                 // write raw strings part
@@ -562,7 +580,9 @@ public:
                                                    raw_string_size,
                                                    inter_size,
                                                    m_compress_to_fp16,
-                                                   m_output_element_type);
+                                                   m_output_element_type,
+                                                   m_data_is_temporary);
+
                     new_size += inter_size;
                 }
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
@@ -576,7 +596,8 @@ public:
                                                                 size,
                                                                 new_size,
                                                                 m_compress_to_fp16,
-                                                                m_output_element_type);
+                                                                m_output_element_type,
+                                                                m_data_is_temporary);
 
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
@@ -839,7 +860,7 @@ private:
     void clone_op_and_fix_paddings(const T* op) {
         for (const auto& input : op->inputs()) {
             m_parameters.emplace_back(
-                std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape()));
+                std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_partial_shape()));
         }
         m_cloned_node = op->clone_with_new_inputs(m_parameters);
         auto typed_cloned_node = ov::as_type_ptr<T>(m_cloned_node);
@@ -855,29 +876,29 @@ public:
     }
 
     explicit PaddingsFixer(ov::Node* node) : m_node(node) {
-        if (auto op = ov::as_type<ov::opset1::Convolution>(node)) {
+        if (auto op = ov::as_type<ov::op::v1::Convolution>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::Convolution, ov::CoordinateDiff>(op);
+                clone_op_and_fix_paddings<ov::op::v1::Convolution, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::GroupConvolution>(node)) {
+        } else if (auto op = ov::as_type<ov::op::v1::GroupConvolution>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::GroupConvolution, ov::CoordinateDiff>(op);
+                clone_op_and_fix_paddings<ov::op::v1::GroupConvolution, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::ConvolutionBackpropData>(node)) {
+        } else if (auto op = ov::as_type<ov::op::v1::ConvolutionBackpropData>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::ConvolutionBackpropData, ov::CoordinateDiff>(op);
+                clone_op_and_fix_paddings<ov::op::v1::ConvolutionBackpropData, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::GroupConvolutionBackpropData>(node)) {
+        } else if (auto op = ov::as_type<ov::op::v1::GroupConvolutionBackpropData>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::GroupConvolutionBackpropData, ov::CoordinateDiff>(op);
+                clone_op_and_fix_paddings<ov::op::v1::GroupConvolutionBackpropData, ov::CoordinateDiff>(op);
             }
         } else if (auto op = ov::as_type<ov::op::util::DeformableConvolutionBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
                 clone_op_and_fix_paddings<ov::op::util::DeformableConvolutionBase, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::BinaryConvolution>(node)) {
+        } else if (auto op = ov::as_type<ov::op::v1::BinaryConvolution>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::BinaryConvolution, ov::CoordinateDiff>(op);
+                clone_op_and_fix_paddings<ov::op::v1::BinaryConvolution, ov::CoordinateDiff>(op);
             }
         } else if (auto op = ov::as_type<ov::op::util::AvgPoolBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
@@ -887,6 +908,36 @@ public:
             if (pad_agnostic_types.count(op->get_auto_pad())) {
                 clone_op_and_fix_paddings<ov::op::util::MaxPoolBase, ov::Shape>(op);
             }
+        }
+    }
+};
+
+// Substitute a Constant node instead of a node by calling node->constant_fold if 'postponed_constant' rt_info attribute
+// is present in the node
+class PostponedConstantReplacer {
+private:
+    ov::Node* m_node;
+    std::shared_ptr<ov::Node> m_constant;
+
+public:
+    ov::Node* get_node() {
+        return m_node;
+    }
+
+    bool data_is_temporary() const {
+        return m_constant != nullptr;
+    }
+
+    PostponedConstantReplacer(ov::Node* node) : m_node(node), m_constant() {
+        if (node->get_rt_info().count("postponed_constant")) {
+            OPENVINO_ASSERT(node->get_output_size() == 1);
+            ov::OutputVector outputs(1);
+            OPENVINO_ASSERT(
+                node->constant_fold(outputs, node->input_values()),
+                "Node with set `postponed_constant` attribute cannot be fold to constant when saving model to IR file");
+            m_constant = outputs[0].get_node_shared_ptr();
+            m_node = m_constant.get();
+            m_node->set_friendly_name(node->get_friendly_name());
         }
     }
 };
@@ -993,12 +1044,20 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
     for (const auto& n : sorted_ops) {
         ov::Node* node = n.get();
+        int node_id{};
+        {
+            auto it = layer_ids.find(node);
+            OPENVINO_ASSERT(it != layer_ids.end(), "Internal error");
+            node_id = it->second;
+        }
+        PostponedConstantReplacer modified_node(node);
+        node = modified_node.get_node();
+
         const std::string& node_type_name{node->get_type_name()};
 
-        OPENVINO_ASSERT(layer_ids.find(node) != layer_ids.end(), "Internal error");
         // <layers>
         pugi::xml_node layer = layers.append_child("layer");
-        layer.append_attribute("id").set_value(layer_ids.find(node)->second);
+        layer.append_attribute("id").set_value(node_id);
         // If determinism is not required, include auto-generated names into xml
         // layer name is not critical for hash computing
         if (!deterministic) {
@@ -1045,7 +1104,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             pugi::xml_node input = layer.append_child("input");
             for (auto& i : node->inputs()) {
                 // WA for LSTMCellv0, peephole input shall not be serialized
-                if (i.get_index() == 6 && ov::as_type<ov::opset1::LSTMCell>(node)) {
+                if (i.get_index() == 6 && ov::as_type<ov::op::v0::LSTMCell>(node)) {
                     port_id++;
                     continue;
                 }
@@ -1149,7 +1208,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                                   version,
                                   deterministic,
                                   compress_to_fp16,
-                                  output_element_type);
+                                  output_element_type,
+                                  modified_node.data_is_temporary());
             OPENVINO_ASSERT(fixed_node.get_node()->visit_attributes(visitor), "Visitor API is not supported in ", node);
         }
         rt_info::XmlSerializer{data}.serialize(node->get_rt_info());

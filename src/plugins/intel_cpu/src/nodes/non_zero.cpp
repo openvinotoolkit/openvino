@@ -44,7 +44,7 @@ void NonZero::getSupportedDescriptors() {
     if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
     }
-    if (!getChildEdges().size()) {
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
     }
 }
@@ -85,7 +85,7 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     }
     default: {
         threadsCount = parallel_get_max_threads();
-        if (inSize < static_cast<size_t>(blockSize * threadsCount)) {
+        if (inSize < static_cast<size_t>(blockSize) * threadsCount) {
             threadsCount = 1;
         }
 
@@ -121,7 +121,7 @@ void NonZero::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NonZero::execute(const dnnl::stream& strm) {
+void NonZero::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this};
     OV_SWITCH(intel_cpu,
@@ -156,7 +156,7 @@ void NonZero::executeSpecified() {
         VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
-    int* dst = dstMemPtr->getDataAs<int>();
+    auto* dst = dstMemPtr->getDataAs<int>();
     if (totalNonZeroCount == 0) {
         return;
     }

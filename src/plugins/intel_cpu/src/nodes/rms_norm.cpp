@@ -34,7 +34,7 @@ struct RMSNormKey {
     size_t data_size;
     size_t scale_size;
     float eps;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RMSNormKey& rhs) const;
 };
 
@@ -97,7 +97,7 @@ struct RMSNorm::RMSNormExecutor : public RMSNorm::Executor {
     void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
         auto src = inputs[0]->getDataAs<uint8_t>();
         auto dst = output->getDataAs<uint8_t>();
-        float* scale = inputs[1]->getDataAs<float>();
+        auto* scale = inputs[1]->getDataAs<float>();
 
         const auto& src_strides = inputs[0]->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dst_strides = output->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -157,7 +157,7 @@ void RMSNorm::createPrimitive() {
 
     RMSNormKey key = {precision, data_size, scale_size, m_eps};
 
-    auto builder = [&](const RMSNormKey& key) -> std::shared_ptr<Executor> {
+    auto builder = [&]([[maybe_unused]] const RMSNormKey& key) -> std::shared_ptr<Executor> {
 #ifdef OPENVINO_ARCH_X86_64
         return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps);
 #else
@@ -173,7 +173,7 @@ void RMSNorm::createPrimitive() {
     m_executor = result.first;
 }
 
-void RMSNorm::execute(const dnnl::stream& strm) {
+void RMSNorm::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
 

@@ -49,10 +49,8 @@ Node::NodesFactory& Node::factory() {
 }
 
 Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory)
-    : selectedPrimitiveDescriptorIndex(-1),
-      constant(ConstantType::NoConst),
-      context(std::move(ctx)),
-      algorithm(Algorithm::Default),
+    : context(std::move(ctx)),
+
       fusingPort(-1),
       engine(context->getEngine()),
       name(op->get_friendly_name()),
@@ -149,7 +147,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
             if (str.substr(0, 4) != "cpu:") {
                 continue;
             }
-            inputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            memoryFormatFilter.input.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 
@@ -161,7 +159,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
             if (str.substr(0, 4) != "cpu:") {
                 continue;
             }
-            outputMemoryFormatsFilter.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
+            memoryFormatFilter.output.push_back(dnnl::utils::str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 
@@ -183,8 +181,7 @@ Node::Node(const std::string& type,
            const GraphContext::CPtr& ctx)
     : inputShapes(std::move(inShapes)),
       outputShapes(std::move(outShapes)),
-      selectedPrimitiveDescriptorIndex(-1),
-      constant(ConstantType::NoConst),
+
       context(ctx),
       originalInputPrecisions(std::move(inputPrecisions)),
       originalOutputPrecisions(std::move(outputPrecisions)),
@@ -341,7 +338,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
 bool Node::isOneDimShape(const ov::PartialShape& pshape) {
     int value_1_num = 0;
-    int sz = static_cast<int>(pshape.size());
+    auto sz = static_cast<int>(pshape.size());
     for (const auto& s : pshape) {
         if (s.is_static() && s.get_length() == 1) {
             value_1_num++;
@@ -364,7 +361,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
         return selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
     }
 
-    auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc, size_t i) {
+    auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc,
+                                       [[maybe_unused]] size_t i) {
         int estimate = 0;
         auto inputNodesNum = supportedPrimitiveDesc.getConfig().inConfs.size();
         for (size_t j = 0; j < inputNodesNum; j++) {
@@ -964,7 +962,7 @@ void Node::initSupportedPrimitiveDescriptors() {
 }
 
 void Node::filterSupportedPrimitiveDescriptors() {
-    if (inputMemoryFormatsFilter.empty() && outputMemoryFormatsFilter.empty()) {
+    if (memoryFormatFilter.empty()) {
         return;
     }
 
@@ -977,27 +975,27 @@ void Node::filterSupportedPrimitiveDescriptors() {
 
     auto isNotSuitableDesc = [&](const NodeDesc& desc) {
         const auto& config = desc.getConfig();
-        if (inputMemoryFormatsFilter.size() > config.inConfs.size() ||
-            outputMemoryFormatsFilter.size() > config.outConfs.size()) {
+        if (memoryFormatFilter.input.size() > config.inConfs.size() ||
+            memoryFormatFilter.output.size() > config.outConfs.size()) {
             OPENVINO_THROW("Incorrect number of input or output memory formats");
         }
 
-        for (size_t i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-            if (!areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i])) {
+        for (size_t i = 0; i < memoryFormatFilter.input.size(); i++) {
+            if (!areCompatible(*config.inConfs[i].getMemDesc(), memoryFormatFilter.input[i])) {
                 DEBUG_LOG(getName(),
                           " input memory format filter: ",
-                          inputMemoryFormatsFilter[i],
+                          memoryFormatFilter.input[i],
                           " not matched. Erase desc from supported primitive descriptors: ",
                           desc);
                 return true;
             }
         }
 
-        for (size_t i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-            if (!areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i])) {
+        for (size_t i = 0; i < memoryFormatFilter.output.size(); i++) {
+            if (!areCompatible(*config.outConfs[i].getMemDesc(), memoryFormatFilter.output[i])) {
                 DEBUG_LOG(getName(),
                           " Output memory format filter: ",
-                          outputMemoryFormatsFilter[i],
+                          memoryFormatFilter.output[i],
                           " not matched. Erase desc from supported primitive descriptors: ",
                           desc);
                 return true;
@@ -1328,6 +1326,8 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
             impl_desc_type::jit_sse42_dw, impl_desc_type::jit_sse42_1x1, impl_desc_type::jit_sse42,
 #if defined(OPENVINO_ARCH_ARM64)
             impl_desc_type::jit_asimd,
+#elif defined(OPENVINO_ARCH_RISCV64)
+            impl_desc_type::jit_gv,
 #endif
             impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
             impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,
@@ -1498,7 +1498,7 @@ MemoryDescPtr Node::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t 
     return DnnlExtensionUtils::makeDescriptor(prim_desc.dst_desc(idx));
 }
 
-void Node::appendPostOpArgs(const dnnl::primitive_attr& attr,
+void Node::appendPostOpArgs([[maybe_unused]] const dnnl::primitive_attr& attr,
                             std::unordered_map<int, dnnl::memory>& primArgs,
                             const std::unordered_map<int, MemoryPtr>& postOpsArgs) {
     for (auto& entry : postOpsArgs) {
@@ -1535,17 +1535,17 @@ dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const VectorDims& dims)
     }
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops,
-                         const VectorDims& postOpDims,
-                         std::unordered_map<int, MemoryPtr>& postOpsMem,
-                         const int channelAxis) {
+void Node::appendPostOps([[maybe_unused]] dnnl::post_ops& ops,
+                         [[maybe_unused]] const VectorDims& postOpDims,
+                         [[maybe_unused]] std::unordered_map<int, MemoryPtr>& postOpsMem,
+                         [[maybe_unused]] const int channelAxis) {
     OPENVINO_THROW("Fusing of ", NameFromType(this->getType()), " operation is not implemented");
 }
 
-void Node::appendPostOps(dnnl::post_ops& ops,
-                         const VectorDims& postOpDims,
-                         std::vector<const void*>& postOpsMem,
-                         const int channelAxis) {
+void Node::appendPostOps([[maybe_unused]] dnnl::post_ops& ops,
+                         [[maybe_unused]] const VectorDims& postOpDims,
+                         [[maybe_unused]] std::vector<const void*>& postOpsMem,
+                         [[maybe_unused]] const int channelAxis) {
     OPENVINO_THROW("Fusing of ", NameFromType(this->getType()), " operation is not implemented");
 }
 

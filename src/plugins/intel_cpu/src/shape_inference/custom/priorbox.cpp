@@ -15,9 +15,10 @@ namespace ov::intel_cpu::node {
  * parameter.
  *
  */
-Result PriorBoxShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    const int* in_data = data_dependency.at(0)->getDataAs<const int>();
+Result PriorBoxShapeInfer::infer(
+    [[maybe_unused]] const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+    const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+    const auto* in_data = data_dependency.at(0)->getDataAs<const int>();
     const int H = in_data[0];
     const int W = in_data[1];
     const auto output = static_cast<size_t>(4 * H * W * m_number_of_priors);

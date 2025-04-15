@@ -4,6 +4,7 @@
 
 #include "mha.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -38,7 +39,7 @@ struct jit_mul_add_softmax_kernel : public jit_uni_mul_add_softmax_kernel, publi
           jit_generator(jit_name()),
           vec_size(dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float)),
           exp_emitter(std::make_shared<jit_dnnl_aux_emitter>(this, isa, dnnl_eltwise_exp, 0.f, 0.f)) {}
-    virtual ~jit_mul_add_softmax_kernel() {}
+    ~jit_mul_add_softmax_kernel() override = default;
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -290,14 +291,14 @@ private:
                      bool fill) {
         const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this,
-                                                      isa,
-                                                      src_prc,
-                                                      ov::element::f32,
-                                                      elt_num,
-                                                      ov::element::f32,
-                                                      fill,
-                                                      "float_min"));
+            emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                                isa,
+                                                                src_prc,
+                                                                ov::element::f32,
+                                                                elt_num,
+                                                                ov::element::f32,
+                                                                fill,
+                                                                "float_min");
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0},
@@ -308,7 +309,7 @@ private:
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
         const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
@@ -382,7 +383,7 @@ struct jit_convert_reorder_kernel : public jit_uni_convert_reorder_kernel, publi
         : jit_uni_convert_reorder_kernel(jcp),
           jit_generator(jit_name()),
           vec_size(dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / sizeof(float)) {}
-    virtual ~jit_convert_reorder_kernel() {}
+    ~jit_convert_reorder_kernel() override = default;
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -490,14 +491,14 @@ private:
                      bool fill) {
         const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_load_emitter(this,
-                                                      isa,
-                                                      src_prc,
-                                                      ov::element::f32,
-                                                      elt_num,
-                                                      ov::element::f32,
-                                                      fill,
-                                                      "float_min"));
+            emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                                isa,
+                                                                src_prc,
+                                                                ov::element::f32,
+                                                                elt_num,
+                                                                ov::element::f32,
+                                                                fill,
+                                                                "float_min");
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0},
@@ -508,7 +509,7 @@ private:
     inline void store(const Xbyak::Reg64& reg_dst, const Vmm& vmm_src, ov::element::Type dst_prc, const int& elt_num) {
         const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
@@ -549,7 +550,7 @@ struct jit_convert_transpose_kernel : public jit_uni_convert_transpose_kernel, p
         interm_prc = jcp_.with_scales ? ov::element::f32 : jcp_.src_prc;
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / interm_prc.size();
     }
-    virtual ~jit_convert_transpose_kernel() {}
+    ~jit_convert_transpose_kernel() override = default;
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -670,8 +671,14 @@ private:
                      bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(
-                new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, ov::element::f32, fill, "float_min"));
+            emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                                isa,
+                                                                src_prc,
+                                                                dst_prc,
+                                                                elt_num,
+                                                                ov::element::f32,
+                                                                fill,
+                                                                "float_min");
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0},
@@ -686,7 +693,7 @@ private:
                       const int& elt_num) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, src_prc, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
@@ -908,7 +915,7 @@ void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCop
                              size_t K,
                              size_t K_blk,
                              size_t K_tail,
-                             size_t LDA,
+                             [[maybe_unused]] size_t LDA,
                              dnnl_data_type_t dt_in0) {
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_tag = dnnl_abcd;
@@ -924,6 +931,10 @@ void MHA::init_brgemm_copy_a(std::unique_ptr<jit_brgemm_matmul_copy_a_t>& brgCop
     brgCopyKernelConf.src_dt = dt_in0;
     brgCopyKernelConf.a_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = false;
+
+    bool is_avx_f16_only =
+        dt_in0 == dnnl::memory::data_type::f16 && mayiuse(avx512_core_fp16) && !mayiuse(avx512_core_amx_fp16);
+    brgCopyKernelConf.isa = is_avx_f16_only ? avx512_core_fp16 : avx512_core_amx;
 
 #if defined(OPENVINO_ARCH_X86_64)
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
@@ -1202,11 +1213,11 @@ void MHA::prepareParams() {
 
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
-            mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::avx512_core>(jcp));
+            mulAddSoftmaxKernel = std::make_unique<jit_mul_add_softmax_kernel<cpu_isa_t::avx512_core>>(jcp);
         } else if (mayiuse(cpu_isa_t::avx2)) {
-            mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::avx2>(jcp));
+            mulAddSoftmaxKernel = std::make_unique<jit_mul_add_softmax_kernel<cpu_isa_t::avx2>>(jcp);
         } else if (mayiuse(cpu_isa_t::sse41)) {
-            mulAddSoftmaxKernel.reset(new jit_mul_add_softmax_kernel<cpu_isa_t::sse41>(jcp));
+            mulAddSoftmaxKernel = std::make_unique<jit_mul_add_softmax_kernel<cpu_isa_t::sse41>>(jcp);
         }
 #endif  // OPENVINO_ARCH_X86_64
         if (!mulAddSoftmaxKernel) {
@@ -1226,11 +1237,11 @@ void MHA::prepareParams() {
 
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
-            convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::avx512_core>(jcp));
+            convertReorderKernel = std::make_unique<jit_convert_reorder_kernel<cpu_isa_t::avx512_core>>(jcp);
         } else if (mayiuse(cpu_isa_t::avx2)) {
-            convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::avx2>(jcp));
+            convertReorderKernel = std::make_unique<jit_convert_reorder_kernel<cpu_isa_t::avx2>>(jcp);
         } else if (mayiuse(cpu_isa_t::sse41)) {
-            convertReorderKernel.reset(new jit_convert_reorder_kernel<cpu_isa_t::sse41>(jcp));
+            convertReorderKernel = std::make_unique<jit_convert_reorder_kernel<cpu_isa_t::sse41>>(jcp);
         }
 #endif  // OPENVINO_ARCH_X86_64
         if (!convertReorderKernel) {
@@ -1252,11 +1263,11 @@ void MHA::prepareParams() {
 
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu_isa_t::avx512_core)) {
-            convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::avx512_core>(jcp));
+            convertTransposeKernel = std::make_unique<jit_convert_transpose_kernel<cpu_isa_t::avx512_core>>(jcp);
         } else if (mayiuse(cpu_isa_t::avx2)) {
-            convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::avx2>(jcp));
+            convertTransposeKernel = std::make_unique<jit_convert_transpose_kernel<cpu_isa_t::avx2>>(jcp);
         } else if (mayiuse(cpu_isa_t::sse41)) {
-            convertTransposeKernel.reset(new jit_convert_transpose_kernel<cpu_isa_t::sse41>(jcp));
+            convertTransposeKernel = std::make_unique<jit_convert_transpose_kernel<cpu_isa_t::sse41>>(jcp);
         }
 #endif  // OPENVINO_ARCH_X86_64
 
@@ -1328,11 +1339,11 @@ void MHA::callBrgemm(brgemmCtx& ctx,
 
 template <typename in1_type>
 void MHA::mhaImpl() {
-    const uint8_t* pTranspose0In0 = getSrcDataAtPortAs<const uint8_t>(0);
-    const uint8_t* pTranspose1In0 = getSrcDataAtPortAs<const uint8_t>(1);
-    const float* pAddIn1 = getSrcDataAtPortAs<const float>(2);
-    const uint8_t* pTranspose2In0 = getSrcDataAtPortAs<const uint8_t>(3);
-    uint8_t* pout = getDstDataAtPortAs<uint8_t>(0);
+    const auto* pTranspose0In0 = getSrcDataAtPortAs<const uint8_t>(0);
+    const auto* pTranspose1In0 = getSrcDataAtPortAs<const uint8_t>(1);
+    const auto* pAddIn1 = getSrcDataAtPortAs<const float>(2);
+    const auto* pTranspose2In0 = getSrcDataAtPortAs<const uint8_t>(3);
+    auto* pout = getDstDataAtPortAs<uint8_t>(0);
 
     auto outPrcSize = outputPrecision.size();
 
@@ -1549,7 +1560,7 @@ void MHA::mhaImpl() {
     });
 }
 
-void MHA::execute(const dnnl::stream& strm) {
+void MHA::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (inputPrecisions[1] == ov::element::f32) {
         mhaImpl<float>();
     } else if (inputPrecisions[1] == ov::element::bf16) {

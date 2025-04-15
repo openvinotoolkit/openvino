@@ -10,7 +10,7 @@
 #include "ocl/sycl_stream.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "primitive_sycl_base.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "impls/ocl/kernel_selector_helper.h"
 

@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "memory_format_filter.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
 
@@ -17,10 +18,13 @@ namespace ov::intel_cpu {
 template <typename Attrs>
 class ExecutorImplementation {
 public:
-    using SupportsPredicate = std::function<bool(const executor::Config<Attrs>&)>;
+    using SupportsExtendedPredicate = std::function<bool(const executor::Config<Attrs>&, const MemoryFormatFilter&)>;
+    using SupportsSimplePredicate = std::function<bool(const executor::Config<Attrs>&)>;
+
     using RequiresFallbackPredicate =
         std::function<std::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
-    using AcceptsShapePredicate = std::function<bool(const MemoryArgs& memory)>;
+    using AcceptsShapePredicate =
+        std::function<bool(const Attrs& attrs, const PostOps& postOps, const MemoryArgs& memory)>;
     using CreateFunction = std::function<ExecutorPtr(const Attrs& attrs,
                                                      const PostOps& postOps,
                                                      const MemoryArgs& memory,
@@ -30,7 +34,7 @@ public:
                            const ExecutorType type,
                            const OperationType operationType,
                            const ShapeTolerance shapeRelation,
-                           SupportsPredicate supports,
+                           SupportsExtendedPredicate supports,
                            RequiresFallbackPredicate requiresFallback,
                            AcceptsShapePredicate acceptsShape,
                            CreateFunction create)
@@ -43,9 +47,28 @@ public:
           m_acceptsShape(std::move(acceptsShape)),
           m_create(std::move(create)) {}
 
-    bool supports(const executor::Config<Attrs>& config) const {
+    ExecutorImplementation(const char* name,
+                           const ExecutorType type,
+                           const OperationType operationType,
+                           const ShapeTolerance shapeRelation,
+                           SupportsSimplePredicate supports,
+                           RequiresFallbackPredicate requiresFallback,
+                           AcceptsShapePredicate acceptsShape,
+                           CreateFunction create)
+        : m_name(name),
+          m_type(type),
+          m_operationType(operationType),
+          m_shapeRelation(shapeRelation),
+          m_supports([supports](const executor::Config<Attrs>& config, const MemoryFormatFilter&) {
+              return supports(config);
+          }),
+          m_requiresFallback(std::move(requiresFallback)),
+          m_acceptsShape(std::move(acceptsShape)),
+          m_create(std::move(create)) {}
+
+    bool supports(const executor::Config<Attrs>& config, const MemoryFormatFilter& memoryFormatFilter) const {
         if (m_supports) {
-            return m_supports(config);
+            return m_supports(config, memoryFormatFilter);
         }
 
         return false;
@@ -59,9 +82,9 @@ public:
         return {};
     }
 
-    bool acceptsShapes(const MemoryArgs& memory) const {
+    [[nodiscard]] bool acceptsShapes(const Attrs& attrs, const PostOps& postOps, const MemoryArgs& memory) const {
         if (m_acceptsShape) {
-            return m_acceptsShape(memory);
+            return m_acceptsShape(attrs, postOps, memory);
         }
 
         return false;
@@ -79,19 +102,19 @@ public:
         return nullptr;
     }
 
-    bool shapeAgnostic() const {
+    [[nodiscard]] bool shapeAgnostic() const {
         return m_shapeRelation == ShapeTolerance::Agnostic;
     }
 
-    const char* name() const {
+    [[nodiscard]] const char* name() const {
         return m_name;
     }
 
-    const ExecutorType type() const {
+    [[nodiscard]] const ExecutorType type() const {
         return m_type;
     }
 
-    const OperationType operationType() const {
+    [[nodiscard]] const OperationType operationType() const {
         return m_operationType;
     }
 
@@ -100,7 +123,7 @@ private:
     ExecutorType m_type;
     OperationType m_operationType;
     ShapeTolerance m_shapeRelation;
-    SupportsPredicate m_supports;
+    SupportsExtendedPredicate m_supports;
     RequiresFallbackPredicate m_requiresFallback;
     AcceptsShapePredicate m_acceptsShape;
     CreateFunction m_create;

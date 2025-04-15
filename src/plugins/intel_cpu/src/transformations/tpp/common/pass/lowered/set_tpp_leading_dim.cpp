@@ -37,8 +37,9 @@ bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::l
             const auto& border_points = port.get_type() == ExpressionPort::Type::Input ? loop_info->get_input_ports()
                                                                                        : loop_info->get_output_ports();
             const auto& found = std::find_if(border_points.begin(), border_points.end(), pred);
-            if (found == border_points.end() || found->is_incremented())
+            if (found == border_points.end() || found->is_incremented()) {
                 return false;
+            }
         }
         return true;
     };
@@ -110,7 +111,7 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LoopManager
         }
     };
     return layout.size() == 1 ? shape.back()
-                              : std::accumulate(shape.cbegin() + dim() + 1, shape.cend(), 1, std::multiplies<size_t>());
+                              : std::accumulate(shape.cbegin() + dim() + 1, shape.cend(), 1, std::multiplies<>());
 }
 
 }  // namespace

@@ -77,11 +77,11 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void CTCGreedyDecoderSeqLen::execute(const dnnl::stream& strm) {
-    const float* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
-    const int* sequenceLengths = getSrcDataAtPortAs<const int>(SEQUENCE_LENGTH_INDEX);
-    int* decodedClasses = getDstDataAtPortAs<int>(DECODED_CLASSES_INDEX);
-    int* decodedClassesLength = getDstDataAtPortAs<int>(DECODED_CLASSES_LENGTH_INDEX);
+void CTCGreedyDecoderSeqLen::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
+    const auto* sequenceLengths = getSrcDataAtPortAs<const int>(SEQUENCE_LENGTH_INDEX);
+    auto* decodedClasses = getDstDataAtPortAs<int>(DECODED_CLASSES_INDEX);
+    auto* decodedClassesLength = getDstDataAtPortAs<int>(DECODED_CLASSES_LENGTH_INDEX);
 
     const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
     ;

@@ -39,11 +39,11 @@ public:
               float beta = 1);
     BrgemmTPP() = default;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    [[nodiscard]] std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    float get_beta() const {
+    [[nodiscard]] float get_beta() const {
         return m_beta;
     }
     void set_beta(float beta) {

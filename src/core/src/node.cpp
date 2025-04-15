@@ -298,7 +298,7 @@ void ov::Node::set_friendly_name(const string& name) {
 
 ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
     OPENVINO_ASSERT(index < m_inputs.size(), idx_txt, index, out_of_range_txt);
-    return m_inputs[index].get_output().get_node().get();
+    return m_inputs[index].get_output().get_raw_pointer_node();
 }
 
 std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
@@ -603,7 +603,7 @@ ov::Output<ov::Node> ov::Node::output(size_t output_index) {
         OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
-    return Output<Node>(this, output_index);
+    return {this, output_index};
 }
 
 ov::Output<const ov::Node> ov::Node::output(size_t output_index) const {
@@ -784,6 +784,8 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     return true;
 }
 
+AttributeAdapter<std::shared_ptr<ov::Node>>::~AttributeAdapter() = default;
+
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 
 bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
@@ -807,4 +809,17 @@ bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
     }
     return true;
 }
+
+AttributeAdapter<ov::NodeVector>::~AttributeAdapter() = default;
+
+namespace op::util {
+bool input_sources_are_equal(const std::shared_ptr<ov::Node>& lhs,
+                             const std::shared_ptr<ov::Node>& rhs,
+                             const size_t input_index) {
+    const auto& lhs_source = lhs->get_input_descriptor(input_index).get_output();
+    const auto& rhs_source = rhs->get_input_descriptor(input_index).get_output();
+    return lhs_source.get_raw_pointer_node() == rhs_source.get_raw_pointer_node() &&
+           lhs_source.get_index() == rhs_source.get_index();
+}
+}  // namespace op::util
 }  // namespace ov

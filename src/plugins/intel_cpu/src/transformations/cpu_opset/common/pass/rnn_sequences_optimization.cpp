@@ -9,6 +9,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -148,6 +149,7 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
     this->register_matcher(m, callback);
 }
 
+// NOLINTNEXTLINE(modernize-use-equals-default)
 ov::intel_cpu::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
     ADD_MATCHER_FOR_THIS(OptimizeLSTMSequenceTransposes)
     ADD_MATCHER_FOR_THIS(OptimizeRNNSequenceTransposes)

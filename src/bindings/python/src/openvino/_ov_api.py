@@ -2,18 +2,19 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict, Tuple, List
+from typing import Any, Iterable, Union, Optional, Dict
 from typing import Type as TypingType
 from pathlib import Path
+import traceback  # noqa: F811
 
 
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import Op as OpBase
-from openvino._pyopenvino import Node, Output, Tensor, Type
+from openvino._pyopenvino import Node, Tensor, Type
 
 from openvino.utils.data_helpers import (
     OVDict,
@@ -24,26 +25,50 @@ from openvino.utils.data_helpers import (
 from openvino.package_utils import deprecatedclassproperty
 
 
-class Op(OpBase):
-    def __init__(self, py_obj: "Op", inputs: Optional[Union[List[Union[Node, Output]], Tuple[Union[Node, Output, List[Union[Node, Output]]]]]] = None) -> None:
-        super().__init__(py_obj)
-        self._update_type_info()
-        if isinstance(inputs, tuple):
-            inputs = None if len(inputs) == 0 else list(inputs)
-            if inputs is not None and len(inputs) == 1 and isinstance(inputs[0], list):
-                inputs = inputs[0]
-        if inputs is not None:
-            self.set_arguments(inputs)
-            self.constructor_validate_and_infer_types()
-
-
 class ModelMeta(type):
     def __dir__(cls) -> list:
         return list(set(cls.__dict__.keys()) | set(dir(ModelBase)))
 
+    def __getattribute__(cls, name: str) -> Any:
+        if name == "__init__":
+            return getattr(ModelBase, name)
+        return super().__getattribute__(name)
+
+    def __getattr__(cls, name: str) -> Any:
+        # Return the attribute defined in _pyopenvino.Model if it exists
+        # otherwise AttributeError will be raised
+        return getattr(ModelBase, name)
+
 
 class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if not args and not kwargs:
+
+            constructors = [
+                "1. openvino.Model(other: openvino.Model)"
+                "2. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], name: str = '')",
+                "3. openvino.Model(results: list[openvino.Node], parameters: list[openvino.op.Parameter], name: str = '')",
+                "4. openvino.Model(result: openvino.Node, parameters: list[openvino.op.Parameter], name: str = '')",
+                "5. openvino.Model(results: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
+                "6. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], name: str = '')",
+                "7. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
+                "8. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], \
+                                   variables: list[openvino.op.util.Variable], name: str = '')",
+                "9. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], name: str = '')",
+                "10. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Output], parameters: list[openvino.op.Parameter], \
+                                    variables: list[openvino.op.util.Variable], name: str = '')",
+                "11. openvino.Model(results: list[openvino.op.Result], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], \
+                                    variables: list[openvino.op.util.Variable], name: str = '')",
+                "12. openvino.Model(results: list[openvino.Output], sinks: list[openvino.Node], parameters: list[openvino.op.Parameter], \
+                                    variables: list[openvino.op.util.Variable], name: str = '')",
+                "13. openvino.Model(results: list[openvino.op.Result], parameters: list[openvino.op.Parameter], \
+                                    variables: list[openvino.op.util.Variable], name: str = '')",
+                "14. openvino.Model(results: list[openvino.Output], parameters: list[openvino.op.Parameter], \
+                                    variables: list[openvino.op.util.Variable], name: str = '')",
+            ]
+
+            constructor_info = "\n".join(f"  - {ctor}" for ctor in constructors)
+            raise ValueError(f"Model cannot be instantiated without arguments.\n\nAvailable constructors:\n{constructor_info}")
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
                 self.__model = ModelBase(args[0])
@@ -78,7 +103,7 @@ class Model(object, metaclass=ModelMeta):
     def __enter__(self) -> "Model":
         return self
 
-    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:
+    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:  # noqa: F811
         del self.__model
         self.__model = None
 
@@ -538,9 +563,9 @@ class Core(CoreBase):
     """
     def read_model(
         self,
-        model: Union[str, bytes, object],
-        weights: Union[object, str, bytes, Tensor] = None,
-        config: Optional[dict] = None
+        model: Union[str, bytes, object, io.BytesIO],
+        weights: Union[object, str, bytes, Tensor, io.BytesIO] = None,
+        config: Optional[Dict[str, Any]] = None
     ) -> Model:
         config = {} if config is None else config
         if isinstance(model, Model):
@@ -559,7 +584,7 @@ class Core(CoreBase):
         self,
         model: Union[Model, str, Path],
         device_name: Optional[str] = None,
-        config: Optional[dict] = None,
+        config: Optional[Dict[str, Any]] = None,
         *,
         weights: Optional[bytes] = None,
     ) -> CompiledModel:
@@ -613,7 +638,7 @@ class Core(CoreBase):
             self,
             model: Model,
             device_name: str,
-            config: Optional[dict] = None,
+            config: Optional[Dict[str, Any]] = None,
     ) -> dict:
         return super().query_model(model._Model__model,
                                    device_name,
@@ -623,7 +648,7 @@ class Core(CoreBase):
         self,
         model_stream: bytes,
         device_name: str,
-        config: Optional[dict] = None,
+        config: Optional[Dict[str, Any]] = None,
     ) -> CompiledModel:
         """Imports a compiled model from a previously exported one.
 
@@ -676,7 +701,7 @@ class Core(CoreBase):
 def compile_model(
     model: Union[Model, str, Path],
     device_name: Optional[str] = "AUTO",
-    config: Optional[dict] = None,
+    config: Optional[Dict[str, Any]] = None,
 ) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 

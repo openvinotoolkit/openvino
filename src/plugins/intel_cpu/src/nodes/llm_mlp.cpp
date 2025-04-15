@@ -34,7 +34,7 @@ public:
 
     WeightBuffer wbuffer;
 
-    LinearKsplit2() {}
+    LinearKsplit2() = default;
 
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
@@ -44,7 +44,7 @@ public:
         bool is_quantized = config.down_quantized;
 
         auto reg_blk_K_size = is_quantized ? REG_BLK_K_SIZE_I8 : REG_BLK_K_SIZE;
-        auto cache_blk_k_size = is_quantized ? CACHE_BLK_K_SIZE : CACHE_BLK_K_SIZE;
+        auto cache_blk_k_size = CACHE_BLK_K_SIZE;
         auto weight_element_size = is_quantized ? sizeof(int8_t) : sizeof(ov::float16);
 
         OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
@@ -102,7 +102,7 @@ public:
 
         wbuffer.alloc(works, weight_element_size);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (is_quantized) {
@@ -125,7 +125,7 @@ public:
              float* w_scale) {
         static ReduceAdd2bh jit_reduce2cvt(true, std::is_same<T, ov::float16>::value);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             auto& workC = work.m_C;
             if (work) {
@@ -174,7 +174,7 @@ public:
 
     int used_nthr = 0;
 
-    LinearGateUp() {}
+    LinearGateUp() = default;
 
     WeightBuffer wbuffer;
 
@@ -243,7 +243,7 @@ public:
         wbuffer.alloc(works, weight_element_size);
 
         DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8) {
@@ -272,7 +272,7 @@ public:
                    const LLMMLPNode::Config& config,
                    MatrixDynQuantPerRow& src_dq,
                    float* w_scale) {
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 work.run(M, pA, strideA_in_bytes);
@@ -430,7 +430,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
     void execute() override {
         auto input = m_pnode->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
-        uint8_t* pA = input->getDataAs<uint8_t>();
+        auto* pA = input->getDataAs<uint8_t>();
         const auto& srcStrides = input->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
         int strideA = srcStrides[srcStrides.size() - 2];
@@ -470,7 +470,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
                               m_quant_act,
                               m_w_scale_gateup.ptr<float>());
 
-            uint8_t* p_up_act = reinterpret_cast<uint8_t*>(m_actUp.ptr<T>());
+            auto* p_up_act = reinterpret_cast<uint8_t*>(m_actUp.ptr<T>());
             size_t stride_up_act = m_actUp.stride_bytes(0);
             if (m_config.down_quantized) {
                 m_quant_up_act.quantize(BM, m_actUp.ptr<T>(), m_actUp.stride(0));
@@ -592,8 +592,7 @@ void LLMMLP::createPrimitive() {
     }
 }
 
-void LLMMLP::execute(const dnnl::stream& strm) {
-    MAYBE_UNUSED(strm);
+void LLMMLP::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 
