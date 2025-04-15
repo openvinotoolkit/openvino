@@ -2906,7 +2906,8 @@ struct MHA {
             }
 
             auto ithr = parallel_get_thread_num();
-            auto* k_ptr = k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number, hk);
+            auto* k_ptr =
+                k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number, hk);
 
             transpose_16NxK<DATA_TYPE, KEY_PREC>(
                 _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
@@ -2920,7 +2921,8 @@ struct MHA {
                 _helper._quant_key_bychannel);  // quant_by_channel
 
             if (q_is_xf16) {
-                auto* v_ptr = v_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(block_number, hk);
+                auto* v_ptr =
+                    v_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(block_number, hk);
                 pack_32NxK<DATA_TYPE, VALUE_PREC>(
                     _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                     v_ptr,
@@ -2935,7 +2937,8 @@ struct MHA {
                 // need to decompress
                 if (!q_cache_is_same) {
                     auto* v_ptr =
-                        v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(block_number, hk);
+                        v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(block_number,
+                                                                                                          hk);
                     dequant<DATA_TYPE, VALUE_PREC>(
                         _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                         v_ptr,
@@ -3357,16 +3360,17 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                     // zero out key cache
                     auto* key_cache_ptr =
                         k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number,
-                                                                                            h,
-                                                                                            block_offset + l);
+                                                                                                      h,
+                                                                                                      block_offset + l);
                     std::memset(key_cache_ptr,
                                 0,
                                 S * k_cache.m_element_size / get_sub_byte_multiplier(k_cache.get_precision()));
                     // zero out value cache
                     auto* value_cache_ptr =
-                        v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(block_number,
-                                                                                              h,
-                                                                                              block_offset + l);
+                        v_cache.ptr<typename ov::element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
+                            block_number,
+                            h,
+                            block_offset + l);
                     std::memset(value_cache_ptr,
                                 0,
                                 SV * v_cache.m_element_size / get_sub_byte_multiplier(v_cache.get_precision()));
