@@ -26,7 +26,6 @@
 # -bugprone-exception-escape. There are a lot of legacy code which does not handle exceptions properly and just catches them all. Major refactoring is required to correct this.
 # -bugprone-implicit-widening-of-multiplication-result
 # -bugprone-incorrect-roundings. There are explicit ways to perform rounding (i.e. std::floor(), std::round(), etc). Requires careful updates case by case
-# -bugprone-lambda-function-name. Used by generic debug caps macro
 # -bugprone-signed-char-misuse. The source code contains valid logic when pointer to the data is interpreted as int8_t (i.e. weights tensor)
 # -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
@@ -59,7 +58,6 @@ Checks: >
   -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-incorrect-roundings,
-  -bugprone-lambda-function-name,
   -bugprone-narrowing-conversions,
   -bugprone-signed-char-misuse,
   -cppcoreguidelines-narrowing-conversions,
@@ -68,7 +66,6 @@ Checks: >
   -google-explicit-constructor,
   -google-readability-casting,
   -google-readability-todo,
-  -readability-braces-around-statements,
   -modernize-avoid-c-arrays,
   -modernize-use-constraints,
   -modernize-use-std-numbers,
@@ -107,10 +104,10 @@ CheckOptions:
     value: "3"
   - key: modernize-use-override.AllowOverrideAndFinal
     value: true
+ # Unifies the usage of the statements
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: "1"
 ### To be considered to enable:
-#  # Unifies the usage of the statements
-#  - key: readability-braces-around-statements.ShortStatementLines
-#    value: "1"
 #  Reasonable way to enforce splitting complex code into simple functions
 #  - key: google-readability-function-size.StatementThreshold
 #    value: "800"
