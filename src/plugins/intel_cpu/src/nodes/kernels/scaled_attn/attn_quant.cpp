@@ -301,10 +301,6 @@ static void quantize_by_channel(const T* src,
     }
 }
 
-// static void quantize_u4_kernel() {
-
-// }
-
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
 static void quantize_by_channel(const T* src,
                                 uint8_t* dst,
