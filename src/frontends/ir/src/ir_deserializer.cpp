@@ -20,6 +20,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "../../../core/reference/include/openvino/reference/convert.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
@@ -262,46 +263,27 @@ ov::op::v5::Loop::SpecialBodyPorts ov::XmlDeserializer::parse_purpose_attribute(
 }
 
 namespace {
-template <typename src_type, typename dst_type>
-inline dst_type convert_value(src_type val) {
-    if (val > std::numeric_limits<dst_type>::max()) {
-        return std::numeric_limits<dst_type>::max();
-    } else if (val < std::numeric_limits<dst_type>::lowest()) {
-        return std::numeric_limits<dst_type>::lowest();
-    }
-    return static_cast<dst_type>(val);
-}
-
-template <ov::element::Type_t DT_FROM, ov::element::Type_t DT_TO>
-void convert_dt(char* dst, const char* src, size_t el_num) {
-    using src_type = typename ov::element_type_traits<DT_FROM>::value_type;
-    using dst_type = typename ov::element_type_traits<DT_TO>::value_type;
-
-    auto src_data = reinterpret_cast<const src_type*>(src);
-    auto dst_data = reinterpret_cast<dst_type*>(dst);
-
-    for (size_t i = 0lu; i < el_num; i++) {
-        dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
-    }
-}
-
 void convert_dt(ov::element::Type to_dt, ov::element::Type from_dt, char* dst, const char* src, size_t el_num) {
-    if (from_dt == ov::element::i64 && to_dt == ov::element::i32) {
-        convert_dt<ov::element::Type_t::i64, ov::element::Type_t::i32>(dst, src, el_num);
-    } else if (from_dt == ov::element::f32 && to_dt == ov::element::f16) {
-        convert_dt<ov::element::Type_t::f32, ov::element::Type_t::f16>(dst, src, el_num);
-    } else if (from_dt == ov::element::f16 && to_dt == ov::element::f32) {
-        convert_dt<ov::element::Type_t::f16, ov::element::Type_t::f32>(dst, src, el_num);
+    if (from_dt == ov::element::f16 && to_dt == ov::element::f32) {
+        ov::reference::convert(reinterpret_cast<const ov::float16*>(src), reinterpret_cast<float*>(dst), el_num);
+    } else if (from_dt == ov::element::i64 && to_dt == ov::element::i32) {
+        ov::reference::convert(reinterpret_cast<const int64_t*>(src), reinterpret_cast<int32_t*>(dst), el_num);
+    } else if (from_dt == ov::element::u64 && to_dt == ov::element::i32) {
+        ov::reference::convert(reinterpret_cast<const uint64_t*>(src), reinterpret_cast<int32_t*>(dst), el_num);
     } else if (from_dt == ov::element::bf16 && to_dt == ov::element::f32) {
-        convert_dt<ov::element::Type_t::bf16, ov::element::Type_t::f32>(dst, src, el_num);
-    } else if (from_dt == ov::element::f32 && to_dt == ov::element::bf16) {
-        convert_dt<ov::element::Type_t::f32, ov::element::Type_t::bf16>(dst, src, el_num);
+        ov::reference::convert(reinterpret_cast<const ov::bfloat16*>(src), reinterpret_cast<float*>(dst), el_num);
     } else if (from_dt == ov::element::u8 && to_dt == ov::element::i32) {
-        convert_dt<ov::element::Type_t::u8, ov::element::Type_t::i32>(dst, src, el_num);
-    } else if (from_dt == ov::element::i8 && to_dt == ov::element::f32) {
-        convert_dt<ov::element::Type_t::i8, ov::element::Type_t::f32>(dst, src, el_num);
+        ov::reference::convert(reinterpret_cast<const uint8_t*>(src), reinterpret_cast<int32_t*>(dst), el_num);
+    } else if (from_dt == ov::element::i8 && to_dt == ov::element::i32) {
+        ov::reference::convert(reinterpret_cast<const int8_t*>(src), reinterpret_cast<int32_t*>(dst), el_num);
     } else if (from_dt == ov::element::u8 && to_dt == ov::element::f32) {
-        convert_dt<ov::element::Type_t::u8, ov::element::Type_t::f32>(dst, src, el_num);
+        ov::reference::convert(reinterpret_cast<const uint8_t*>(src), reinterpret_cast<float*>(dst), el_num);
+    } else if (from_dt == ov::element::i8 && to_dt == ov::element::f32) {
+        ov::reference::convert(reinterpret_cast<const int8_t*>(src), reinterpret_cast<float*>(dst), el_num);
+    } else if (from_dt == ov::element::f32 && to_dt == ov::element::f16) {
+        ov::reference::convert(reinterpret_cast<const float*>(src), reinterpret_cast<ov::float16*>(dst), el_num);
+    } else if (from_dt == ov::element::f32 && to_dt == ov::element::bf16) {
+        ov::reference::convert(reinterpret_cast<const float*>(src), reinterpret_cast<ov::bfloat16*>(dst), el_num);
     } else {
         OPENVINO_THROW("Unsupported element types conversion from ", from_dt, " to ", to_dt);
     }
@@ -444,7 +426,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                         for (auto attr : child.attributes()) {
                             if (strcmp(attr.name(), "name") == 0 &&
                                 strcmp(attr.value(), ov::WeightlessCacheAttribute::get_type_info_static().name) == 0) {
-                                ov::element::Type original_dt(child.attribute("original_dtype").value());
+                                const ov::element::Type original_dt(child.attribute("original_dtype").value());
                                 offset = static_cast<size_t>(pugixml::get_uint64_attr(child, "bin_offset"));
                                 origin_size = static_cast<size_t>(pugixml::get_uint64_attr(child, "original_size"));
                                 actual_size = ((el_num * el_type.bitwidth() + 7) >> 3);

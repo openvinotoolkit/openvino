@@ -16,6 +16,7 @@
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/log_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -744,6 +745,7 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         for (size_t i = 0; i < output_tensors.size(); ++i) {
             output_values[i] = make_shared<ov::op::v0::Constant>(output_tensors[i]);
             ov::copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
+            ov::copy_weightless_cache_attr(nodes[0], output_values[i].get_node_shared_ptr());
         }
         return true;
     }
