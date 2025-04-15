@@ -1,6 +1,7 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -58,6 +59,7 @@ protected:
         ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(input_precision, ov::Shape(input_shape[0])),
                                   std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape(input_shape[1])),
                                   std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape(input_shape[2]))};
+        input[0]->set_friendly_name("input_data");
         input[1]->set_friendly_name("gather0");
         input[2]->set_friendly_name("gather1");
         // Use VariadicSplit to make padding input for GatherElements. Padding is generated from buffer fusing pass
@@ -89,7 +91,14 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        const auto inputDataShape = function->inputs()[0].get_shape();
+        ov::Shape inputDataShape;
+        for (size_t i = 0lu; i < funcInputs.size(); i++) {
+            const auto& funcInput = funcInputs[i];
+            if (funcInput.get_node()->get_friendly_name() == "input_data") {
+                inputDataShape = function->inputs()[0].get_shape();
+            }
+        }
+
         for (size_t i = 0lu; i < funcInputs.size(); i++) {
             const auto& funcInput = funcInputs[i];
             ov::test::utils::InputGenerateData in_data;
@@ -97,6 +106,7 @@ protected:
             in_data.resolution = 1;
             if (funcInput.get_node()->get_friendly_name() == "gather0" || funcInput.get_node()->get_friendly_name() == "gather1") {
                 in_data.range = inputDataShape[axis_gatherElements];
+                in_data.range = std::min(in_data.range, 4096u); //to not go beyond range due to uint32 to half conversion error - it can cause go beyond range
             } else {
                 in_data.range = 1000;
             }
