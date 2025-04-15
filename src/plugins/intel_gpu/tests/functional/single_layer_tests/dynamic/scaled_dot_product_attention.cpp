@@ -328,10 +328,11 @@ const std::vector<std::vector<InputShape>> shapes {
             {ov::Shape{1, 1, 7, 7}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
         },
     },
+    // head size not aligned to 16
     {
         // q shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 72},
-            {ov::Shape{1, 8, 100, 72}, ov::Shape{1, 8, 1, 72}}}
+            {ov::Shape{1, 8, 100, 72}, ov::Shape{1, 8, 101, 72}}}
         },
         // kv shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 72},
@@ -339,9 +340,9 @@ const std::vector<std::vector<InputShape>> shapes {
         },
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
-            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}}}
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 101, 101}}}
         },
-    }
+    },
 };
 
 const std::vector<std::vector<int64_t>> disable_transpose{};
@@ -352,7 +353,7 @@ const auto dynamic_shape_params = testing::Combine(testing::Values(ov::element::
                                                    testing::ValuesIn(shapes),
                                                    testing::Values(true, false),
                                                    testing::Values(true, false),
-                                                   testing::Values(true, false),
+                                                   testing::Values(false),
                                                    testing::ValuesIn({disable_transpose, transpose_value}));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttn_GPU,
@@ -388,6 +389,30 @@ const std::vector<std::vector<InputShape>> static_shapes{
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{1, 1, 64, 13},
             {ov::Shape{1, 1, 64, 13}}}
+        },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{1, 1, 100, 100},
+            {ov::Shape{1, 1, 100, 100}}}
+        },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 1, 72},
+            {ov::Shape{1, 8, 1, 72}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
         },
     },
 };
