@@ -10,6 +10,8 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/multiply.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;

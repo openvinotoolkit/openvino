@@ -8,7 +8,10 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
 
 using namespace CPUTestUtils;
 

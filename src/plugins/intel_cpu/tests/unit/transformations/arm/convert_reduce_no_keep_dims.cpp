@@ -3,9 +3,23 @@
 //
 
 #include <gtest/gtest.h>
-#include "openvino/opsets/opset1_decl.hpp"
+
 #include <transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp>
+
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 using namespace ov::intel_cpu;
 

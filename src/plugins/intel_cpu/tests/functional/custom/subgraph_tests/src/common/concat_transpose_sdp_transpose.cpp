@@ -11,7 +11,13 @@
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
