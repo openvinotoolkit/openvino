@@ -158,6 +158,58 @@ std::shared_ptr<ov::Model> MHAFunction::initReference() const {
 
     return std::make_shared<ov::Model>(NodeVector{subgraph}, ngraphParams);
 }
+
+std::shared_ptr<ov::Model> MHA2DFunction::initOriginal() const {
+    auto param0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto param1 = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
+    auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    auto param2 = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+    ov::ParameterVector ngraphParam = {param0, param1, addParam, param2};
+
+    const auto rank = input_shapes[0].size();
+    std::shared_ptr<ov::Node> matmul_parent0 = param0, matmul_parent1 = param1;
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(matmul_parent0, matmul_parent1);
+    const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
+
+    const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
+    auto softmax_out = softMax->output(0);
+
+    std::shared_ptr<ov::Node> matmul_parent2 = param2;
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax_out, matmul_parent2);
+
+    ov::ResultVector results{std::make_shared<ov::opset1::Result>(matMul1)};
+    return std::make_shared<ov::Model>(results, ngraphParam, "mha");
+}
+std::shared_ptr<ov::Model> MHA2DFunction::initReference() const {
+    auto data0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto data1 = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
+    auto data2 = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    auto data3 = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+
+    ov::ParameterVector ngraphParams = {data0, data1, data2, data3};
+
+    const auto rank = input_shapes[0].size();
+
+    NodeVector subgraph_inputs = {data0, data1, data2, data3};
+
+    auto param0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
+    auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
+    auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    auto param2 = std::make_shared<ov::opset1::Parameter>(precisions[3], input_shapes[3]);
+
+    ov::ParameterVector subgraph_params = {param0, brgemm1Param, addParam, param2};
+
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, brgemm1Param);
+    const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
+    const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, param2);
+
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
+            std::make_shared<ov::Model>(NodeVector{matMul1}, subgraph_params));
+
+    return std::make_shared<ov::Model>(NodeVector{subgraph}, ngraphParams);
+}
+
 std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
     auto data0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto data1 = std::make_shared<ov::opset1::Parameter>(precisions[1], input_shapes[1]);
