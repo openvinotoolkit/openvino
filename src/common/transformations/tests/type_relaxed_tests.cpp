@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset1.hpp"

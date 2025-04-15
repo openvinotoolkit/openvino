@@ -814,6 +814,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
+        pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(
+            [&](const_node_ptr &node) -> bool {
+            // Convert to NMSIEInternal when model is static
+            return !func->is_dynamic() ? false : true;
+        });
+
         // List of enabled/disabled transformations
         pass_config->disable<ov::pass::ConvertGELU>();
         pass_config->disable<ov::pass::Gelu7Downgrade>();
@@ -1106,8 +1112,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
-        bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
-        bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);
+        const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
+        const bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);
 
         // mlp fusion is only supported for cldnn on high performant GPUis
         bool fuse_mlp_swiglu = !device_info.supports_immad &&
