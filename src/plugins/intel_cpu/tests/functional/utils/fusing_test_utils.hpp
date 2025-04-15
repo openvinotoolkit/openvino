@@ -515,4 +515,14 @@ const auto fusingBias = fusingSpecificParams{std::make_shared<postNodesMgr>(std:
             return std::make_shared<ov::op::v1::Add>(cfg.input, bias);
         }, "fusingBias"}}), {"Add"}};
 
+const auto fusingBiasGelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](postNodeConfig& cfg) {
+            size_t last_dim = cfg.input->get_output_partial_shape(0).rbegin()->get_length();
+            auto bias = ov::test::utils::make_constant(cfg.type, ov::Shape{last_dim});
+            return std::make_shared<ov::op::v1::Add>(cfg.input, bias);
+        }, "fusingBias"},
+        {[](postNodeConfig& cfg){
+            return utils::make_activation(cfg.input, cfg.type, utils::Gelu);
+        }, "Gelu"}}), {"Gelu"} };
+
 } // namespace CPUTestUtils

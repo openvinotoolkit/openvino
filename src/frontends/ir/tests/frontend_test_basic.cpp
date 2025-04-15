@@ -4,9 +4,13 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "frontend_test.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/proposal.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "utils.hpp"
 
 class IRFrontendTests : public ::testing::Test, public IRFrontendTestsImpl {
@@ -1303,7 +1307,7 @@ TEST_F(IRFrontendTests, model_with_tensor_names_with_spaces) {
                 <layer id="0" name="input2" type="Parameter" version="opset1">
                     <data shape="1,4,512" element_type="f32"/>
                     <output>
-                        <port id="0" precision="FP32" names="input2">
+                        <port id="0" precision="FP32" names="model/bert/encoder/layer_0/attention/self/query/Tensordot/MatMul;model/bert/encoder/layer_0/attention/self/query/BiasAdd;model/bert/encoder/layer_0/attention/output/dense/Tensordot/shape;model/bert/encoder/layer_0/attention/self/query/Tensordot;model/bert/encoder/layer_0/attention/self/query/BiasAdd/ReadVariableOp_Gemm__32:0">
                             <dim>1</dim>
                             <dim>4</dim>
                             <dim>512</dim>

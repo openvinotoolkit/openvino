@@ -428,7 +428,6 @@ def test_module_extension():
         "Parameter", "Sin", "Result"]
 
 
-
 def test_multiple_module_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch import ModuleExtension
@@ -456,7 +455,7 @@ def test_multiple_module_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Convert", "Convert", "Cos", "Relu", "Constant", "Convert", "Multiply", "Add", "Result"]
+        "Parameter", "Convert", "Convert", "Cos", "Constant", "Convert", "Relu", "Multiply", "Add", "Result"]
 
     converted_model = convert_model(model, example_input=(
         torch.randn(100),), extension=[ModuleExtension(CosModel, "aten::sin"), ModuleExtension(model.relu_module, "aten::tan")])
@@ -764,6 +763,7 @@ def test_patched_16bit_model_converts():
     np.testing.assert_allclose(res_bf16[0], res_ref[0].numpy(), atol=1e-2)
     np.testing.assert_allclose(res_bf16[1], res_ref[1].numpy(), atol=1e-2)
 
+
 def test_patched_16bit_model_with_convert():
     from openvino.frontend.pytorch import patch_model
     from openvino import convert_model, Type
@@ -796,6 +796,61 @@ def test_patched_16bit_model_with_convert():
             assert node.get_output_element_type(0) == Type.f32
     assert mm_num == 2
 
+
+def test_patched_8bit_model_converts():
+    from openvino.frontend.pytorch import patch_model
+    from openvino import convert_model, compile_model
+    from transformers.pytorch_utils import Conv1D
+
+    class ModelWithLinear(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+
+            self.branch1 = torch.nn.Sequential(
+                torch.nn.Embedding(10, 64),
+                torch.nn.Linear(64, 32),
+                torch.nn.ReLU()
+            )
+            self.branch2 = torch.nn.Sequential(
+                Conv1D(256, 128),
+                torch.nn.Linear(256, 64), torch.nn.ReLU()
+            )
+            self.buffer = torch.ones(32)
+
+        def forward(self, x1, x2):
+            out1 = self.branch1(x1)
+            out2 = self.branch2(x2)
+            return (out1 + self.buffer, out2)
+
+    example = (torch.randint(0, 10, [32, 64]), torch.randn(32, 128))
+
+    model_ref = ModelWithLinear().to(torch.float8_e4m3fn).float()
+    with torch.no_grad():
+        res_ref = model_ref(*example)
+    model_f8_e4m3 = model_ref.to(torch.float8_e4m3fn)
+    patch_model.__make_16bit_traceable(model_f8_e4m3)
+    # the approach with patching only works for node with no grad
+    with torch.no_grad():
+        converted_model = convert_model(model_f8_e4m3, example_input=example)
+    assert converted_model
+    cm_f8_e4m3 = compile_model(converted_model, "CPU")
+    res_f8_e4m3 = cm_f8_e4m3([x.numpy() for x in example])
+    np.testing.assert_allclose(res_f8_e4m3[0], res_ref[0].numpy(), atol=1e-2)
+    np.testing.assert_allclose(res_f8_e4m3[1], res_ref[1].numpy(), atol=1e-2)
+
+    model_ref = ModelWithLinear().to(torch.float8_e5m2).float()
+    with torch.no_grad():
+        res_ref = model_ref(*example)
+    model_f8_e5m2 = model_ref.to(torch.float8_e5m2)
+    patch_model.__make_16bit_traceable(model_f8_e5m2)
+    # the approach with patching only works for node with no grad
+    with torch.no_grad():
+        converted_model = convert_model(model_f8_e5m2, example_input=example)
+    assert converted_model
+    cm_f8_e5m2 = compile_model(converted_model, "CPU")
+    res_f8_e5m2 = cm_f8_e5m2([x.numpy() for x in example])
+    np.testing.assert_allclose(res_f8_e5m2[0], res_ref[0].numpy(), atol=1e-2)
+    np.testing.assert_allclose(res_f8_e5m2[1], res_ref[1].numpy(), atol=1e-2)
 
 
 class InlinedInputsModel(torch.nn.Module):

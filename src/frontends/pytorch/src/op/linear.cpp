@@ -36,9 +36,8 @@ OutputVector translate_linear_ext(const NodeContext& context) {
     auto x = context.get_input(0);
     auto initial_x = x;
     auto weight = context.get_input(1);
-    bool is_compressed = weight.get_element_type() == element::f16 || weight.get_element_type() == element::bf16;
     bool convert_back = false;
-    if (is_compressed) {
+    if (weight.get_element_type() != element::f32) {
         // In case of patched linear it can have mixed fp16/bf16 and fp32 input type.
         // In other cases these conversion is not required.
         weight = context.mark_node(std::make_shared<v0::Convert>(weight, element::f32));
@@ -52,7 +51,7 @@ OutputVector translate_linear_ext(const NodeContext& context) {
     if (!context.input_is_none(2)) {
         auto bias = context.get_input(2);
 
-        if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
+        if (bias.get_element_type() != element::f32) {
             // Same reason as for weight.
             bias = context.mark_node(std::make_shared<v0::Convert>(bias, element::f32));
         }
