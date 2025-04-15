@@ -126,29 +126,10 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     }
 
     cldnn::padding padding_data = cldnn::padding();
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    if (p.get_config().get_use_onednn()
-            && (op->get_element_type() == ov::element::i4 || op->get_element_type() == ov::element::u4)
-            && !op->is_dynamic()
-            && const_shape.size() == 2) {
-        const size_t alignment = 2;
-        if (const_shape.back() % alignment != 0) {
-            std::vector<int32_t> new_paddings(const_shape.size(), 0);
-            ov::Shape new_shape = const_shape;
-            for (size_t i = 0; i < const_shape.size(); ++i) {
-                if (const_shape[i] % alignment != 0) {
-                    new_shape[i] = (const_shape[i] + (alignment-1)) & ~(alignment-1);
-                    new_paddings[i] = new_shape[i] - const_shape[i];
-                }
-            }
-            padding_data = cldnn::padding({0},new_paddings);
-        }
-    }
-#endif
 
     cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat, padding_data) :
-                                                          cldnn::layout(out_dtype, constFormat, constTensor, padding_data);
+    cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat) :
+                                                          cldnn::layout(out_dtype, constFormat, constTensor);
 
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
@@ -181,18 +162,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         auto buf = lock.data();
         auto bufSize = constLayout.bytes_count();
 
-        if (constLayout.data_padding) {
-            std::vector<int32_t> non_padded_dims = constLayout.get_dims();
-            std::vector<int32_t> padded_dims = constLayout.get_padded_dims();
-            non_padded_dims.resize(const_shape.size());
-            padded_dims.resize(const_shape.size());
-            auto data_ptr = reinterpret_cast<const uint8_t*>(&data[0]);
-            auto buf_ptr = reinterpret_cast<uint8_t*>(&buf[0]);
-
-            copy_to_padded_4bit_vector(non_padded_dims, data_ptr, padded_dims, buf_ptr);
-        } else {
-            std::memcpy(&buf[0], &data[0], bufSize);
-        }
+        std::memcpy(&buf[0], &data[0], bufSize);
         p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;

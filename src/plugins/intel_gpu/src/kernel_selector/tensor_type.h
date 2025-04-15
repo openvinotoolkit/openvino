@@ -669,6 +669,14 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
 
     static inline uint32_t ChannelsCount(WeightsLayout l) { return TensorBaseT::ChannelsCount(weightsChannelArray, l); }
 
+    bool HasPadding() const {
+        if (X().pad.Total() != 0 || Y().pad.Total() != 0 || Z().pad.Total() != 0 ||
+            Z().pad.Total() != 0 || IFM().pad.Total() != 0 || OFM().pad.Total() != 0 || G().pad.Total() != 0) {
+                return true;
+            }
+        return false;
+    }
+
 private:
     using WeightsChannelDesc =
         std::pair<WeightsLayout, std::array<int, static_cast<size_t>(WeightsChannelName::COUNT)>>;
