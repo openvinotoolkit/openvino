@@ -982,9 +982,8 @@ void WeightsTensor::SwapXY() {
     auto x_index = Channelndex(layout, WeightsChannelName::X);
     auto y_index = Channelndex(layout, WeightsChannelName::Y);
 
-    if (x_index < 0 || y_index < 0) {
-        throw std::runtime_error("Invalid layout channel index.");
-    }
+    OPENVINO_ASSERT(x_index >= 0 && y_index >= 0, "Invalid layout channel index.");
+
     std::swap(vec[x_index], vec[y_index]);
     *this = {vec, dtype, layout};
 }
