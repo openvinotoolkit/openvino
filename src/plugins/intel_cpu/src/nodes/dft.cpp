@@ -346,12 +346,8 @@ void DFT::dftNd(float* output,
 }
 
 /* Cooley Tukey implementation of FFT */
-void DFT::fft(float* inBuffer,
-              float* outBuffer,
-              int64_t dataLength,
-              bool inverse,
-              bool parallelize,
-              float** resultBuf) const {
+void DFT::fft(float* inBuffer, float* outBuffer, int64_t dataLength, bool inverse, bool parallelize, float** resultBuf)
+    const {
     static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
     static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
     size_t nComplex = dataLength / 2;
@@ -621,8 +617,6 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
 }
 
 bool DFT::needShapeInfer() const {
-    // TODO: Implement needShapeInfer logic
-    return true;
-    // return Node::needShapeInfer();
+    return !m_is_axes_size_const || !m_is_signal_size_const || Node::needShapeInfer();
 }
 }  // namespace ov::intel_cpu::node
