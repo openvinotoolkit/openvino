@@ -195,10 +195,8 @@ jobs:
                 python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt &&
                 cmake -DOpenVINODeveloperPackage_DIR=/work/build -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src/src/bindings/python -B /work/build_py${PY_VER} &&
                 cmake --build /work/build_py${PY_VER} --parallel $(nproc) --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} &&
-                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
+                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels &&
                 cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install --component pyopenvino_python${PY_VER}
-          
-                ls -laR /work/install
               "
           done
 
