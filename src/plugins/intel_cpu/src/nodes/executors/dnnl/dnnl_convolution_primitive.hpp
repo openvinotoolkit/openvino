@@ -91,14 +91,12 @@ public:
                                                             bool weightsNonTransposed);
 
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const ConvAttrs& attrs,
-                                                            const PostOps& postOps,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
                                                             const bool cacheWeights);
 
     // create shape agnostic data using FC attributes (1x1 Convolution as FC executor)
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& fcAttrs,
-                                                            const PostOps& postOps,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
                                                             const bool cacheWeights);
