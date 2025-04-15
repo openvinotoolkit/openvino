@@ -49,7 +49,7 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
         return false;
     }
 
-    if (!config.postOps.empty()) {
+    if (!config.attrs.postOps.empty()) {
         DEBUG_LOG("ShlFCExecutor: PostOps are not supported");
         return false;
     }
@@ -82,7 +82,6 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
 }
 
 ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
-                             const PostOps& postOps,
                              const MemoryArgs& memory,
                              const ExecutorContext::CPtr context)
     : packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context)) {

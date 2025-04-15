@@ -12,7 +12,6 @@ namespace ov::intel_cpu {
 class ShlFCExecutor : public Executor {
 public:
     ShlFCExecutor(const FCAttrs& attrs,
-                  const PostOps& postOps,
                   const MemoryArgs& memory,
                   const ExecutorContext::CPtr context);
 
