@@ -193,6 +193,7 @@
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 
 namespace ov::intel_cpu {
@@ -1215,8 +1216,11 @@ void Transformations::MainSnippets() {
         if (shape.is_dynamic()) {
             return false;
         }
-        const auto parallel_work_amount =
-            std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<>());
+        auto parallel_work_amount = ov::Dimension(1);
+        if (shape.size() > 2) {
+            parallel_work_amount =
+                std::accumulate(shape.rbegin() + 2, shape.rend(), parallel_work_amount, std::multiplies<>());
+        }
         // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
@@ -1377,7 +1381,7 @@ void Transformations::MainSnippets() {
         snippets::pass::TokenizeSnippets);
 
     auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) {
-        MAYBE_UNUSED(config.inferencePrecision);
+        [[maybe_unused]] const auto& inferencePrecision = config.inferencePrecision;
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -1394,7 +1398,7 @@ void Transformations::MainSnippets() {
             }
             ov::element::TypeVector precisions;
             auto push_precision = [&](const ov::element::Type& precision) {
-                if (config.inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
+                if (inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
                     precisions.push_back(ov::element::bf16);
                 else
                     precisions.push_back(precision);
