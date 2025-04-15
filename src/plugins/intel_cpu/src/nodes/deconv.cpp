@@ -244,7 +244,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         autoPad = one_of(groupConvBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
     }
     for (size_t i = 0; i < deconvAttrs.dilation.size(); i++) {
-        deconvAttrs.kernel.push_back(weightDims[withGroups + 2 + i]);
+        deconvAttrs.kernel.push_back(weightDims[static_cast<int>(withGroups) + 2 + i]);
     }
 #if defined(OV_CPU_WITH_ACL)
     deconvAttrs.aclFastMath = context->getConfig().aclFastMath;
@@ -303,7 +303,7 @@ void Deconvolution::createDnnlCompatibleWeights() {
     } else {
         order = {1, 0};
     }
-    for (size_t i = 2 + withGroups; i < blockedDims.size(); i++) {
+    for (size_t i = 2 + static_cast<int>(withGroups); i < blockedDims.size(); i++) {
         order.push_back(i);
     }
 
@@ -611,7 +611,8 @@ void Deconvolution::getSupportedDescriptors() {
     // OV ConvBackWardData defines weight shape as [Conv_OC, Conv_IC, ....].
     // ONEDNN Deconv define weight shape as [Deconv_OC, Deconv_IC,...],
     // Deconv_OC = Conv_IC , Deconv_IC = Conv_OC
-    std::swap(dnnlCompatibleWeiDims[withGroups + 0], dnnlCompatibleWeiDims[withGroups + 1]);
+    std::swap(dnnlCompatibleWeiDims[static_cast<int>(withGroups) + 0],
+              dnnlCompatibleWeiDims[static_cast<int>(withGroups) + 1]);
     setPostOps(*attr, outShape.getStaticDims());
 
     if (isInt8) {
@@ -861,7 +862,7 @@ const std::vector<impl_desc_type>& Deconvolution::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
         std::vector<impl_desc_type> result;
         std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result), [](impl_desc_type type) {
-            return !(type & impl_desc_type::brgconv);
+            return (type & impl_desc_type::brgconv) == 0;
         });
         return result;
     }();

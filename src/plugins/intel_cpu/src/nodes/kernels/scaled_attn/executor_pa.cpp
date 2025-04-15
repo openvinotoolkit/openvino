@@ -1434,7 +1434,7 @@ struct MHAHelper {
     float _d_scale;
     size_t _key_group_size = 0;
     size_t _value_group_size = 0;
-    bool _quant_key_bychannel = 0;
+    bool _quant_key_bychannel = false;
     size_t _new_score_stride = 0;
 
     PlainTensor _weight;        // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
@@ -2518,7 +2518,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         _helper._value_group_size = _helper._value_group_size ? _helper._value_group_size : SV;
 
         // check by_hidden_dims parameter of value cache
-        if (!value_group_num && v_cache.get_precision().is_integral()) {
+        if ((value_group_num == 0u) && v_cache.get_precision().is_integral()) {
             OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
                            _helper._value_group_size,
                            " should be smaller than hidden_dims");
@@ -2528,7 +2528,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             S = k_cache.size(3);
         } else {
             // check by_hidden_dims parameter of key cache
-            if (!key_group_num && k_cache.get_precision().is_integral()) {
+            if ((key_group_num == 0u) && k_cache.get_precision().is_integral()) {
                 OPENVINO_THROW("PagedAttn key cache gets wrong group_size, ",
                                _helper._key_group_size,
                                " should be smaller than hidden_dims");

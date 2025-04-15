@@ -110,7 +110,7 @@ private:
                           float* dst_data,
                           int32_t* dst_idx,
                           const VectorDims& in_dims,
-                          std::function<float(float, float)> compare) const;
+                          std::function<bool(float, float)> compare) const;
     void preset_params();
     void prepare_original_idx();
 

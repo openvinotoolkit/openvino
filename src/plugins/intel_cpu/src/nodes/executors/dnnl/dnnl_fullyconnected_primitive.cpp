@@ -229,22 +229,18 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                 false,
                                 false);
 
-    if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
-        auto dstPrc = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getPrecision();
+    if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
+        auto dstPrc = it->second->getPrecision();
         if (dstPrc != f8e8m0 || useDynamicQuantization) {
             dstPrc = ov::element::f32;
         }
 
-        dnnlpoc.appendDecompressionScalesLegacy(memory.at(ARG_WEI | ARG_ATTR_SCALES),
-                                                !attrs.weightsNonTransposed,
-                                                dstPrc);
+        dnnlpoc.appendDecompressionScalesLegacy(it->second, !attrs.weightsNonTransposed, dstPrc);
     }
 
-    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+    if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
-        dnnlpoc.appendDecompressionZeroPointsLegacy(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS),
-                                                    !attrs.weightsNonTransposed,
-                                                    dstPrc);
+        dnnlpoc.appendDecompressionZeroPointsLegacy(it->second, !attrs.weightsNonTransposed, dstPrc);
     }
 
     if (useDynamicQuantization) {
