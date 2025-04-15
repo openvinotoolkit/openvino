@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/convert_u4_weights_zero_point_to_scalar.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/subtract.hpp"

@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/bucketize.hpp"
+#include "intel_gpu/primitives/col2im.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/convert_color.hpp"
 #include "intel_gpu/primitives/crop.hpp"
@@ -25,13 +26,11 @@
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
 #include "intel_gpu/primitives/gather_tree.hpp"
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/grid_sample.hpp"
 #include "intel_gpu/primitives/grn.hpp"
-#include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/multinomial.hpp"
@@ -67,7 +66,6 @@
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
-#include "intel_gpu/primitives/rope.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -87,6 +85,7 @@ REGISTER_OCL(batch_to_space);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
 REGISTER_OCL(bucketize);
+REGISTER_OCL(col2im);
 REGISTER_OCL(concatenation);
 REGISTER_OCL(crop);
 REGISTER_OCL(custom_gpu_primitive);
@@ -108,7 +107,6 @@ REGISTER_OCL(gather_elements);
 REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
-REGISTER_OCL(group_normalization);
 REGISTER_OCL(kv_cache);
 REGISTER_OCL(paged_attention);
 REGISTER_OCL(lrn);
@@ -158,7 +156,6 @@ REGISTER_OCL(eye);
 REGISTER_OCL(unique_count);
 REGISTER_OCL(unique_gather);
 REGISTER_OCL(scaled_dot_product_attention);
-REGISTER_OCL(rope);
 REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
 
