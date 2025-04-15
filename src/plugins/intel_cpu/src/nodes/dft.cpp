@@ -532,15 +532,6 @@ bool DFT::created() const {
     return getType() == Type::DFT;
 }
 
-void DFT::createPrimitive() {
-    if (inputShapesDefined() && isExecutable()) {
-        if (needPrepareParams()) {
-            prepareParams();
-        }
-        updateLastInputDims();
-    }
-}
-
 void DFT::prepareParams() {
     if (!outputShapesDefined() || !m_is_axes_size_const) {
         if (mayiuse(cpu::x64::sse41)) {

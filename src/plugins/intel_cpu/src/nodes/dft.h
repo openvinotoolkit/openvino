@@ -23,7 +23,6 @@ public:
     bool created() const override;
     void prepareParams() override;
     bool needShapeInfer() const override;
-    void createPrimitive() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
