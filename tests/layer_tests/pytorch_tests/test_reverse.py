@@ -1,41 +1,41 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List
+import numpy as np
+import pytest
 import torch
-from openvino.runtime import Core
-from openvino import convert_model
+from pytorch_layer_test_class import PytorchLayerTest
 
 
-def reverse(x, dims: List[int]):
-    return torch.flip(x, dims=dims)
+class TestReverse(PytorchLayerTest):
+    def _prepare_input(self, dims):
+        # Input tensor of shape [2, 3, 4] with float32 values
+        return (np.random.randn(2, 3, 4).astype(np.float32),)
 
+    def create_model(self, dims):
+        class ReverseModel(torch.nn.Module):
+            def __init__(self, dims):
+                super().__init__()
+                self.dims = dims
 
-def run_reverse_test(dims_list):
-    x = torch.randn(1, 3, 4, 5)
-    for dims in dims_list:
-        print(f"\n🧪 Testing dims = {dims}")
-        expected = torch.flip(x, dims=dims)
+            def forward(self, x):
+                # Using torch.flip which internally emits aten::flip
+                return torch.flip(x, self.dims)
 
-        # Export to torchscript
-        traced = torch.jit.trace(lambda x: reverse(x, dims), (x,))
-        traced.save("reverse.pt")
+        # Update: using "aten::flip" instead of "aten::reverse"
+        return ReverseModel(dims), None, "aten::flip"
 
-        # Convert using OpenVINO frontend
-        core = Core()
-        model = convert_model("reverse.pt", example_input=(x,))
-        compiled = core.compile_model(model, "CPU")
-
-        # Use Input/Output objects directly
-        infer_request = compiled.create_infer_request()
-        result = infer_request.infer({compiled.input(0): x.numpy()})
-        actual = result[compiled.output(0)]
-
-        assert (actual == expected.numpy()).all(), f"❌ Failed for dims={dims}"
-        print(f"✅ Passed for dims = {dims}")
-
-
-# Run all dims tests
-run_reverse_test([[0], [1], [2], [1, 2], [-1], [-2], [0, 2], [0, 1, 2]])
-
-
+    @pytest.mark.parametrize("dims", [
+        [0], [1], [2], [1, 2], [-1], [-2], [0, 2], [0, 1, 2]
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_reverse(self, dims, ie_device, precision, ir_version):
+        print(f"\n Running test for dims={dims}")
+        self._test(*self.create_model(dims),
+                   ie_device=ie_device,
+                   precision=precision,
+                   ir_version=ir_version,
+                   kwargs_to_prepare_input={"dims": dims})
