@@ -167,9 +167,10 @@ jobs:
             
       - name: Build Python API (Python 3.9-3.13)
         run: |
-          SUPPORTED_PYTHON_VERSIONS=("39" "310" "311" "312" "313")
+          SUPPORTED_PYTHON_VERSIONS=("3.9" "3.10" "3.11" "3.12" "3.13")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
-            python_path=/opt/python/cp${PY_VER}-cp${PY_VER}/bin
+            simpler_python_version=$(echo $PY_VER | sed -e 's/\.//g')
+            python_path=/opt/python/cp${simpler_python_version}-cp${simpler_python_version}/bin
             docker run --rm \
               -v ${{ env.OPENVINO_REPO }}:/work/src \
               -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
