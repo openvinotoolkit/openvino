@@ -61,12 +61,14 @@ struct PagedAttentionContext {
     size_t batch_tokens;    // number of tokens in the batch
     size_t batch_seq;       // number of sequences ([batch_seq])
     size_t query_features;  // equals num_q_heads * head_size
+    size_t v_features;      // equals num_kv_heads * v_head_size
 
     // Head and dimension info
     size_t num_q_heads;  // computed from q_shape[1] / head_size
     size_t num_k_heads;  // from [num_blocks, num_k_heads, block_size, head_size]
     size_t num_v_heads;  // from [num_blocks, num_v_heads, block_size, head_size]
-    size_t head_size;    // from [num_blocks, num_k_heads, block_size, head_size]
+    size_t k_head_size;  // from [num_blocks, num_k_heads, block_size, k_head_size]
+    size_t v_head_size;  // from [num_blocks, num_v_heads, block_size, v_head_size]
     size_t num_blocks;   // from [num_blocks, num_k_heads, block_size, head_size]
     size_t block_size;   // from [num_blocks, num_k_heads, block_size, head_size]
 
@@ -172,14 +174,14 @@ void insert_new_token_into_cache(const PagedAttentionContext& ctx, size_t token_
     int32_t block_id_new, token_offset;
     get_cache_block_id_and_offset(new_token_index, ctx, block_id_new, token_offset);
     for (size_t kh = 0; kh < ctx.num_k_heads; kh++) {
-        size_t cache_idx = ((block_id_new * ctx.num_k_heads + kh) * ctx.block_size + token_offset) * ctx.head_size;
-        const T* src_key = key + token_idx * key_shape[1] + kh * ctx.head_size;
-        std::memcpy(key_cache + cache_idx, src_key, ctx.head_size * sizeof(T));
+        size_t cache_idx = ((block_id_new * ctx.num_k_heads + kh) * ctx.block_size + token_offset) * ctx.k_head_size;
+        const T* src_key = key + token_idx * key_shape[1] + kh * ctx.k_head_size;
+        std::memcpy(key_cache + cache_idx, src_key, ctx.k_head_size * sizeof(T));
     }
     for (size_t vh = 0; vh < ctx.num_v_heads; vh++) {
-        size_t cache_idx = ((block_id_new * ctx.num_v_heads + vh) * ctx.block_size + token_offset) * ctx.head_size;
-        const T* src_val = value + token_idx * value_shape[1] + vh * ctx.head_size;
-        std::memcpy(value_cache + cache_idx, src_val, ctx.head_size * sizeof(T));
+        size_t cache_idx = ((block_id_new * ctx.num_v_heads + vh) * ctx.block_size + token_offset) * ctx.v_head_size;
+        const T* src_val = value + token_idx * value_shape[1] + vh * ctx.v_head_size;
+        std::memcpy(value_cache + cache_idx, src_val, ctx.v_head_size * sizeof(T));
     }
 }
 
@@ -210,18 +212,18 @@ T compute_score_for_cached_key(const T* q_vec,
                                int32_t token_offset) {
     size_t k_head = h / (ctx.num_q_heads / ctx.num_k_heads);
     T* key_cache = static_cast<T*>(ctx.key_cache);
-    size_t cache_idx = ((block_id * ctx.num_k_heads + k_head) * ctx.block_size + token_offset) * ctx.head_size;
+    size_t cache_idx = ((block_id * ctx.num_k_heads + k_head) * ctx.block_size + token_offset) * ctx.k_head_size;
     const T* key_vec = key_cache + cache_idx;
     T score_val = T(0);
     int32_t rotated_index = -1;
     if (should_apply_rotation(block_id, ctx, rotated_index)) {
         int32_t trig_index = get_trig_index(rotated_index, token_offset, ctx);
-        std::vector<T> temp_key(key_vec, key_vec + ctx.head_size);
+        std::vector<T> temp_key(key_vec, key_vec + ctx.k_head_size);
         const T* rotation_trig_lut = static_cast<const T*>(ctx.rotation_trig_lut);
-        apply_rope(temp_key.data(), ctx.head_size, rotation_trig_lut, trig_index);
-        score_val = dot_product(q_vec, temp_key.data(), ctx.head_size);
+        apply_rope(temp_key.data(), ctx.k_head_size, rotation_trig_lut, trig_index);
+        score_val = dot_product(q_vec, temp_key.data(), ctx.k_head_size);
     } else {
-        score_val = dot_product(q_vec, key_vec, ctx.head_size);
+        score_val = dot_product(q_vec, key_vec, ctx.k_head_size);
     }
     return score_val;
 }
@@ -231,8 +233,8 @@ T compute_score_for_new_key(const T* q_vec, size_t h, int32_t new_token_idx, con
     const T* key = static_cast<const T*>(ctx.key);
     const ov::Shape& key_shape = ctx.key_shape;
     size_t k_head = h % ctx.num_k_heads;
-    const T* key_vec = key + static_cast<size_t>(new_token_idx) * key_shape[1] + k_head * ctx.head_size;
-    return dot_product(q_vec, key_vec, ctx.head_size);
+    const T* key_vec = key + static_cast<size_t>(new_token_idx) * key_shape[1] + k_head * ctx.k_head_size;
+    return dot_product(q_vec, key_vec, ctx.k_head_size);
 }
 
 template <typename T>
@@ -245,19 +247,19 @@ void accumulate_value_for_cached_key(const T* q_vec,
                                      std::vector<T>& out_vec) {
     T* value_cache = static_cast<T*>(ctx.value_cache);
     size_t v_head = h % ctx.num_v_heads;
-    size_t cache_idx = ((block_id * ctx.num_v_heads + v_head) * ctx.block_size + token_offset) * ctx.head_size;
+    size_t cache_idx = ((block_id * ctx.num_v_heads + v_head) * ctx.block_size + token_offset) * ctx.v_head_size;
     const T* raw_val_vec = value_cache + cache_idx;
     int32_t rotated_index = -1;
     if (should_apply_rotation(block_id, ctx, rotated_index)) {
         int32_t trig_index = get_trig_index(rotated_index, token_offset, ctx);
-        std::vector<T> temp_value(raw_val_vec, raw_val_vec + ctx.head_size);
+        std::vector<T> temp_value(raw_val_vec, raw_val_vec + ctx.v_head_size);
         const T* rotation_trig_lut = static_cast<const T*>(ctx.rotation_trig_lut);
-        apply_rope(temp_value.data(), ctx.head_size, rotation_trig_lut, trig_index);
-        for (size_t d = 0; d < ctx.head_size; d++) {
+        apply_rope(temp_value.data(), ctx.v_head_size, rotation_trig_lut, trig_index);
+        for (size_t d = 0; d < ctx.v_head_size; d++) {
             out_vec[d] += weight * temp_value[d];
         }
     } else {
-        for (size_t d = 0; d < ctx.head_size; d++) {
+        for (size_t d = 0; d < ctx.v_head_size; d++) {
             out_vec[d] += weight * raw_val_vec[d];
         }
     }
@@ -272,8 +274,8 @@ void accumulate_value_for_new_key(size_t new_token_idx,
     const T* value = static_cast<const T*>(ctx.value);
     const ov::Shape& value_shape = ctx.value_shape;
     size_t v_head = h % ctx.num_v_heads;
-    const T* val_vec = value + new_token_idx * value_shape[1] + v_head * ctx.head_size;
-    for (size_t d = 0; d < ctx.head_size; d++) {
+    const T* val_vec = value + new_token_idx * value_shape[1] + v_head * ctx.v_head_size;
+    for (size_t d = 0; d < ctx.v_head_size; d++) {
         out_vec[d] += weight * val_vec[d];
     }
 }
@@ -352,8 +354,10 @@ void paged_attention(T* out,                               // Output attention r
     // Computed dimensions (using size_t)
     ctx.batch_tokens = q_shape[0];
     ctx.query_features = q_shape[1];  // equals num_q_heads * head_size
-    ctx.head_size = key_cache_shape[3];
-    ctx.num_q_heads = ctx.head_size ? ctx.query_features / ctx.head_size : 0;
+    ctx.v_features = value_shape[1];  // equals num_kv_heads * v_head_size
+    ctx.k_head_size = key_cache_shape[3];
+    ctx.v_head_size = value_cache_shape[3];
+    ctx.num_q_heads = ctx.k_head_size ? ctx.query_features / ctx.k_head_size : 0;
     ctx.num_blocks = key_cache_shape[0];
     ctx.num_k_heads = key_cache_shape[1];
     ctx.block_size = key_cache_shape[2];
@@ -363,8 +367,7 @@ void paged_attention(T* out,                               // Output attention r
     ctx.max_context_len = max_context_len_ptr ? max_context_len_ptr[0] : 0;
 
     // Compute scale (using provided scale_ptr; if null, default is 1/sqrt(head_size))
-    T scale = scale_ptr ? scale_ptr[0] : T(1) / std::sqrt(static_cast<T>(ctx.head_size));
-
+    T scale = scale_ptr ? scale_ptr[0] : T(1) / std::sqrt(static_cast<T>(ctx.v_head_size));
     //-------------------------------------------------------------------------
     // Process each query token using the constructed context.
     //-------------------------------------------------------------------------
@@ -378,7 +381,7 @@ void paged_attention(T* out,                               // Output attention r
 
         // Process each query head.
         for (size_t h = 0; h < ctx.num_q_heads; h++) {
-            const T* q_vec = query + token_idx * ctx.query_features + h * ctx.head_size;
+            const T* q_vec = query + token_idx * ctx.query_features + h * ctx.k_head_size;
             int32_t seq_new_tokens =
                 ctx.subsequence_begins ? (ctx.subsequence_begins[seq_idx + 1] - ctx.subsequence_begins[seq_idx]) : 0;
             int32_t seq_past_tokens = past_lens ? past_lens[seq_idx] : 0;
@@ -417,7 +420,7 @@ void paged_attention(T* out,                               // Output attention r
             paged_attention_utils::softmax(scores);
 
             // Compute weighted sum over value vectors.
-            std::vector<T> out_vec(ctx.head_size, T(0));
+            std::vector<T> out_vec(ctx.v_head_size, T(0));
             for (int32_t key_idx = 0; key_idx < total_keys; key_idx++) {
                 T weight = scores[key_idx];
                 if (key_idx < seq_past_tokens) {
@@ -448,8 +451,8 @@ void paged_attention(T* out,                               // Output attention r
                 size_t global_score_index = seq_idx * static_cast<size_t>(ctx.max_context_len) + key_idx;
                 score[global_score_index] = scores[key_idx];
             }
-            T* dst = out + token_idx * ctx.query_features + h * ctx.head_size;
-            std::memcpy(dst, out_vec.data(), ctx.head_size * sizeof(T));
+            T* dst = out + (token_idx * ctx.v_features) + (h * ctx.v_head_size);
+            std::memcpy(dst, out_vec.data(), ctx.v_head_size * sizeof(T));
         }
     }
 }
