@@ -892,9 +892,6 @@ KERNEL(sdpa_opt)(
 #endif
     #define sglid (uint)get_sub_group_local_id()
     #define sgid (uint)get_sub_group_id()
-    uint gid0 = get_global_id(0);
-    uint gid1 = get_global_id(1);
-    uint gid2 = get_global_id(2);
 
     // SLM buffer for query inputs
     __local INPUT0_TYPE slm_query[HEAD_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE];
@@ -957,6 +954,7 @@ KERNEL(sdpa_opt)(
 #endif
 
         if (seq_idx_end != TARGET_SEQ_LEN_BLOCK_SIZE) {
+            #ifdef HEAD_SIZE_LEFTOVER
             if ((sgid + 1) * SUBGROUP_SIZE <= HEAD_SIZE) {
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                     INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, 1, query_input, query_offset);
@@ -977,6 +975,17 @@ KERNEL(sdpa_opt)(
                     }
                 }
             }
+            #else
+            if (sgid * SUBGROUP_SIZE < HEAD_SIZE) {
+                for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
+                    INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, 1, query_input, query_offset);
+
+                    slm_query[query_local_offset] = val * scale_val;
+                    query_offset += query_pitch;
+                    query_local_offset++;
+                }
+            }
+            #endif
         } else {
             #if SG_SCALE_FACTOR == 2
                 if ((sgid < (SUBGROUPS_PER_WG / SG_SCALE_FACTOR))) {
@@ -1194,7 +1203,7 @@ KERNEL(sdpa_opt)(
 #endif
                 uint head_idx_index = 0;
                 __attribute__((opencl_unroll_hint(1)))
-                for (; head_idx_index + SUBGROUP_SIZE < HEAD_SIZE; head_idx_index += SUBGROUP_SIZE) {
+                for (; head_idx_index + SUBGROUP_SIZE <= HEAD_SIZE; head_idx_index += SUBGROUP_SIZE) {
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
                     #define QUERY_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
 #if IS_KV_COMPRESSED
@@ -1612,8 +1621,6 @@ KERNEL(sdpa_opt)(
                     const uint b_idx = b0_idx;
     #ifdef INPUT2_DIMS_ORDER
                     uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
-
-
     #else
                     uint value_offset = INPUT2_GET_INDEX(b0_idx, b1_idx, start_partition_idx + (seq_len * SUBGROUP_SIZE), head_size_idx);
     #endif

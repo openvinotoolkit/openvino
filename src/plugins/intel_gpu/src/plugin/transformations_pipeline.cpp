@@ -532,7 +532,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
 
             const auto optimal_subgroup_size = 16;
-            // sdpa_opt is not supporthing compressed KV yet
+            // sdpa_opt is not supporthing compressed KV yet for unaligned head size
             if (head_size % optimal_subgroup_size != 0) {
                 if (ov::element::Type(sdpa->get_input_element_type(1)).size() < 2 || ov::element::Type(sdpa->get_input_element_type(2)).size() < 2) {
                     return false;
