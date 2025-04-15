@@ -6,7 +6,7 @@ USER root
 # Install build dependencies
 RUN cat /etc/os-release
 
-RUN yum-config-manager --disable centos-sclo-sclo
+RUN yum repolist all && yum-config-manager --disable centos-sclo-sclo
 
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && bash -e /install_build_dependencies.sh
