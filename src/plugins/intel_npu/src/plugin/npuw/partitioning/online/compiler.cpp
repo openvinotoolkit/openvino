@@ -30,7 +30,7 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:RMSNorm/compute,P:RMSNorm2/compute,"
                                                                  "P:VariadicSplit/compute"},
                                                                 {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake"}};
-}
+}  // anonymous namespace
 
 // For missing declaration warning
 // FIXME: Instead, one should use namespace{}
