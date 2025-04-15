@@ -538,10 +538,7 @@ void DataTensor::SwapXY() {
     int y_idx = Channelndex(l, DataChannelName::Y);
     int f_idx = Channelndex(l, DataChannelName::FEATURE);
     int b_idx = Channelndex(l, DataChannelName::BATCH);
-
-    if (x_idx < 0 || y_idx < 0 || f_idx < 0 || b_idx < 0) {
-        throw std::runtime_error("Invalid layout channel index");
-    }
+    OPENVINO_ASSERT(std::min({x_idx, y_idx, f_idx, b_idx}) >= 0, "Invalid layout channel index");
 
     std::vector<Dim> vec(ChannelsCount(l));
 
