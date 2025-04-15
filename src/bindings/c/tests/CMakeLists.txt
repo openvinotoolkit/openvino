@@ -7,6 +7,7 @@ set(TARGET_NAME "ov_capi_test")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp test_model_repo.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../../../plugins/intel_gpu/tests/functional/custom_op/custom_op.xml")
 
 if(NOT TARGET OpenCL::OpenCL)
     list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
@@ -15,6 +16,8 @@ endif()
 add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
     common_test_utils gtest_main)
+
+target_compile_definitions(${TARGET_NAME} PRIVATE ${DEFINES})
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)
