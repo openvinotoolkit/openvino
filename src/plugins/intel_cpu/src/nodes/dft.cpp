@@ -43,6 +43,11 @@ DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 
     inverse = !ov::is_type<op::v7::DFT>(op);
     lastInverse = !inverse;
+
+    m_is_axes_size_const = is_type<op::v0::Constant>(op->get_input_node_ptr(AXES_INDEX));
+    if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
+        m_is_signal_size_const = is_type<op::v0::Constant>(op->get_input_node_ptr(SIGNAL_SIZE_INDEX));
+    }
 }
 
 void DFT::getSupportedDescriptors() {}
@@ -227,6 +232,10 @@ void DFT::execute(const dnnl::stream& strm) {
     const auto& outputShape = outputDataEdge->getMemory().getStaticDims();
     const auto& inputShape = inputDataEdge->getMemory().getStaticDims();
 
+    if (axes.empty() || !m_is_axes_size_const) {
+        axes = getAxes();
+    }
+
     const auto src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
     auto dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
 
@@ -267,7 +276,7 @@ void DFT::execute(const dnnl::stream& strm) {
         size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
             std::vector<float> outputData(nComplex * 2);
-            const float* resultBufPtr;
+            float* resultBufPtr;
 
             fft(dst, outputData.data(), nComplex * 2, inverse, true, &resultBufPtr);
 
@@ -309,7 +318,7 @@ void DFT::dftNd(float* output,
                                      parallelIterationCounter,
                                      outputShape,
                                      outputStrides);
-                    const float* resultBufPtr;
+                    float* resultBufPtr;
                     fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse, false, &resultBufPtr);
                     applyBufferND(resultBufPtr,
                                   output,
@@ -342,7 +351,7 @@ void DFT::fft(float* inBuffer,
               int64_t dataLength,
               bool inverse,
               bool parallelize,
-              const float** resultBuf) const {
+              float** resultBuf) const {
     static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
     static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
     size_t nComplex = dataLength / 2;
@@ -523,14 +532,30 @@ bool DFT::created() const {
     return getType() == Type::DFT;
 }
 
+void DFT::createPrimitive() {
+    if (inputShapesDefined() && isExecutable()) {
+        if (needPrepareParams()) {
+            prepareParams();
+        }
+        updateLastInputDims();
+    }
+}
+
 void DFT::prepareParams() {
+    if (!outputShapesDefined() || !m_is_axes_size_const) {
+        if (mayiuse(cpu::x64::sse41)) {
+            createJITKernels(true, true);
+        }
+        return;
+    }
+
     bool hasDFT = false;
     bool hasFFT = false;
 
     axes = getAxes();
     const auto outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
 
-    for (size_t axis : axes) {
+    for (auto axis : axes) {
         size_t nComplex = outputShape[axis];
         if (!IsPowerOfTwo(nComplex)) {
             hasDFT = true;
@@ -546,16 +571,18 @@ void DFT::prepareParams() {
 std::vector<int32_t> DFT::getAxes() const {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
     const auto* axesStartPtr = axesEdge->getMemoryPtr()->getDataAs<const int32_t>();
-    auto axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
-    const auto& inputShape = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims();
-
-    for (auto& axis : axes) {
-        if (axis < 0) {
-            axis += inputShape.size() - 1;
+    auto axes_tmp = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
+    const auto& inputShape = getParentEdgeAt(DATA_INDEX)->getMemory().getShape();
+    const auto in_shape_rank = inputShape.getRank();
+    if (in_shape_rank > 0) {
+        for (auto& axis : axes_tmp) {
+            if (axis < 0) {
+                axis += inputShape.getRank() - 1;
+            }
         }
     }
-    std::sort(axes.begin(), axes.end());
-    return axes;
+    std::sort(axes_tmp.begin(), axes_tmp.end());
+    return axes_tmp;
 }
 void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
 #if defined(OPENVINO_ARCH_X86_64)

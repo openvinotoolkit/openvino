@@ -23,6 +23,7 @@ public:
     bool created() const override;
     void prepareParams() override;
     bool needShapeInfer() const override;
+    void createPrimitive() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -35,12 +36,8 @@ private:
                const std::vector<int32_t>& axes,
                bool inverse) const;
 
-    void fft(float* inBuffer,
-             float* outBuffer,
-             int64_t dataLength,
-             bool inverse,
-             bool parallelize,
-             const float** resultBuf) const;
+    void fft(float* inBuffer, float* outBuffer, int64_t dataLength, bool inverse, bool parallelize, float** resultBuf)
+        const;
     void naiveDFT(float* data, size_t dataLength, bool inverse) const;
 
     std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse) const;
@@ -60,6 +57,9 @@ private:
 
     bool inverse;
     bool lastInverse;
+
+    bool m_is_axes_size_const = false;
+    bool m_is_signal_size_const = false;
 };
 
 }  // namespace node
