@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "nodes/executors/convolution_config.hpp"
 #ifdef CPU_DEBUG_CAPS
 #    pragma once
 
@@ -9,8 +10,7 @@
 
 #    include "executor_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace executor {
 template <typename Attrs>
@@ -18,8 +18,10 @@ struct Config;
 }
 
 struct FCAttrs;
+struct ConvAttrs;
 
 std::ostream& operator<<(std::ostream& os, const FCAttrs& attrs);
+std::ostream& operator<<(std::ostream& os, const ConvAttrs& attrs);
 std::ostream& operator<<(std::ostream& os, const PostOps& postOps);
 
 template <typename Attrs>
@@ -36,7 +38,6 @@ std::ostream& operator<<(std::ostream& os, const executor::Config<Attrs>& config
     return os;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

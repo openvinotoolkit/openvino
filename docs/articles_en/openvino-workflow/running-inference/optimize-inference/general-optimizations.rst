@@ -27,7 +27,7 @@ In many cases, a network expects a pre-processed image. It is advised not to per
 Prefer OpenVINO Async API
 #########################
 
-The API of the inference requests offers Sync and Async execution. While the ``ov::InferRequest::infer()`` is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()``. For more information, see the :doc:`API examples <../integrate-openvino-with-your-application/inference-request>`.
+The API of the inference requests offers Sync and Async execution. While the ``ov::InferRequest::infer()`` is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()``. For more information, see the :doc:`API examples <../inference-request>`.
 
 A typical use case for the ``ov::InferRequest::infer()`` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, parsing the results, and associated logic) is kept serial within the thread.
 In contrast, the ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()`` allow the application to continue its activities and poll or wait for the inference completion when really needed. Therefore, one reason for using an asynchronous code is "efficiency".
@@ -60,7 +60,7 @@ Below are example-codes for the regular and async-based approaches to compare:
 
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
-Refer to the :doc:`Benchmark App Sample <../../../learn-openvino/openvino-samples/benchmark-tool>` for complete examples of the Async API in action.
+Refer to the :doc:`Benchmark App Sample <../../../get-started/learn-openvino/openvino-samples/benchmark-tool>` for complete examples of the Async API in action.
 
 .. note::
 

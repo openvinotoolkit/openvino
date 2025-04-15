@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 // clang-format off
 #include "evaluate_node.hpp"
 #include "openvino/reference/cum_sum.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/cum_sum.hpp"
 // clang-format on
 
 namespace cum_sum_v0 {

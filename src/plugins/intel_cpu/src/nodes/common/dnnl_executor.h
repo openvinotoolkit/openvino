@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,19 +9,18 @@
 
 #include "memory_desc/dnnl_memory_desc.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-class DnnlExecutor {
+class DnnlExecutorLegacy {
 protected:
     class IntermReorder {
     public:
         IntermReorder(const dnnl::memory::desc& descSrc, const dnnl::memory::desc& descDst, const dnnl::engine& engine);
-        void exec(dnnl::memory& memSrc, dnnl::memory& memDst, dnnl::stream strm);
-        const dnnl::memory::desc& getSrcDesc() const {
+        void exec(dnnl::memory& memSrc, dnnl::memory& memDst, const dnnl::stream& strm);
+        [[nodiscard]] const dnnl::memory::desc& getSrcDesc() const {
             return m_descSrc;
         }
-        const dnnl::memory::desc& getDstDesc() const {
+        [[nodiscard]] const dnnl::memory::desc& getDstDesc() const {
             return m_descDst;
         }
 
@@ -32,10 +31,10 @@ protected:
     };
 
 public:
-    explicit DnnlExecutor(const dnnl::primitive_desc& pd);
-    void exec(const std::unordered_map<int, dnnl::memory>& primArgs, dnnl::stream strm);
+    explicit DnnlExecutorLegacy(const dnnl::primitive_desc& pd);
+    void exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm);
     bool needReordering() const;
-    virtual ~DnnlExecutor() = default;
+    virtual ~DnnlExecutorLegacy() = default;
     dnnl::primitive getExecPrim() const;
     const_dnnl_primitive_desc_t getPrimitiveDesc() const;
     impl_desc_type getImplementationType() const;
@@ -67,7 +66,7 @@ public:
     }
 
 protected:
-    virtual void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
+    virtual void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, const dnnl::stream& strm);
 
 protected:
     dnnl::primitive execPrim;
@@ -80,5 +79,4 @@ protected:
     DnnlMemoryDescPtr scrch_md;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

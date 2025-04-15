@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/stft.hpp"
 
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
@@ -78,8 +79,6 @@ OutputVector translate_stft(const NodeContext& context) {
     if (!context.input_is_none(7)) {
         return_complex = context.const_input<bool>(7);
     }
-    PYTORCH_OP_CONVERSION_CHECK(!return_complex,
-                                "aten::stft conversion is currently supported with return_complex=False only.");
 
     // Perform STFT
     constexpr bool transpose_frames = true;
@@ -88,8 +87,10 @@ OutputVector translate_stft(const NodeContext& context) {
     if (normalized) {
         const auto nfft_convert = context.mark_node(std::make_shared<v1::ConvertLike>(n_fft, stft));
         const auto divisor = context.mark_node(std::make_shared<v0::Sqrt>(nfft_convert));
-        const auto norm_stft = context.mark_node(std::make_shared<v1::Divide>(stft, divisor));
-        return {norm_stft};
+        stft = context.mark_node(std::make_shared<v1::Divide>(stft, divisor));
+    }
+    if (return_complex) {
+        return {context.mark_node(std::make_shared<ComplexTypeMark>(stft, stft->get_element_type()))};
     } else {
         return {stft};
     }

@@ -10,9 +10,7 @@
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool LoRA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -33,7 +31,7 @@ LoRA::LoRA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto& loraModel = ov::as_type_ptr<ov::op::internal::LoraSubgraph>(op);
-    OPENVINO_ASSERT(loraModel,
+    CPU_NODE_ASSERT(loraModel,
                     "Attempt to create LoRA node from an invalid op type: ",
                     op,
                     " with name ",
@@ -51,17 +49,19 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
     auto mainInputPrc = mainInputDesc->getPrecision();  // we have to align precision across all the inputs
 
     inConfs.emplace_back(mainInputDesc);
-    graphInputConfig.emplace_back(node::Input::InputConfig{mainInputDesc, true});
+
+    constexpr bool isInPlace = true;
+    graphInputConfig.emplace_back(node::Input::InputConfig{mainInputDesc, isInPlace});
 
     for (size_t i = 1; i < getParentEdges().size(); i++) {
         auto desc = getParentOutputMemDesc(getParentEdgeAt(i))->cloneWithNewPrecision(mainInputPrc);
         inConfs.emplace_back(desc);
-        graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
+        graphInputConfig.emplace_back(node::Input::InputConfig{desc, isInPlace});
     }
 
     std::vector<Input::OutputConfig> graphOutputConfig;
     // enforce the same memory descriptor on the output as on the input to allow inPlace memory
-    graphOutputConfig.emplace_back(node::Input::OutputConfig{inConfs.front().getMemDesc(), true});
+    graphOutputConfig.emplace_back(inConfs.front().getMemDesc(), isInPlace);
 
     // configure the inner graph to get the information about output memory descriptors
     m_graph.Init(m_body, context, graphInputConfig, graphOutputConfig);
@@ -86,31 +86,52 @@ void LoRA::selectOptimalPrimitiveDescriptor() {
     selectPrimitiveDescriptorByIndex(0);
 }
 
-// @todo add ascii diagram for memory mapping / reuse
-void LoRA::createPrimitive() {
+int LoRA::registerToAllocationContext(int offset, AllocationContext& context) {
     CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
                     "Number of node inputs must be equal the number of inner graph's inputs");
 
-    std::vector<MemoryPtr> inputMemory;
     for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-        auto srcEdgeMem = getSrcMemoryAtPort(i);
-        auto mem = std::make_shared<Memory>(getEngine(), srcEdgeMem->getDescPtr(), srcEdgeMem->getMemoryBlock());
-        subgraphMemoryPtrs.push_back(mem);
-        inputMemory.emplace_back(std::move(mem));
+        auto parentEdge = getParentEdgeAt(i);
+        auto inputEdges = m_graph.getInputNodeByIndex(i)->getChildEdgesAtPort(0);
+        for (const auto& inputEdge : inputEdges) {
+            CPU_NODE_ASSERT(inputEdge->getStatus() == Edge::Status::Uninitialized,
+                            "Expected Uninitialized Edge instead of: ",
+                            static_cast<int>(inputEdge->getStatus()));
+            inputEdge->sharedMemFrom(parentEdge);
+        }
     }
 
     CPU_NODE_ASSERT(getOriginalOutputsNumber() == m_graph.outputsNumber(),
                     "Number of node outputs must be equal the number of inner graph's outputs");
 
-    std::vector<MemoryPtr> outputMemory{getDstMemoryAtPort(0)};
-    m_graph.Activate(inputMemory, outputMemory);
+    for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+        auto childEdge = getChildEdgeAt(i);
+        auto outputEdge = m_graph.getOutputNodeByIndex(i)->getParentEdgeAt(0);
+        outputEdge->sharedMemFrom(childEdge);
+    }
+
+    return m_graph.RegisterToAllocationContext(offset, context);
 }
 
-void LoRA::execute(dnnl::stream) {
+void LoRA::createPrimitive() {
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
+                    "Number of node inputs must be equal the number of inner graph's inputs");
+    // Workaround to avoid making LoRa node always executable (isExecutable() = true)
+    // This way we update subgraph's input memory without performing an actual Infer() call
+    for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+        auto subgraphInputNode = m_graph.getInputNodeByIndex(i);
+        auto subgraphInputMemory = subgraphInputNode->getDstMemoryAtPort(0);
+        subgraphMemoryPtrs.emplace_back(subgraphInputMemory);
+    }
+
+    m_graph.Activate();
+}
+
+void LoRA::execute(const dnnl::stream&) {
     m_graph.Infer();
 }
 
-void LoRA::executeDynamicImpl(dnnl::stream strm) {
+void LoRA::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -121,6 +142,4 @@ void LoRA::prepareParams() {
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

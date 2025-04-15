@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,17 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/opsets/opset10.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using ov::op::v0::Concat;
+using ov::op::v0::Constant;
+using ov::op::v0::Parameter;
+using ov::op::v0::Result;
+using ov::op::v1::Subtract;
+using ov::op::v3::ShapeOf;
 
 class EvaluateBoundTest : public TypePropOpTest<op::util::FrameworkNode> {
 protected:

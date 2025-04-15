@@ -5,14 +5,18 @@
 #pragma once
 
 #include <cstdlib>
+#include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
+#include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
+#include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/precision_translation.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename Config, int idx>
 ov::element::Type memoryDescType(const Config& config) {
@@ -89,5 +93,128 @@ size_t postOpsNumbers(const Config& config) {
     return config.postOps.size();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+template <typename Attrs>
+struct RequiredNoFallback {
+    std::optional<executor::Config<Attrs>> operator()([[maybe_unused]] const executor::Config<Attrs>& attrs) const {
+        return {};
+    }
+};
+
+template <typename Attrs>
+struct SupportsAnyConfig {
+    bool operator()([[maybe_unused]] const executor::Config<Attrs>& attrs) const {
+        return true;
+    }
+};
+
+template <typename Attrs>
+struct AcceptsAnyShape {
+    bool operator()([[maybe_unused]] const Attrs& attrs,
+                    [[maybe_unused]] const PostOps& postOps,
+                    [[maybe_unused]] const MemoryArgs& memory) const {
+        return true;
+    }
+};
+
+template <typename Primitive, typename Attrs>
+struct CreateDefault {
+    ExecutorPtr operator()(const Attrs& attrs,
+                           const PostOps& postOps,
+                           const MemoryArgs& memory,
+                           const ExecutorContext::CPtr& context) const {
+        return std::make_shared<Primitive>(attrs, postOps, memory, context);
+    }
+};
+
+template <typename Primitive,
+          typename Attrs,
+          typename ShapeAgnosticData = DnnlShapeAgnosticData,
+          typename Instantiator = DefaultInstantiator<Primitive, Attrs, ShapeAgnosticData>>
+struct CreateDnnlDefault {
+    ExecutorPtr operator()(const Attrs& attrs,
+                           const PostOps& postOps,
+                           const MemoryArgs& memory,
+                           const ExecutorContext::CPtr& context) const {
+        return std::make_shared<DnnlExecutor<Primitive, Attrs, DnnlShapeAgnosticData, Instantiator>>(attrs,
+                                                                                                     postOps,
+                                                                                                     memory,
+                                                                                                     context,
+                                                                                                     false);
+    }
+};
+
+template <typename Attrs>
+std::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Config<Attrs>& config,
+                                                              const TypeMapping& typeMapping,
+                                                              const std::vector<LayoutType>& layoutConfig,
+                                                              const MappingNotation& notation) {
+    // @todo lambdas inside a template function can potentially increase binary size
+    auto fullyMatchConfiguration = [](const MemoryDescArgs& currentDescriptors,
+                                      const InOutTypes& typeConfig,
+                                      const std::vector<LayoutType>& layoutConfig,
+                                      const MappingNotation& notation) {
+        for (size_t i = 0; i < typeConfig.size(); i++) {
+            const auto& type = typeConfig[i];
+            const auto& desc = currentDescriptors.at(notation[i]);
+
+            if (desc->empty()) {
+                continue;
+            }
+
+            if (desc->getPrecision() != type) {
+                return false;  // type mismatch
+            }
+
+            if (desc->getShape().getRank() > 2 && !desc->hasLayoutType(layoutConfig[i])) {
+                return false;  // layout mismatch
+            }
+        }
+
+        return true;
+    };
+
+    auto createOptimalDescriptors = [](const MemoryDescArgs& currentDescriptors,
+                                       const InOutTypes& typeConfig,
+                                       const std::vector<LayoutType>& layoutConfig,
+                                       const MappingNotation& notation) {
+        MemoryDescArgs descs = currentDescriptors;
+
+        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+        for (size_t i = 0; i < typeConfig.size(); i++) {
+            const auto& desc = currentDescriptors.at(notation[i]);
+            const auto& descType = desc->getPrecision();
+            const auto& type = typeConfig[i];
+            const auto& layout = layoutConfig[i];
+
+            if (desc->empty()) {
+                continue;
+            }
+
+            if (descType == type && desc->hasLayoutType(layout)) {
+                continue;
+            }
+
+            if (desc->getShape().getRank() < 2) {
+                descs[notation[i]] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(type, desc->getShape());
+                continue;
+            }
+
+            descs[notation[i]] = creatorsMap.at(layout)->createSharedDesc(type, desc->getShape());
+        }
+
+        return descs;
+    };
+
+    const auto typeConfig = getTypeConfiguration(config.descs, typeMapping, notation);
+
+    if (fullyMatchConfiguration(config.descs, typeConfig, layoutConfig, notation)) {
+        return {};
+    }
+
+    const auto optimalDescriptors = createOptimalDescriptors(config.descs, typeConfig, layoutConfig, notation);
+
+    return std::optional<executor::Config<Attrs>>(
+        executor::Config<Attrs>{optimalDescriptors, config.attrs, config.postOps});
+}
+
+}  // namespace ov::intel_cpu

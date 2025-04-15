@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -997,4 +997,36 @@ TEST(gather_nd_gpu_fp16, dynamic_r5) {
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i])) << i;
     }
+}
+
+TEST(gather_nd_gpu_fp16, prevent_reorder_to_indices_node) {
+    auto& engine = get_test_engine();
+
+    auto data_layout = layout{ ov::PartialShape{ 1, 1, 262, 262, 64 }, data_types::f16, format::bfzyx };
+    auto indices_layout = layout{ ov::PartialShape{ 1, 1, 3211264, 2 }, data_types::i32, format::bfyx };
+
+    uint8_t indices_rank = static_cast<uint8_t>(indices_layout.get_rank());
+    uint8_t input_rank = static_cast<uint8_t>(data_layout.get_rank());
+    uint8_t batch_dims = static_cast<uint8_t>(2);
+
+    topology topology(
+        input_layout("data", data_layout),
+        input_layout("indices", indices_layout),
+        gather_nd("gather_nd", input_info("data"), input_info("indices"), input_rank, indices_rank, batch_dims, false)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config);
+
+    ASSERT_NE(program, nullptr);
+
+    for (auto dep : program->get_node("gather_nd").get_dependencies()) {
+        ASSERT_NE(dep.first->is_type<reorder>(), true);
+    }
+
+    auto actual_shape = program->get_node("gather_nd").get_output_layout().get_partial_shape();
+    ov::PartialShape expected_shape { 1, 1, 3211264, 64 };
+    ASSERT_EQ(expected_shape, actual_shape);
 }

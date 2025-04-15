@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -11,8 +11,8 @@ import pytest
 import torch
 from common.mo_convert_test_class import CommonMOConvertTest
 
-import openvino.runtime as ov
-from openvino.runtime import PartialShape, Dimension, Model, Type
+import openvino as ov
+from openvino import PartialShape, Dimension, Model, Type
 
 
 class MyTorchOp(torch.autograd.Function):
@@ -1012,6 +1012,100 @@ def create_pytorch_module_with_output(tmp_dir):
         ), "output": "some_name"}
 
 
+def create_pytorch_module_with_none_example(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            if b is None:
+                b = torch.tensor(1., dtype=torch.float32)
+            return a + b
+
+    net = PTModel()
+    a = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    add = ov.opset10.add(a, np.float32([1.]))
+    ref_model = Model([add], [a], "test")
+    return net, ref_model, {
+        "example_input": (
+            torch.tensor([5, 6], dtype=torch.float32),
+            None
+        ),
+        "compress_to_fp16": False}
+
+
+def create_pytorch_module_with_none_dict_example(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            if b is None:
+                b = torch.tensor(1., dtype=torch.float32)
+            return a + b
+
+    net = PTModel()
+    a = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    add = ov.opset10.add(a, np.float32([1.]))
+    ref_model = Model([add], [a], "test")
+    return net, ref_model, {
+        "example_input": {
+            "a": torch.tensor([5, 6], dtype=torch.float32),
+            "b": None,
+        },
+        "compress_to_fp16": False}
+
+
+def create_pytorch_module_with_none_in_tuple(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            x = a[0]
+            if a[1] is None:
+                x = x + torch.tensor(1., dtype=torch.float32)
+            else:
+                x = x + a[1]
+            if a[2] is None:
+                x = x + torch.tensor(1., dtype=torch.float32)
+            else:
+                x = x + a[2]
+            return x + b
+
+    net = PTModel()
+    a = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    b = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    add = ov.opset10.add(a, np.float32([2.]))
+    add2 = ov.opset10.add(add, b)
+    ref_model = Model([add2], [a, b], "test")
+    return net, ref_model, {
+        "example_input": {
+            "a": (torch.tensor([5, 6], dtype=torch.float32), None, None),
+            "b": torch.tensor([5, 6], dtype=torch.float32),
+        },
+        "compress_to_fp16": False}
+
+
+def create_pytorch_module_with_none_in_tuple_case2(tmp_dir):
+    class PTModel(torch.nn.Module):
+        def forward(self, a, b):
+            x = a[0]
+            if a[1] is None:
+                x = x + torch.tensor(1., dtype=torch.float32)
+            else:
+                x = x + a[1]
+            if a[2] is None:
+                x = x + torch.tensor(1., dtype=torch.float32)
+            else:
+                x = x + a[2]
+            return x + b
+
+    net = PTModel()
+    a = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    add = ov.opset10.add(a, np.float32([2.]))
+    b = ov.opset10.parameter(PartialShape([-1]), dtype=np.float32)
+    add2 = ov.opset10.add(add, b)
+    ref_model = Model([add2], [a, b], "test")
+    return net, ref_model, {
+        "example_input": (
+            (torch.tensor([5, 6], dtype=torch.float32), None, None),
+            torch.tensor([5, 6], dtype=torch.float32),
+        ),
+        "compress_to_fp16": False}
+
+
 class TestMoConvertPyTorch(CommonMOConvertTest):
     test_data = [
         'create_pytorch_nn_module_case1',
@@ -1062,7 +1156,11 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         'create_pytorch_module_with_nested_inputs6',
         'create_pytorch_module_with_nested_list_and_single_input',
         'create_pytorch_module_with_single_input_as_list',
-        'create_pytorch_module_with_nested_dict_input'
+        'create_pytorch_module_with_nested_dict_input',
+        'create_pytorch_module_with_none_example',
+        'create_pytorch_module_with_none_dict_example',
+        'create_pytorch_module_with_none_in_tuple',
+        'create_pytorch_module_with_none_in_tuple_case2',
     ]
 
     @pytest.mark.parametrize("create_model", test_data)
@@ -1118,7 +1216,7 @@ class ConvertRaises(unittest.TestCase):
         from openvino.tools.ovc import convert_model
         pytorch_model = create_pt_model_with_custom_op()
 
-        # Check that mo raises error message of wrong argument.
+        # Check that OVC raises error message of wrong argument.
         with self.assertRaisesRegex(TypeError, ".*got an unexpected keyword argument 'example_inputs'.*"):
             convert_model(pytorch_model, example_inputs=(torch.tensor(1),))
 
@@ -1164,7 +1262,7 @@ class ConvertRaises(unittest.TestCase):
         def relu_bad(n):
             assert False, "Something happened"
 
-        # Check that mo raises error message of wrong argument.
+        # Check that OVC raises error message of wrong argument.
         with self.assertRaisesRegex(Exception, ".*Conversion is failed for: aten::relu.*"):
             convert_model(pt_model, input=(inp_shapes, np.float32), extensions=[
                 ConversionExtension("aten::relu", relu_bad)])

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,7 @@ class OPENVINO_API AttributeAdapter<std::shared_ptr<op::util::Variable>>
 public:
     explicit AttributeAdapter(std::shared_ptr<op::util::Variable>& value)
         : DirectValueAccessor<std::shared_ptr<op::util::Variable>>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>");
 };

@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API TSGatherBackward;
  */
 class ov::pass::transpose_sinking::TSGatherForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSGatherForward", "0");
+    OPENVINO_RTTI("ov::pass::TSGatherForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSGatherForward();
 };
 

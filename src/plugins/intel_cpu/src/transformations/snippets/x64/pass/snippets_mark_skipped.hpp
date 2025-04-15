@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @interface SnippetsMarkSkipped
@@ -49,8 +48,8 @@ enum class NodeFusingType : int64_t {
     FusedWithMatMulI8,
     FusedWithFCI8,
     FusedWithReduce,
+    FusedWithGather,
     FusedWithMisc
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

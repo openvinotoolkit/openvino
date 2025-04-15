@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -948,8 +948,8 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         size_t f = output_lay.feature();
         size_t x = output_lay.spatial(0);
         size_t y = output_lay.spatial(1);
-        mem_lock<T> ref_ptr{out_ref, get_test_stream()};
-        mem_lock<T> opt_ptr{out_opt, get_test_stream()};
+        mem_lock<T, mem_lock_type::read> ref_ptr{out_ref, get_test_stream()};
+        mem_lock<T, mem_lock_type::read> opt_ptr{out_opt, get_test_stream()};
         for (size_t bi = 0; bi < b; ++bi) {
             for (size_t fi = 0; fi < f; ++fi) {
                 for (size_t yi = 0; yi < y; ++yi) {
@@ -960,8 +960,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
 
                         auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                         auto opt_out_val = opt_ptr[opt_out_offset];
-
-                        ASSERT_EQ(opt_out_val, ref_out_val);
+                        ASSERT_NEAR(opt_out_val, ref_out_val, 1) << " index = " << opt_out_offset;
                     }
                 }
             }
@@ -1013,6 +1012,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"quantize"}));
+        config.set_property(ov::intel_gpu::optimize_data(true));
 
         cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
@@ -1050,7 +1050,6 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
             FAIL() << "Not supported inputs number: " << params.inputs_num;
         }
 
-
         network net_opt(engine, topo_opt, get_test_default_config(engine));
         net_opt.set_input_data("input_opt", input_opt);
 
@@ -1078,6 +1077,11 @@ struct quantize_random_test_param_generator : std::vector<quantize_random_test_p
     quantize_random_test_param_generator& simple_params(data_types input_type, data_types output_type, format::type input_format, format::type output_format, int32_t inputs_num) {
         push_back(quantize_random_test_params{ input_type, output_type, {1, 32, 2, 2}, input_format, output_format, inputs_num});
         push_back(quantize_random_test_params{ input_type, output_type, {1, 16, 10, 10}, input_format, output_format, inputs_num});
+        push_back(quantize_random_test_params{ input_type, output_type, {64, 32, 10, 10}, input_format, output_format, inputs_num});
+        push_back(quantize_random_test_params{ input_type, output_type, {1, 17, 10, 10}, input_format, output_format, inputs_num});
+        push_back(quantize_random_test_params{ input_type, output_type, {17, 17, 10, 10}, input_format, output_format, inputs_num});
+        push_back(quantize_random_test_params{ input_type, output_type, {1, 1, 1029, 85}, input_format, output_format, inputs_num});
+        push_back(quantize_random_test_params{ input_type, output_type, {1, 1, 81, 5}, input_format, output_format, inputs_num});
         return *this;
     }
 };
@@ -1093,6 +1097,8 @@ INSTANTIATE_TEST_SUITE_P(quantize_smoke,
                             quantize_random_test_param_generator()
                             .simple_params(data_types::f32, data_types::u8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, 5)
                             .simple_params(data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, 5)
+                            .simple_params(data_types::f32, data_types::u8, format::bfyx, format::bfyx, 5)
+                            .simple_params(data_types::f16, data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32, 5)
                         ));
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS

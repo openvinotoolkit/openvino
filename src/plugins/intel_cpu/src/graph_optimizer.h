@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,8 @@ private:
     void FuseConvolutionMatMulDeconvAndBias(Graph& graph);
     void FuseDeconvolutionAndSimpleOperation(Graph& graph);
     void FuseMultiplyAndAdd(Graph& graph);
-    void MergeConvertAndScaleShift(Graph& graph);
+    void MergeEltwiseAndConvert(Graph& graph);
+    void MergeConvertAndEltwise(Graph& graph);
     void FuseFCAndConvertOnWeights(Graph& graph);
     void FuseFCAndTransposeOnWeights(Graph& graph);
     void FuseFullyConnectedAndSimpleOperation(Graph& graph);
@@ -37,6 +38,7 @@ private:
     void FuseInterpolateAndSimpleOperation(Graph& graph);
     void FuseNormalizeL2AndSimpleOperation(Graph& graph);
     void FuseReduceAndSimpleOperation(Graph& graph);
+    void FuseGatherAndConvert(Graph& graph);
 
     void DropDoubleReorders(Graph& graph);
     void FuseConvolutionAndZeroPoints(Graph& graph);

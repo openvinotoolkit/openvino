@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
             for (const auto& name : inputs[i].get_names()) {
                 OPENVINO_ASSERT(leaf_names.find(name) == leaf_names.end(),
                                 "Model tensor names have collisions.",
-                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                                " Please use OVC to generate new IR version, it should allow to avoid the issue");
                 leaf_names.emplace(name, inputs[i].get_tensor_ptr());
             }
         }
@@ -62,7 +62,7 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
                 auto tensor_it = leaf_names.find(name);
                 OPENVINO_ASSERT(tensor_it == leaf_names.end() || tensor_it->second == outputs[i].get_tensor_ptr(),
                                 "Model tensor names have collisions.",
-                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                                " Please use OVC to generate new IR version, it should allow to avoid the issue");
                 leaf_names.emplace(name, outputs[i].get_tensor_ptr());
             }
         }
@@ -84,7 +84,7 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
                 OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
                                     result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
-                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                                " Please use OVC to generate new IR version, it should allow to avoid the issue");
                 leaf_names.emplace(res_name, nullptr);
                 result->input(0).get_tensor().add_names({std::move(res_name)});
             }
@@ -93,7 +93,7 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
                 OPENVINO_ASSERT(leaf_names.find(param_name) == leaf_names.end() ||
                                     param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
-                                " Please use MO to generate new IR version, it should allow to avoid the issue");
+                                " Please use OVC to generate new IR version, it should allow to avoid the issue");
                 leaf_names.emplace(param_name, nullptr);
                 param->output(0).get_tensor().add_names({param_name});
             }
@@ -175,7 +175,7 @@ std::shared_ptr<ov::Model> read_model(const std::string& model,
     ov::AnyVector params{&modelStream};
     if (weights) {
         std::shared_ptr<ov::AlignedBuffer> weights_buffer =
-            std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(weights.data()),
+            std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(const_cast<void*>(weights.data())),
                                                            weights.get_byte_size(),
                                                            weights);
         params.emplace_back(weights_buffer);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ OutputVector translate_expand_dims_op(const NodeContext& node) {
 
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_type_mark->input_value(0);
+        input = complex_type_mark->get_data();
 
         auto const_zero = create_same_type_const_scalar<int32_t>(axis, 0);
 

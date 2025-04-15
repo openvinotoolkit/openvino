@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ OutputVector translate_scatter_nd_op(const NodeContext& node) {
 
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        updates = complex_type_mark->input_value(0);
+        updates = complex_type_mark->get_data();
 
         auto new_dim = create_same_type_const<int32_t>(shape, vector<int32_t>{2}, Shape{1});
         auto new_shape = make_shared<v0::Concat>(OutputVector{shape, new_dim}, -1);

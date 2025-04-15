@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,14 +11,15 @@
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
-#include "transformations/itt.hpp"
 
 using namespace ov::pass::pattern;
 ov::intel_cpu::NgramFusion::NgramFusion() {
     MATCHER_SCOPE(NgramFusion);
-    auto concat_matches = [](ov::Output<ov::Node> output) -> bool {
+    auto concat_matches = [](const ov::Output<ov::Node>& output) -> bool {
         if (auto concat = ov::as_type_ptr<ov::opset1::Concat>(output.get_node_shared_ptr())) {
             return ov::pass::pattern::rank_equals(2)(output) && concat->get_axis() == 1;
         }
@@ -41,27 +42,28 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
         }
 
         auto check_bias = [](const PatternValueMap& pattern_map,
-                             const std::shared_ptr<ov::Node> matched_constant_to_check,
+                             const std::shared_ptr<ov::Node>& matched_constant_to_check,
                              const size_t expected_bias) {
             auto out_it = pattern_map.find(matched_constant_to_check);
             if (expected_bias == 0) {
                 return out_it == pattern_map.end();
-            } else if (out_it == pattern_map.end()) {
+            }
+            if (out_it == pattern_map.end()) {
                 return false;
             }
             const auto constant = ov::as_type_ptr<ov::opset1::Constant>(out_it->second.get_node_shared_ptr());
             return constant != nullptr && ov::op::util::constantIsEqualTo(constant, expected_bias);
         };
 
-        auto tokens_match = [](ov::Output<ov::Node> output) -> bool {
+        auto tokens_match = [](const ov::Output<ov::Node>& output) -> bool {
             return ov::pass::pattern::rank_equals(2)(output) &&
                    ov::pass::pattern::type_matches(ov::element::f32)(output);
         };
-        auto idces_match = [](ov::Output<ov::Node> output) -> bool {
+        auto idces_match = [](const ov::Output<ov::Node>& output) -> bool {
             return ov::pass::pattern::rank_equals(2)(output) &&
                    ov::pass::pattern::type_matches(ov::element::i32)(output);
         };
-        auto as_is_cropped_shape_match = [](ov::Output<ov::Node> output) -> bool {
+        auto as_is_cropped_shape_match = [](const ov::Output<ov::Node>& output) -> bool {
             const auto& symbols = output.get_tensor().get_value_symbol();
             return ov::pass::pattern::rank_equals(1)(output) && !symbols.empty() && symbols[0] != nullptr;
         };
@@ -103,17 +105,18 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
             }
             // save symbol of cropped_shape and check it against first dimension of tokens shape
             cropped_shape_symbol = pattern_map.at(cropped_shape_m).get_tensor().get_value_symbol()[0];
-            if (!symbol::are_equal(tokens_shape[0].get_symbol(), cropped_shape_symbol))
+            if (!symbol::are_equal(tokens_shape[0].get_symbol(), cropped_shape_symbol)) {
                 return false;
+            }
         }
 
-        auto cropped_shape_symbol_match = [cropped_shape_symbol](ov::Output<ov::Node> output) -> bool {
+        auto cropped_shape_symbol_match = [cropped_shape_symbol](const ov::Output<ov::Node>& output) -> bool {
             const auto& symbols = output.get_tensor().get_value_symbol();
             return ov::pass::pattern::rank_equals(1)(output) && !symbols.empty() &&
                    ov::symbol::are_equal(symbols[0], cropped_shape_symbol);
         };
 
-        auto tokens_symbol_match = [tokens_match, cropped_shape_symbol](ov::Output<ov::Node> output) -> bool {
+        auto tokens_symbol_match = [tokens_match, cropped_shape_symbol](const ov::Output<ov::Node>& output) -> bool {
             return tokens_match(output) &&
                    symbol::are_equal(output.get_partial_shape()[0].get_symbol(), cropped_shape_symbol);
         };
@@ -181,8 +184,9 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
             Matcher select_matcher(select_m);
 
             for (size_t i = 0; i < inputs.size(); ++i) {
-                if (i == as_is_idx)
+                if (i == as_is_idx) {
                     continue;
+                }
                 if (!select_matcher.match(inputs[i])) {
                     return false;
                 }

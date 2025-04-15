@@ -1,16 +1,17 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <utility>
 
 #include "executor.hpp"
 #include "executor_config.hpp"
 #include "executor_implementation.hpp"
 #include "nodes/executors/graph_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * A stateful (variable) executor
@@ -23,13 +24,13 @@ public:
     using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
 
     VariableExecutor(const MemoryArgs& memory,
-                     const Attrs& attrs,
-                     const PostOps& postOps,
-                     const ExecutorContext::CPtr context,
+                     Attrs attrs,
+                     PostOps postOps,
+                     ExecutorContext::CPtr context,
                      std::vector<ExecutorImplementationRef> suitableImplementations)
-        : m_attrs(attrs),
-          m_postOps(postOps),
-          m_context(context),
+        : m_attrs(std::move(attrs)),
+          m_postOps(std::move(postOps)),
+          m_context(std::move(context)),
           m_suitableImplementations(std::move(suitableImplementations)),
           m_implementationRequiresFallback(
               cacheFallbackStatus(m_suitableImplementations,
@@ -42,7 +43,7 @@ public:
 
     bool update(const MemoryArgs& memory) override {
         for (auto implId = select(memory, 0); implId < m_suitableImplementations.size();
-             implId = select(memory, implId)) {
+             implId = select(memory, ++implId)) {
             if (!m_executors[implId]) {
                 m_executors[implId] = create(implId, memory);
             }
@@ -60,7 +61,7 @@ public:
         m_executors[m_implId]->execute(memory);
     }
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return m_executors[m_implId]->implType();
     }
 
@@ -79,13 +80,13 @@ private:
                        suitableImplementations.end(),
                        implementationRequiresFallback.begin(),
                        [&config](const ExecutorImplementationRef& impl) {
-                           return impl.get().requiresFallback(config);
+                           return impl.get().requiresFallback(config).has_value();
                        });
 
         return implementationRequiresFallback;
     }
 
-    size_t select(const MemoryArgs& memory, const size_t startIdx) const {
+    [[nodiscard]] size_t select(const MemoryArgs& memory, const size_t startIdx) const {
         OPENVINO_ASSERT(startIdx < m_suitableImplementations.size(),
                         "Failed to find an implementation since start indx: ",
                         startIdx,
@@ -97,8 +98,9 @@ private:
         const auto selectedImplementation =
             std::find_if(startIt,
                          m_suitableImplementations.end(),
-                         [&memory](const ExecutorImplementationRef& implementation) {
-                             return implementation.get().shapeAgnostic() || implementation.get().acceptsShapes(memory);
+                         [&memory, this](const ExecutorImplementationRef& implementation) {
+                             return implementation.get().shapeAgnostic() ||
+                                    implementation.get().acceptsShapes(m_attrs, m_postOps, memory);
                          });
 
         OPENVINO_ASSERT(selectedImplementation != m_suitableImplementations.end(), "Failed to select an implemetation");
@@ -125,8 +127,8 @@ private:
         return createWithFallback(implId, memory);
     }
 
-    const Attrs& m_attrs;
-    const PostOps& m_postOps;
+    Attrs m_attrs;
+    PostOps m_postOps;
     const ExecutorContext::CPtr m_context;
     std::vector<ExecutorImplementationRef> m_suitableImplementations;
     // stores fallback status to avoid performing the check for every make() call
@@ -136,5 +138,4 @@ private:
     size_t m_implId;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

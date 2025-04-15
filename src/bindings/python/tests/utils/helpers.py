@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Tuple, Union, List
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import openvino
 from openvino import Model, Core, Shape, Tensor, Type
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 
 
 def _compare_models(model_one: Model, model_two: Model, compare_names: bool = True) -> Tuple[bool, str]:  # noqa: C901 the function is too complex
@@ -198,11 +198,11 @@ def generate_relu_compiled_model(
 
 
 def encrypt_base64(src):
-    return base64.b64encode(bytes(src, "utf-8"))
+    return base64.b64encode(src)
 
 
 def decrypt_base64(src):
-    return base64.b64decode(bytes(src, "utf-8"))
+    return base64.b64decode(src)
 
 
 def generate_relu_compiled_model_with_config(

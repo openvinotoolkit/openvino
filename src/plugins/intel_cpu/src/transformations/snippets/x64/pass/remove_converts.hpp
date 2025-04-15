@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace pass {
+namespace ov::intel_cpu::pass {
 
 /**
  * @interface RemoveConverts
@@ -21,6 +19,4 @@ public:
     RemoveConverts();
 };
 
-}  // namespace pass
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::pass

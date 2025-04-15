@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -23,10 +23,7 @@
 #    include "arm_neon.h"
 #endif
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 // avx512/avx2 register length in byte
 static constexpr size_t vec_len_avx512 = 64lu;
@@ -39,7 +36,14 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
 static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
 
 #if defined(HAVE_SVE)
-static constexpr size_t vec_len_f32_sve = svcntw();
+inline size_t vec_len_f32_sve() {
+    static size_t len = svcntw();
+    return len;
+}
+inline size_t vec_len_f16_sve() {
+    static size_t len = svcnth();
+    return len;
+}
 #endif
 
 #ifdef HAVE_AVX512F
@@ -144,19 +148,30 @@ inline void mm512_uni_storeu_tail_ps(ov::float16* addr, __m512 v, size_t count) 
 #endif
 
 #ifdef HAVE_AVX2
+inline __m128i get_8bit_tail_mask_for_16bit_elts(size_t num_16bit_tail_elts) {
+    // num_tail_elts may take from 0 to 8
+    static int8_t masks[9][16] = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}};
+    return _mm_loadu_si128(reinterpret_cast<__m128i*>(masks[num_16bit_tail_elts]));
+}
 inline __m256i get_mask(int N7) {
-    static __m256i mask[] = {
-        _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, 0),
-        _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, -1),
-        _mm256_set_epi32(0, 0, 0, 0, 0, 0, -1, -1),
-        _mm256_set_epi32(0, 0, 0, 0, 0, -1, -1, -1),
-        _mm256_set_epi32(0, 0, 0, 0, -1, -1, -1, -1),
-        _mm256_set_epi32(0, 0, 0, -1, -1, -1, -1, -1),
-        _mm256_set_epi32(0, 0, -1, -1, -1, -1, -1, -1),
-        _mm256_set_epi32(0, -1, -1, -1, -1, -1, -1, -1),
-        _mm256_set_epi32(-1, -1, -1, -1, -1, -1, -1, -1),
-    };
-    return _mm256_loadu_si256(&mask[N7]);
+    static int32_t masks[9][8] = {{0, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, 0, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, 0, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, 0, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, 0, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, 0, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, 0, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, 0},
+                                  {-1, -1, -1, -1, -1, -1, -1, -1}};
+    return _mm256_loadu_si256(reinterpret_cast<__m256i*>(masks[N7]));
 }
 
 // load addr to __m256 reg
@@ -200,7 +215,7 @@ inline void mm256_uni_storeu_ps(float* a, __m256 v) {
     _mm256_storeu_ps(a, v);
 }
 
-inline void mm256_uni_storeu_ps(ov::bfloat16* addr, __m256 xps) {
+inline __m128i __convert_avx2_packed_float_to_packed_ov_bfloat16(__m256 xps) {
     __m256i xpi32 = _mm256_castps_si256(xps);
     __m256i nan = _mm256_set1_epi32(0xffff);
     __m256i mask = _mm256_castps_si256(_mm256_cmp_ps(xps, xps, _CMP_ORD_Q));
@@ -213,6 +228,11 @@ inline void mm256_uni_storeu_ps(ov::bfloat16* addr, __m256 xps) {
     x = _mm256_packus_epi32(x, x);
     x = _mm256_permute4x64_epi64(x, 0xd8);
     __m128i bf16_o = _mm256_extractf128_si256(x, 0);
+    return bf16_o;
+}
+
+inline void mm256_uni_storeu_ps(ov::bfloat16* addr, __m256 xps) {
+    __m128i bf16_o = __convert_avx2_packed_float_to_packed_ov_bfloat16(xps);
     _mm_storeu_si128(reinterpret_cast<__m128i*>(addr), bf16_o);
 }
 
@@ -223,8 +243,20 @@ inline void mm256_uni_storeu_ps(ov::float16* a, __m256 v) {
 
 // store __m256 to addr
 inline void mm256_uni_storeu_tail_ps(float* addr, __m256 v, size_t count) {
-    const auto mask = get_mask(count);
+    auto mask = get_mask(count);
     return _mm256_maskstore_ps(addr, mask, v);
+}
+
+inline void mm256_uni_storeu_tail_ps(ov::float16* addr, __m256 v, size_t count) {
+    auto mask = get_8bit_tail_mask_for_16bit_elts(count);
+    __m128i vec_f16 = _mm256_cvtps_ph(v, 0);
+    return _mm_maskmoveu_si128(vec_f16, mask, reinterpret_cast<char*>(addr));
+}
+
+inline void mm256_uni_storeu_tail_ps(ov::bfloat16* addr, __m256 v, size_t count) {
+    auto mask = get_8bit_tail_mask_for_16bit_elts(count);
+    __m128i bf16_o = __convert_avx2_packed_float_to_packed_ov_bfloat16(v);
+    return _mm_maskmoveu_si128(bf16_o, mask, reinterpret_cast<char*>(addr));
 }
 
 inline void hsum(__m256& x) {
@@ -403,6 +435,28 @@ inline void __vst1q_f32(ov::bfloat16* a, float32x4_t b) {
 #endif
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#    if defined(HAVE_SVE)
+inline svfloat16_t exp_ps_sve_f16(svbool_t& pg, svfloat16_t& src) {
+    svbool_t pg_f32 = svtrn1_b16(pg, svpfalse());
+
+    // Extract lower and upper halves of src into two separate vecs and convert
+    svfloat16_t zero = svdup_n_f16(0.0);
+    svfloat16_t low_f16 = svtrn1_f16(src, zero);
+    svfloat16_t high_f16 = svtrn2_f16(src, zero);
+    svfloat32_t low_f32 = svcvt_f32_f16_z(pg, low_f16);
+    svfloat32_t high_f32 = svcvt_f32_f16_z(pg, high_f16);
+
+    // Perform exp and convert back to f16
+    svfloat32_t low_exp_f32 = exp_ps_sve(pg_f32, low_f32);
+    svfloat32_t high_exp_f32 = exp_ps_sve(pg_f32, high_f32);
+    svfloat16_t low_exp_f16 = svcvt_f16_f32_z(pg_f32, low_exp_f32);
+    svfloat16_t high_exp_f16 = svcvt_f16_f32_z(pg_f32, high_exp_f32);
+
+    // Interleave both to get final result
+    svfloat16_t res = svtrn1_f16(low_exp_f16, high_exp_f16);
+    return res;
+}
+#    else
 inline float16x8_t exp_ps_neon_f16(float16x8_t x) {
     const float32x4_t x_high = vcvt_f32_f16(vget_high_f16(x));
     const float32x4_t x_low = vcvt_f32_f16(vget_low_f16(x));
@@ -411,6 +465,7 @@ inline float16x8_t exp_ps_neon_f16(float16x8_t x) {
     const float16x8_t res = vcombine_f16(vcvt_f16_f32(exp_ps_neon_f32(x_low)), vcvt_f16_f32(exp_ps_neon_f32(x_high)));
     return res;
 }
+#    endif
 inline float16_t hsum(float16x8_t vec) {
     float16x4_t sum1 = vpadd_f16(vget_low_f16(vec), vget_high_f16(vec));
     float16x4_t sum2 = vpadd_f16(sum1, sum1);
@@ -418,7 +473,26 @@ inline float16_t hsum(float16x8_t vec) {
     return vget_lane_f16(sum3, 0);
 }
 #endif
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+
+template <typename TA, typename TB>
+void cvt_copy(TA* a, TB* b, size_t m, size_t n, size_t src_stride, size_t dst_stride) {
+    for (size_t j = 0; j < m; j++) {
+        size_t i = 0;
+#if defined(HAVE_AVX512F)
+        for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+            auto vb = mm512_uni_loadu_ps(b + i + j * src_stride);
+            mm512_uni_storeu_ps(a + i + j * dst_stride, vb);
+        }
+#elif defined(HAVE_AVX2)
+        for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+            auto vb = mm256_uni_loadu_ps(b + i + j * src_stride);
+            mm256_uni_storeu_ps(a + i + j * dst_stride, vb);
+        }
+#endif
+        for (; i < n; i++) {
+            a[i + j * dst_stride] = b[i + j * src_stride];
+        }
+    }
+}
+
+}  // namespace ov::Extensions::Cpu::XARCH

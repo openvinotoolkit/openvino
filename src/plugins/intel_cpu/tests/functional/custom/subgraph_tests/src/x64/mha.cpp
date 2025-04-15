@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -296,7 +296,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHA,
                                                                                        ElementType::f32}),
                                             ::testing::ValuesIn(matMulIn0Precisions),
                                             ::testing::ValuesIn(patternTypes),
-                                            ::testing::Values(ExpectedNodes{{"Subgraph", 1}}),
+                                            ::testing::Values(ExpectedNodes{{"Subgraph", 2}}), // MHA + Decomposed Transpose on input
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHATest::getTestCaseName);
 
@@ -309,7 +309,7 @@ INSTANTIATE_TEST_SUITE_P(
             std::vector<ElementType>{ElementType::bf16, ElementType::bf16, ElementType::bf16, ElementType::bf16}),
         ::testing::ValuesIn(matMulIn0Precisions),
         ::testing::ValuesIn(patternTypes),
-        ::testing::Values(ExpectedNodes{{"Subgraph", 1},
+        ::testing::Values(ExpectedNodes{{"Subgraph", 2}, // MHA + Decomposed Transpose on input
                                         {"Transpose", 1}}),  // Plugin disables tokenization of Transpose on output
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     MHATest::getTestCaseName);
@@ -323,7 +323,7 @@ INSTANTIATE_TEST_SUITE_P(
             std::vector<ElementType>{ElementType::f16, ElementType::f16, ElementType::f16, ElementType::f16}),
         ::testing::ValuesIn(matMulIn0Precisions),
         ::testing::ValuesIn(patternTypes),
-        ::testing::Values(ExpectedNodes{{"Subgraph", 1},
+        ::testing::Values(ExpectedNodes{{"Subgraph", 2}, // MHA + Decomposed Transpose on input
                                         {"Transpose", 1}}),  // Plugin disables tokenization of Transpose on output
         ::testing::Values(ov::test::utils::DEVICE_CPU)),
     MHATest::getTestCaseName);
@@ -694,7 +694,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern0,
                                             ::testing::Values(0),
                                             ::testing::Values(ExpectedNodes{
                                                 {"Subgraph", 5},     // FQs on inputs x 3 + MHA + Deq Mul
-                                                {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
+                                                {"Transpose", 2}}),  // Decomposed Transpose on input + Transpose between MHA and Deq Mul
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHAQuantTest::getTestCaseName);
 
@@ -706,7 +706,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern1,
                                             ::testing::Values(1),
                                             ::testing::Values(ExpectedNodes{
                                                 {"Subgraph", 4},     // FQ on input x 2 + MHA + Deq Mul
-                                                {"Transpose", 1}}),  // Transpose between MHA and Deq Mul
+                                                {"Transpose", 2}}),  // Decomposed Transpose on input + Transpose between MHA and Deq Mul
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHAQuantTest::getTestCaseName);
 
@@ -717,7 +717,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant_Pattern2,
                                             ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                             ::testing::Values(2),
                                             ::testing::Values(ExpectedNodes{{"Subgraph", 3},     // FQ on inputs x 2 + MHA
-                                                                            {"Transpose", 0}}),  // Transpose is fused
+                                                                            {"Transpose", 1}}),  // Decomposed Transpose on input
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MHAQuantTest::getTestCaseName);
 

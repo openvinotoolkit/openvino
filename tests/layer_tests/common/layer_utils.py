@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import platform
 import subprocess
 import sys
 
 from common.utils.multiprocessing_utils import multiprocessing_run
-from openvino.runtime import Core, get_version as ie2_get_version
+from openvino import Core, get_version as ie2_get_version
 
 # Not all layer tests use openvino_tokenizers
 try:

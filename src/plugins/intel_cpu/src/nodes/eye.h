@@ -24,11 +24,11 @@ public:
     static constexpr size_t BATCH_SHAPE = 3lu;
 
 public:
-    Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool needPrepareParams() const override {
         return false;
@@ -36,15 +36,14 @@ public:
     bool needShapeInfer() const override {
         return true;
     };
-    void executeDynamicImpl(dnnl::stream strm) override {
+    void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    std::string errorPrefix = "";
-    ov::element::Type outType = ov::element::Type_t::undefined;
+    ov::element::Type outType = ov::element::Type_t::dynamic;
     template <typename inputType>
     void executeSpecified();
     template <typename T>
@@ -52,7 +51,7 @@ private:
     inline const size_t getRowNum() const {
         auto rowMem = getSrcMemoryAtPort(ROWS_NUM);
         if (rowMem == nullptr)
-            OPENVINO_THROW(errorPrefix, " doesn't contain row_count data");
+            THROW_CPU_NODE_ERR("doesn't contain row_count data");
         const int* rowPtr = rowMem->getDataAs<const int>();
 
         return rowPtr[0];
@@ -60,7 +59,7 @@ private:
     inline const size_t getColNum() const {
         auto colMem = getSrcMemoryAtPort(COLS_NUM);
         if (colMem == nullptr)
-            OPENVINO_THROW(errorPrefix, " doesn't contain col_count data");
+            THROW_CPU_NODE_ERR("doesn't contain col_count data");
         const int* colPtr = colMem->getDataAs<const int>();
 
         return colPtr[0];
@@ -68,7 +67,7 @@ private:
     inline const int getDiagIndex() const {
         auto diagIndMem = getSrcMemoryAtPort(DIAGONAL_INDEX);
         if (diagIndMem == nullptr)
-            OPENVINO_THROW(errorPrefix, " doesn't contain diag_index data");
+            THROW_CPU_NODE_ERR("doesn't contain diag_index data");
         const int* diagIndexPtr = diagIndMem->getDataAs<const int>();
 
         return diagIndexPtr[0];
@@ -87,7 +86,7 @@ private:
     }
 
     inline const size_t getBatchVolume(const std::vector<int>& batchShape) {
-        return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<size_t>());
+        return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<>());
     }
     bool withBatchShape = false;
 };

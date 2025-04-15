@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,49 +97,48 @@ std::vector<EltwiseTypes> bitshift_types = {
 
 ov::test::Config additional_config = {};
 
-const auto multiply_params = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_static)),
-        ::testing::ValuesIn(eltwise_op_types),
-        ::testing::ValuesIn(secondary_input_types),
-        ::testing::ValuesIn(op_types),
-        ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::Values(additional_config));
+const auto multiply_params =
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_static)),
+                       ::testing::ValuesIn(eltwise_op_types),
+                       ::testing::ValuesIn(secondary_input_types),
+                       ::testing::ValuesIn(op_types),
+                       ::testing::ValuesIn(model_types),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(additional_config));
 
 const auto collapsing_params = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_static_check_collapse)),
-        ::testing::ValuesIn(eltwise_op_types),
-        ::testing::ValuesIn(secondary_input_types),
-        ::testing::Values(op_types[1]),
-        ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::Values(additional_config));
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_static_check_collapse)),
+    ::testing::ValuesIn(eltwise_op_types),
+    ::testing::ValuesIn(secondary_input_types),
+    ::testing::Values(op_types[1]),
+    ::testing::ValuesIn(model_types),
+    ::testing::Values(ov::element::dynamic),
+    ::testing::Values(ov::element::dynamic),
+    ::testing::Values(ov::test::utils::DEVICE_CPU),
+    ::testing::Values(additional_config));
 
-const auto multiply_params_dynamic = ::testing::Combine(
-        ::testing::ValuesIn(in_shapes_dynamic),
-        ::testing::ValuesIn(eltwise_op_types_dynamic),
-        ::testing::ValuesIn(secondary_input_types_dynamic),
-        ::testing::ValuesIn(op_types_dynamic),
-        ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::Values(additional_config));
+const auto multiply_params_dynamic = ::testing::Combine(::testing::ValuesIn(in_shapes_dynamic),
+                                                        ::testing::ValuesIn(eltwise_op_types_dynamic),
+                                                        ::testing::ValuesIn(secondary_input_types_dynamic),
+                                                        ::testing::ValuesIn(op_types_dynamic),
+                                                        ::testing::ValuesIn(model_types),
+                                                        ::testing::Values(ov::element::dynamic),
+                                                        ::testing::Values(ov::element::dynamic),
+                                                        ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                        ::testing::Values(additional_config));
 
-const auto multiply_params_dynamic_large_upper_bound = ::testing::Combine(
-        ::testing::ValuesIn(in_shapes_dynamic_large_upper_bound),
-        ::testing::Values(EltwiseTypes::ADD),
-        ::testing::ValuesIn(secondary_input_types_dynamic),
-        ::testing::ValuesIn(op_types_dynamic),
-        ::testing::Values(ov::element::f32),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::Values(additional_config));
+const auto multiply_params_dynamic_large_upper_bound =
+    ::testing::Combine(::testing::ValuesIn(in_shapes_dynamic_large_upper_bound),
+                       ::testing::Values(EltwiseTypes::ADD),
+                       ::testing::ValuesIn(secondary_input_types_dynamic),
+                       ::testing::ValuesIn(op_types_dynamic),
+                       ::testing::Values(ov::element::f32),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static_check_collapsing, EltwiseLayerTest, collapsing_params, EltwiseLayerTest::getTestCaseName);
@@ -168,16 +167,16 @@ ov::AnyMap additional_config_single_thread = {
     ov::inference_num_threads(1),
 };
 
-const auto single_thread_params = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesSingleThread)),
-        ::testing::ValuesIn(eltwise_op_typesSingleThread),
-        ::testing::ValuesIn(secondary_input_types),
-        ::testing::ValuesIn(op_types),
-        ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::Values(additional_config_single_thread));
+const auto single_thread_params =
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesSingleThread)),
+                       ::testing::ValuesIn(eltwise_op_typesSingleThread),
+                       ::testing::ValuesIn(secondary_input_types),
+                       ::testing::ValuesIn(op_types),
+                       ::testing::ValuesIn(model_types),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(additional_config_single_thread));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);
 
@@ -198,32 +197,31 @@ std::vector<std::vector<ov::Shape>> in_shapes_static_small_set = {
         {{1, 7, 5, 1}, {2, 7, 1, 4}},
 };
 
-const auto bitwise_shift_params_static = ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_static_small_set)),
-        ::testing::ValuesIn(bitshift_types),
-        ::testing::ValuesIn(secondary_input_types),
-        ::testing::ValuesIn(op_types_dynamic),
-        ::testing::ValuesIn(intOnly_netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::Values(additional_config));
+const auto bitwise_shift_params_static =
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(in_shapes_static_small_set)),
+                       ::testing::ValuesIn(bitshift_types),
+                       ::testing::ValuesIn(secondary_input_types),
+                       ::testing::ValuesIn(op_types_dynamic),
+                       ::testing::ValuesIn(intOnly_netPrecisions),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_shared_CompareWithRefs_BitwiseShift_Static,
                          EltwiseLayerTest,
                          bitwise_shift_params_static,
                          EltwiseLayerTest::getTestCaseName);
 
-const auto bitwise_shift_params_dynamic = ::testing::Combine(
-        ::testing::ValuesIn(in_shapes_dynamic),
-        ::testing::ValuesIn(bitshift_types),
-        ::testing::ValuesIn(secondary_input_types_dynamic),
-        ::testing::ValuesIn(op_types_dynamic),
-        ::testing::ValuesIn(intOnly_netPrecisions),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::Values(additional_config));
+const auto bitwise_shift_params_dynamic = ::testing::Combine(::testing::ValuesIn(in_shapes_dynamic),
+                                                             ::testing::ValuesIn(bitshift_types),
+                                                             ::testing::ValuesIn(secondary_input_types_dynamic),
+                                                             ::testing::ValuesIn(op_types_dynamic),
+                                                             ::testing::ValuesIn(intOnly_netPrecisions),
+                                                             ::testing::Values(ov::element::dynamic),
+                                                             ::testing::Values(ov::element::dynamic),
+                                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                             ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_shared_CompareWithRefs_BitwiseShift_Dynamic,
                          EltwiseLayerTest,

@@ -9,22 +9,26 @@
 #    include <ostream>
 
 #    include "fullyconnected_config.hpp"
+#    include "nodes/executors/convolution_config.hpp"
 #    include "post_ops.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-std::ostream& operator<<(std::ostream& os, const FCAttrs& attrs) {
+std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const FCAttrs& attrs) {
     // @todo print Attrs
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const PostOps& postOps) {
+std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const ConvAttrs& attrs) {
+    // @todo print Attrs
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const PostOps& postOps) {
     // @todo print PostOps
     return os;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

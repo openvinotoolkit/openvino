@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import csv
 import datetime
@@ -479,7 +479,7 @@ class TestParallelRunner:
             logger.warning(
                 "Look like there are not tests to run! Please check the filters!"
             )
-            sys.exit(0)
+            sys.exit(5)
         return tests_dict
 
     def __get_test_list_by_cache(self):

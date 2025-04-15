@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,8 @@ typedef std::tuple<MatMulDecompressionShapeParams,
                    ov::test::ElementType,      // decompression precision
                    ov::test::ElementType,      // scale precision
                    bool,                       // transpose on weights
-                   DecompressionSubtractType,  // decompression subtract type
+                   DecompressionType,          // decompression multiply type
+                   DecompressionType,          // decompression subtract type
                    bool,                       // reshape on decompression constants
                    ov::AnyMap,                 // additional config
                    fusingSpecificParams,
@@ -67,7 +68,8 @@ protected:
                                             const ov::element::Type decompression_precision,
                                             const ov::element::Type scale_precision,
                                             const bool transpose_weights,
-                                            const DecompressionSubtractType decompression_subtract_type,
+                                            const DecompressionType decompression_multiply_type,
+                                            const DecompressionType decompression_subtract_type,
                                             const bool reshape_on_decompression);
 
     void SetUp() override;

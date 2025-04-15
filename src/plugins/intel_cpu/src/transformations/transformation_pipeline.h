@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "config.h"
@@ -19,11 +20,9 @@ namespace intel_cpu {
 
 class Transformations {
 public:
-    Transformations(const std::shared_ptr<ov::Model>& initialModel, const Config& config)
-        : model(initialModel),
-          config(config) {
-        CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
-    }
+    Transformations(std::shared_ptr<ov::Model> initialModel, const Config& config)
+        : model(std::move(initialModel)),
+          config(config) {}
 
     void UpToLpt();
     void CpuSpecificOpSet();
@@ -37,6 +36,7 @@ private:
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void Lpt(const std::vector<ov::element::Type>& defaultPrecisions);
+    void runLptPasses(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void MainSnippets(void);
 

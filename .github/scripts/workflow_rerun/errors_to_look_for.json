@@ -96,6 +96,10 @@
         "ticket": 158401
     },
     {
+        "error_text": "Unable to download artifact",
+        "ticket": 158401
+    },
+    {
         "error_text": "Failure when receiving data from the peer",
         "ticket": 159323
     },
@@ -106,5 +110,29 @@
     {
         "error_text": "download failed after attempts",
         "ticket": 159547
+    },
+    {
+        "error_text": "Failed to connect to github.com port 443: Connection refused",
+        "ticket": 156593
+    },
+    {
+        "error_text": "file DOWNLOAD cannot compute hash on failed download",
+        "ticket": 156593
+    },
+    {
+        "error_text": "lost communication with the server",
+        "ticket": 160816
+    },
+    {
+        "error_text": "the runner has received a shutdown signal",
+        "ticket": 160818
+    },
+    {
+        "error_text": "Timed out waiting for server startup",
+        "ticket": 161077
+    },
+    {
+        "error_text": "THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE",
+        "ticket": 163749
     }
 ]

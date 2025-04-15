@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,7 @@
 #    include "registers_pool.hpp"
 #endif  // OPENVINO_ARCH_X86_64
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 class JitKernelBase;
 
@@ -198,8 +196,7 @@ public:
 
     explicit JitKernel(const char* name, const CompileParams& jcp, dnnl::impl::cpu::x64::cpu_isa_t max_cpu_isa)
         : JitKernelBase{name, max_cpu_isa},
-          m_jcp{jcp},
-          m_func{nullptr} {}
+          m_jcp{jcp} {}
 
     ~JitKernel() override = default;
 
@@ -255,11 +252,9 @@ protected:
     CompileParams m_jcp;
 
 private:
-    KernelFunc m_func;
+    KernelFunc m_func{nullptr};
 };
 
 #endif  // OPENVINO_ARCH_X86_64
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

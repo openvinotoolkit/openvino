@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -823,7 +823,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         RUN_ON_FUNCTION_SCOPE(Constant);
         for (const auto& node : model->get_ordered_ops()) {
-            if ((std::dynamic_pointer_cast<op::util::BinaryElementwiseArithmetic>(node) ||
+            if ((ov::as_type_ptr<op::util::BinaryElementwiseArithmetic>(node) ||
                  ov::as_type_ptr<ov::op::v0::FakeQuantize>(node) || ov::as_type_ptr<ov::op::v0::Convert>(node)) &&
                 node->get_output_partial_shape(0).rank().is_static()) {
                 continue;

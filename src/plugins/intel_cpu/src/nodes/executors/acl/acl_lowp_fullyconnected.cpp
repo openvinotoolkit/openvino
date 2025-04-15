@@ -16,8 +16,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 static bool checkPostOps(const PostOps& postOps) {
     if (postOps.empty()) {
@@ -100,12 +99,11 @@ arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACL
     auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
     tensor_info_weights->set_quantization_info(arm_compute::QuantizationInfo(1.f));
 
-    const auto matMulValid =
-        arm_compute::NEGEMMLowpMatrixMultiplyCore::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
-                                                            aclMemoryInfos[ACLArgs::ACL_WEI].get(),
-                                                            aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
-                                                            aclMemoryInfos[ACLArgs::ACL_DST].get(),
-                                                            gemmInfo);
+    auto matMulValid = arm_compute::NEGEMMLowpMatrixMultiplyCore::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
+                                                                           aclMemoryInfos[ACLArgs::ACL_WEI].get(),
+                                                                           aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
+                                                                           aclMemoryInfos[ACLArgs::ACL_DST].get(),
+                                                                           gemmInfo);
     return matMulValid;
 }
 
@@ -147,5 +145,4 @@ std::shared_ptr<arm_compute::TensorInfo> ACLLowpFullyConnectedExecutor::initTens
     return ACLCommonExecutor::initTensorInfo(tensorShape, result, dataLayout);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

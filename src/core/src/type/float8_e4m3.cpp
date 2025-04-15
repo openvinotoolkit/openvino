@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <cmath>
 #include <limits>
 
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/float_util.hpp"
 
 namespace ov {
@@ -48,33 +49,40 @@ constexpr uint8_t f8e4m3_e_max = 0x0f;   // f8e4m3 exponent max value
 constexpr uint8_t f8e4m3_m_size = 3;     // f8e4m3 mantissa bits size
 constexpr uint8_t f8e4m3_m_mask = 0x07;  // f8e4m3 mantissa bit mask
 
-uint8_t f32_to_f8e4m3_bits(const float value) {
-    constexpr uint32_t f32_s_mask = 0x80000000;  // f32 sign bit mask
-    constexpr uint32_t f32_e_mask = 0x7F800000;  // f32 exponent bits mask
-    constexpr uint32_t f32_e_bias = 127;         // f32 exponent bias
-    constexpr uint32_t f32_e_size = 8;           // f32 exponent bits size
-    constexpr uint32_t f32_m_mask = 0x007fffff;  // f32 mantissa bits mask
-    constexpr uint32_t f32_m_size = 23;          // f32 mantissa bits size
+uint8_t f16_to_f8e4m3_bits(const float16 value) {
+    constexpr uint16_t f16_s_mask = 0x8000;  // f16 sign bit mask
+    constexpr uint16_t f16_e_mask = 0x7C00;  // f16 exponent bits mask
+    constexpr uint16_t f16_e_bias = 15;      // f16 exponent bias
+    constexpr uint16_t f16_e_size = 5;       // f16 exponent bits size
+    constexpr uint16_t f16_m_mask = 0x03ff;  // f16 mantissa bits mask
+    constexpr uint16_t f16_m_size = 10;      // f16 mantissa bits size
 
-    constexpr uint32_t f8_e_mask = f8e4m3_e_mask << three_bytes_shift;  // f8 exponent bits mask (on u32)
-    constexpr uint32_t f8_m_mask = f8e4m3_m_mask << three_bytes_shift;  // f8 mantissa bits mask (on u32)
-    constexpr uint32_t f8_m_hidden_one_mask = 0x08000000;               // f8 mantissa hidden one bits mask (on u32)
+    constexpr uint8_t byte_shift = 8;
 
-    constexpr uint32_t round_half = 0x01ffffff;  // value for half to even round for f8
-    constexpr uint32_t round_norm = 0x007fffff;  // value for normal round for f8
-    constexpr uint32_t round_even = 0x00800000;  // value for half to even round for f8
-    constexpr uint32_t round_odd = 0x01800000;   // value for an non-half to even round for f8
+    constexpr uint16_t f8_e_mask = f8e4m3_e_mask << byte_shift;  // f8 exponent bits mask (on u16)
+    constexpr uint16_t f8_m_mask = f8e4m3_m_mask << byte_shift;  // f8 mantissa bits mask (on u16)
+    constexpr uint16_t f8_m_hidden_one_mask = 0x0800;            // f8 mantissa hidden one bits mask (on u16)
 
-    const auto input = util::f32_to_u32_bits(value);
-    auto f8_bits = static_cast<uint8_t>((input & f32_s_mask) >> three_bytes_shift);
+    constexpr uint16_t round_half = 0x01ff;  // value for half to even round for f8
+    constexpr uint16_t round_norm = 0x007f;  // value for normal round for f8
+    constexpr uint16_t round_even = 0x0080;  // value for half to even round for f8
+    constexpr uint16_t round_odd = 0x0180;   // value for an non-half to even round for f8
 
-    uint32_t f32_e_field = input & f32_e_mask;
+    // f8 exponent min value for subnormal
+    // For f8_e less than -10, the hidden 1 is shifted beyond rounding bit.
+    // So the 3 bits in mantissa and rounding bit are all 0, the f8 value is always 0.
+    constexpr int16_t f8_e_subnormal_min = -10;
 
-    if (f32_e_field == f32_e_mask) {
+    const uint16_t input = value.to_bits();
+    uint8_t f8_bits = static_cast<uint8_t>((input & f16_s_mask) >> byte_shift);
+
+    uint16_t f16_e_field = input & f16_e_mask;
+
+    if (f16_e_field == f16_e_mask) {
         f8_bits |= (f8e4m3_e_mask | f8e4m3_m_mask);
-    } else if (f32_e_field != 0) {
-        int32_t f8_biased_exp = (f32_e_field >> f32_m_size) - (f32_e_bias - f8e4m3_e_bias);
-        uint32_t fractional = (input & f32_m_mask) << (f32_e_size - f8e4m3_e_size);
+    } else if (f16_e_field != 0) {
+        int16_t f8_biased_exp = (f16_e_field >> f16_m_size) - (f16_e_bias - f8e4m3_e_bias);
+        uint16_t fractional = (input & f16_m_mask) << (f16_e_size - f8e4m3_e_size);
 
         // for normalized values round apply rounding change f8 fractional and biased exponent
         if ((fractional & round_half) == round_odd || (fractional & round_norm) != 0) {
@@ -91,22 +99,24 @@ uint8_t f32_to_f8e4m3_bits(const float value) {
             // Use NAN as this type has no infinity
             f8_bits |= (f8e4m3_e_mask | f8e4m3_m_mask);
         } else if (f8_biased_exp > 0) {
-            f8_bits |= (f8_biased_exp << f8e4m3_m_size) | (fractional >> three_bytes_shift);
+            f8_bits |= (f8_biased_exp << f8e4m3_m_size) | (fractional >> byte_shift);
         } else {
             // Restore the hidden 1 in f8 mantissa for subnormal calculation
-            fractional = f8_m_hidden_one_mask | (input & f32_m_mask) << (f32_e_size - f8e4m3_e_size);
-            // Will any bits be shifted off?
-            int32_t shift = f8_biased_exp < -(f8e4m3_e_max) ? 0 : (1U << (1 - f8_biased_exp));
-            uint32_t sticky = (fractional & (shift - 1)) ? 1 : 0;
+            fractional = f8_m_hidden_one_mask | (input & f16_m_mask) << (f16_e_size - f8e4m3_e_size);
+            int16_t f8_exp = f8_biased_exp - f8e4m3_e_bias;
+            int16_t shift = 1 - f8_exp;
+            int16_t sticky_mask = f8_exp < f8_e_subnormal_min ? 0 : ((1 << shift) - 1);
+            uint16_t sticky = (fractional & sticky_mask) ? 1 : 0;
 
-            fractional = ((1 + f8_biased_exp) > f8e4m3_e_max) ? 0 : fractional >> (1 - f8_biased_exp);
-            fractional |= sticky;
+            // Subnormal mantissa has less significant bits for smaller exponent
+            fractional = f8_exp < f8_e_subnormal_min ? 0 : fractional >> (1 - f8_biased_exp);
             // apply rounding
-            if (((fractional & round_half) == round_odd) || ((fractional & round_norm) != 0)) {
+            if (((fractional & round_half) == round_odd && sticky == 0) || (fractional & round_norm) != 0 ||
+                sticky != 0) {
                 fractional += round_even;
             }
 
-            f8_bits |= fractional >> three_bytes_shift;
+            f8_bits |= fractional >> byte_shift;
         }
     }
 
@@ -118,7 +128,7 @@ float8_e4m3::float8_e4m3(const uint32_t sign, const uint32_t biased_exponent, co
     : m_value(((sign & 0x01U) << (f8e4m3_e_size + f8e4m3_m_size)) |
               (biased_exponent & (f8e4m3_e_mask >> f8e4m3_m_size)) << f8e4m3_m_size | (fraction & f8e4m3_m_mask)) {}
 
-float8_e4m3::float8_e4m3(const float value) : m_value{f32_to_f8e4m3_bits(value)} {}
+float8_e4m3::float8_e4m3(const float value) : m_value{f16_to_f8e4m3_bits(static_cast<float16>(value))} {}
 
 float8_e4m3::operator float() const {
     auto f32_bits = util::f32_to_u32_bits(f8_to_float_lut[m_value & (f8e4m3_e_mask | f8e4m3_m_mask)]);

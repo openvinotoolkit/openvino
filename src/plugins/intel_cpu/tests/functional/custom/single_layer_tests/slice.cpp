@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -121,14 +121,14 @@ protected:
             auto stepNode =
                 std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{sliceParams.step.size()});
 
-            params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(startNode));
-            params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(stopdNode));
-            params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(stepNode));
+            params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(startNode));
+            params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(stopdNode));
+            params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(stepNode));
             if (!sliceParams.axes.empty()) {
                 // With axes parameter
                 auto axesNode =
                     std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{sliceParams.axes.size()});
-                params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(axesNode));
+                params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(axesNode));
                 sliceNode = std::make_shared<ov::op::v8::Slice>(params[0], startNode, stopdNode, stepNode, axesNode);
             } else {
                 // without axes parameter

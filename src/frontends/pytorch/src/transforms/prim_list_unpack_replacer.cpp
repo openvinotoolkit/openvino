@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -305,7 +306,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             copy_runtime_info_and_name(list_unpack, rg.get(), {input_node, meshgrid_input_node});
             replace_node(list_unpack, outputs);
             return true;
-        } else if (auto shape_of = std::dynamic_pointer_cast<v3::ShapeOf>(input_node)) {
+        } else if (auto shape_of = ov::as_type_ptr<v3::ShapeOf>(input_node)) {
             // case aten::size as input
             // Number of ListUnpack outputs should be equal to rank of input shape.
             auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
@@ -321,7 +322,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             replace_node(list_unpack, res);
 
             return true;
-        } else if (auto slice = std::dynamic_pointer_cast<v8::Slice>(input_node)) {
+        } else if (auto slice = ov::as_type_ptr<v8::Slice>(input_node)) {
             // case aten::slice as input
             // Number of ListUnpack outputs should be equal to rank of input shape.
             auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});

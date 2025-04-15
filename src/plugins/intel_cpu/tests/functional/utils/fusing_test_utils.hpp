@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,11 +113,11 @@ static int getChannelAxis(const ov::AxisSet &axes, bool keep_dims) {
 }
 
 static int getFusingAxis(const std::shared_ptr<ov::Node>& node) {
-    if (std::dynamic_pointer_cast<const ov::op::v0::MatMul>(node)) {
+    if (ov::as_type_ptr<const ov::op::v0::MatMul>(node)) {
         return node->get_output_partial_shape(0).size() - 1; // last dimension
-    } else if (const auto reduce = std::dynamic_pointer_cast<const ov::op::util::ArithmeticReductionKeepDims>(node)) {
+    } else if (const auto reduce = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(node)) {
         return getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
-    } else if (const auto reduce = std::dynamic_pointer_cast<const ov::op::util::LogicalReductionKeepDims>(node)) {
+    } else if (const auto reduce = ov::as_type_ptr<const ov::op::util::LogicalReductionKeepDims>(node)) {
         return getChannelAxis(reduce->get_reduction_axes(), reduce->get_keep_dims());
     } else {
         return 1; // second dimension
@@ -514,5 +514,15 @@ const auto fusingBias = fusingSpecificParams{std::make_shared<postNodesMgr>(std:
             auto bias = ov::test::utils::make_constant(cfg.type, ov::Shape{last_dim});
             return std::make_shared<ov::op::v1::Add>(cfg.input, bias);
         }, "fusingBias"}}), {"Add"}};
+
+const auto fusingBiasGelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+        {[](postNodeConfig& cfg) {
+            size_t last_dim = cfg.input->get_output_partial_shape(0).rbegin()->get_length();
+            auto bias = ov::test::utils::make_constant(cfg.type, ov::Shape{last_dim});
+            return std::make_shared<ov::op::v1::Add>(cfg.input, bias);
+        }, "fusingBias"},
+        {[](postNodeConfig& cfg){
+            return utils::make_activation(cfg.input, cfg.type, utils::Gelu);
+        }, "Gelu"}}), {"Gelu"} };
 
 } // namespace CPUTestUtils

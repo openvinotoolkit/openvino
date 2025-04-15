@@ -1,27 +1,25 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/experimental_detectron_detection_output.hpp"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "experimental_detectron_detection_output.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct Indexer {
-    const std::vector<int> dims_;
+    std::vector<int> dims_;
     int total_{1};
 
-    explicit Indexer(const std::vector<int>& dims) : dims_(dims) {
-        total_ = 1;
-        for (size_t i = 0; i < dims_.size(); ++i) {
-            total_ *= dims_[i];
+    explicit Indexer(std::vector<int> dims) : dims_(std::move(dims)) {
+        for (const auto dim : dims_) {
+            total_ *= dim;
         }
     }
 
@@ -46,8 +44,6 @@ static void refine_boxes(const float* boxes,
                          float* refined_scores,
                          const int rois_num,
                          const int classes_num,
-                         const float img_H,
-                         const float img_W,
                          const float max_delta_log_wh,
                          float coordinates_offset) {
     Indexer box_idx({rois_num, 4});
@@ -125,10 +121,12 @@ struct ConfidenceComparator {
     explicit ConfidenceComparator(const float* conf_data) : _conf_data(conf_data) {}
 
     bool operator()(int idx1, int idx2) {
-        if (_conf_data[idx1] > _conf_data[idx2])
+        if (_conf_data[idx1] > _conf_data[idx2]) {
             return true;
-        if (_conf_data[idx1] < _conf_data[idx2])
+        }
+        if (_conf_data[idx1] < _conf_data[idx2]) {
             return false;
+        }
         return idx1 < idx2;
     }
 
@@ -246,7 +244,7 @@ bool ExperimentalDetectronDetectionOutput::isSupportedOperation(const std::share
 }
 
 ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const std::shared_ptr<ov::Node>& op,
-                                                                           const GraphContext::CPtr context)
+                                                                           const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -266,13 +264,15 @@ ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const
 }
 
 void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (size_t i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
+    }
 
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, ov::element::f32},
@@ -281,7 +281,7 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
+void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
     assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
@@ -289,14 +289,10 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
     const auto* boxes = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     const auto* deltas = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
     const auto* scores = getSrcDataAtPortAs<const float>(INPUT_SCORES);
-    const auto* im_info = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
     auto* output_boxes = getDstDataAtPortAs<float>(OUTPUT_BOXES);
     auto* output_scores = getDstDataAtPortAs<float>(OUTPUT_SCORES);
     auto* output_classes = getDstDataAtPortAs<int32_t>(OUTPUT_CLASSES);
-
-    const float img_H = im_info[0];
-    const float img_W = im_info[1];
 
     // Apply deltas.
     std::vector<float> refined_boxes(classes_num_ * rois_num * 4, 0);
@@ -314,8 +310,6 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
                  &refined_scores[0],
                  rois_num,
                  classes_num_,
-                 img_H,
-                 img_W,
                  max_delta_log_wh_,
                  1.0f);
 
@@ -350,7 +344,7 @@ void ExperimentalDetectronDetectionOutput::execute(dnnl::stream strm) {
         for (int i = 0; i < n; ++i) {
             int idx = indices[indices_offset + i];
             float score = refined_scores[refined_score_idx({c, idx})];
-            conf_index_class_map.push_back(std::make_pair(score, std::make_pair(c, idx)));
+            conf_index_class_map.emplace_back(score, std::make_pair(c, idx));
         }
         indices_offset += n;
     }
@@ -389,6 +383,4 @@ bool ExperimentalDetectronDetectionOutput::created() const {
     return getType() == Type::ExperimentalDetectronDetectionOutput;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

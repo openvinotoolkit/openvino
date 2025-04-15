@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,13 +11,15 @@
 
 static constexpr size_t lws_batches = 8;
 static constexpr size_t simd = 16;
-static constexpr size_t min_quantize_grp_size = 32;
+static constexpr size_t input_load_size = 4;
+static constexpr size_t min_quantize_grp_size = (simd * 2); // SIMD * (min value of tile_ifm)
 static constexpr size_t min_slm_size = 256;
 static std::vector<size_t> available_quantize_grp_size = {128, 64, 32};
 
 namespace kernel_selector {
 
-static std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params) {
+namespace fc_kernel_bf_tiled_utils {
+std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params) {
     auto& input = params.inputs[0];
     size_t input_f = input.Feature().v;
     size_t input_batch = input.Batch().v;
@@ -35,11 +37,12 @@ static std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params&
     return {input_batch, input_f};
 }
 
-static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params,
-                                                            bool needs_align,
-                                                            uint32_t align_b = 1,
-                                                            int32_t align_f = 1) {
-    size_t output_f = (needs_align == true) ? CeilDiv(params.outputs[0].Feature().v, align_f) : params.outputs[0].Feature().v;
+std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params,
+                                                     bool needs_align,
+                                                     uint32_t align_b,
+                                                     int32_t align_f) {
+    size_t output_f =
+        (needs_align == true) ? CeilDiv(params.outputs[0].Feature().v, align_f) : params.outputs[0].Feature().v;
     size_t output_b = params.outputs[0].Batch().v;
     // 3D output
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
@@ -52,51 +55,80 @@ static std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connecte
     return {output_b, output_f};
 }
 
-static bool is_weight_dyn_quantizable(const fully_connected_params& params) {
+size_t get_scale_group_size(const fully_connected_params& params) {
+    return params.weights.IFM().v / params.decompression_scale.Feature().v;
+}
+
+bool is_8bit_asym_wei(const fully_connected_params& params) {
+    auto weight_type = params.weights.GetDType();
+    // UINT8 weight type is supported by FC dyn-quantize(with SLM).
+    if (weight_type == WeightsType::UINT8 && params.has_decompression_zp)
+        return true;
+
+    return false;
+}
+
+bool is_weight_dyn_quantizable(const fully_connected_params& params) {
     auto weight_type = params.weights.GetDType();
     if (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4)
         return true;
-    // UINT8 weight type is supported by FC dyn-quantize(with SLM).
-    if (weight_type == WeightsType::UINT8)
+    // No validated case of sym 8bit weight
+    if (is_8bit_asym_wei(params))
+        return true;
+
+    return false;
+}
+
+bool is_per_token_dynamic_quantize(const fully_connected_params& params) {
+    auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
+    if (dynamic_quantization_group_size == UINT64_MAX)
         return true;
 
     return false;
 }
 
 // DYNAMIC_QUANTIZE
-static size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
+size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
     auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dynamic_quantize_group_size != debug_config->DYNAMIC_QUANTIZE_GROUP_SIZE_NOT_SET) {
-        dynamic_quantization_group_size = debug_config->dynamic_quantize_group_size;
+    size_t scale_group_size = get_scale_group_size(params);
+    size_t zp_group_num = params.decompression_zero_point.Feature().v;
+    size_t zp_group_size = 0;
+    if (params.has_decompression_zp)
+        zp_group_size = params.weights.IFM().v / params.decompression_zero_point.Feature().v;
 
-        // Specify which Fully-connected layer would be dynamic-quantized
-        GPU_DEBUG_IF(!debug_config->dynamic_quantize_layers_without_onednn.empty()) {
-            auto layers = debug_config->dynamic_quantize_layers_without_onednn;
-            auto iter = std::find_if(layers.begin(), layers.end(), [&](const std::string& pattern){
-                return debug_config->is_layer_name_matched(params.layerID, pattern);
-            });
+    // Per-token dyn-quan
+    if (dynamic_quantization_group_size >= min_quantize_grp_size && is_per_token_dynamic_quantize(params)) {
+        // Validate size to fit dyn-quan group to the size of weight-scale and weight-zp
+        if ((scale_group_size % min_quantize_grp_size) == 0 && scale_group_size > min_quantize_grp_size) {
+            dynamic_quantization_group_size = scale_group_size;
 
-            if (iter != layers.end()) {
-                dynamic_quantization_group_size = debug_config->dynamic_quantize_group_size;
-                GPU_DEBUG_COUT << "Found specified Fully-connected layer [" << params.layerID << "]. Enable Dynamic-quantize." << std::endl;
-            } else {
-                dynamic_quantization_group_size = 0;
+            // For int8 ASYM model, activation_sum should fit to weight zp
+            if (is_8bit_asym_wei(params) && params.has_decompression_zp == true &&
+                dynamic_quantization_group_size > zp_group_size && (zp_group_size % input_load_size) == 0) {
+                dynamic_quantization_group_size = zp_group_size;
             }
+
+            GPU_DEBUG_LOG << "FC dyn-quantize by per-token. Actual dyn_quan_group_size("
+                          << dynamic_quantization_group_size << ") : From scale_group_size (" << scale_group_size
+                          << ", zp_group_size(" << zp_group_size << "), zp_group_num(" << zp_group_num
+                          << "), ifm_size (" << get_input_bf_size(params).second << ")" << std::endl;
+            return (size_t)dynamic_quantization_group_size;
         }
     }
 
-    const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+    // Grouped-size dyn-quan : use aligned sizes which are in 'available_quantize_grp_size'
     for (auto group_size : available_quantize_grp_size) {
-        if (dynamic_quantization_group_size >= group_size) {
+        if (dynamic_quantization_group_size >= group_size && (scale_group_size % group_size) == 0) {
             dynamic_quantization_group_size = group_size;
 
             if (dynamic_quantization_group_size > scale_group_size) {
-                GPU_DEBUG_TRACE_DETAIL << " Scale group size " << scale_group_size << " is smaller than FC dyn-quan group size "
-                                        << dynamic_quantization_group_size << ". Reduce FC dyn-quan group size to scale size." << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << " Scale group size " << scale_group_size
+                                       << " is smaller than FC dyn-quan group size " << dynamic_quantization_group_size
+                                       << ". Reduce FC dyn-quan group size to scale size." << std::endl;
                 dynamic_quantization_group_size = scale_group_size;
             }
+
             return (size_t)dynamic_quantization_group_size;
         }
     }
@@ -104,67 +136,70 @@ static size_t get_dynamic_quantize_group_size(const fully_connected_params& para
     return 0;
 }
 
-static bool should_dynamic_quantize(const fully_connected_params& params, bool print_log = false) {
+bool should_dynamic_quantize(const fully_connected_params& params) {
     size_t dynamic_quantization_group_size = get_dynamic_quantize_group_size(params);
 
     if (params.inputs[0].GetFirstElementOffset() != 0)
         return false;
 
     if (dynamic_quantization_group_size < min_quantize_grp_size) {
-            GPU_DEBUG_TRACE_DETAIL << "Set dynamic_quantize_group_size " << dynamic_quantization_group_size
-                            << " is smaller than minimum supported size 32" << std::endl;
-            return false;
+        GPU_DEBUG_TRACE_DETAIL << "Set dynamic_quantize_group_size " << dynamic_quantization_group_size
+                               << " is smaller than minimum supported size 32" << std::endl;
+        return false;
     }
+
+    const size_t scale_group_size = get_scale_group_size(params);
+    if ((scale_group_size % min_quantize_grp_size) != 0)
+        return false;
 
     auto threads = get_input_bf_size(params);
     auto input_b = threads.first;
     auto input_f = threads.second;
 
-    const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) &&
         (params.is_shape_agnostic || (params.inputs[0].Batch().v > 1 && input_b > min_slm_size)) &&
         params.inputs[0].GetDType() == Datatype::F16 && is_weight_dyn_quantizable(params)) {
-        if (print_log) {
-            GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size <<
-                ", Dyn-quan group size: " << dynamic_quantization_group_size <<
-                ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType()) <<
-                ", O:" << kernel_selector::toString(params.outputs[0].GetDType()) <<
-                ", W:" << kernel_selector::toString(params.weights.GetDType()) <<
-                "), Format(W:" << kernel_selector::toString(params.weights.GetLayout()) <<
-                ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v <<
-                ", Y: " << params.inputs[0].Y().v << std ::endl;
-        }
+        GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size
+                               << ", Dyn-quan group size: " << dynamic_quantization_group_size
+                               << ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType())
+                               << ", O:" << kernel_selector::toString(params.outputs[0].GetDType())
+                               << ", W:" << kernel_selector::toString(params.weights.GetDType())
+                               << "), Format(W:" << kernel_selector::toString(params.weights.GetLayout())
+                               << ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v
+                               << ", Y: " << params.inputs[0].Y().v << std ::endl;
         return true;
     }
 
     return false;
 }
 
-static bool is_weight_vertical(const fully_connected_params& params, size_t output_f) {
+bool is_weight_vertical(const fully_connected_params& params, size_t output_f) {
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
-    GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f << " is small compared to the available threads. "
+    GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f
+                           << " is small compared to the available threads. "
                            << "(computeUnitsCount : " << params.engineInfo.computeUnitsCount
                            << " min_num_threads : " << min_num_threads << ")" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Use ofm_tile size 1 if the batch size is 1." << std::endl;
-    return (params.weights.IFM().v >= params.weights.OFM().v * 3
-            && output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads);
+    return (params.weights.IFM().v >= params.weights.OFM().v * 3 &&
+            output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads);
 }
 
-static bool is_weight_horizontal(const fully_connected_params& params, size_t output_f) {
+bool is_weight_horizontal(const fully_connected_params& params, size_t output_f) {
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
-    GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f << " is large compared to the available threads. "
+    GPU_DEBUG_TRACE_DETAIL << "out_ofm (== weight N dim) size " << output_f
+                           << " is large compared to the available threads. "
                            << "(computeUnitsCount : " << params.engineInfo.computeUnitsCount
                            << " min_num_threads : " << min_num_threads << ")" << std::endl;
-    return (params.weights.OFM().v > params.weights.IFM().v * 3
-            && output_f / 4 /* tile_ofm=4 */ > min_num_threads * 1.5);
+    return (params.weights.OFM().v > params.weights.IFM().v * 3 &&
+            output_f / 4 /* tile_ofm=4 */ > min_num_threads * 1.5);
 }
 
-static bool is_weight_small_kn(const fully_connected_params& params, size_t output_f) {
+bool is_weight_small_kn(const fully_connected_params& params, size_t output_f) {
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
     return output_f / 2 /*most frequently used tile_ofm*/ <= min_num_threads;
 }
 
-static bool is_swiglu_fused(const fully_connected_params& params) {
+bool is_swiglu_fused(const fully_connected_params& params) {
     bool swiglu_fused = false;
     if (!params.fused_ops.empty()) {
         for (auto p : params.fused_ops) {
@@ -176,13 +211,15 @@ static bool is_swiglu_fused(const fully_connected_params& params) {
         OPENVINO_ASSERT(params.fused_ops.size() == 1);
     return swiglu_fused;
 }
-static bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f) {
+bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f) {
     if (is_swiglu_fused(params))
         return true;
     size_t min_num_threads = params.engineInfo.computeUnitsCount * simd;
-    return (params.weights.OFM().v > params.weights.IFM().v * 6
-            && output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_num_threads * 1.5);
+    return (params.weights.OFM().v > params.weights.IFM().v * 6 &&
+            output_f / 8 /* tile_ofm=4 and outer_ofm=2 */ > min_num_threads * 1.5);
 }
+}  // namespace fc_kernel_bf_tiled_utils
+using namespace fc_kernel_bf_tiled_utils;
 
 FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled") {
     for (unsigned tile_b = 1; tile_b <= 32; ++tile_b)
@@ -621,7 +658,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
-        const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+        const size_t scale_group_size = get_scale_group_size(params);
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
             add_decompress_scale_post_op = true;
@@ -703,16 +740,21 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 1));
         jit.AddConstant(MakeJitConstant("DQ_DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", quantize_grp_size));
+
+        jit.AddConstant(MakeJitConstant("PER_TOKEN_SIZE_DYN_QUANTIZE",
+                                    is_per_token_dynamic_quantize(params) && quantize_grp_size == get_input_bf_size(params).second));
     } else {
         if (add_decompress_scale_post_op)
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
         jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", min_quantize_grp_size));
     }
-    jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
 
+    jit.AddConstant(MakeJitConstant("INPUT_LOAD_SIZE", input_load_size));
+    jit.AddConstant(MakeJitConstant("DQ_TYPE", "char"));
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
+
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
     jit.AddConstant(MakeJitConstant("HALF_TILE_B", dispatchData.tile_m/2));
     jit.AddConstant(MakeJitConstant("TILE_OFM", dispatchData.tile_n));
@@ -830,9 +872,9 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
                 OPENVINO_ASSERT(input.X().pad.Total() == 0 && input.Y().pad.Total() == 0, "[GPU] Invalid padding in spatial axes observed in FC bf tiled.");
             else
-                OPENVINO_ASSERT(input.Feature().pad.Total() == 0, "[GPU] Invalid padding in f axis observed in FC bf tiled.");
+                OPENVINO_ASSERT(input.Feature().pad.Total(true) == 0, "[GPU] Invalid padding in f axis observed in FC bf tiled.");
 
-            if (!kd.internalBufferSizes.empty()) {
+            if (!kd.internalBuffers.empty()) {
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
                 if (execute_type == KernelType::DEFAULT) {
                     kd.kernels[0].skip_execution = true;
@@ -840,19 +882,21 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
                     kd.kernels[0].skip_execution = false;
                     size_t input_f = get_input_bf_size(prim_params).second;
                     size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
+                    OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
+                    // half type of de_quan_scale and activation sum for each quantized group
+                    size_t quan_var_size = (input_size / quantize_grp_size) * 2 * 2;
 
-                    if (kd.internalBufferSizes[0] < input_size) {
-                        kd.internalBufferSizes.clear();
+                    if (kd.internalBuffers[0].byte_count < input_size ||
+                        kd.internalBuffers[1].byte_count < quan_var_size) {
+                        kd.internalBuffers.clear();
                         // quantized input is char type
-                        kd.internalBufferSizes.push_back(input_size);
-                        // half type of de_quan_scale and activation sum for each quantized group
-                        OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
-                        kd.internalBufferSizes.push_back((input_size / quantize_grp_size) * 2 * 2);
+                        kd.internalBuffers.push_back(input_size);
+                        // float type of de_quan_scale and activation sum for each quantized group
+                        kd.internalBuffers.push_back(quan_var_size);
                     }
 
-                    OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
-                    kd.kernels[0].params.workGroups.global = {std::max((input_size / quantize_grp_size), (size_t)1), 1, 1};
-                    kd.kernels[0].params.workGroups.local = {16, 1, 1};
+                    kd.kernels[0].params.workGroups.global = {(std::max((input_size / quantize_grp_size), (size_t)1)), 1, 1};
+                    kd.kernels[0].params.workGroups.local = {1, 1, 1};
                 }
             }
         };
@@ -1027,8 +1071,10 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         auto input_size = std::max(fc_params.inputs[0].PhysicalSize(), get_input_bf_size(fc_params).second);
         if (!params.is_shape_agnostic)
             input_size = std::max(input_size, Align(get_input_bf_size(fc_params).first, lws_batches) * get_input_bf_size(fc_params).second);
-        dyn_quan_dispatch.gws = {input_size / quantize_grp_size, 1, 1};
-        dyn_quan_dispatch.lws = {16, 1, 1};
+
+        dyn_quan_dispatch.gws = {(input_size / quantize_grp_size), 1, 1};
+        dyn_quan_dispatch.lws = {1, 1, 1};
+
         quan_kernel.params.workGroups.global = dyn_quan_dispatch.gws;
         quan_kernel.params.workGroups.local = dyn_quan_dispatch.lws;
         quan_kernel.skip_execution = false;
@@ -1057,9 +1103,9 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         // char type quantized input
-        kd.internalBufferSizes.push_back(input_size);
+        kd.internalBuffers.push_back(input_size);
         // half type of de_quan_scale and activation sum for each quantized group
-        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2 * 2);
+        kd.internalBuffers.push_back((input_size / quantize_grp_size) * 2 * 2);
         kernel_number++;
     }
     kd.internalBufferDataType = Datatype::F16;

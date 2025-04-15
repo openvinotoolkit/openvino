@@ -14,14 +14,13 @@
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/graph_util.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu) {
     using namespace ov::pass::pattern;
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     // Three FCs connected to the same input
     size_t min_num_fcs_to_fuse = 3;
     // Note:
@@ -38,19 +37,19 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         // if it is not constant, the only allowed cases are Constant => convert
         // All FCs have same # of valid inputs (e.g., if one of the fc has zp, all fcs have zp)
         auto is_constant = [](const std::shared_ptr<ov::Node> node) {
-            if (std::dynamic_pointer_cast<ov::op::v0::Constant>(node))
+            if (ov::as_type_ptr<ov::op::v0::Constant>(node))
                 return true;
-            if (std::dynamic_pointer_cast<ov::op::v0::Convert>(node) && std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
+            if (ov::as_type_ptr<ov::op::v0::Convert>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
                 return true;
-            if (std::dynamic_pointer_cast<ov::op::v1::Transpose>(node) && std::dynamic_pointer_cast<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
+            if (ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
                 return true;
             return false;
         };
         auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
-            return std::dynamic_pointer_cast<op::Placeholder>(node);
+            return ov::as_type_ptr<op::Placeholder>(node);
         };
 
-        const auto& fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
+        const auto& fc = ov::as_type_ptr<op::FullyConnectedCompressed>(output.get_node_shared_ptr());
         const auto& input = fc->get_input_node_shared_ptr(0);
         if (!fc->get_input_partial_shape(0).is_dynamic())
             return false;
@@ -58,7 +57,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         int32_t nodes_with_bias = 0;
         int32_t nodes_with_zp = 0;
         for (const auto& u : input->get_users()) {
-            const auto& fc_user = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(u);
+            const auto& fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(u);
             if (!fc_user)
                 continue;
             auto num_inputs = fc_user->inputs().size();
@@ -93,13 +92,13 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         ov::NodeVector zp_nodes;
         int32_t bias_rank = -1;
         for (auto user : input_node->get_users()) {
-            auto fc_user = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(user);
+            auto fc_user = ov::as_type_ptr<op::FullyConnectedCompressed>(user);
             if (fc_user) {
                 OPENVINO_ASSERT(fc_user->inputs().size() >= 4, "Compressed FC should have at least 4 inputs");
                 fc_nodes.push_back(fc_user);
                 fc_nodes_vec.push_back(fc_user);
                 weight_nodes.push_back(fc_user->get_input_node_shared_ptr(1));
-                if (!std::dynamic_pointer_cast<op::Placeholder>(fc_user->get_input_node_shared_ptr(2))) {
+                if (!ov::as_type_ptr<op::Placeholder>(fc_user->get_input_node_shared_ptr(2))) {
                     if (bias_rank == -1)
                         bias_rank = static_cast<int32_t>(fc_user->get_input_partial_shape(2).size());
                     if (bias_rank != static_cast<int32_t>(fc_user->get_input_partial_shape(2).size()))
@@ -198,7 +197,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                             }
                         }
                     }
-                    fc_nodes[i] = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(new_fc);
+                    fc_nodes[i] = ov::as_type_ptr<op::FullyConnectedCompressed>(new_fc);
                     bias_node->clear_control_dependencies();
                     orig_fc->clear_control_dependencies();
                 }
@@ -225,10 +224,10 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             bool is_scalar = (ov::shape_size(zp_nodes[0]->get_output_shape(0)) == 1);
             int32_t scalar_zp_val = 0;
             if (is_scalar) {
-                if (auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_nodes[0])) {
+                if (auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(zp_nodes[0])) {
                     scalar_zp_val = zp_const->cast_vector<int32_t>()[0];
-                } else if (auto zp_convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(zp_nodes[0])) {
-                    auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
+                } else if (auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(zp_nodes[0])) {
+                    auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
                     scalar_zp_val = zp_const->cast_vector<int32_t>()[0];
                 }
                 fused_zps = zp_nodes[0];
@@ -240,11 +239,11 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                         return false;
                     // validate all zp values are same
                     int32_t cur_zp_val = 0;
-                    if (auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_nodes[i])) {
+                    if (auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(zp_nodes[i])) {
                         cur_zp_val = zp_const->cast_vector<int32_t>()[0];
-                    } else if (auto zp_convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(zp_nodes[i])) {
+                    } else if (auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(zp_nodes[i])) {
                         auto zp_const =
-                            std::dynamic_pointer_cast<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
+                            ov::as_type_ptr<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
                         cur_zp_val = zp_const->cast_vector<int32_t>()[0];
                     } else {
                         OPENVINO_ASSERT("Unsupported zp input node for FC horizontal fusion");
@@ -300,6 +299,70 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             }
             org_fc->clear_control_dependencies();
         }
+
+        // Merge scalar multiply layers into one when all scalar constants have the same value.
+        //
+        //          FusedFC                     FusedFC
+        //             |                           |
+        //       VariadicSplit      ==>         new_Mul  (to be fused with FusedFC)
+        //      /      |      \                    |
+        //    Mul     Mul     Mul            VariadicSplit
+        //     |       |       |             |     |     |
+        const auto is_scalar_const = [](const ov::Output<ov::Node>& output) -> bool {
+            if (!ov::is_type<ov::op::v0::Constant>(output.get_node()))
+                return false;
+            const auto shape = output.get_partial_shape();
+            if (shape.is_dynamic())
+                return false;
+            return ov::shape_size(shape.to_shape()) == 1;
+        };
+
+        std::vector<float> const_values;
+        bool can_be_merged = true;
+        std::shared_ptr<ov::op::v0::Constant> const_node = nullptr;
+        for (auto& output : output_split->outputs()) {
+            if (output.get_target_inputs().size() != 1) {
+                can_be_merged = false;
+                break;
+            }
+            auto target_node = output.get_target_inputs().begin()->get_node();
+            if (!ov::is_type<ov::op::v1::Multiply>(target_node)) {
+                can_be_merged = false;
+                break;
+            }
+
+            for (auto& input : target_node->inputs()) {
+                if (input.get_source_output() != output) {
+                    if (is_scalar_const(input.get_source_output())) {
+                        const_node = ov::as_type_ptr<ov::op::v0::Constant>(
+                            input.get_source_output().get_node_shared_ptr());
+                        const_values.emplace_back(const_node->cast_vector<float>()[0]);
+                    } else {
+                        can_be_merged = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (const_values.size() != split_size ||
+            !std::equal(const_values.begin() + 1, const_values.end(), const_values.begin())) {
+            can_be_merged = false;
+        }
+
+        if (can_be_merged) {
+            auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_fc, const_node);
+            new_mul->set_friendly_name(new_fc->get_friendly_name() + "_mul");
+            ov::NodeVector fused_mul_nodes;
+            output_split->input(0).replace_source_output(new_mul);
+            for (auto& output : output_split->outputs()) {
+                auto target_node = output.get_target_inputs().begin()->get_node();
+                fused_mul_nodes.push_back(target_node->shared_from_this());
+                ov::replace_output_update_name(target_node->output(0), output);
+            }
+            ov::copy_runtime_info(fused_mul_nodes, new_mul);
+        }
+
         GPU_DEBUG_TRACE_DETAIL << "Created a new fused FC " << new_fc_name << std::endl;
         return true;
     };
@@ -308,5 +371,4 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,9 +44,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights,
                          ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(true),
-                                            ::testing::Values(DecompressionSubtractType::full),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::full),
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
                                             ::testing::ValuesIn(fusing_params),
@@ -61,9 +62,9 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_corner_cases = {
 };
 
 const std::vector<bool> transpose_weights = {true, false};
-const std::vector<DecompressionSubtractType> decompression_subtract_type = {DecompressionSubtractType::full,
-                                                                            DecompressionSubtractType::scalar,
-                                                                            DecompressionSubtractType::empty};
+const std::vector<DecompressionType> decompression_subtract_type = {DecompressionType::full,
+                                                                            DecompressionType::scalar,
+                                                                            DecompressionType::empty};
 const std::vector<bool> reshape_on_decompression = {true, false};
 const std::vector<ov::test::ElementType> decompression_precisions_corner_cases = {ov::element::f16, ov::element::f32};
 
@@ -72,8 +73,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_corner_cases,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_corner_cases),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions_corner_cases),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::ValuesIn(transpose_weights),
+                                            ::testing::Values(DecompressionType::full),
                                             ::testing::ValuesIn(decompression_subtract_type),
                                             ::testing::ValuesIn(reshape_on_decompression),
                                             ::testing::ValuesIn(filter_additional_config_basic()),

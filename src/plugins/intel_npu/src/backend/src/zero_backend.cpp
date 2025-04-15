@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,12 @@
 
 #include <vector>
 
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "zero_device.hpp"
 
 namespace intel_npu {
 
-ZeroEngineBackend::ZeroEngineBackend(const Config& config) : _logger("ZeroEngineBackend", Logger::global().level()) {
+ZeroEngineBackend::ZeroEngineBackend() : _logger("ZeroEngineBackend", Logger::global().level()) {
     _logger.debug("ZeroEngineBackend - initialize started");
 
     _initStruct = std::make_shared<ZeroInitStructsHolder>();

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/file_utils.hpp"
 #include "frontend_test.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 #ifndef __APPLE__  // TODO: add getVmRSSInKB() for Apple platform
 

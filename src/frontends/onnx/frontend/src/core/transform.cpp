@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ namespace frontend {
 namespace onnx {
 namespace transform {
 namespace {
-TypeProto get_input_type(std::string const& name, GraphProto& graph) {
+TypeProto get_input_type(const std::string& name, GraphProto& graph) {
     for (const auto& input : graph.input()) {
         if (input.name() == name) {
             return input.type();

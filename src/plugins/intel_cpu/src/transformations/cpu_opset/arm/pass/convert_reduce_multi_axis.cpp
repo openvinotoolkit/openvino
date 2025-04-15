@@ -3,6 +3,7 @@
 
 #include "convert_reduce_multi_axis.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -18,7 +19,7 @@ ov::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert_red
         const auto& input0 = reduce->input_value(0);
         const auto& input1 = reduce->input_value(1);
         const auto& data_shape0 = input0.get_partial_shape();
-        auto reduction_axes = std::dynamic_pointer_cast<ov::opset8::Constant>(input1.get_node_shared_ptr());
+        auto reduction_axes = ov::as_type_ptr<ov::opset8::Constant>(input1.get_node_shared_ptr());
         if (!reduction_axes) {
             return false;
         }

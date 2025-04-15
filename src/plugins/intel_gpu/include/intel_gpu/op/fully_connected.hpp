@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 class FullyConnected : public ov::op::Op {
 public:
@@ -20,7 +18,7 @@ public:
     FullyConnected(const ov::Output<Node>& A,
                    const ov::Output<Node>& B,
                    const ov::Output<Node>& bias,
-                   const ov::element::Type output_type = ov::element::undefined);
+                   const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
@@ -34,6 +32,4 @@ protected:
     ov::element::Type m_output_type;
 };
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu::op

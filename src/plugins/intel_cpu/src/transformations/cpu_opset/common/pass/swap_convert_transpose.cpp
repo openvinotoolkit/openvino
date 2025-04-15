@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "swap_convert_transpose.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -27,8 +28,9 @@ ov::intel_cpu::SwapConvertTranspose::SwapConvertTranspose() {
         auto convert = pattern_map.at(convert_m).get_node_shared_ptr();
         auto transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
 
-        if (convert->get_output_target_inputs(0).size() != 1)
+        if (convert->get_output_target_inputs(0).size() != 1) {
             return false;
+        }
 
         ov::OutputVector transposeInputs = transpose->input_values();
         transposeInputs[0] = convert->input_value(0);

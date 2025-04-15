@@ -14,8 +14,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor) {
     using namespace ov::pass::pattern;
@@ -30,7 +29,7 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor)
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         if (scale_factor == 0.f || scale_factor == 1.f)
             return false;
-        auto fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(m.get_match_root());
+        auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
         if (!fc || transformation_callback(fc))
             return false;
 
@@ -53,7 +52,7 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor)
         fc->input(0).replace_source_output(scale_down);
 
         // If FC has bias as input, scaling must be applied to bias as well
-        if (!std::dynamic_pointer_cast<op::Placeholder>(bias)) {
+        if (!ov::as_type_ptr<op::Placeholder>(bias)) {
             std::shared_ptr<ov::Node> bias_scale_down_const = (bias->get_element_type() == ov::element::f16) ? scale_down_const_f16 : scale_down_const_f32;
             auto bias_scale_down = std::make_shared<ov::op::v1::Multiply>(bias, bias_scale_down_const);
             bias_scale_down->set_friendly_name(fc->get_friendly_name() + "_bias_scale_down");
@@ -77,5 +76,4 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor)
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

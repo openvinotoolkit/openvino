@@ -9,8 +9,7 @@
 #include "cpu_memory.h"
 #include "executor_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // @todo require explicit initialization of all the attributes?
 struct FCAttrs {
@@ -20,10 +19,10 @@ struct FCAttrs {
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
     uint64_t dynamicQuantizationGroupSize;
+    bool nonConstantWeights = false;
 
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
 };
 
 using FCConfig = executor::Config<FCAttrs>;
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
+#include "openvino/op/non_max_suppression.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace nms_v9 {

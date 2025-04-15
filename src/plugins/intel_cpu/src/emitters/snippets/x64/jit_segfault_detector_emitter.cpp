@@ -6,6 +6,8 @@
 
 #    include "jit_segfault_detector_emitter.hpp"
 
+#    include <utility>
+
 #    include "emitters/plugin/x64/utils.hpp"
 
 using namespace dnnl::impl::utils;
@@ -13,8 +15,7 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler =
     std::make_shared<ThreadLocal<jit_uni_segfault_detector_emitter*>>();
@@ -29,7 +30,7 @@ jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(dnnl::impl:
       m_target_emitter(target_emitter),
       is_target_use_load_emitter(is_load),
       is_target_use_store_emitter(is_store),
-      m_target_node_name(target_node_name) {}
+      m_target_node_name(std::move(target_node_name)) {}
 
 size_t jit_uni_segfault_detector_emitter::get_inputs_num() const {
     return 1;
@@ -59,7 +60,7 @@ void jit_uni_segfault_detector_emitter::save_target_emitter() const {
     h->mov(h->rax, reinterpret_cast<size_t>(set_local_handler_overload));
     h->mov(abi_param1, reinterpret_cast<uint64_t>(this));
 
-    spill.rsp_align();
+    spill.rsp_align(h->rbx.getIdx());
     h->call(h->rax);
     spill.rsp_restore();
 
@@ -93,7 +94,6 @@ void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_addr
     h->pop(h->r15);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif

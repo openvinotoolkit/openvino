@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include "support/Mutex.h"
 #include "utils/debug_capabilities.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void configureThreadSafe(const std::function<void(void)>& config) {
     // Issue: CVS-123514
@@ -20,7 +19,7 @@ void configureThreadSafe(const std::function<void(void)>& config) {
 arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm,
                                                         float alpha = 0.0,
                                                         float beta = 0.0,
-                                                        float gamma = 0.0) {
+                                                        [[maybe_unused]] float gamma = 0.0) {
     switch (algorithm) {
     case Algorithm::EltwiseRelu:
         if (alpha == 0) {
@@ -69,5 +68,4 @@ bool checkActivationLayerInfo(Algorithm algorithm) {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -14,29 +14,29 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
-#    include "transformations/tpp/x64/op/brgemm.hpp"
+#    include "transformations/tpp/common/op/brgemm.hpp"
 #    include "transformations/tpp/x64/op/equation.hpp"
 #    include "transformations/tpp/x64/op/reduce.hpp"
 #    include "transformations/tpp/x64/op/scalar.hpp"
 #endif
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 using ShapeInferPtr = IShapeInferSnippetsFactory::ShapeInferPtr;
 
 ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
                                                                         const std::shared_ptr<ov::Node>& op) const {
     const auto& maker_iter = specific_ops_registry.find(key);
-    if (maker_iter != specific_ops_registry.end())
+    if (maker_iter != specific_ops_registry.end()) {
         return maker_iter->second(op);
+    }
     return {};
 }
 
-#define SHAPE_INFER_PREDEFINED(OP, InferType)                                \
-    {                                                                        \
-        OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
-            return std::make_shared<InferType>();                            \
-        }                                                                    \
+#define SHAPE_INFER_PREDEFINED(OP, InferType)                                                 \
+    {                                                                                         \
+        OP::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) { \
+            return std::make_shared<InferType>();                                             \
+        }                                                                                     \
     }
 #define SHAPE_INFER_OP_SPECIFIC(OP)                                          \
     {                                                                        \
@@ -75,5 +75,4 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
 #undef SHAPE_INFER_OP_SPECIFIC
 #undef SHAPE_INFER_PREDEFINED
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets

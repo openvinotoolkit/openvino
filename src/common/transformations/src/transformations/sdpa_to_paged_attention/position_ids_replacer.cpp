@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -72,8 +73,15 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
 
     auto p_neg_const = wrap_type<v0::Constant>();
     auto p_neg_mul = wrap_type<v1::Multiply>({p_current_len, p_neg_const});
+
+    // For now, it has always been a constant, but this may change in the future.
+    // In case of model being in FP16, there will be a decompressing subgraph:
+    // i.e. Constant -> Convert -> Slice
+    //
+    // Also, it hasn't been observed yet, but, theoretically, there can also be a
+    // dequantizing subgraph, so it's going to be any_input() here.
+    auto p_rotary_emb_sincos = pattern::any_input();
     // the rotary_emb_cos/rotary_emb_sin are sliced by the total length [1,..4096,1,128]
-    auto p_rotary_emb_sincos = wrap_type<v0::Constant>();
     auto p_slice_1 = wrap_type<v8::Slice>({p_rotary_emb_sincos, _const(), p_opt_reshape, _const(), _const()});
     auto p_slice_2 = wrap_type<v8::Slice>({p_slice_1, p_neg_mul, _const(), _const(), _const()});
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/opsets/opset9.hpp"
 
 using namespace std;
 using namespace ov;
@@ -33,14 +32,14 @@ static shared_ptr<op::internal::AUGRUSequence> augru_seq_init(const augru_sequen
     auto hidden_size = params.hidden_size;
     auto et = params.et;
 
-    const auto X = make_shared<opset9::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
+    const auto X = make_shared<op::v0::Parameter>(et, PartialShape{batch_size, seq_length, input_size});
     const auto initial_hidden_state =
-        make_shared<opset9::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
-    const auto sequence_lengths = make_shared<opset9::Parameter>(et, PartialShape{batch_size});
-    const auto W = make_shared<opset9::Parameter>(et, PartialShape{num_directions, hidden_size * 3, input_size});
-    const auto R = make_shared<opset9::Parameter>(et, PartialShape{num_directions, hidden_size * 3, hidden_size});
-    const auto B = make_shared<opset9::Parameter>(et, PartialShape{num_directions, hidden_size * 3});
-    const auto A = make_shared<opset9::Parameter>(et, PartialShape{batch_size, seq_length, 1});
+        make_shared<op::v0::Parameter>(et, PartialShape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<op::v0::Parameter>(et, PartialShape{batch_size});
+    const auto W = make_shared<op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 3, input_size});
+    const auto R = make_shared<op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 3, hidden_size});
+    const auto B = make_shared<op::v0::Parameter>(et, PartialShape{num_directions, hidden_size * 3});
+    const auto A = make_shared<op::v0::Parameter>(et, PartialShape{batch_size, seq_length, 1});
 
     const auto augru_sequence = make_shared<op::internal::AUGRUSequence>(
         X,
@@ -168,7 +167,7 @@ TEST(type_prop, augru_sequence_invalid_input_dimension) {
     params.et = element::f32;
 
     auto augru_sequence = augru_seq_init(params);
-    auto invalid_rank_tensor = make_shared<opset9::Parameter>(params.et, PartialShape{});
+    auto invalid_rank_tensor = make_shared<op::v0::Parameter>(params.et, PartialShape{});
 
     // Validate invalid rank0 tensor for all inputs: X, initial_hidden_state, W, R, B, A
     for (size_t i = 0; i < augru_sequence->get_input_size(); i++) {
@@ -210,7 +209,7 @@ TEST(type_prop, augru_sequence_input_dynamic_rank) {
     param.et = element::f32;
 
     auto augru_sequence = augru_seq_init(param);
-    auto dynamic_tensor = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    auto dynamic_tensor = make_shared<op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
 
     for (size_t i = 0; i < augru_sequence->get_input_size(); i++) {
         augru_sequence = augru_seq_init(param);
@@ -240,13 +239,13 @@ TEST(type_prop, augru_sequence_all_inputs_dynamic_rank) {
     param.hidden_size = 128;
     param.et = element::f32;
 
-    const auto X = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto initial_hidden_state = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto sequence_lengths = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto W = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto R = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto B = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
-    const auto A = make_shared<opset9::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto X = make_shared<op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto initial_hidden_state = make_shared<op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto sequence_lengths = make_shared<op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto W = make_shared<op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto R = make_shared<op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto B = make_shared<op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
+    const auto A = make_shared<op::v0::Parameter>(param.et, PartialShape::dynamic(Rank::dynamic()));
 
     const auto augru_sequence = make_shared<op::internal::AUGRUSequence>(X,
                                                                          initial_hidden_state,
@@ -273,7 +272,7 @@ TEST(type_prop, augru_sequence_invalid_attention_gate_seq_length) {
     params.et = element::f32;
 
     auto augru_sequence = augru_seq_init(params);
-    auto invalid_attention_gate = make_shared<opset9::Parameter>(params.et, PartialShape{params.batch_size, 999, 1});
+    auto invalid_attention_gate = make_shared<op::v0::Parameter>(params.et, PartialShape{params.batch_size, 999, 1});
     augru_sequence->set_argument(6, invalid_attention_gate);
 
     OV_EXPECT_THROW(augru_sequence->validate_and_infer_types(),
@@ -292,7 +291,7 @@ TEST(type_prop, augru_sequence_invalid_attention_gate_batch) {
     params.et = element::f32;
 
     auto augru_sequence = augru_seq_init(params);
-    auto invalid_attention_gate = make_shared<opset9::Parameter>(params.et, PartialShape{999, params.seq_length, 1});
+    auto invalid_attention_gate = make_shared<op::v0::Parameter>(params.et, PartialShape{999, params.seq_length, 1});
     augru_sequence->set_argument(6, invalid_attention_gate);
 
     OV_EXPECT_THROW(augru_sequence->validate_and_infer_types(),

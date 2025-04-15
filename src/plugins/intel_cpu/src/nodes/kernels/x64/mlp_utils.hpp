@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,7 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 void llm_mlp_transpose_epi32_16x16(void* dst, void* src, int stride);
 void llm_mlp_quantize_bf16_i8(ov::bfloat16* psrc,
@@ -44,7 +41,4 @@ void llm_mlp_dequantize_i32_f32(int Batch,
                                 float* p_wsum_per_oc,
                                 float* p_wscale_per_oc,
                                 bool asym);
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
@@ -31,8 +32,7 @@ SDPAFusion::SDPAFusion() {
     auto mask = makePattern();
 
     auto k_transpose_order = pattern::wrap_type<ov::op::v0::Constant>([](const Output<Node>& node) {
-        auto axis_order =
-            std::dynamic_pointer_cast<ov::op::v0::Constant>(node.get_node_shared_ptr())->cast_vector<int64_t>();
+        auto axis_order = ov::as_type_ptr<ov::op::v0::Constant>(node.get_node_shared_ptr())->cast_vector<int64_t>();
         return axis_order == std::vector<int64_t>{0, 1, 3, 2};
     });
 

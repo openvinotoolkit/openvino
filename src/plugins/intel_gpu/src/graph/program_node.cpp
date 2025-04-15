@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,6 @@
 #include "gemm_inst.h"
 #include "fully_connected_inst.h"
 #include "deconvolution_inst.h"
-#include "quantize_inst.h"
-#include "reorder_inst.h"
 #include "pooling_inst.h"
 #include "reduce_inst.h"
 #include <impls/onednn/utils.hpp>
@@ -660,7 +658,7 @@ void program_node::select_preferred_formats(impl_types impl_type) {
 }
 
 void program_node::add_dependant_shape_of_node(const program_node* node) {
-    OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
+    OPENVINO_ASSERT(node->is_type<shape_of>() || node->is_type<input_layout>(), "[GPU] Expected node type is shape_of");
     dependant_shape_of_nodes.insert(node);
 }
 
@@ -1336,8 +1334,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_eltwise(prev_post_op_idx, alg, alpha, beta);
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
-                auto bin_ops_can_be_optimized = cur_node.is_type<data>() && cur_node.is_constant() &&
-                                                cur_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
+                auto bin_ops_can_be_optimized =
+                    cur_node.is_type<data>() && cur_node.is_constant() && cur_node.get_users().size() == 1 &&
+                    desc.get_data_type() == dnnl_f32 &&
+                    cur_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device;
 
                 auto bin_add_and_eltw = alpha == 1.0f && type_is_binary_add(cur_type) && bin_ops_can_be_optimized;
                 auto bin_mul_and_eltw = beta == 0.f && type_is_binary_mul(cur_type) && bin_ops_can_be_optimized;
@@ -1378,8 +1378,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_binary(prev_post_op_idx, alg, desc);
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
-                auto bin_ops_can_be_optimized = prev_node.is_type<data>() && prev_node.is_constant() &&
-                                                prev_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
+                auto bin_ops_can_be_optimized =
+                    prev_node.is_type<data>() && prev_node.is_constant() && prev_node.get_users().size() == 1 &&
+                    desc.get_data_type() == dnnl_f32 &&
+                    prev_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device;
 
                 auto eltw_and_bin_add = alpha == 1.0f && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
                 auto eltw_and_bin_mul = beta == 0.f && type_is_binary_mul(prev_type) && bin_ops_can_be_optimized;
@@ -1418,7 +1420,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
 
                 // Eltwise can be inserted into the output_scale if cur_beta is equal to 0.f
-                if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32) {
+                if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32 &&
+                    prev_node.as<data>().get_attached_memory_ptr()->get_allocation_type() != allocation_type::usm_device) {
                     memory::ptr prev_scale_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_scale_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + scale");
@@ -1558,30 +1561,66 @@ void program_node::create_onednn_primitive_attributes(
         } else if (desc.is_type<eltwise>()) {
             auto dep_idx = desc.outer_dep_start_idx;
             auto in = get_input_layout(dep_idx);
-            auto in_origin = in;
-            auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
-                if (is_type<fully_connected>()) {
-                    auto prim = this->as<fully_connected>().get_primitive();
-                    if (prim->input_size == 3) {
-                        cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+            auto fc_needs_full_tensor = [&]() {
+                for (size_t i = 0; i < cldnn_post_ops.size(); i++) {
+                    auto& desc = cldnn_post_ops[i];
+                    if (desc.is_type<eltwise>()) {
+                        auto prim = this->as<fully_connected>().get_primitive();
+                        auto dep_idx = desc.outer_dep_start_idx;
+                        auto in = get_input_layout(dep_idx);
+                        if (prim->input_size == 3 && in.batch() > 1 && in.feature() > 1)
+                            return true;
                     }
-                    auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab);
-                    post_ops.append_binary(alg, mem_desc);
-                    update_onednn_post_op_list(op_type, dep_idx, dnnl::memory::format_tag::ab, false,
-                            mem_desc.get_dims(), mem_desc.get_data_type());
-                } else if (is_type<gemm>()) {
+                }
+                return false;
+            };
+            auto set_binary_op = [&](dnnl::algorithm alg, onednn_post_op_type op_type) {
+                if (is_type<fully_connected>() || is_type<gemm>()) {
                     size_t rank = cldnn::format::dimension(in.format);
                     auto in_pshape = in.get_partial_shape();
                     auto out_pshape = get_output_layout().get_partial_shape();
-                    size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
-                    if (ones_to_add > 0) {
-                        layout new_layout = in;
-                        ov::PartialShape new_input_pshape;
-                        std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
-                        new_input_pshape = ov::PartialShape(dims);
-                        new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
-                        new_layout.set_partial_shape(new_input_pshape);
-                        in = new_layout;
+                    size_t ones_to_add = 0;
+
+                    if (is_type<fully_connected>()) {
+                        auto prim = this->as<fully_connected>().get_primitive();
+                        if (prim->input_size == in_pshape.size()) {
+                            if (prim->input_size >= 3 && !fc_needs_full_tensor()) {
+                                cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                                in_pshape = in.get_partial_shape();
+                            }
+                            ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                        } else {
+                            if (prim->input_size >= 3) {
+                                cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                                in_pshape = in.get_partial_shape();
+                                ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                            } else {
+                                ones_to_add = 2;
+                            }
+                        }
+                        if (ones_to_add > 0) {
+                            layout new_layout = in;
+                            ov::PartialShape new_input_pshape;
+                            auto last = in_pshape.begin() + in_pshape.size();
+                            if (in_pshape.size() > prim->input_size)
+                                last -= ones_to_add;
+                            std::vector<ov::Dimension> dims(in_pshape.begin(), last);
+                            new_input_pshape = ov::PartialShape(dims);
+                            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                            new_layout.set_partial_shape(new_input_pshape);
+                            in = new_layout;
+                        }
+                    } else {
+                        ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                        if (ones_to_add > 0) {
+                            layout new_layout = in;
+                            ov::PartialShape new_input_pshape;
+                            std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
+                            new_input_pshape = ov::PartialShape(dims);
+                            new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                            new_layout.set_partial_shape(new_input_pshape);
+                            in = new_layout;
+                        }
                     }
                     size_t in_batched_size = in.count() / (in.spatial(0) * in.spatial(1));
                     dnnl::memory::dims dims = onednn::convert_gemm_tensor(in.get_tensor(), rank, in_batched_size == 1);
@@ -1821,8 +1860,7 @@ void program_node::create_onednn_primitive_attributes(
         // Trying to combine multiplications and additions which are placed one after another.
         // We do it in the cycle because some optimization cases can be simplified again from time to time
         do {
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->disable_onednn_opt_post_ops)
+            GPU_DEBUG_IF(get_config().get_disable_onednn_post_ops_opt())
                 break;
             optimized_post_ops = try_optimize_post_ops(fused_ops, optimized_post_ops, attrs, optimization_is_finished);
         } while (!optimization_is_finished);

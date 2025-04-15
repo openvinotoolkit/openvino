@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ struct PortMap {
 class PortMapHelper {
 public:
     virtual ~PortMapHelper() = default;
-    virtual void execute(dnnl::stream strm, int n_iter = -1) = 0;
+    virtual void execute(const dnnl::stream& strm, int n_iter) = 0;
 
 protected:
     dnnl::primitive reorder;
@@ -65,7 +65,7 @@ protected:
  */
 class DynamicBuffer {
 public:
-    DynamicBuffer(const MemoryPtr& from_, const std::vector<MemoryPtr>& to_, const PortMap& map_rule_);
+    DynamicBuffer(MemoryPtr from_, std::vector<MemoryPtr> to_, const PortMap& map_rule_);
 
     void execute(const dnnl::engine& eng, const int iter);
     void transfer(const Node* node);
@@ -109,15 +109,23 @@ private:
 
 class TensorIterator : public Node {
 public:
-    TensorIterator(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    TensorIterator(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
-    void getSupportedDescriptors() override;
+    void getSupportedDescriptors() override{};
     void createPrimitive() override;
+    int registerToAllocationContext(int offset, AllocationContext& context) override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    bool neverExecute() const override {
+        return false;
+    }
     bool isExecutable() const override {
+        return true;
+    }
+    // @todo limit to particular in / out ports
+    bool usesInOutMemoryMultipleTimes() {
         return true;
     }
 
@@ -130,7 +138,7 @@ protected:
 
     bool needPrepareParams() const override;
     void prepareParams() override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
 private:
     void prepareInputPorts();
@@ -145,7 +153,7 @@ private:
 
     /* Dynamic support */
     void reshapeSubgraphInput();
-    void reshapeAndFillOutput(dnnl::stream strm);
+    void reshapeAndFillOutput(const dnnl::stream& strm);
     bool checkForInputAndBodyShapesInequality() const;
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
     void prepareParamsImpl(const bool compileStage);

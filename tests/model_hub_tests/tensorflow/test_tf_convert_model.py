@@ -1,13 +1,12 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
 import os
+import pytest
 import shutil
 import subprocess
 import tempfile
-
-import pytest
 import tensorflow as tf
 import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
@@ -18,11 +17,16 @@ from models_hub_common.utils import get_models_list
 from openvino import Core
 
 from utils import load_graph, get_input_signature, get_output_signature, unpack_tf_result, \
-    repack_ov_result_to_tf_format, get_output_signature_from_keras_layer, retrieve_inputs_info_for_signature
+    repack_ov_result_to_tf_format, get_output_signature_from_keras_layer, retrieve_inputs_info_for_signature, \
+    retrieve_inputs_info_from_input_spec
 
 
 def is_hf_link(link: str):
     return link.startswith("hf_")
+
+
+def is_tf_keras_application(link: str):
+    return link.startswith("tf_keras_applications")
 
 
 class TestTFHubConvertModel(TestConvertModel):
@@ -38,7 +42,7 @@ class TestTFHubConvertModel(TestConvertModel):
             elif library_type == "sentence-transformers":
                 from tf_sentence_transformers import SentenceTransformer
                 return SentenceTransformer.from_pretrained(model_name)
-        if 'storage.openvinotoolkit.org' in model_link:
+        elif 'storage.openvinotoolkit.org' in model_link:
             # this models is from public OpenVINO storage
             subprocess.check_call(["wget", "-nv", model_link], cwd=self.model_dir.name)
             model_file_name = os.path.basename(model_link)
@@ -51,6 +55,11 @@ class TestTFHubConvertModel(TestConvertModel):
             if model_file_name.endswith('.pb'):
                 graph = load_graph(model_file_name)
                 return graph
+        elif is_tf_keras_application(model_link):
+            if model_name == 'ResNet50':
+                return tf.keras.applications.resnet50.ResNet50(weights="imagenet")
+            else:
+                raise Exception('Unknown model from tf.keras.applications')
 
         load = hub.load(model_link)
         if 'serving_default' in list(load.signatures.keys()):
@@ -69,6 +78,11 @@ class TestTFHubConvertModel(TestConvertModel):
             input_signature = get_input_signature(model_obj)
         elif hasattr(model_obj, "input_signature") and model_obj.input_signature is not None:
             input_signature = model_obj.input_signature
+        elif hasattr(model_obj, "input_spec") and hasattr(model_obj, "inputs"):
+            # some Keras models have input_spec and inputs attributes instead of input_signature
+            inputs_info = retrieve_inputs_info_from_input_spec(model_obj.input_spec, model_obj.inputs)
+            self.output_signature = get_output_signature_from_keras_layer(model_obj)
+            return inputs_info
         else:
             assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
             input_signature = model_obj.structured_input_signature[1].items()
@@ -108,7 +122,8 @@ class TestTFHubConvertModel(TestConvertModel):
             for ind, output_name in enumerate(output_names):
                 output_dict[output_name] = tf_output[ind]
             return output_dict
-
+        elif isinstance(model_obj, tf.keras.models.Model) and len(inputs) == 1:
+            return unpack_tf_result(model_obj(list(inputs.values())[0]))
         # repack input dictionary to tensorflow constants
         tf_inputs = {}
         for input_name, input_value in inputs.items():

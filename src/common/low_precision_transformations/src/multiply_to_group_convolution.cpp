@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -24,16 +25,16 @@ MultiplyToGroupConvolutionTransformation::MultiplyToGroupConvolutionTransformati
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher &m) {
+bool MultiplyToGroupConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
     const auto multiply = m.get_match_root();
-    if (!canBeTransformed(context, multiply)) {
+    if (!canBeTransformed(multiply)) {
         return false;
     }
 
@@ -54,7 +55,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         dequantization = NetworkHelper::foldDequantization(multiply, inputIndex, defaultPrecisions);
     }
 
-    element::Type weightsPrecision = element::undefined;
+    element::Type weightsPrecision = element::dynamic;
     if (updatePrecisions) {
         // try to find restrictions on weights for GroupConvolution
         if (restrictions.size() > 1ul) {
@@ -65,7 +66,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         }
 
         // if restrictions are absent precisions attribute is used
-        if (weightsPrecision == element::undefined) {
+        if (weightsPrecision == element::dynamic) {
             const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
             const auto precisions = precisionsAttribute == nullptr ?
                 defaultPrecisions :
@@ -142,8 +143,8 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     return true;
 }
 
-bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!CleanupTransformation::canBeTransformed(context, operation)) {
+bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!CleanupTransformation::canBeTransformed(operation)) {
         return false;
     }
 

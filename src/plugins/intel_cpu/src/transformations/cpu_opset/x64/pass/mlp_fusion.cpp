@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset6.hpp"
@@ -103,7 +104,7 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
 
     auto result = down_proj;
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -153,8 +154,9 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
             up_proj_w = pattern_map.at(up_proj_weight_i8);
 
             if (pattern_map.count(down_proj_weight_i8) > 0) {
-                if (pattern_map.count(down_proj_weight_scales_per_OC) == 0)
+                if (pattern_map.count(down_proj_weight_scales_per_OC) == 0) {
                     return false;
+                }
                 is_down_proj_int8 = true;
                 down_proj_w = pattern_map.at(down_proj_weight_i8);
             } else {
@@ -172,29 +174,37 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
         // make sure that:
         //  - shape of gate/up's weight is [down_size, up_size]
         //  - shape of down's weight is [up_size, down_size]
-        if (!gate_proj_w_pshape.is_static())
+        if (!gate_proj_w_pshape.is_static()) {
             return false;
-        if (!up_proj_w_pshape.is_static())
+        }
+        if (!up_proj_w_pshape.is_static()) {
             return false;
-        if (!down_proj_w_pshape.is_static())
+        }
+        if (!down_proj_w_pshape.is_static()) {
             return false;
+        }
 
         auto up_shape = up_proj_w_pshape.get_shape();
         auto down_shape = down_proj_w_pshape.get_shape();
 
-        if (gate_proj_w_pshape.get_shape() != up_shape)
+        if (gate_proj_w_pshape.get_shape() != up_shape) {
             return false;
-        if (up_shape.size() != 2)
+        }
+        if (up_shape.size() != 2) {
             return false;
-        if (down_shape.size() != 2)
+        }
+        if (down_shape.size() != 2) {
             return false;
+        }
 
         auto up_size = is_gate_up_combined ? (up_shape[0] / 2) : (up_shape[0]);
         auto down_size = up_shape[1];
-        if (down_shape[0] != down_size)
+        if (down_shape[0] != down_size) {
             return false;
-        if (down_shape[1] != up_size)
+        }
+        if (down_shape[1] != up_size) {
             return false;
+        }
 
         LLMMLPNode::Config config;
         OutputVector new_args;
@@ -232,7 +242,7 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
             new_args.push_back(pattern_map.at(down_proj_weight_scales_per_OC));
         }
 
-        auto old_node = root;
+        const auto& old_node = root;
         auto new_node = std::make_shared<LLMMLPNode>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info(

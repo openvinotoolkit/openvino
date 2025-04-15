@@ -4,17 +4,16 @@
 
 #include "acl_mvn.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace arm_compute;
 
-AclMVNExecutor::AclMVNExecutor(const ExecutorContext::CPtr context) : MVNExecutor(context) {}
+AclMVNExecutor::AclMVNExecutor(ExecutorContext::CPtr context) : MVNExecutor(std::move(context)) {}
 
 bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          const dnnl::primitive_attr& attr) {
+                          [[maybe_unused]] const dnnl::primitive_attr& attr) {
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
 
@@ -55,8 +54,9 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
                                           precisionToAclDataType(dstDescs[0]->getPrecision()),
                                           getAclDataLayoutByMemoryDesc(dstDescs[0]));
 
-    if (!arm_compute::NEMeanStdDevNormalizationLayer::validate(&srcTensorInfo, &dstTensorInfo, mvnAttrs.epsValue_))
+    if (!arm_compute::NEMeanStdDevNormalizationLayer::validate(&srcTensorInfo, &dstTensorInfo, mvnAttrs.epsValue_)) {
         return false;
+    }
 
     srcTensor.allocator()->init(srcTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
@@ -120,5 +120,4 @@ bool AclMVNExecutorBuilder::isSupported(const MVNAttrs& mvnAttrs,
     return true;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

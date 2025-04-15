@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2623,7 +2623,7 @@ public:
         }
         auto outputs = network->execute();
         auto output = outputs.at("reorder_bfyx").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         const float threshold_int8 = 1.f;
         const float threshold_fp16 = 1e-1;
@@ -2872,7 +2872,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), (uint32_t)3);
         for (uint32_t i = 0; i < out_data.size(); ++i) {
@@ -3089,8 +3089,8 @@ public:
 
         auto ref_res = get_ref_results();
 
-        mem_lock<ov::float16> res_lock(res, get_test_stream());
-        mem_lock<ov::float16> res_ref_lock(ref_res, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> res_lock(res, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> res_ref_lock(ref_res, get_test_stream());
         for (size_t i = 0; i < res->count(); i++) {
             ASSERT_EQ(res_lock[i], res_ref_lock[i]) << i;
         }
@@ -3225,8 +3225,8 @@ public:
 
         auto ref_res = get_ref_results();
 
-        mem_lock<ov::float16> res_lock(res, get_test_stream());
-        mem_lock<ov::float16> res_ref_lock(ref_res, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> res_lock(res, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> res_ref_lock(ref_res, get_test_stream());
         for (size_t i = 0; i < res->count(); i++) {
             ASSERT_EQ(res_lock[i], res_ref_lock[i]) << i;
         }
@@ -3240,7 +3240,7 @@ public:
 
         auto res_onednn = engine.reinterpret_buffer(*output_mem_onednn, output_layout_onednn);
 
-        mem_lock<ov::float16> res_lock_onednn(res_onednn, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> res_lock_onednn(res_onednn, get_test_stream());
         for (size_t i = 0; i < res->count(); i++) {
             ASSERT_EQ(res_lock_onednn[i], res_ref_lock[i]) << i;
         }

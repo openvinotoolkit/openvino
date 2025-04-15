@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64::matmul;
 
 #define THROW_ERROR(...) OPENVINO_THROW("brgemm executor Init Failure '", __VA_ARGS__)
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 
 BrgemmKernel::BrgemmKernel(size_t M,
                            size_t N,
@@ -28,6 +28,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            ov::element::Type inType,
                            bool b_accumulate)
     : M(M),
+      M_blk(matmulOptimalM),
+      M_tail(M % M_blk),
       K(K),
       N(N),
       lda(lda),
@@ -36,21 +38,20 @@ BrgemmKernel::BrgemmKernel(size_t M,
       b_transposed(b_transposed),
       inType(inType),
       b_accumulate(b_accumulate) {
-    // blocking M
-    M_blk = matmulOptimalM;
-    M_tail = M % M_blk;
-
-    if (!one_of(inType, ov::element::bf16, ov::element::f16, ov::element::f32))
+    if (!one_of(inType, ov::element::bf16, ov::element::f16, ov::element::f32)) {
         THROW_ERROR("brgemm kernel only supports f16, bf16, f32");
+    }
     bool is_f32 = inType == ov::element::f32;
 
     bool is_bf16 = inType == ov::element::bf16;
-    if (is_bf16 && !mayiuse(avx512_core_bf16))
+    if (is_bf16 && !mayiuse(avx512_core_bf16)) {
         THROW_ERROR("brgemm bf16 kernel could only be used above avx512_bf16");
+    }
 
     bool is_f16 = inType == ov::element::f16;
-    if (is_f16 && !mayiuse(avx512_core_fp16))
+    if (is_f16 && !mayiuse(avx512_core_fp16)) {
         THROW_ERROR("brgemm f16 kernel could only be used above avx512_f16");
+    }
 
     srcType = weiType = inType;
     // If isa is avx512_core_fp16, f16 is supported by upconverted to f32
@@ -71,10 +72,11 @@ BrgemmKernel::BrgemmKernel(size_t M,
     bool isBrgWithAMX = isAMXSupported && !is_avx_f16_only;
 
     size_t vlen;
-    if (mayiuse(avx512_core))
+    if (mayiuse(avx512_core)) {
         vlen = cpu_isa_traits<avx512_core>::vlen;
-    else
+    } else {
         vlen = cpu_isa_traits<cpu_isa_t::avx2>::vlen;
+    }
     // blocking N
     N_blk = !is_f32 ? 32 : std::max(N, vlen / inType.size());
     N_tail = N % N_blk;
@@ -111,8 +113,9 @@ BrgemmKernel::BrgemmKernel(size_t M,
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg0BaseIdx == std::numeric_limits<size_t>::max())
+                    if (brg0BaseIdx == std::numeric_limits<size_t>::max()) {
                         brg0BaseIdx = getBrgIdx(m, k, n);
+                    }
                     init_brgemm(brgemmCtx, brgKernels[getBrgIdx(m, k, n)], isBrgWithAMX);
                 }
             }
@@ -270,6 +273,7 @@ void BrgemmKernel::init_brgemm_copy_a(
                         : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
     brgCopyKernelConf.transposed_A = transpose;
     brgCopyKernelConf.isa = is_avx_f16_only ? avx512_core_fp16 : avx512_core_amx;
+    brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
 
     create_brgemm_matmul_copy_a(brgCopyKernel, &brgCopyKernelConf);
 }
@@ -289,7 +293,7 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
     brgCopyKernelConf.wei_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in1;
-    brgCopyKernelConf.orig_wei_dt = dt_in1;
+    brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
     brgCopyKernelConf.wei_n_blk = N_blk;
     brgCopyKernelConf.wei_tag = transpose ? dnnl_ba : dnnl_ab;
     brgCopyKernelConf.copy_B_wei_stride = copy_B_wei_stride;
@@ -331,8 +335,9 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
     auto ret = create_brgemm_matmul_copy_b(brgCopyKernel, &brgCopyKernelConf);
-    if (ret != dnnl::impl::status_t::dnnl_success)
+    if (ret != dnnl::impl::status_t::dnnl_success) {
         THROW_ERROR("cannot create_brgemm_matmul_copy_b kernel");
+    }
 }
 
 void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
@@ -434,8 +439,9 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
                               const void* pin1,
                               void* pout,
                               void* wsp) {
-    if (ctx.is_with_amx)
+    if (ctx.is_with_amx) {
         amx_tile_configure(ctx.palette);
+    }
     if (ctx.is_with_comp) {
         brgemm_post_ops_data_t post_ops_data;
         brgemm_kernel_execute_postops(brgKernel.get(), 1, pin0, pin1, nullptr, pout, pout, post_ops_data, wsp);
@@ -447,5 +453,4 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

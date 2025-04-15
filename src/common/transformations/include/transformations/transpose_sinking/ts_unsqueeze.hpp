@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API TSUnsqueezeBackward;
  */
 class ov::pass::transpose_sinking::TSUnsqueezeForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSUnsqueezeForward", "0");
+    OPENVINO_RTTI("ov::pass::TSUnsqueezeForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSUnsqueezeForward();
 };
 

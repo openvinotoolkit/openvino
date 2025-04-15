@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,10 @@
 #include <openvino/itt.hpp>
 #include <shape_inference/shape_inference_cpu.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
 #include "cpu_memory.h"
 #include "cpu_shape.h"
 #include "cpu_types.h"
@@ -21,6 +23,7 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "memory_format_filter.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/node_config.h"
 #include "onednn/dnnl.h"
@@ -48,17 +51,17 @@ class PortConfigurator {
 public:
     PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
                      ov::element::Type prc,
-                     const Shape& shape,
+                     Shape shape,
                      bool constant = false,
                      int inPlace = -1)
         : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
           prc(prc),
-          shape(shape),
+          shape(std::move(shape)),
           constant(constant),
           inPlace(inPlace) {}
 
     PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
-                     ov::element::Type prc = ov::element::undefined,
+                     ov::element::Type prc = ov::element::dynamic,
                      bool constant = false,
                      int inPlace = -1)
         : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
@@ -93,7 +96,7 @@ public:
     NodeDesc(NodeConfig conf, impl_desc_type type, ExecutorFactoryLegacyPtr factory)
         : config(std::move(conf)),
           implementationType(type),
-          executorFactory(factory) {}
+          executorFactory(std::move(factory)) {}
 
     const NodeConfig& getConfig() const {
         return config;
@@ -126,7 +129,41 @@ public:
     }
 
     void setExecutorFactory(ExecutorFactoryLegacyPtr factory) {
-        executorFactory = factory;
+        executorFactory = std::move(factory);
+    }
+
+    bool hasZeroInputDims() const {
+        const auto& inputConfigs = getConfig().inConfs;
+        return std::any_of(inputConfigs.begin(), inputConfigs.end(), [](const PortConfig& portConfig) {
+            return portConfig.hasZeroDims();
+        });
+    }
+
+    bool hasZeroInputDimsAtPort(size_t portIdx) const {
+        const auto& inputConfigs = getConfig().inConfs;
+        OPENVINO_ASSERT(portIdx < inputConfigs.size(),
+                        "Attempt to get NodeDesc input configuration for port ",
+                        portIdx,
+                        ". Number of inputs is ",
+                        inputConfigs.size());
+        return inputConfigs[portIdx].hasZeroDims();
+    }
+
+    bool hasZeroOutputDims() const {
+        const auto& outputConfigs = getConfig().outConfs;
+        return std::any_of(outputConfigs.begin(), outputConfigs.end(), [](const PortConfig& portConfig) {
+            return portConfig.hasZeroDims();
+        });
+    }
+
+    bool hasZeroOutputDimsAtPort(size_t portIdx) const {
+        const auto& outputConfigs = getConfig().outConfs;
+        OPENVINO_ASSERT(portIdx < outputConfigs.size(),
+                        "Attempt to get NodeDesc output configuration for port ",
+                        portIdx,
+                        ". Number of outputs is ",
+                        outputConfigs.size());
+        return outputConfigs[portIdx].hasZeroDims();
     }
 
 private:
@@ -147,7 +184,7 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        PerfCounters(std::string const& name)
+        PerfCounters(const std::string& name)
             : execute(openvino::itt::handle(name)),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
@@ -213,12 +250,12 @@ public:
         childEdges.push_back(edge);
     }
 
-    void removeParentEdge(const EdgePtr edge) {
+    void removeParentEdge(const EdgePtr& edge) {
         removeEdge(edge, parentEdges);
         updateConstantType();
     }
 
-    void removeChildEdge(const EdgePtr edge) {
+    void removeChildEdge(const EdgePtr& edge) {
         removeEdge(edge, childEdges);
     }
 
@@ -291,6 +328,9 @@ public:
 
     bool isInPlace() const;
 
+    virtual bool neverExecute() const {
+        return getSelectedPrimitiveDescriptor()->hasZeroInputDims();
+    }
     // must be called only after Graph::ResolveEdgeConflicts()
     virtual bool isExecutable() const {
         return !hasEmptyInputTensors();
@@ -359,7 +399,7 @@ public:
         return mergedWith;
     }
 
-    const std::vector<NodePtr>& getFusedWith() {
+    const std::vector<NodePtr>& getFusedWith() const {
         return fusedWith;
     }
 
@@ -469,15 +509,15 @@ public:
         return perfCounter;
     }
 
-    virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
+    virtual void resolveInPlaceEdges(Edge::LOOK look);
 
     // @todo this supposed to be 'execute + executeImpl' instead of 'executeStatic + execute'
     // but this requires changes in all the nodes. Since moving to a numa node right before an execute
     // is a temprorary solution, do it this way for now.
-    void executeStatic(const dnnl::stream strm, int numaId = -1);
+    void executeStatic(const dnnl::stream& strm, int numaId = -1);
     void updateShapes();
     void updateDynamicParams();
-    void executeDynamic(dnnl::stream strm, int numaId = -1);
+    void executeDynamic(const dnnl::stream& strm, int numaId = -1);
     virtual void redefineOutputMemory(const std::vector<VectorDims>& newShapes);
     void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
     bool outputShapeDataDependency() const;
@@ -512,6 +552,16 @@ public:
 
     int getExecIndex() const {
         return execIndex;
+    }
+
+    /**
+     * @brief Register node to the allocation \context
+     *
+     * The main use case are nodes with nested graphs.
+     * Use this method to make nested graphs a part of global allocation procedure
+     */
+    virtual int registerToAllocationContext(int offset, [[maybe_unused]] AllocationContext& context) {
+        return offset;
     }
 
     const std::string& getTypeStr() const {
@@ -665,11 +715,11 @@ public:
     virtual void appendPostOps(dnnl::post_ops& ops,
                                const VectorDims& postOpDims,
                                std::unordered_map<int, MemoryPtr>& postOpsMem,
-                               const int channelAxis = 1);
+                               const int channelAxis);
     virtual void appendPostOps(dnnl::post_ops& ops,
                                const VectorDims& postOpDims,
                                std::vector<const void*>& postOpsMem,
-                               const int channelAxis = 1);
+                               const int channelAxis);
     virtual bool canBeExecutedInInt8() const {
         OPENVINO_THROW_NOT_IMPLEMENTED("canBeExecutedInInt8 not implemented for node with type ",
                                        NameFromType(getType()));
@@ -712,22 +762,22 @@ protected:
 
     std::string primitivesPriority;
     std::vector<impl_desc_type> customImplPriorities;
-    std::vector<dnnl::memory::format_tag> inputMemoryFormatsFilter;
-    std::vector<dnnl::memory::format_tag> outputMemoryFormatsFilter;
+    MemoryFormatFilter memoryFormatFilter;
     bool enforceBF16evenForGraphTail = false;
     bool keepOriginalPrecision = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
     std::string parallelDomain;
 
-    Node(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
+    Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
+
     Node(const std::string& type,
          std::vector<Shape> inputShapes,
          std::vector<Shape> outputShapes,
          std::vector<ov::element::Type> originalInputPrecisions,
          std::vector<ov::element::Type> originalOutputPrecisions,
          const std::string& name,
-         const GraphContext::CPtr ctx);
+         const GraphContext::CPtr& ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
 
@@ -752,7 +802,7 @@ protected:
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     void selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     bool isOneDimShape(const ov::PartialShape& pshape);
-    bool isReorderRequired(ov::intel_cpu::MemoryDescPtr desc1, ov::intel_cpu::MemoryDescPtr desc2);
+    bool isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2);
     bool isConfigDefined(const NodeConfig& config) const;
     virtual bool canBeInPlace() const;
 
@@ -808,10 +858,10 @@ protected:
     std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
     virtual IShapeInfer::Result shapeInfer() const;
 
-    void execute(dnnl::stream stream, int numaId);
-    virtual void execute(dnnl::stream strm) = 0;
+    void execute(const dnnl::stream& stream, int numaId);
+    virtual void execute(const dnnl::stream& strm) = 0;
     // TODO [DS] : make pure after all nodes support dynamic shapes
-    virtual void executeDynamicImpl(dnnl::stream strm) {
+    virtual void executeDynamicImpl(const dnnl::stream& strm) {
         OPENVINO_THROW_NOT_IMPLEMENTED("[DS] executeDynamicImpl not implemented for node with type: ", getTypeStr());
     }
 
@@ -847,7 +897,7 @@ private:
     static void removeEdge(const EdgePtr edge, std::vector<EdgeWeakPtr>& edges) {
         edges.erase(std::remove_if(edges.begin(),
                                    edges.end(),
-                                   [&edge](EdgeWeakPtr _edge) {
+                                   [&edge](const EdgeWeakPtr& _edge) {
                                        return _edge.lock() == edge;
                                    }),
                     edges.end());
@@ -899,7 +949,7 @@ class Node::NodesFactory
 public:
     NodesFactory();
 
-    Node* create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Node* create(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 };
 
 template <typename NodeType>

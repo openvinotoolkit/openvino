@@ -1,11 +1,11 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import time
 from datetime import datetime
 from math import ceil
-from openvino.runtime import Core, get_version, AsyncInferQueue
+from openvino import Core, get_version, AsyncInferQueue
 
 from .utils.constants import GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger
@@ -16,7 +16,7 @@ def percentile(values, percent):
 
 class Benchmark:
     def __init__(self, device: str, number_infer_requests: int = 0, number_iterations: int = None,
-                 duration_seconds: int = None, api_type: str = 'async', inference_only = None,
+                 duration_seconds: int = None, api_type: str = '', inference_only = None,
                  maximum_inference_rate: float = 0):
         self.device = device
         self.core = Core()

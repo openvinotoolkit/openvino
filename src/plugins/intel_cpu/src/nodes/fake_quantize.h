@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,13 +66,13 @@ struct jit_uni_quantize_kernel {
 
 class FakeQuantize : public Node {
 public:
-    FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     size_t getAxis() const {
         return axis;
@@ -179,11 +179,11 @@ public:
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::unordered_map<int, MemoryPtr>& postOpsMem,
-                       const int channelAxis = 1) override;
+                       const int channelAxis) override;
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::vector<const void*>& postOpsMem,
-                       const int channelAxis = 1) override;
+                       const int channelAxis) override;
     bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
@@ -319,8 +319,6 @@ private:
 
     ov::element::Type inputPrecision = ov::element::f32;
     ov::element::Type outputPrecision = ov::element::f32;
-
-    std::string errorPrefix;
 
     BroadcastingPolicy broadcastingPolicy;
 };

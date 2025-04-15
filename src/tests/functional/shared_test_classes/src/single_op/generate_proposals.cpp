@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,8 +112,8 @@ void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected
         const auto actualNumRois = actual[i].get_shape()[0];
         ASSERT_LE(expectedNumRois, actualNumRois);
 
-        const auto actualBuffer = static_cast<uint8_t*>(actual[i].data());
-        const auto expectedBuffer = static_cast<uint8_t*>(expected[i].data());
+        const auto actualBuffer = static_cast<const uint8_t*>(actual[i].data());
+        const auto expectedBuffer = static_cast<const uint8_t*>(expected[i].data());
         const auto outputSize = i == 0 ? 4 : 1;
 
         rel_threshold = ov::test::utils::tensor_comparation::calculate_default_rel_threshold(

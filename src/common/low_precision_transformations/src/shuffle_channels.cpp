@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/shuffle_channels.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -26,15 +27,15 @@ ShuffleChannelsTransformation::ShuffleChannelsTransformation(const Params& param
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
-    if (!canBeTransformed(context, m.get_match_root())) {
+bool ShuffleChannelsTransformation::transform(ov::pass::pattern::Matcher& m) {
+    if (!canBeTransformed(m.get_match_root())) {
         return false;
     }
 
@@ -73,14 +74,14 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov
     replace_node(dequantization.multiplyConstant, shuffledMulConst);
     dequantization.multiplyConstant = shuffledMulConst;
 
-    const auto newOperation = moveDequantizationAfter(context, shuffleChannels, dequantization);
+    const auto newOperation = moveDequantizationAfter(shuffleChannels, dequantization);
 
     OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
-bool ShuffleChannelsTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    if (!LayerTransformation::canBeTransformedSpatialDimension(context, op)) {
+bool ShuffleChannelsTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(op)) {
         return false;
     }
 

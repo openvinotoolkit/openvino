@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/constant.hpp"
@@ -43,19 +44,19 @@ public:
 
 class ov::pass::ConvertReduceMeanToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceMeanToPooling", "0", ConvertReduceBase);
     ConvertReduceMeanToPooling();
 };
 
 class ov::pass::ConvertReduceMaxToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceMaxToPooling", "0", ConvertReduceBase);
     ConvertReduceMaxToPooling();
 };
 
 class ov::pass::ConvertReduceSumToPooling : public ConvertReduceBase {
 public:
-    OPENVINO_RTTI("ConvertReduceSumToPooling", "0");
+    OPENVINO_RTTI("ConvertReduceSumToPooling", "0", ConvertReduceBase);
     ConvertReduceSumToPooling();
 };
 
@@ -72,7 +73,7 @@ public:
 template <class T>
 ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
     return [&](ov::pass::pattern::Matcher& m) {
-        auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
+        auto reduce = ov::as_type_ptr<T>(m.get_match_root());
 
         if (!reduce || transformation_callback(reduce) || ov::shape_size(reduce->input_value(0).get_shape()) == 0) {
             return false;
@@ -80,7 +81,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
         auto input = reduce->input_value(0);
 
-        auto axes_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(reduce->input_value(1).get_node_shared_ptr());
+        auto axes_node = ov::as_type_ptr<ov::op::v0::Constant>(reduce->input_value(1).get_node_shared_ptr());
         if (!axes_node) {
             return false;
         }

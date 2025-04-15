@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,15 +11,10 @@ file(GLOB_RECURSE LIBRARY_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
   )
-list(FILTER LIBRARY_SRC EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/.*" )
 
 file(GLOB_RECURSE KERNELS
     "${CMAKE_CURRENT_SOURCE_DIR}/cl_kernels/*.cl"
   )
-
-file(GLOB_RECURSE CM_KERNELS
-  "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels/*"
-)
 
 # Path which points to root directory where code generated elements are created
 # (specific to build configuration).
@@ -33,12 +28,8 @@ set(CODEGEN_INCDIR  "${CODEGEN_DIR}/include")
 
 set(PRIM_DB "ks_primitive_db.inc")
 set(PRIM_DB_BATCH_HEADERS "ks_primitive_db_batch_headers.inc")
-set(CM_PRIM_DB "ks_cm_primitive_db.inc")
-set(CM_PRIM_DB_BATCH_HEADERS "ks_cm_primitive_db_batch_headers.inc")
 set(CODEGEN_CACHE_SOURCES "${CODEGEN_INCDIR}/${PRIM_DB}"
-                          "${CODEGEN_INCDIR}/${PRIM_DB_BATCH_HEADERS}"
-                          "${CODEGEN_INCDIR}/${CM_PRIM_DB}"
-                          "${CODEGEN_INCDIR}/${CM_PRIM_DB_BATCH_HEADERS}")
+                          "${CODEGEN_INCDIR}/${PRIM_DB_BATCH_HEADERS}")
 
 set(CODEGEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/primitive_db_gen.py")
 # Helping with some generators.
@@ -61,22 +52,6 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${PRIM_DB}"
   COMMENT "Updating file if the file changed (${PRIM_DB}) ..."
 )
 
-add_custom_command(OUTPUT "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB}"
-  COMMAND "${Python3_EXECUTABLE}" "${CODEGEN_SCRIPT}" -out_path "${CODEGEN_CACHE_DIR}"
-                                                      -out_file_name_prim_db "${CM_PRIM_DB}"
-                                                      -out_file_name_batch_headers "${CM_PRIM_DB_BATCH_HEADERS}"
-                                                      -kernels "${CMAKE_CURRENT_SOURCE_DIR}/cm_kernels" -cm
-  DEPENDS ${CM_KERNELS} "${CODEGEN_SCRIPT}" "${CODEGEN_INCDIR}/${PRIM_DB}"
-  COMMENT "Generating ${CODEGEN_CACHE_DIR}/${CM_PRIM_DB} ..."
-)
-
-add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${CM_PRIM_DB}"
-  COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB}" "${CODEGEN_INCDIR}/${CM_PRIM_DB}"
-  COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB_BATCH_HEADERS}" "${CODEGEN_INCDIR}/${CM_PRIM_DB_BATCH_HEADERS}"
-  DEPENDS "${CODEGEN_CACHE_DIR}/${CM_PRIM_DB}" "${CM_KERNELS}" "${CODEGEN_SCRIPT}" "${CODEGEN_INCDIR}/${PRIM_DB}"
-  COMMENT "Updating file if the file changed (${CM_PRIM_DB}) ..."
-)
-
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${CODEGEN_CACHE_SOURCES})
 
 if(NOT BUILD_SHARED_LIBS)
@@ -86,8 +61,7 @@ endif()
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${INCLUDE_DIR}>
                                                  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                                                  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernels/>
-                                                 $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
-                                          PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
+                                                 $<BUILD_INTERFACE:${CODEGEN_INCDIR}>)
 
 target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
@@ -101,6 +75,8 @@ if(COMMAND add_cpplint_target)
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::runtime PRIVATE openvino::runtime::dev)
+
+target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -241,7 +241,7 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
         return m_editor->get_input_type(tensor_name);
     }
     // now we can return the concrete element type only for model inputs
-    return ov::element::undefined;
+    return ov::element::dynamic;
 }
 
 std::shared_ptr<Model> InputModel::decode() {
@@ -397,7 +397,7 @@ void InputModel::remove_output(const ov::frontend::Place::Ptr& place) {
     if (find_output != output_names.end()) {
         outputs.erase(std::remove_if(outputs.begin(),
                                      outputs.end(),
-                                     [&place](ov::frontend::Place::Ptr const& output) {
+                                     [&place](const ov::frontend::Place::Ptr& output) {
                                          return output->is_equal(place);
                                      }),
                       outputs.end());
@@ -531,13 +531,6 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
         // multiple graph cuts might have removed some parts of the model which initially required additional names
         if (it != model_inputs.end()) {
             it->add_names(tensor_names.second);
-        }
-    }
-
-    // Set model output names
-    for (auto&& result : model->get_results()) {
-        if (!is_type<op::v0::Parameter>(result->get_input_source_output(0).get_node())) {
-            result->get_output_tensor(0).add_names(result->get_input_tensor(0).get_names());
         }
     }
 }

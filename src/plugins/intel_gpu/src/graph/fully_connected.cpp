@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "fully_connected_inst.h"
@@ -214,6 +214,10 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 }
 
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
+    if (can_apply_single_batch_optimization(orig_impl_param)) {
+        return std::move(orig_impl_param);
+    }
+
     // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
     const auto& orig_input_layout = orig_impl_param.get_input_layout();
@@ -250,8 +254,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         }
     }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
+    GPU_DEBUG_IF(orig_impl_param.get_program().get_config().get_disable_fake_alignment()) {
         can_apply_fake_alignment = false;
     }
 
@@ -270,8 +273,9 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
             auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
             auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
+            auto is_8bit = weights_layout_dt == data_types::i8 || weights_layout_dt == data_types::u8;
             auto is_extra_alignment_needed = batch_size >= 256;
-            fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
+            fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
         }
 
         std::fill(input_shape.begin(), input_shape.end() - 1, 1);
@@ -324,6 +328,32 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     node_info->dump(primitive_description);
 
     return primitive_description.str();
+}
+
+bool fully_connected_inst::can_apply_single_batch_optimization(const kernel_impl_params& impl_param) {
+    if (impl_param.output_layouts.empty() || impl_param.output_layouts[0].is_dynamic())
+        return false;
+
+    // Only support i4/u4 weight so far
+    if (impl_param.weights_layout) {
+        auto weights_layout_dt = impl_param.weights_layout.value().data_type;
+        if (weights_layout_dt != data_types::i4 && weights_layout_dt != data_types::u4) {
+            return false;
+        }
+    }
+
+    // Don't support swiglu fused
+    if (impl_param.fused_desc.size() > 0) {
+        for (const auto& f : impl_param.fused_desc) {
+            if (f.is_type<swiglu>())
+                return false;
+        }
+    }
+
+    // Single batch
+    auto shape = impl_param.output_layouts[0].get_partial_shape().to_shape();
+    auto shape_size = ov::shape_size(shape);
+    return one_of(shape_size, shape) && (shape_size % 16 == 0);
 }
 
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)

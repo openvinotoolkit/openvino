@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,7 +43,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                                               {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
     auto result = q_proj;
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -72,7 +72,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
         size_t hidden_size = 0;
         std::vector<int> proj_size;
         for (auto& child : children) {
-            auto mm = dynamic_cast<opset1::MatMul*>(child.get_node());
+            auto mm = ov::as_type<opset1::MatMul>(child.get_node());
             if (!mm) {
                 // maybe a ShapeOf
                 continue;
@@ -88,23 +88,27 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
 
             if (is_quantized_int8) {
                 auto deq_mul = ov::as_type_ptr<opset1::Multiply>(mm_input1);
-                if (!deq_mul)
+                if (!deq_mul) {
                     return false;
+                }
 
                 auto deq_mul_in0 = deq_mul->input_value(0).get_node_shared_ptr();
                 auto deq_mul_in1 = deq_mul->input_value(1).get_node_shared_ptr();
 
                 auto cvt = ov::as_type_ptr<opset1::Convert>(deq_mul_in0);
-                if (!cvt)
+                if (!cvt) {
                     return false;
+                }
 
                 constw = ov::as_type_ptr<opset1::Constant>(cvt->input_value(0).get_node_shared_ptr());
-                if (!constw || constw->get_element_type() != ov::element::i8)
+                if (!constw || constw->get_element_type() != ov::element::i8) {
                     return false;
+                }
 
                 deq_scale = ov::as_type_ptr<opset1::Constant>(deq_mul_in1);
-                if (!deq_scale || deq_scale->get_element_type() != ov::element::f32)
+                if (!deq_scale || deq_scale->get_element_type() != ov::element::f32) {
                     return false;
+                }
             } else {
                 constw = ov::as_type_ptr<opset1::Constant>(mm_input1);
                 if (!constw) {
@@ -114,8 +118,9 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                         return false;
                     }
                 }
-                if (!constw)
+                if (!constw) {
                     return false;
+                }
             }
 
             // input feature size should be the same
@@ -127,8 +132,8 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             }
 
             proj_size.push_back(wshape[0]);
-            args.push_back(constw);
-            deq_scales.push_back(deq_scale);
+            args.emplace_back(constw);
+            deq_scales.emplace_back(deq_scale);
             outputs.push_back(mm->get_default_output());
         }
 
@@ -141,8 +146,9 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
         }
         // append dequantize scales at the end
         if (is_quantized_int8) {
-            for (auto& d : deq_scales)
+            for (auto& d : deq_scales) {
                 args.push_back(d);
+            }
         }
 
         QKVProjectionNode::Config config;
@@ -199,7 +205,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
 
     auto result = qkv_split->output(0);
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -210,17 +216,21 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
 
         auto node_split_lengths =
             ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_split_lengths).get_node_shared_ptr());
-        if (!node_split_lengths)
+        if (!node_split_lengths) {
             return false;
+        }
         auto split_lengths = node_split_lengths->get_vector<int32_t>();
-        if (split_lengths.size() != 3)
+        if (split_lengths.size() != 3) {
             return false;
+        }
 
         auto proj_size = split_lengths[0];
-        if (split_lengths[1] != proj_size)
+        if (split_lengths[1] != proj_size) {
             return false;
-        if (split_lengths[2] != proj_size)
+        }
+        if (split_lengths[2] != proj_size) {
             return false;
+        }
 
         bool is_quantized_int8 = pattern_map.count(qkv_proj_weight_const_i8);
 
@@ -232,12 +242,14 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
             qkv_proj_weight_node =
                 ov::as_type_ptr<opset1::Constant>(pattern_map.at(qkv_proj_weight_const).get_node_shared_ptr());
         }
-        if (!qkv_proj_weight_node)
+        if (!qkv_proj_weight_node) {
             return false;
+        }
 
         auto w_shape = qkv_proj_weight_node->get_shape();
-        if (w_shape[0] != static_cast<uint64_t>(proj_size * 3))
+        if (w_shape[0] != static_cast<uint64_t>(proj_size) * 3) {
             return false;
+        }
 
         QKVProjectionNode::Config config;
         config.quantized = is_quantized_int8;
@@ -250,9 +262,9 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
         OutputVector args = {pattern_map.at(input), qkv_proj_weight_node, qkv_proj_weight_node, qkv_proj_weight_node};
         if (is_quantized_int8) {
             auto scales = pattern_map.at(qkv_proj_weight_scales_per_OC).get_node_shared_ptr();
-            args.push_back(scales);
-            args.push_back(scales);
-            args.push_back(scales);
+            args.emplace_back(scales);
+            args.emplace_back(scales);
+            args.emplace_back(scales);
         }
         auto old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);

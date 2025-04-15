@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,7 +97,7 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
         reshape_size.add(tensor(default_fmt, lower_sizes, 0)).add(tensor(default_fmt, upper_sizes, 0)));
 
     {
-        cldnn::mem_lock<const ElemType> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<const ElemType, mem_lock_type::read> output_ptr(output, get_test_stream());
         auto output_itr = output_ptr.begin();
 
         auto sizes = reshape_size.sizes(fmt);

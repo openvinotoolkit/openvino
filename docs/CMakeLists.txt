@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -70,21 +70,12 @@ function(build_docs)
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO Python API")
     endif()
 
-    if(${ENABLE_NOTEBOOKS})
-        set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
-        list(PREPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO notebooks")
-        list(PREPEND commands
-            COMMAND ${Python3_EXECUTABLE} "${NBDOC_SCRIPT}" "${DOCS_SOURCE_DIR}/notebooks" "${SPHINX_SOURCE_DIR}/notebooks"
-        )
-        list(PREPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO notebooks")
-    endif()
-
     if(${ENABLE_OVMS})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OVMS")
         list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${FILE_HELPER_SCRIPT}
         --filetype=md
         --input_dir=${OVMS_DOCS_DIR}
-        --output_dir=${SPHINX_SOURCE_DIR}/openvino-workflow/model-server
+        --output_dir=${SPHINX_SOURCE_DIR}/model-server
         --exclude_dir=${SPHINX_SOURCE_DIR})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OVMS")
     endif()

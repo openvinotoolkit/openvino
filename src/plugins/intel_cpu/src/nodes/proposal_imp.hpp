@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
+namespace ov::Extensions::Cpu {
 
 struct proposal_conf {
     size_t feat_stride_;
@@ -48,6 +46,4 @@ void proposal_exec(const float* input0,
                    proposal_conf& conf);
 
 }  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu

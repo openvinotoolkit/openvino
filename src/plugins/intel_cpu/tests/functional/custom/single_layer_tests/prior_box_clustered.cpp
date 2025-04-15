@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -189,17 +189,16 @@ const std::vector<ov::test::InputShape> imageShapes = {
         {{{50, 100}, {50, 100}}, {{50, 50}, {100, 100}}}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered, PriorBoxClusteredLayerCPUTest,
-    ::testing::Combine(
-        layerSpeficParams,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::test::ElementType::undefined),
-        ::testing::Values(ov::test::ElementType::undefined),
-        ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(imageShapes),
-        ::testing::Values(ov::test::utils::DEVICE_CPU)),
-    PriorBoxClusteredLayerCPUTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered,
+                         PriorBoxClusteredLayerCPUTest,
+                         ::testing::Combine(layerSpeficParams,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::ElementType::dynamic),
+                                            ::testing::Values(ov::test::ElementType::dynamic),
+                                            ::testing::ValuesIn(inputShapes),
+                                            ::testing::ValuesIn(imageShapes),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         PriorBoxClusteredLayerCPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace test

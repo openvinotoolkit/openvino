@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -274,7 +274,7 @@ public:
         OPENVINO_THROW(ss.str());
     }
 
-    bool result_and_output_match(size_t num_iterations) const {
+    bool result_and_output_match(int64_t num_iterations) const {
         if (const auto concat_desciption = ov::as_type<const SubGraphOp::ConcatOutputDescription>(m_description)) {
             if (m_result->output(0).get_element_type() != m_output.get_element_type()) {
                 return false;
@@ -282,7 +282,8 @@ public:
 
             const auto& output_partial_shape = m_output.get_partial_shape();
             const auto& result_partial_shape = m_result->output(0).get_partial_shape();
-            if (result_partial_shape.is_dynamic() && output_partial_shape.is_dynamic()) {
+            if (output_partial_shape.is_dynamic() &&
+                (result_partial_shape.is_dynamic() || (result_partial_shape.is_static() && num_iterations == -1))) {
                 return true;
             }
             if (!result_partial_shape.is_static() || !output_partial_shape.is_static()) {
@@ -294,7 +295,7 @@ public:
                 return false;
             }
             for (size_t i = 0; i != result_shape.size(); ++i) {
-                const auto axis_multiplier = i == concat_desciption->m_axis ? num_iterations : 1;
+                const auto axis_multiplier = i == concat_desciption->m_axis ? static_cast<size_t>(num_iterations) : 1;
                 if (result_shape[i] * axis_multiplier != output_shape[i]) {
                     return false;
                 }
@@ -579,10 +580,10 @@ private:
     }
 
     static int64_t get_num_iterations(ov::op::util::SubGraphOp* sub) {
-        if (const auto ti = dynamic_cast<const ov::op::v0::TensorIterator*>(sub)) {
+        if (const auto ti = ov::as_type<const ov::op::v0::TensorIterator>(sub)) {
             return ti->get_num_iterations();
         }
-        if (const auto l = dynamic_cast<const ov::op::v5::Loop*>(sub)) {
+        if (const auto l = ov::as_type<const ov::op::v5::Loop>(sub)) {
             return l->get_num_iterations();
         }
 
@@ -724,8 +725,8 @@ Comparator::Result Comparator::compare(ov::Node* node1, ov::Node* node2, std::os
                              typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
-    auto subgraph1 = dynamic_cast<ov::op::util::SubGraphOp*>(node1);
-    auto subgraph2 = dynamic_cast<ov::op::util::SubGraphOp*>(node2);
+    auto subgraph1 = ov::as_type<ov::op::util::SubGraphOp>(node1);
+    auto subgraph2 = ov::as_type<ov::op::util::SubGraphOp>(node2);
 
     const bool subgraph_nodes = subgraph1 && subgraph2;
 

@@ -31,7 +31,7 @@ namespace pass {
  */
 class SetBufferRegGroup: public RangedPass {
 public:
-    OPENVINO_RTTI("SetBufferRegGroup", "RangedPass")
+    OPENVINO_RTTI("SetBufferRegGroup", "", RangedPass)
     SetBufferRegGroup() = default;
 
     /**

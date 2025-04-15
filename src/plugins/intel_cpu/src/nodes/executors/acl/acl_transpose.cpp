@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposeParams& transposeParams,
                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                const std::vector<MemoryDescPtr>& dstDescs,
-                                               const dnnl::primitive_attr& attr) {
+                                               [[maybe_unused]] const dnnl::primitive_attr& attr) {
     auto inputOrder = transposeParams.permuteParams.order;
     if (inputOrder.empty()) {
         inputOrder.resize(srcDescs[0]->getShape().getRank());

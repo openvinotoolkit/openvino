@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "mask_attribute.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/gelu.hpp"
@@ -100,7 +101,7 @@ public:
                 a_mask_row = a_mask.get();
             auto b_mask_row = b_mask.get();
 
-            const auto matmul_op = std::dynamic_pointer_cast<opset10::MatMul>(m_matmul.get_node_shared_ptr());
+            const auto matmul_op = ov::as_type_ptr<opset10::MatMul>(m_matmul.get_node_shared_ptr());
             const auto transpose_a = matmul_op->get_transpose_a();
             const auto transpose_b = matmul_op->get_transpose_b();
 
@@ -717,13 +718,13 @@ public:
                                        m_input_high.get_node_shared_ptr(),
                                        m_output_low.get_node_shared_ptr(),
                                        m_output_high.get_node_shared_ptr()};
-            auto fq_node = std::dynamic_pointer_cast<opset10::FakeQuantize>(m_output.get_node_shared_ptr());
+            auto fq_node = ov::as_type_ptr<opset10::FakeQuantize>(m_output.get_node_shared_ptr());
             if (!fq_node)
                 return false;
             size_t idx = 0;
             if (fq_node->get_auto_broadcast() != ov::op::AutoBroadcastType::NONE) {
                 for (const auto& node : fq_params_nodes) {
-                    auto const_node = std::dynamic_pointer_cast<op::v0::Constant>(node);
+                    auto const_node = ov::as_type_ptr<op::v0::Constant>(node);
                     if (!const_node)
                         OPENVINO_THROW("Unexpected operation type.");
                     auto new_shape = broadcast_shape_to_rank(const_node->get_shape(),
@@ -771,7 +772,7 @@ public:
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_output = pattern_map.at(concat);
-            auto concat_ptr = std::dynamic_pointer_cast<opset10::Concat>(m_output.get_node_shared_ptr());
+            auto concat_ptr = ov::as_type_ptr<opset10::Concat>(m_output.get_node_shared_ptr());
             if (!concat_ptr) {
                 return false;
             }
@@ -930,7 +931,7 @@ public:
             // Check reduce operation reduces only dimension without masks
             if (auto input_mask = getMask(m_input)) {
                 auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
-                const auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
+                const auto constant = ov::as_type_ptr<opset10::Constant>(m_weights.get_node_shared_ptr());
                 OPENVINO_ASSERT(!!constant, "Dynamic cast returned a nullptr");
                 const auto reduce_dims = constant->cast_vector<int64_t>();
 
@@ -1144,7 +1145,7 @@ public:
                 if (is_type<opset10::GroupConvolution>(inp.get_node()))
                     return true;
 
-            auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
+            auto constant = ov::as_type_ptr<opset10::Constant>(m_weights.get_node_shared_ptr());
             if (!constant) {
                 constant = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
                 if (!constant) {

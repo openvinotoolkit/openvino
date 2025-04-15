@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,13 +16,13 @@
 #include "rt_info/precisions_attribute.hpp"
 #include "rt_info/quantization_granularity_attribute.hpp"
 #include "rt_info/intervals_alignment_attribute.hpp"
-#include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 #include "common/ie_lpt_exception.hpp"
 #include "layer_transformation.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -187,9 +187,8 @@ public:
 
     static size_t getParentOutputIndex(const std::shared_ptr<ov::Node>& parent, const std::shared_ptr<ov::Node>& child);
 
-    static FakeQuantizeDequantizationValues createEmptyValues(
-        const FakeQuantizeDequantization& dequantization,
-        const element::Type& precision = element::undefined);
+    static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization,
+                                                              const element::Type& precision = element::dynamic);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
     static bool checkZeroPoint(const std::shared_ptr<Node>& node, const DataPrecision& dataPrecision = DataPrecision());
@@ -294,8 +293,13 @@ std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<Operati
 
 template <typename T>
 std::shared_ptr<Node> make_op_pattern(const ov::NodeVector& args) {
-    return std::make_shared<ov::pass::pattern::op::Any>(element::undefined, PartialShape{},
-                                                        [](std::shared_ptr<Node> n) {return !!ov::as_type_ptr<T>(n); }, args);
+    return std::make_shared<ov::pass::pattern::op::Any>(
+        element::dynamic,
+        PartialShape{},
+        [](std::shared_ptr<Node> n) {
+            return !!ov::as_type_ptr<T>(n);
+        },
+        args);
 }
 
 template <typename T, typename... Args>

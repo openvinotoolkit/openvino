@@ -1,15 +1,15 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rms_kernel.hpp"
 
+#include <memory>
+
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
+namespace ov::intel_cpu::kernel {
 
 #define GET_OFF(field) offsetof(jit_rms_call_args, field)
 
@@ -160,6 +160,7 @@ void jit_rms_kernel<isa>::generate() {
     reduce_vmm_to_scalar(vmm_rsqrt, vmm_sum0, vmm_sum1, vmm_sum3, vec_size);
 
     // mean(x^2)
+    OPENVINO_ASSERT(m_jcp.data_size != 0);
     mov(reg_tmp.cvt32(), float2int(1.0f / m_jcp.data_size));
     vmovd(xmm_tmp, reg_tmp.cvt32());
     vmulss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
@@ -216,8 +217,9 @@ void jit_rms_kernel<isa>::generate() {
 
     this->postamble();
     for (const auto& emitter : emitters) {
-        if (emitter.second)
+        if (emitter.second) {
             emitter.second->emit_data();
+        }
     }
 }
 
@@ -230,8 +232,14 @@ void jit_rms_kernel<isa>::load(const Vmm& vmm_dst,
                                size_t offset) {
     const auto seed = load_emitter_params(src_prc, ov::element::f32, elt_num, fill, "float_min").hash();
     if (!emitters[seed]) {
-        emitters[seed].reset(
-            new jit_load_emitter(this, isa, src_prc, ov::element::f32, elt_num, ov::element::f32, fill, "float_min"));
+        emitters[seed] = std::make_unique<jit_load_emitter>(this,
+                                                            isa,
+                                                            src_prc,
+                                                            ov::element::f32,
+                                                            elt_num,
+                                                            ov::element::f32,
+                                                            fill,
+                                                            "float_min");
     }
     emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), offset},
                               {static_cast<size_t>(vmm_dst.getIdx())},
@@ -247,7 +255,7 @@ void jit_rms_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
                                 size_t offset) {
     const auto seed = store_emitter_params(ov::element::f32, dst_prc, elt_num).hash();
     if (!emitters[seed]) {
-        emitters[seed].reset(new jit_store_emitter(this, isa, ov::element::f32, dst_prc, elt_num));
+        emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, dst_prc, elt_num);
     }
     emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
                               {static_cast<size_t>(reg_dst.getIdx()), offset},
@@ -258,6 +266,4 @@ void jit_rms_kernel<isa>::store(const Xbyak::Reg64& reg_dst,
 template struct jit_rms_kernel<cpu_isa_t::avx512_core>;
 template struct jit_rms_kernel<cpu_isa_t::avx2>;
 
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel

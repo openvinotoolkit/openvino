@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,9 +36,7 @@ public:
         });
     }
 
-    explicit Shape(const VectorDims& shape) {
-        dims = minDims = maxDims = shape;
-        type = ShapeType::Static;
+    explicit Shape(const VectorDims& shape) : type(ShapeType::Static), dims(minDims = maxDims = shape) {
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) {
             return dim == 0;
         });
@@ -66,10 +64,10 @@ public:
         });
     }
 
-    Shape(const std::initializer_list<Dim>& shape) {
+    Shape(const std::initializer_list<Dim>& shape) : type(ShapeType::Static) {
         minDims.reserve(shape.size());
         maxDims.reserve(shape.size());
-        type = ShapeType::Static;
+
         for (auto dim : shape) {
             minDims.push_back(dim);
             maxDims.push_back(dim);

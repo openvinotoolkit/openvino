@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -11,6 +11,11 @@
 
 namespace ov {
 namespace descriptor {
+
+/// @brief Defines tensor name port separator.
+inline constexpr auto port_separator = ':';
+/// @brief Defines unique name separator.
+inline constexpr auto unique_name_sep = '_';
 
 class Tensor;
 class Input;
@@ -32,6 +37,17 @@ void set_tensor_type(Tensor& tensor, const element::Type& element_type, const Pa
  */
 OPENVINO_API
 void copy_tensor_names(Tensor& dst, const Tensor& src);
+
+/**
+ * @brief Add names to destination tensor by copying of all names from source tensor all tensor names.
+ *
+ * If source tensor is parameter's tensor names are not copied.
+ *
+ * @param dst  The tensor descriptor to set names.
+ * @param src  The tensor descriptor as from which names will be copied.
+ */
+OPENVINO_API
+void add_not_parameter_names(Tensor& dst, const Tensor& src);
 
 /** @brief Tensor descriptor interface. */
 class OPENVINO_API ITensorDescriptor {
@@ -86,7 +102,21 @@ struct OPENVINO_API TensorExtension {
  *
  * @param output_descriptor  Descriptor to set shared tensor.
  * @param input_descriptor   Input descriptor to set in output as shared tensor.
+ * @param is_parameter       Flag to set shared tensor as parameter tensor.
  */
-OPENVINO_API void set_shared_tensor(Output& output_descriptor, const Input& input_descriptor);
+OPENVINO_API void set_shared_tensor(Output& output_descriptor, const Input& input_descriptor, bool is_parameter);
+
+/**
+ * @brief Retrieves the set of output names assigned to tensor descriptor.
+ *
+ * This function returns tensor descriptor names:
+ * - same as ov::descriptor::Tensor::get_names() for regular descriptor.
+ * - return specific output names for shared tensor.
+ *
+ * @param descriptor The tensor descriptor to get names.
+ * @return The set of output names.
+ */
+OPENVINO_API const std::unordered_set<std::string>& get_assigned_names(const Tensor& descriptor);
+
 }  // namespace descriptor
 }  // namespace ov

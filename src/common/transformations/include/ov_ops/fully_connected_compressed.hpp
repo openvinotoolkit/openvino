@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,13 +23,13 @@ public:
                              const ov::Output<Node>& bias,
                              const ov::Output<Node>& weight_scales,
                              const ov::Output<Node>& weight_zero_points,
-                             const ov::element::Type output_type = ov::element::undefined);
+                             const ov::element::Type output_type = ov::element::dynamic);
 
     FullyConnectedCompressed(const ov::Output<Node>& X,
                              const ov::Output<Node>& W,
                              const ov::Output<Node>& bias,
                              const ov::Output<Node>& weight_scales,
-                             const ov::element::Type output_type = ov::element::undefined);
+                             const ov::element::Type output_type = ov::element::dynamic);
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 

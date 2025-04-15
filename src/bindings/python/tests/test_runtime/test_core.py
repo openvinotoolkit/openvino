@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -21,7 +21,7 @@ from openvino import (
 
 import openvino.properties as props
 import openvino.properties.hint as hints
-from openvino.runtime import Extension
+from openvino import Extension
 from tests.utils.helpers import (
     generate_image,
     generate_relu_compiled_model,
@@ -174,7 +174,7 @@ def test_read_model_from_tensor(request, tmp_path):
 
 def test_read_model_with_wrong_input():
     core = Core()
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(TypeError) as e:
         core.read_model(model=3, weights=3)
     assert "Provided python object type <class 'int'> isn't supported as 'model' argument." in str(e.value)
 
@@ -224,6 +224,22 @@ def test_read_model_from_buffer(request, tmp_path):
         weights = f.read()
     with open(xml_path, "rb") as f:
         xml = f.read()
+    model = core.read_model(model=xml, weights=weights)
+    assert isinstance(model, Model)
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_from_bytesio(request, tmp_path):
+    from io import BytesIO
+
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+    with open(bin_path, "rb") as f:
+        weights = BytesIO(f.read())
+    with open(xml_path, "rb") as f:
+        xml = BytesIO(f.read())
     model = core.read_model(model=xml, weights=weights)
     assert isinstance(model, Model)
 

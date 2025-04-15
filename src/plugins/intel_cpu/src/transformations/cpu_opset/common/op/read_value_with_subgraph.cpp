@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "read_value_with_subgraph.hpp"
@@ -7,13 +7,13 @@
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::ReadValueWithSubgraph::ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
-                                                            std::shared_ptr<ov::Model> body) {
+                                                            const std::shared_ptr<ov::Model>& body) {
     m_variable = variable;
     set_function(body);
 }
 
 ov::intel_cpu::ReadValueWithSubgraph::ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
-                                                            std::shared_ptr<ov::Model> body,
+                                                            const std::shared_ptr<ov::Model>& body,
                                                             const OutputVector& args)
     : ReadValueWithSubgraph(variable, body) {
     set_arguments(args);

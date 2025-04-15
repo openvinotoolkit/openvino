@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@ using Snippets_TailProcessingTransformation = ::testing::Test;
 // [Inserted Loop number, [ptr_increments, final_offsets]
 using ref_map = std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>>;
 using namespace ov::snippets::lowered;
+using PortType = LoopPort::Type;
 
 constexpr static size_t vector_size = 16;
 
@@ -41,18 +42,18 @@ static void init_linear_ir(const std::vector<ov::Shape>& in_shapes, LinearIR& li
     const auto result = linear_ir.push_node<ov::opset10::Result>(add.second);
 
     const auto loop_manager = linear_ir.get_loop_manager();
-    linear_ir.get_loop_manager()->mark_loop(matmul.first, add.first, in_shapes[0].front(), block_size, 1,
-                                            std::vector<LoopPort>{LoopPort((*matmul.first)->get_input_port(0)),
-                                                                  LoopPort((*matmul.first)->get_input_port(1), false)},
-                                            std::vector<LoopPort>{LoopPort((*matmul.first)->get_output_port(0))});
+    linear_ir.get_loop_manager()->mark_loop(matmul.first, add.first, in_shapes[0].front(), block_size,
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_input_port(0), 1),
+                                                                  LoopPort::create<PortType::NotProcessed>((*matmul.first)->get_input_port(1))},
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*matmul.first)->get_output_port(0), 1)});
     linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].back(), vector_size, 0,
-                                            std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0)),
-                                                                  LoopPort((*add.first)->get_input_port(1))},
-                                            std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0))});
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0)),
+                                                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1))},
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0))});
     linear_ir.get_loop_manager()->mark_loop(add.first, result.first, in_shapes[2].front(), 1, 1,
-                                            std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0)),
-                                                                  LoopPort((*add.first)->get_input_port(1))},
-                                            std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0))});
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(0)),
+                                                                  LoopPort::create<PortType::Incremented>((*add.first)->get_input_port(1))},
+                                            std::vector<LoopPort>{LoopPort::create<PortType::Incremented>((*add.first)->get_output_port(0))});
 }
 
 static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& config) {

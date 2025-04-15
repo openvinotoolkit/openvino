@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,7 @@
  *     requires inputs to have equal ranks
  */
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AlignMatMulInputRanks : public ov::pass::MatcherPass {
 public:
@@ -23,5 +22,4 @@ public:
     AlignMatMulInputRanks();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

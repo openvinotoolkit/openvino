@@ -6,8 +6,7 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace arm_compute;
 
@@ -91,12 +90,12 @@ ACLDeconvTensorInfo getACLDeconvTensorInfo(const DeconvAttrs& deconvAttrs,
     return ACLDeconvTensorInfo{srcTensorInfo, weiTensorInfo, biasTensorInfo, dstTensorInfo, deconv_info};
 }
 
-AclDeconvExecutor::AclDeconvExecutor(const ExecutorContext::CPtr context) : DeconvExecutor(context) {}
+AclDeconvExecutor::AclDeconvExecutor(ExecutorContext::CPtr context) : DeconvExecutor(std::move(context)) {}
 
 bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
                              const std::vector<MemoryDescPtr>& srcDescs,
                              const std::vector<MemoryDescPtr>& dstDescs,
-                             const dnnl::primitive_attr& attr) {
+                             [[maybe_unused]] const dnnl::primitive_attr& attr) {
     this->deconvAttrs = deconvAttrs;
     ACLDeconvTensorInfo aclDeconvTensorInfo = getACLDeconvTensorInfo(deconvAttrs, srcDescs, dstDescs);
     TensorInfo srcTensorInfo = aclDeconvTensorInfo.srcTensorInfo;
@@ -188,7 +187,7 @@ static MemoryPtr prepareWeightMemory(const std::vector<MemoryCPtr>& src, const E
 
 void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src,
                              const std::vector<MemoryPtr>& dst,
-                             const void* post_ops_data_) {
+                             [[maybe_unused]] const void* post_ops_data_) {
     // TODO: Remove transpose from exec
     auto newWei = prepareWeightMemory(src, context);
 
@@ -280,8 +279,9 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
         (deconvAttrs.dilation.size() > 1) ? deconvAttrs.dilation.at(1) : deconvAttrs.dilation.at(0);
     unsigned int dilation_y = deconvAttrs.dilation.at(0);
     if (!one_of(dilation_x, static_cast<unsigned int>(0), static_cast<unsigned int>(1)) ||
-        !one_of(dilation_y, static_cast<unsigned int>(0), static_cast<unsigned int>(1)))
+        !one_of(dilation_y, static_cast<unsigned int>(0), static_cast<unsigned int>(1))) {
         return false;
+    }
 
     try {
         arm_compute::Status status =
@@ -304,5 +304,4 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
     return true;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

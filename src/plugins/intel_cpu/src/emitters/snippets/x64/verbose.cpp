@@ -19,8 +19,7 @@
 #        include <cxxabi.h>
 #    endif
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename T>
 std::string join(const T& v, const std::string& sep = ", ") {
@@ -84,10 +83,12 @@ static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emi
 std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_brgemm_emitter";
-    if (const auto& common = std::dynamic_pointer_cast<BrgemmKernelExecutor>(emitter->m_kernel_executor))
+    if (const auto& common = std::dynamic_pointer_cast<x64::BrgemmKernelExecutor>(emitter->m_kernel_executor)) {
         ss << common->to_string();
-    if (const auto& amx = std::dynamic_pointer_cast<BrgemmAMXKernelExecutor>(emitter->m_kernel_executor))
+    }
+    if (const auto& amx = std::dynamic_pointer_cast<x64::BrgemmAMXKernelExecutor>(emitter->m_kernel_executor)) {
         ss << amx->to_string();
+    }
     ss << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)
        << " m_buffer_ids:" << vector_to_string(emitter->m_buffer_ids);
 
@@ -107,26 +108,21 @@ std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter*
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_static_emitter"
        << " jcp.exec_domain:" << vector_to_string(emitter->jcp.exec_domain)
-       << " gp_regs_pool:" << vector_to_string(emitter->gp_regs_pool)
        << " master_shape:" << vector_to_string(emitter->master_shape) << " num_inputs:" << emitter->num_inputs
        << " num_outputs:" << emitter->num_outputs << " num_unique_buffers:" << emitter->num_unique_buffers
-       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx)
-       << " vec_regs_pool:" << vector_to_string(emitter->vec_regs_pool)
-       << " reg_indexes_idx:" << emitter->reg_indexes_idx
-       << " reg_runtime_params_idx:" << emitter->reg_runtime_params_idx;
-    for (size_t i = 0; i < emitter->data_offsets.size(); ++i)
+       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx);
+    for (size_t i = 0; i < emitter->data_offsets.size(); ++i) {
         ss << " data_offsets for " << i << " is:" << vector_to_string(emitter->data_offsets[i]);
+    }
     return ss.str();
 }
 
 std::string init_info_jit_kernel_dynamic_emitter(const jit_kernel_dynamic_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_dynamic_emitter"
-       << " gp_regs_pool:" << vector_to_string(emitter->gp_regs_pool) << " num_inputs:" << emitter->num_inputs
-       << " num_outputs:" << emitter->num_outputs << " num_unique_buffers:" << emitter->num_unique_buffers
-       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx)
-       << " vec_regs_pool:" << vector_to_string(emitter->vec_regs_pool)
-       << " reg_runtime_params_idx:" << emitter->reg_runtime_params_idx;
+       << " num_inputs:" << emitter->num_inputs << " num_outputs:" << emitter->num_outputs
+       << " num_unique_buffers:" << emitter->num_unique_buffers
+       << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx);
     return ss.str();
 }
 
@@ -152,8 +148,9 @@ static std::string init_info_jit_emitter_general(const jit_emitter* emitter) {
 }
 
 void jit_emitter_info_t::init(const jit_emitter* emitter) {
-    if (is_initialized_)
+    if (is_initialized_) {
         return;
+    }
     if (auto e_type = dynamic_cast<const jit_load_memory_emitter*>(emitter)) {
         str_ = init_info_jit_load_memory_emitter(e_type);
     } else if (auto e_type = dynamic_cast<const jit_load_broadcast_emitter*>(emitter)) {
@@ -176,7 +173,6 @@ void jit_emitter_info_t::init(const jit_emitter* emitter) {
     is_initialized_ = true;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif

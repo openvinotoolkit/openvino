@@ -1,16 +1,19 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "openvino/op/adaptive_avg_pool.hpp"
 
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset10.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset10;
+using ov::op::v0::Constant;
+using ov::op::v0::Parameter;
+using ov::op::v3::ShapeOf;
 using namespace testing;
 
 class AdaptiveAvgPoolV8Test : public TypePropOpTest<op::v8::AdaptiveAvgPool> {};

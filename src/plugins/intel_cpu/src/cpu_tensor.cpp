@@ -1,17 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_tensor.h"
 
+#include <utility>
+
 #include "memory_desc/blocked_memory_desc.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-Tensor::Tensor(MemoryPtr memptr) : m_memptr{memptr} {
+Tensor::Tensor(MemoryPtr memptr) : m_memptr{std::move(memptr)} {
     OPENVINO_ASSERT(m_memptr != nullptr);
 
     // only support plain data format ncsp.
@@ -31,8 +32,9 @@ void Tensor::set_shape(ov::Shape new_shape) {
                   vec2str(shape.getStaticDims()),
                   " -> ",
                   new_shape.to_string());
-        if (shape.getStaticDims() == new_shape)
+        if (shape.getStaticDims() == new_shape) {
             return;
+        }
     }
 
     auto desc = m_memptr->getDescPtr();
@@ -81,8 +83,8 @@ void Tensor::update_strides() const {
     });
 }
 
-void* Tensor::data(const element::Type& element_type) const {
-    if (element_type != element::undefined && element_type != element::dynamic) {
+const void* Tensor::data(const element::Type& element_type) const {
+    if (element_type.is_static()) {
         OPENVINO_ASSERT(element_type == get_element_type(),
                         "Tensor data with element type ",
                         get_element_type(),
@@ -100,8 +102,7 @@ void* Tensor::data(const element::Type& element_type) const {
  * @return Shared pointer to tensor interface
  */
 std::shared_ptr<ITensor> make_tensor(MemoryPtr mem) {
-    return std::make_shared<Tensor>(mem);
+    return std::make_shared<Tensor>(std::move(mem));
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

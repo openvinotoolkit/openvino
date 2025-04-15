@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -18,7 +18,7 @@ from torch.fx.experimental.proxy_tensor import make_fx
 from torch._decomp import decomposition_table, get_decompositions
 
 from openvino.frontend import FrontEndManager
-from openvino.runtime import Core, Type, PartialShape
+from openvino import Core, Type, PartialShape
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend.pytorch.torchdynamo import decompositions
 from openvino.frontend.pytorch.torchdynamo.decompositions import get_aot_decomposition_list, get_inf_decomposition_list
@@ -27,7 +27,7 @@ from openvino.frontend.pytorch.torchdynamo.execute import execute, execute_cache
 from openvino.frontend.pytorch.torchdynamo.compile import cached_model_name, openvino_compile_cached_model
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_model_caching, _get_decompositions, _get_aot_autograd
 
-from openvino.runtime import Core, Type, PartialShape
+from openvino import Core, Type, PartialShape
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)

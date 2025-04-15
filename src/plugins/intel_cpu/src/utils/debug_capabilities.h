@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -14,12 +14,15 @@
 #    include <regex>
 #    include <sstream>
 #    include <string>
+#    include <utility>
 
 #    include "edge.h"
+#    include "memory_control.hpp"
 #    include "nodes/node_config.h"
 #    include "onednn/dnnl.h"
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/core/model.hpp"
+#    include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -60,8 +63,8 @@ class PrintableModel {
 public:
     PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "")
         : model(model),
-          tag(tag),
-          prefix(prefix) {}
+          tag(std::move(tag)),
+          prefix(std::move(prefix)) {}
     const ov::Model& model;
     const std::string tag;
     const std::string prefix;
@@ -86,9 +89,7 @@ struct PrintableDelta {
 
 class PrintableTimer {
 public:
-    PrintableTimer() : t0(std::chrono::high_resolution_clock::now()) {
-        t1 = t0;
-    }
+    PrintableTimer() : t0(std::chrono::high_resolution_clock::now()), t1(t0) {}
 
     std::chrono::high_resolution_clock::time_point t0;
     std::chrono::high_resolution_clock::time_point t1;
@@ -120,6 +121,7 @@ std::ostream& operator<<(std::ostream& os, const IMemory& mem);
 std::ostream& operator<<(std::ostream& os, const PrintableModel& model);
 std::ostream& operator<<(std::ostream& os, const PrintableDelta& us);
 std::ostream& operator<<(std::ostream& os, const Edge::ReorderStatus reorderStatus);
+std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record);
 
 std::ostream& operator<<(std::ostream& os, const dnnl::primitive_desc& desc);
 std::ostream& operator<<(std::ostream& os, const dnnl::memory::desc& desc);
@@ -166,11 +168,11 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 #    define DEBUG_LOG_EXT(name, ostream, prefix, ...)                                                              \
         do {                                                                                                       \
-            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, __func__, __LINE__, name);                          \
+            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, OV_CPU_FUNCTION_NAME, __LINE__, name);              \
             if (DEBUG_ENABLE_NAME) {                                                                               \
                 ::std::stringstream ss___;                                                                         \
                 ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
-                ostream << ss___.str() << std::endl;                                                               \
+                ostream << ss___.str() << '\n';                                                                    \
                 DEBUG_ENABLE_NAME.break_at(ss___.str());                                                           \
             }                                                                                                      \
         } while (0)
@@ -181,6 +183,8 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 #    define ERROR_LOG(...) DEBUG_LOG_EXT(nullptr, std::cerr, "[ ERROR ] ", __VA_ARGS__)
 
 #    define CREATE_DEBUG_TIMER(x) PrintableTimer x
+
+#    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) true
 
 /*
  * important debugging tools for accuracy issues
@@ -208,9 +212,9 @@ struct EnforceInferPrcDebug {
     int count_limit = atoi(safe_getenv("OV_CPU_INFER_PRC_CNT", "9999999").c_str());
     int count = 0;
 
-    EnforceInferPrcDebug() {
-        str_pos_pattern = std::getenv("OV_CPU_INFER_PRC_POS_PATTERN");
-        str_neg_pattern = std::getenv("OV_CPU_INFER_PRC_NEG_PATTERN");
+    EnforceInferPrcDebug()
+        : str_pos_pattern(std::getenv("OV_CPU_INFER_PRC_POS_PATTERN")),
+          str_neg_pattern(std::getenv("OV_CPU_INFER_PRC_NEG_PATTERN")) {
         if (str_pos_pattern || str_neg_pattern) {
             pattern_verbose = true;
         } else {
@@ -225,27 +229,27 @@ struct EnforceInferPrcDebug {
     ~EnforceInferPrcDebug() {
         if (pattern_verbose) {
             if (str_pos_pattern)
-                std::cout << "OV_CPU_INFER_PRC_POS_PATTERN=\"" << str_pos_pattern << "\"" << std::endl;
+                std::cout << "OV_CPU_INFER_PRC_POS_PATTERN=\"" << str_pos_pattern << "\"" << '\n';
             if (str_neg_pattern)
-                std::cout << "OV_CPU_INFER_PRC_NEG_PATTERN=\"" << str_neg_pattern << "\"" << std::endl;
+                std::cout << "OV_CPU_INFER_PRC_NEG_PATTERN=\"" << str_neg_pattern << "\"" << '\n';
             std::cout << "infer precision enforced Types: ";
             size_t total_cnt = 0;
             for (auto& ent : all_enabled_nodes) {
                 std::cout << ent.first << ",";
                 total_cnt += ent.second.size();
             }
-            std::cout << "  total number of nodes: " << total_cnt << std::endl;
+            std::cout << "  total number of nodes: " << total_cnt << '\n';
             for (auto& ent : all_enabled_nodes) {
-                std::cout << ent.first << " : " << std::endl;
+                std::cout << ent.first << " : " << '\n';
                 for (auto& name : ent.second) {
-                    std::cout << "\t" << name << std::endl;
+                    std::cout << "\t" << name << '\n';
                 }
             }
-            std::cout << std::endl;
+            std::cout << '\n';
         }
     }
 
-    bool enabled(std::string type, std::string name, std::string org_names) {
+    bool enabled(const std::string& type, const std::string& name, const std::string& org_names) {
         std::string tag = type + "@" + org_names;
         std::smatch match;
         bool matched = true;
@@ -277,6 +281,7 @@ struct EnforceInferPrcDebug {
 };
 
 bool getEnvBool(const char* name);
+
 #else  // !CPU_DEBUG_CAPS
 
 #    define CPU_DEBUG_CAP_ENABLE(...)
@@ -287,8 +292,6 @@ bool getEnvBool(const char* name);
 
 #    define CREATE_DEBUG_TIMER(x)
 
-#endif  // CPU_DEBUG_CAPS
+#    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
-// To avoid "unused variable" warnings `when debug caps
-// need more information than non-debug caps version
-#define CPU_DEBUG_CAPS_MAYBE_UNUSED(x) (void)x
+#endif  // CPU_DEBUG_CAPS

@@ -6,6 +6,7 @@
 #include <numeric>
 #include <openvino/opsets/opset8.hpp>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset1.hpp"
 
@@ -14,7 +15,7 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         enum Inputs { Data, Weights };
-        auto gconv = std::dynamic_pointer_cast<opset8::GroupConvolution>(m.get_match_root());
+        auto gconv = ov::as_type_ptr<opset8::GroupConvolution>(m.get_match_root());
         if (!gconv) {
             return false;
         }

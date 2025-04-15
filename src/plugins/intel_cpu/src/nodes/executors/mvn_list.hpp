@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@
 #include "common/primitive_cache.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct MVNExecutorDesc {
     ExecutorType executorType;
@@ -28,7 +27,7 @@ public:
     MVNExecutorFactory(const MVNAttrs& mvnAttrs,
                        const std::vector<MemoryDescPtr>& srcDescs,
                        const std::vector<MemoryDescPtr>& dstDescs,
-                       const ExecutorContext::CPtr context)
+                       const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getMVNExecutorsList()) {
             if (desc.builder->isSupported(mvnAttrs, srcDescs, dstDescs)) {
@@ -37,7 +36,7 @@ public:
         }
     }
 
-    ~MVNExecutorFactory() = default;
+    ~MVNExecutorFactory() override = default;
     virtual MVNExecutorPtr makeExecutor(const MVNAttrs& mvnAttrs,
                                         const std::vector<MemoryDescPtr>& srcDescs,
                                         const std::vector<MemoryDescPtr>& dstDescs,
@@ -80,5 +79,4 @@ private:
 using MVNExecutorFactoryPtr = std::shared_ptr<MVNExecutorFactory>;
 using MVNExecutorFactoryCPtr = std::shared_ptr<const MVNExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

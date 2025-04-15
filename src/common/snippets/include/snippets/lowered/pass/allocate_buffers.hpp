@@ -25,11 +25,11 @@ namespace pass {
  */
 class AllocateBuffers: public RangedPass {
 public:
-    OPENVINO_RTTI("AllocateBuffers", "RangedPass")
+    OPENVINO_RTTI("AllocateBuffers", "", RangedPass)
     AllocateBuffers(bool is_optimized = true);
 
     /**
-     * @brief Apply the pass to the Linear IR
+     * @brief Apply the pass to the Linear IR`
      * @param linear_ir the target Linear IR
      * @return status of the pass
      */

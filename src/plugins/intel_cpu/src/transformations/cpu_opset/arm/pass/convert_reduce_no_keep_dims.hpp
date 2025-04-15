@@ -40,8 +40,7 @@
  *
  */
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ConvertReduceNoKeepDimsBase : public ov::pass::MatcherPass {
 public:
@@ -53,7 +52,7 @@ public:
 template <typename ReductionType>
 class ConvertReduction : public ConvertReduceNoKeepDimsBase {
 public:
-    OPENVINO_RTTI("ConvertReduction", "0");
+    OPENVINO_RTTI("ConvertReduction", "0", ConvertReduceNoKeepDimsBase);
     ConvertReduction();
 };
 
@@ -66,5 +65,4 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

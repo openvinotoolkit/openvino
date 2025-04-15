@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,7 +16,7 @@ add_library(openvino::npu_zero_utils ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME npu_zero_utils)
 
 add_library(level-zero-headers INTERFACE)
-set_property(TARGET level-zero-headers APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/include>)
+set_property(TARGET level-zero-headers APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:LevelZero::LevelZero,INTERFACE_INCLUDE_DIRECTORIES>)
 add_library(LevelZero::Headers ALIAS level-zero-headers)
 
 target_include_directories(${TARGET_NAME}
@@ -30,6 +30,7 @@ target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev)
 #
 # targets install
 #
+
 ov_install_static_lib(${TARGET_NAME} ${NPU_PLUGIN_COMPONENT})
 
 ov_developer_package_export_targets(TARGET openvino::npu_zero_utils
@@ -41,3 +42,10 @@ ov_install_static_lib(level-zero-ext ${NPU_PLUGIN_COMPONENT})
 
 ov_developer_package_export_targets(TARGET level-zero-headers)
 ov_install_static_lib(level-zero-headers ${NPU_PLUGIN_COMPONENT})
+
+if(TARGET ze_loader)
+    ov_developer_package_export_targets(TARGET ze_loader)
+    ov_install_static_lib(ze_loader ${NPU_PLUGIN_COMPONENT})
+    
+    add_dependencies(${TARGET_NAME} ze_loader)
+endif()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,12 @@
 #include <cstdint>
 #include <numeric>
 #include <algorithm>
+#include <optional>
 #include <vector>
 #include <string>
 #include <utility>
 #include <stdexcept>
-#include "intel_gpu/runtime/optionals.hpp"
+
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -43,6 +44,8 @@ struct format_traits {
     /// @brief Block sizes as a vector of pairs of dimension number and block size ordered from rare to often.
     std::vector<std::pair<size_t, int>> block_sizes;
     std::vector<std::pair<size_t, int>> logic_block_sizes;
+    /// @brief Onednn memory descriptor size used for asymmetric compensation.
+    size_t desc_size = 0;
     /// @brief Characters representing batch dimensions in an order.
     static const char* batch_chars() { return "bno"; }
     /// @brief Characters representing feature map/channel dimensions in an order.
@@ -367,7 +370,7 @@ struct format {
 
     type value;
 
-    optional_value<format_traits> custom_traits = {};
+    std::optional<format_traits> custom_traits = {};
 
     /// @brief Implicit conversion from format::type.
     format(type t) : value(t) {}

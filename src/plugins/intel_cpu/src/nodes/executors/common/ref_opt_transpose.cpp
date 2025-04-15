@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 namespace {
 
 struct TransposeContext {
@@ -117,12 +116,11 @@ void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, con
               OV_CASE(4u, element_type_traits<ov::element::i32>::value_type));
 }
 
-bool RefOptimizedTransposeExecutor::init(const TransposeParams& transposeParams,
-                                         const std::vector<MemoryDescPtr>& srcDescs,
-                                         const std::vector<MemoryDescPtr>& dstDescs,
-                                         const dnnl::primitive_attr& attr) {
+bool RefOptimizedTransposeExecutor::init([[maybe_unused]] const TransposeParams& transposeParams,
+                                         [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
+                                         [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
+                                         [[maybe_unused]] const dnnl::primitive_attr& attr) {
     return true;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

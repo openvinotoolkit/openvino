@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 namespace ov {
 namespace test {
 
+using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 using std::make_shared;
 using testing::UnorderedElementsAre;
@@ -135,7 +136,7 @@ TEST_F(TypePropResultV0Test, preserve_specific_name_on_input_replace) {
     const auto a = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
     a->get_output_tensor(0).set_names({"input a"});
 
-    const auto result = make_op(a);
+    const auto result = make_op(a, true);
     result->output(0).set_names({"out"});
 
     EXPECT_THAT(result->input(0).get_tensor().get_names(), UnorderedElementsAre("out", "input a"));
@@ -150,6 +151,24 @@ TEST_F(TypePropResultV0Test, preserve_specific_name_on_input_replace) {
     EXPECT_THAT(result->input(0).get_tensor().get_names(), UnorderedElementsAre("input b", "out"));
     EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("out"));
     EXPECT_THAT(a->output(0).get_names(), UnorderedElementsAre("input a"));
+}
+
+TEST_F(TypePropResultV0Test, take_input_node_names) {
+    const auto c = std::make_shared<Constant>(element::f32, Shape{2}, std::vector<float>{2.f, 1.f});
+    c->get_output_tensor(0).set_names({"constant data"});
+    const auto result = make_op(c, true);
+
+    EXPECT_THAT(result->input(0).get_tensor().get_names(), UnorderedElementsAre("constant data"));
+    EXPECT_THAT(result->output(0).get_names(), UnorderedElementsAre("constant data"));
+
+    const auto new_const = std::make_shared<Constant>(element::f32, Shape{2}, std::vector<float>{0.f, 0.f});
+
+    result->input(0).replace_source_output(new_const);
+    result->validate_and_infer_types();
+
+    EXPECT_THAT(c->get_output_tensor(0).get_names(), testing::IsEmpty());
+    EXPECT_THAT(result->get_input_tensor(0).get_names(), UnorderedElementsAre("constant data"));
+    EXPECT_THAT(result->get_output_tensor(0).get_names(), UnorderedElementsAre("constant data"));
 }
 }  // namespace test
 }  // namespace ov

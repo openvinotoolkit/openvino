@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace node {
 
 class Concat : public Node {
 public:
-    Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -21,14 +21,15 @@ public:
     void initOptimalPrimitiveDescriptor() override;
     void selectOptimalPrimitiveDescriptor() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override {
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
     ov::element::Type getRuntimePrecision() const override;
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
     bool needPrepareParams() const override;
     void prepareParams() override;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,7 @@
 #include "openvino/core/shape.hpp"
 #include "tensor_data_accessor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 /**
  * @brief cpu memory accessor implementing ov::ITensorAccessor to get data as tensor from cpu container.
  */
@@ -29,14 +28,12 @@ public:
             // use scalar shape {} instead of {1} if required by shapeInference
             const auto shape = (m_ranks[port] != 0) ? ov::Shape(memPtr->getStaticDims()) : ov::Shape();
             return {memPtr->getDesc().getPrecision(), shape, memPtr->getData()};
-        } else {
-            return {};
         }
+        return {};
     }
 
 private:
     const container_type& m_ptrs;  //!< Pointer to cpu memory pointers with op data.
     const std::vector<int64_t>& m_ranks;
 };
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

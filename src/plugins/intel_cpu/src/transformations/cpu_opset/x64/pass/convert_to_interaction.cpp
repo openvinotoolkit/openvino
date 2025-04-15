@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "simplify_fakequantize.hpp"
@@ -55,8 +56,8 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
         }
         std::vector<std::shared_ptr<Node>> features_node;
         auto first_feature_shape = dense_feature_node->get_output_partial_shape(0);
-        for (size_t i = 0; i < features_m.size(); i++) {
-            auto old_feature_node = pattern_map.at(features_m[i]).get_node_shared_ptr();
+        for (const auto& i : features_m) {
+            auto old_feature_node = pattern_map.at(i).get_node_shared_ptr();
             auto this_feature_shape = old_feature_node->get_output_partial_shape(0);
             // check whether inputs are all equal
             if (!first_feature_shape.compatible(this_feature_shape)) {
@@ -103,8 +104,9 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
         std::vector<float> fq_scale;
         if (fq_node) {
             fq_scale = simplifyToScale(fq_node, 0.001f);
-            if (fq_scale.empty())
+            if (fq_scale.empty()) {
                 return false;
+            }
         }
         bool success = ov::replace_output_update_name(fq_node->output(0), fq_node->input_value(0));
         if (!success) {
@@ -166,8 +168,8 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
         auto final_concat_node = pattern_map.at(final_concat_m).get_node_shared_ptr();
         std::vector<std::shared_ptr<Node>> features_node;
         auto first_feature_shape = dense_fq_node->get_output_partial_shape(0);
-        for (size_t i = 0; i < features_m.size(); i++) {
-            auto old_feature_node = pattern_map.at(features_m[i]).get_node_shared_ptr();
+        for (const auto& i : features_m) {
+            auto old_feature_node = pattern_map.at(i).get_node_shared_ptr();
             auto this_feature_shape = old_feature_node->get_output_partial_shape(0);
             // check whether inputs are all equal
             if (!first_feature_shape.compatible(this_feature_shape)) {

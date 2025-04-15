@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,13 +7,40 @@
 #include <memory>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
+
+using ov::op::v0::Constant;
+using ov::op::v0::Result;
+using ov::op::v0::RNNCell;
+using ov::op::v0::Squeeze;
+using ov::op::v0::TensorIterator;
+using ov::op::v0::Unsqueeze;
+using ov::op::v3::Broadcast;
+using ov::op::v3::GRUCell;
+using ov::op::v3::ShapeOf;
+using ov::op::v4::LSTMCell;
+using ov::op::v5::GRUSequence;
+using ov::op::v5::LSTMSequence;
+using ov::op::v5::RNNSequence;
+using ov::op::v6::Assign;
+using ov::op::v6::ReadValue;
 
 namespace {
 std::string generate_variable_name(const std::string& op_name, const std::string& param_name, int64_t variable_idx) {
@@ -35,8 +62,6 @@ const std::string msg_low_latency_already_applied = "LowLatency2 transformation 
 
 void unroll_single_iteration(const std::shared_ptr<ov::op::util::SubGraphOp>& sub_graph_op,
                              const std::shared_ptr<ov::Model>& outer_f) {
-    using namespace ov::opset9;
-
     const auto& params = sub_graph_op->get_function()->get_parameters();
     const auto& results = sub_graph_op->get_function()->get_results();
     // before: Layer1 -> TI [input -> bodyParameter -> Layer2 -> ...]
@@ -78,20 +103,17 @@ void unroll_single_iteration(const std::shared_ptr<ov::op::util::SubGraphOp>& su
 }
 
 ov::Output<ov::Node> create_init_subgraph(const ov::Output<ov::Node>& in_node, ov::pass::NodeRegistry& to) {
-    using namespace ov::opset9;
-
     auto const_zero = to.make<Constant>(in_node.get_element_type(), ov::Shape{1}, 0);
     auto shape_of = to.make<ShapeOf>(in_node);
     auto broadcast = to.make<Broadcast>(const_zero, shape_of);
     return broadcast->output(0);
 }
 
-std::shared_ptr<ov::opset9::Assign> replace_with_memory(const ov::Input<ov::Node>& input,
+std::shared_ptr<ov::op::v6::Assign> replace_with_memory(const ov::Input<ov::Node>& input,
                                                         const ov::Output<ov::Node>& output,
                                                         const std::string& variable_name,
                                                         bool use_const_initializer,
                                                         ov::pass::NodeRegistry& to) {
-    using namespace ov::opset9;
     using namespace ov::op::util;
 
     ov::Output<ov::Node> read_value_in = input.get_source_output();
@@ -109,11 +131,11 @@ std::shared_ptr<ov::opset9::Assign> replace_with_memory(const ov::Input<ov::Node
     return assign;
 }
 
-std::vector<std::shared_ptr<ov::opset9::Assign>> replace_with_memory(const std::shared_ptr<ov::Node>& node,
+std::vector<std::shared_ptr<ov::op::v6::Assign>> replace_with_memory(const std::shared_ptr<ov::Node>& node,
                                                                      const std::vector<size_t>& indexes,
                                                                      bool use_const_initializer,
                                                                      ov::pass::NodeRegistry& to) {
-    std::vector<std::shared_ptr<ov::opset9::Assign>> new_assigns;
+    std::vector<std::shared_ptr<ov::op::v6::Assign>> new_assigns;
     size_t var_idx = 0;
     for (const auto& idx : indexes) {
         auto in = node->input(idx);
@@ -136,7 +158,6 @@ bool need_unroll(const std::shared_ptr<ov::Node>& op) {
 }
 
 ov::OutputVector prepare_inputs(const std::shared_ptr<ov::Node>& op, size_t seq_len_idx, ov::pass::NodeRegistry& to) {
-    using namespace ov::opset9;
     ov::OutputVector inputs;
     auto axis_0 = to.make<Constant>(ov::element::i32, ov::Shape{1}, 0);
     auto axis_1 = to.make<Constant>(ov::element::i32, ov::Shape{1}, 1);
@@ -151,14 +172,13 @@ ov::OutputVector prepare_inputs(const std::shared_ptr<ov::Node>& op, size_t seq_
     return inputs;
 }
 
-std::vector<std::shared_ptr<ov::opset9::Assign>> process_sequence(const std::shared_ptr<ov::Node>& op,
+std::vector<std::shared_ptr<ov::op::v6::Assign>> process_sequence(const std::shared_ptr<ov::Node>& op,
                                                                   bool m_use_const_initializer,
                                                                   ov::pass::NodeRegistry& to) {
-    using namespace ov::opset9;
     std::shared_ptr<ov::Node> cell;
-    std::vector<std::shared_ptr<ov::opset9::Assign>> new_assigns;
+    std::vector<std::shared_ptr<ov::op::v6::Assign>> new_assigns;
     bool unroll = false;
-    if (auto lstm_seq_v5 = std::dynamic_pointer_cast<LSTMSequence>(op)) {
+    if (auto lstm_seq_v5 = ov::as_type_ptr<LSTMSequence>(op)) {
         unroll = need_unroll(op);
         new_assigns = replace_with_memory(op, {1, 2}, m_use_const_initializer, to);
         if (unroll) {
@@ -175,7 +195,7 @@ std::vector<std::shared_ptr<ov::opset9::Assign>> process_sequence(const std::sha
                                      lstm_seq_v5->get_activations_beta(),
                                      lstm_seq_v5->get_clip());
         }
-    } else if (auto gru_seq = std::dynamic_pointer_cast<GRUSequence>(op)) {
+    } else if (auto gru_seq = ov::as_type_ptr<GRUSequence>(op)) {
         unroll = need_unroll(op);
         new_assigns = replace_with_memory(op, {1}, m_use_const_initializer, to);
         if (unroll) {
@@ -192,7 +212,7 @@ std::vector<std::shared_ptr<ov::opset9::Assign>> process_sequence(const std::sha
                                     gru_seq->get_clip(),
                                     gru_seq->get_linear_before_reset());
         }
-    } else if (auto rnn_seq = std::dynamic_pointer_cast<RNNSequence>(op)) {
+    } else if (auto rnn_seq = ov::as_type_ptr<RNNSequence>(op)) {
         unroll = need_unroll(op);
         new_assigns = replace_with_memory(op, {1}, m_use_const_initializer, to);
         if (unroll) {
@@ -237,7 +257,6 @@ std::vector<std::shared_ptr<ov::opset9::Assign>> process_sequence(const std::sha
 
 bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
     RUN_ON_MODEL_SCOPE(LowLatency2);
-    using namespace ov::opset9;
     using namespace ov::op::util;
     NodeRegistry to;
 
@@ -245,21 +264,20 @@ bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
     for (const auto& op : f->get_ordered_ops()) {
         ov::op::util::process_subgraph(*this, op);
 
-        if (const auto& sub_graph_op = std::dynamic_pointer_cast<SubGraphOp>(op)) {
+        if (const auto& sub_graph_op = ov::as_type_ptr<SubGraphOp>(op)) {
             int64_t variable_id = 0;
             const auto& func = sub_graph_op->get_function();
             const auto& params = func->get_parameters();
             for (const auto& in : sub_graph_op->get_input_descriptions()) {
                 // Process all back edges
-                if (const auto& merged_in = std::dynamic_pointer_cast<SubGraphOp::MergedInputDescription>(in)) {
+                if (const auto& merged_in = ov::as_type_ptr<SubGraphOp::MergedInputDescription>(in)) {
                     // create new Variable
                     const std::string& param_name = params.at(merged_in->m_body_parameter_index)->get_friendly_name();
                     const std::string& var_name =
                         generate_variable_name(sub_graph_op->get_friendly_name(), param_name, variable_id);
 
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
-                    if (std::dynamic_pointer_cast<ReadValueBase>(input.get_source_output().get_node_shared_ptr()) !=
-                        nullptr) {
+                    if (ov::as_type_ptr<ReadValueBase>(input.get_source_output().get_node_shared_ptr()) != nullptr) {
                         OPENVINO_DEBUG(msg_low_latency_2_already_applied);
                         return false;
                     }
@@ -267,7 +285,7 @@ bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
                     const auto& param =
                         sub_graph_op->get_function()->get_parameters().at(merged_in->m_body_parameter_index);
                     for (const auto& in_to : param->output(0).get_target_inputs()) {
-                        if (dynamic_cast<ReadValueBase*>(in_to.get_node()) != nullptr) {
+                        if (ov::as_type<ReadValueBase>(in_to.get_node()) != nullptr) {
                             OPENVINO_DEBUG(msg_low_latency_already_applied);
                             return false;
                         }

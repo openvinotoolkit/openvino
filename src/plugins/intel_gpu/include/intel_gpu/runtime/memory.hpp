@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,7 @@ struct memory {
 
     virtual event::ptr copy_to(stream& stream, memory& other, bool blocking = true) const {
         const auto zero_offset = 0;
-        const auto data_size = other._bytes_count;
+        const auto data_size = _bytes_count;
         return copy_to(stream, other, zero_offset, zero_offset, data_size, blocking);
     }
 

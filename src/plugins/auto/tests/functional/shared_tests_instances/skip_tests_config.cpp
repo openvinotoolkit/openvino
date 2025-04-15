@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModel.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canExportModel.*)",
         R"(.*Behavior.*OVCompiledModelBaseTest.*canSetConfigToCompiledModelWithIncorrectConfig.*)",
+        // requires export_model be implemented
+        R"(.*Behavior.*OVCompiledModelBaseTest.*import_from_weightless_blob.*targetDevice=(MULTI|AUTO).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*compile_from.*_blob.*targetDevice=(MULTI|AUTO).*)",
+        R"(.*Behavior.*OVCompiledModelBaseTest.*use_blob_hint.*targetDevice=(MULTI|AUTO).*)",
 
         // unsupported metrics
         R"(.*smoke_AutoOVGetMetricPropsTest.*OVGetMetricPropsTest.*(AVAILABLE_DEVICES|OPTIMIZATION_CAPABILITIES|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",

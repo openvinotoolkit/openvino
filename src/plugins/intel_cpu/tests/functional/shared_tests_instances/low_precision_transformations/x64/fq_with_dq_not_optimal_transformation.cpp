@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,11 @@ using namespace ov::pass::low_precision;
 
 namespace {
 const std::vector<ov::element::Type> netPrecisions = {
-        ov::element::f32,
-        ov::element::f16
+    ov::element::f32
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8AndI8(),
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8AndI8().setUpdatePrecisions(false)
 };
 
 const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuantizeOnDataValues = {
@@ -97,7 +95,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             { {0.3f}, ov::element::f32, {}, false }
         },
         {},
-        "u8"
+        "i8"
     }
 };
 

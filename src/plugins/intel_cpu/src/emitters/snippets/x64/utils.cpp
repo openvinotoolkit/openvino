@@ -11,9 +11,7 @@
 
 using namespace dnnl::impl::cpu::x64;
 
-namespace ov {
-namespace intel_cpu {
-namespace utils {
+namespace ov::intel_cpu::utils {
 
 size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) {
     auto get_cluster_id = [](const snippets::lowered::ExpressionPort& p) {
@@ -22,7 +20,7 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
     };
     const auto& ma_op = std::dynamic_pointer_cast<ov::snippets::modifier::MemoryAccess>(port.get_expr()->get_node());
     OPENVINO_ASSERT(ma_op, "Expected MemoryAccess op!");
-    size_t offset = ov::snippets::utils::get_dynamic_value<size_t>();
+    auto offset = ov::snippets::utils::get_dynamic_value<size_t>();
     size_t id = SIZE_MAX;
     switch (port.get_type()) {
     case ov::snippets::lowered::ExpressionPort::Type::Input:
@@ -31,9 +29,11 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
         break;
     case ov::snippets::lowered::ExpressionPort::Type::Output:
         offset = ma_op->get_output_offset(port.get_index());
-        for (const auto& child : port.get_connected_ports())
-            if (!ov::is_type<snippets::op::LoopEnd>(child.get_expr()->get_node()))
+        for (const auto& child : port.get_connected_ports()) {
+            if (!ov::is_type<snippets::op::LoopEnd>(child.get_expr()->get_node())) {
                 id = get_cluster_id(child);
+            }
+        }
         break;
     default:
         OV_CPU_JIT_EMITTER_THROW("Uknown type of expression port!");
@@ -44,19 +44,32 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
 }
 
 Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
-    // RSP, RBP - stack-related registers, abi_param1 - runtime parameter register in the kernel
+    // RSP - stack pointer should be preserved, abi_param1 and abi_param2 - runtime parameter register in the kernel
     static std::unordered_set<size_t> blacklist_gpr_idxs = {Xbyak::Operand::RSP,
-                                                            Xbyak::Operand::RBP,
-                                                            static_cast<size_t>(abi_param1.getIdx())};
+                                                            static_cast<size_t>(abi_param1.getIdx()),
+                                                            static_cast<size_t>(abi_param2.getIdx())};
     for (size_t gpr_idx = 0; gpr_idx <= Xbyak::Operand::R15; ++gpr_idx) {
         size_t _idx = Xbyak::Operand::R15 - gpr_idx;  // we allocate from the end
-        if (std::find(used_gpr_idxs.cbegin(), used_gpr_idxs.cend(), _idx) != used_gpr_idxs.cend())
+        if (std::find(used_gpr_idxs.cbegin(), used_gpr_idxs.cend(), _idx) != used_gpr_idxs.cend()) {
             continue;
-        if (blacklist_gpr_idxs.count(_idx) > 0)
+        }
+        if (blacklist_gpr_idxs.count(_idx) > 0) {
             continue;
+        }
         return Xbyak::Reg64(_idx);
     }
     OV_CPU_JIT_EMITTER_THROW("Failed to allocate aux GPR");
+}
+
+Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
+                                        const std::vector<size_t>& aux_gpr_idxs,
+                                        std::set<snippets::Reg>& regs_to_spill) {
+    if (!aux_gpr_idxs.empty()) {
+        return Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
+    }
+    const auto aux_reg = ov::intel_cpu::utils::get_aux_gpr(used_gpr_reg_idxs);
+    regs_to_spill.emplace(snippets::RegType::gpr, aux_reg.getIdx());
+    return aux_reg;
 }
 
 void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,
@@ -76,10 +89,9 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h
                                           size_t ptr_offset) {
     const auto stack_frame = h->qword[h->rsp + stack_offset];
     h->mov(stack_frame, ptr_reg);
-    if (ptr_offset != 0)
+    if (ptr_offset != 0) {
         h->add(stack_frame, ptr_offset);
+    }
 }
 
-}  // namespace utils
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::utils

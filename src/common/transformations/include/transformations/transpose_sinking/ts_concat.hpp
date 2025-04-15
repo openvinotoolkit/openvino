@@ -26,7 +26,7 @@ class TRANSFORMATIONS_API TSConcatBackward;
  */
 class ov::pass::transpose_sinking::TSConcatForward : public ov::pass::transpose_sinking::TSForwardBase {
 public:
-    OPENVINO_RTTI("ov::pass::TSConcatForward", "0");
+    OPENVINO_RTTI("ov::pass::TSConcatForward", "0", ov::pass::transpose_sinking::TSForwardBase);
     TSConcatForward();
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ protected:
         in_data.resolution = 1;
         auto thenTensor = ov::test::utils::create_and_fill_tensor(precision, ov::Shape{1}, in_data);
 
-        in_data.start_from = 3.40282e+38;
+        in_data.start_from = 1;
         in_data.range = 10;
         in_data.resolution = 2;
         auto elseTensor = ov::test::utils::create_and_fill_tensor(precision, ov::Shape{2, 1, 32, 32}, in_data);

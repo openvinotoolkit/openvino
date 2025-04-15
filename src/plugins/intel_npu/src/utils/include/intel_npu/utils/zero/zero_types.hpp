@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,6 +167,23 @@ public:
     ze_result_t ZE_APICALL pfnGraphInitialize(ze_graph_handle_t hGraph) {
         throwWhenUnsupported("ze_pfnGraphGetProperties_ext_2_t", ZE_GRAPH_EXT_VERSION_1_8);
         return _impl->pfnGraphInitialize(hGraph);
+    }
+
+    // version 1.11
+    ze_result_t ZE_APICALL pfnCompilerGetSupportedOptions(ze_device_handle_t hDevice,
+                                                          ze_npu_options_type_t type,
+                                                          size_t* pSize,
+                                                          char* pSupportedOptions) {
+        throwWhenUnsupported("pfnCompilerGetSupportedOptions", ZE_GRAPH_EXT_VERSION_1_11);
+        return _impl->pfnCompilerGetSupportedOptions(hDevice, type, pSize, pSupportedOptions);
+    }
+
+    ze_result_t ZE_APICALL pfnCompilerIsOptionSupported(ze_device_handle_t hDevice,
+                                                        ze_npu_options_type_t type,
+                                                        const char* pOption,
+                                                        const char* pValue) {
+        throwWhenUnsupported("pfnCompilerIsOptionSupported", ZE_GRAPH_EXT_VERSION_1_11);
+        return _impl->pfnCompilerIsOptionSupported(hDevice, type, pOption, pValue);
     }
 };
 

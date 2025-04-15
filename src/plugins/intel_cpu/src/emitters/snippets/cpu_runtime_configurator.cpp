@@ -7,12 +7,12 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 
-#ifndef OPENVINO_ARCH_ARM64
+#ifdef OPENVINO_ARCH_X86_64
 #    include "transformations/snippets/x64/pass/lowered/brgemm_copy_b_loop_ports_adjuster.hpp"
 #    include "transformations/snippets/x64/pass/lowered/external_repacking_adjuster.hpp"
 #endif
-namespace ov {
-namespace intel_cpu {
+
+namespace ov::intel_cpu {
 using namespace ov::snippets::lowered::pass;
 
 const size_t CPURuntimeConfigurator::rank6D = 6;
@@ -27,24 +27,28 @@ std::string CPURuntimeConfig::to_string() const {
         const auto& loop = loop_args[i];
         out << "\t[" << i << "] WA: " << loop.m_work_amount << "\n";
         out << "\tPointer Increments: ";
-        for (int64_t j = 0; j < loop.m_num_data_ptrs; ++j)
+        for (int64_t j = 0; j < loop.m_num_data_ptrs; ++j) {
             out << loop.m_ptr_increments[j] << " ";
+        }
         out << "\n";
         out << "\tFinalization offsets: ";
-        for (int64_t j = 0; j < loop.m_num_data_ptrs; ++j)
+        for (int64_t j = 0; j < loop.m_num_data_ptrs; ++j) {
             out << loop.m_finalization_offsets[j] << " ";
+        }
         out << "\n";
     }
     return out.str();
 }
 #endif
 
-CPURuntimeConfigurator::CPURuntimeConfigurator()
-    : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {}
+CPURuntimeConfigurator::CPURuntimeConfigurator(ov::intel_cpu::MultiCacheWeakPtr cache)
+    : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()),
+      compiled_kernel_cache(std::move(cache)) {}
 
 void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::initialization(linear_ir);
-#ifndef OPENVINO_ARCH_ARM64
+#ifdef OPENVINO_ARCH_X86_64
+    using namespace pass;
     RuntimeOptimizer::register_if_applicable<BrgemmCopyBLoopPortsAdjuster>(m_intermediate_optimizers, linear_ir, this);
     RuntimeOptimizer::register_if_applicable<BrgemmExternalRepackingAdjuster>(m_final_optimizers, linear_ir, this);
 #endif
@@ -52,8 +56,9 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     RuntimeConfigurator::update(linear_ir);
-    if (linear_ir->is_dynamic())
+    if (linear_ir->is_dynamic()) {
         update_loop_args(linear_ir);
+    }
 }
 
 void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) const {
@@ -88,5 +93,4 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
         }
     }
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

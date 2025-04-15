@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "dimension_util.hpp"
 #include "max_pool_shape_inference.hpp"
+#include "openvino/op/avg_pool.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "utils.hpp"
 
