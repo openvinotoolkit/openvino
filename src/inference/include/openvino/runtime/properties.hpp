@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 
@@ -193,7 +194,11 @@ struct PropertyName : public std::string {
      * @return true if property is mutable
      */
     bool is_mutable() const {
-        return _mutability == PropertyMutability::RW;
+        return _mutability != PropertyMutability::RO;
+    }
+
+    PropertyMutability get_mutability() const {
+        return _mutability;
     }
 
 private:
@@ -480,6 +485,23 @@ static constexpr Property<std::set<ModelDistributionPolicy>> model_distribution_
 static constexpr Property<bool> enable_cpu_pinning{"ENABLE_CPU_PINNING"};
 
 /**
+ * @brief This property allows CPU reservation during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Cpu Reservation means reserve cpus which will not be used by other plugin or compiled model. Developer can use this
+ * property to enable or disable CPU reservation during inference on Windows and Linux. MacOS does not support CPU
+ * reservation, and this property is always disabled. This property defaults to false.
+ *
+ * The following code is example to use this property.
+ *
+ * @code
+ * ie.set_property(ov::hint::enable_cpu_reservation(true));
+ * ie.set_property(ov::hint::enable_cpu_reservation(false));
+ * @endcode
+ */
+static constexpr Property<bool> enable_cpu_reservation{"ENABLE_CPU_RESERVATION"};
+
+/**
  * @brief This property define if using hyper threading during inference.
  * @ingroup ov_runtime_cpp_prop_api
  *
@@ -508,7 +530,7 @@ static constexpr Property<uint32_t> num_requests{"PERFORMANCE_HINT_NUM_REQUESTS"
  * ov::optimal_batch_size)
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
+static constexpr Property<std::shared_ptr<const ov::Model>> model{"MODEL_PTR"};
 
 /**
  * @brief Special key for auto batching feature configuration. Enabled by default
@@ -586,6 +608,13 @@ static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precis
  */
 static constexpr Property<float, PropertyMutability::RW> activations_scale_factor{"ACTIVATIONS_SCALE_FACTOR"};
 
+/** @brief  Hint for device to use model compiled blob.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * The property is used pass compiled blob as ov::Tensor.
+ * The blob can be regular or weightless model. The `weights_path` property is hint where to look for weights.
+ */
+inline constexpr Property<Tensor, PropertyMutability::RW> compiled_blob{"COMPILED_BLOB"};
 }  // namespace hint
 
 /**
@@ -801,6 +830,8 @@ struct EncryptionCallbacks {
  * when loading from the cache. This property is set in core.compile_model only.
  * - First value of the struct is encryption function.
  * - Second value of the struct is decryption function.
+ * @note GPU Plugin: encrypts whole blob, not only model structure. Only used when ov::cache_mode property is set to
+ * "OPTIMIZE_SIZE".
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<EncryptionCallbacks, PropertyMutability::WO> cache_encryption_callbacks{
@@ -1288,64 +1319,6 @@ static constexpr Property<int32_t, PropertyMutability::RW> inference_num_threads
 static constexpr Property<int32_t, PropertyMutability::RW> compilation_num_threads{"COMPILATION_NUM_THREADS"};
 
 /**
- * @brief Enum to define possible affinity patterns
- * @ingroup ov_runtime_cpp_prop_api
- */
-enum class Affinity {
-    NONE = -1,  //!<  Disable threads affinity pinning
-    CORE = 0,   //!<  Pin threads to cores, best for static benchmarks
-    NUMA = 1,   //!<  Pin threads to NUMA nodes, best for real-life, contented cases. On the Windows and MacOS* this
-                //!<  option behaves as CORE
-    HYBRID_AWARE = 2,  //!< Let the runtime to do pinning to the cores types, e.g. prefer the "big" cores for latency
-                       //!< tasks. On the hybrid CPUs this option is default
-};
-
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const Affinity& affinity) {
-    switch (affinity) {
-    case Affinity::NONE:
-        return os << "NONE";
-    case Affinity::CORE:
-        return os << "CORE";
-    case Affinity::NUMA:
-        return os << "NUMA";
-    case Affinity::HYBRID_AWARE:
-        return os << "HYBRID_AWARE";
-    default:
-        OPENVINO_THROW("Unsupported affinity pattern");
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
-    std::string str;
-    is >> str;
-    if (str == "NONE") {
-        affinity = Affinity::NONE;
-    } else if (str == "CORE") {
-        affinity = Affinity::CORE;
-    } else if (str == "NUMA") {
-        affinity = Affinity::NUMA;
-    } else if (str == "HYBRID_AWARE") {
-        affinity = Affinity::HYBRID_AWARE;
-    } else {
-        OPENVINO_THROW("Unsupported affinity pattern: ", str);
-    }
-    return is;
-}
-/** @endcond */
-
-/**
- * @deprecated Use ov::hint::enable_cpu_pinning
- * @brief The name for setting CPU affinity per thread option.
- * @ingroup ov_runtime_cpp_prop_api
- * @note The setting is ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
- * environment variable is set (as affinity is configured explicitly)
- */
-OPENVINO_DEPRECATED(
-    "This property is deprecated and will be removed soon. Use ov::hint::enable_cpu_pinning instead of it.")
-static constexpr Property<Affinity> affinity{"AFFINITY"};
-
-/**
  * @brief The devices that the inference task been executed.
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -1357,4 +1330,28 @@ static constexpr Property<std::vector<std::string>, PropertyMutability::RO> exec
  * @note This property is used for weightless caching. Only used when ov::CacheMode Property is set to "OPTIMIZE_SIZE".
  */
 static constexpr Property<std::string, PropertyMutability::RW> weights_path{"WEIGHTS_PATH"};
+
+/**
+ * @brief The precision of key cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> key_cache_precision{"KEY_CACHE_PRECISION"};
+
+/**
+ * @brief The precision of value cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> value_cache_precision{"VALUE_CACHE_PRECISION"};
+
+/**
+ * @brief The group_size of key cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> key_cache_group_size{"KEY_CACHE_GROUP_SIZE"};
+
+/**
+ * @brief The group_size of value cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> value_cache_group_size{"VALUE_CACHE_GROUP_SIZE"};
 }  // namespace ov

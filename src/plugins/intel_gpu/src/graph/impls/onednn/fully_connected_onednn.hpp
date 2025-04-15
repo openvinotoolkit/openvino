@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include "impls/onednn/utils.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 #include <cmath>
@@ -21,8 +21,9 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<fully_connected>());
+        const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
         const auto& fc_node = node.as<fully_connected>();
@@ -48,9 +49,9 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                          one_of(wei_dt, {data_types::i8, data_types::u8}) &&
                          one_of(out_dt, {data_types::f16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
         bool compressed_case = fc_prim->compressed_weights &&
-                               one_of(in0_dt, {data_types::f16, data_types::f32, data_types::i8}) &&
+                               one_of(in0_dt, {data_types::f16, data_types::f32, data_types::i8, data_types::u8}) &&
                                one_of(wei_dt, {data_types::u8, data_types::i8, data_types::u4, data_types::i4}) &&
-                               one_of(out_dt, {data_types::f16, data_types::f32});
+                               one_of(out_dt, {data_types::f16, data_types::f32, data_types::u8, data_types::i8});
         if (!f16f16_case && !f32f32_case && !u8s8_case && !compressed_case)
             return false;
 

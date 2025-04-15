@@ -1,32 +1,40 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "proposal_imp.hpp"
 
-#include <cstring>
-#include <cmath>
-#include <string>
-#include <vector>
-#include <utility>
 #include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <string>
+#include <utility>
+#include <vector>
 #if defined(HAVE_AVX2)
-#include <immintrin.h>
+#    include <immintrin.h>
 #endif
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
-static
-void enumerate_proposals_cpu(const float* bottom4d, const float* d_anchor4d, const float* anchors,
-                             float* proposals, const int num_anchors, const int bottom_H,
-                             const int bottom_W, const float img_H, const float img_W,
-                             const float min_box_H, const float min_box_W, const int feat_stride,
-                             const float box_coordinate_scale, const float box_size_scale,
-                             float coordinates_offset, bool initial_clip, bool swap_xy, bool clip_before_nms) {
+static void enumerate_proposals_cpu(const float* bottom4d,
+                                    const float* d_anchor4d,
+                                    const float* anchors,
+                                    float* proposals,
+                                    const int num_anchors,
+                                    const int bottom_H,
+                                    const int bottom_W,
+                                    const float img_H,
+                                    const float img_W,
+                                    const float min_box_H,
+                                    const float min_box_W,
+                                    const int feat_stride,
+                                    const float box_coordinate_scale,
+                                    const float box_size_scale,
+                                    float coordinates_offset,
+                                    bool initial_clip,
+                                    bool swap_xy,
+                                    bool clip_before_nms) {
     const int bottom_area = bottom_H * bottom_W;
 
     const float* p_anchors_wm = anchors + 0 * num_anchors;
@@ -35,11 +43,11 @@ void enumerate_proposals_cpu(const float* bottom4d, const float* d_anchor4d, con
     const float* p_anchors_hp = anchors + 3 * num_anchors;
 
     parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
-        const float x = static_cast<float>((swap_xy ? h : w) * feat_stride);
-        const float y = static_cast<float>((swap_xy ? w : h) * feat_stride);
+        const auto x = static_cast<float>((swap_xy ? h : w) * feat_stride);
+        const auto y = static_cast<float>((swap_xy ? w : h) * feat_stride);
 
-        const float* p_box   = d_anchor4d + h * bottom_W + w;
-        const float* p_score = bottom4d   + h * bottom_W + w;
+        const float* p_box = d_anchor4d + h * bottom_W + w;
+        const float* p_score = bottom4d + h * bottom_W + w;
 
         float* p_proposal = proposals + (h * bottom_W + w) * num_anchors * 5;
 
@@ -98,11 +106,11 @@ void enumerate_proposals_cpu(const float* bottom4d, const float* d_anchor4d, con
             const float box_w = x1 - x0 + coordinates_offset;
             const float box_h = y1 - y0 + coordinates_offset;
 
-            p_proposal[5*anchor + 0] = x0;
-            p_proposal[5*anchor + 1] = y0;
-            p_proposal[5*anchor + 2] = x1;
-            p_proposal[5*anchor + 3] = y1;
-            p_proposal[5*anchor + 4] = (min_box_W <= box_w) * (min_box_H <= box_h) * score;
+            p_proposal[5 * anchor + 0] = x0;
+            p_proposal[5 * anchor + 1] = y0;
+            p_proposal[5 * anchor + 2] = x1;
+            p_proposal[5 * anchor + 3] = y1;
+            p_proposal[5 * anchor + 4] = (min_box_W <= box_w) * (min_box_H <= box_h) * score;
         }
     });
 }
@@ -126,10 +134,15 @@ static void unpack_boxes(const float* p_proposals, float* unpacked_boxes, int pr
     }
 }
 
-static void nms_cpu(const int num_boxes, int is_dead[],
-             const float* boxes, int index_out[], int* const num_out,
-             const int base_index, const float nms_thresh, const int max_num_out,
-             float coordinates_offset) {
+static void nms_cpu(const int num_boxes,
+                    int is_dead[],
+                    const float* boxes,
+                    int index_out[],
+                    int* const num_out,
+                    const int base_index,
+                    const float nms_thresh,
+                    const int max_num_out,
+                    float coordinates_offset) {
     const int num_proposals = num_boxes;
     int count = 0;
 
@@ -141,20 +154,22 @@ static void nms_cpu(const int num_boxes, int is_dead[],
     std::memset(is_dead, 0, num_boxes * sizeof(int));
 
 #if defined(HAVE_AVX2)
-    __m256  vc_fone = _mm256_set1_ps(coordinates_offset);
+    __m256 vc_fone = _mm256_set1_ps(coordinates_offset);
     __m256i vc_ione = _mm256_set1_epi32(1);
-    __m256  vc_zero = _mm256_set1_ps(0.0f);
+    __m256 vc_zero = _mm256_set1_ps(0.0f);
 
     __m256 vc_nms_thresh = _mm256_set1_ps(nms_thresh);
 #endif
 
     for (int box = 0; box < num_boxes; ++box) {
-        if (is_dead[box])
+        if (is_dead[box]) {
             continue;
+        }
 
         index_out[count++] = base_index + box;
-        if (count == max_num_out)
+        if (count == max_num_out) {
             break;
+        }
 
         int tail = box + 1;
 
@@ -164,13 +179,13 @@ static void nms_cpu(const int num_boxes, int is_dead[],
         __m256 vx1i = _mm256_set1_ps(x1[box]);
         __m256 vy1i = _mm256_set1_ps(y1[box]);
 
-        __m256 vA_width  = _mm256_sub_ps(vx1i, vx0i);
+        __m256 vA_width = _mm256_sub_ps(vx1i, vx0i);
         __m256 vA_height = _mm256_sub_ps(vy1i, vy0i);
-        __m256 vA_area   = _mm256_mul_ps(_mm256_add_ps(vA_width, vc_fone), _mm256_add_ps(vA_height, vc_fone));
+        __m256 vA_area = _mm256_mul_ps(_mm256_add_ps(vA_width, vc_fone), _mm256_add_ps(vA_height, vc_fone));
 
         for (; tail <= num_boxes - 8; tail += 8) {
-            __m256i *pdst = reinterpret_cast<__m256i*>(is_dead + tail);
-            __m256i  vdst = _mm256_loadu_si256(pdst);
+            __m256i* pdst = reinterpret_cast<__m256i*>(is_dead + tail);
+            __m256i vdst = _mm256_loadu_si256(pdst);
 
             __m256 vx0j = _mm256_loadu_ps(x0 + tail);
             __m256 vy0j = _mm256_loadu_ps(y0 + tail);
@@ -182,13 +197,13 @@ static void nms_cpu(const int num_boxes, int is_dead[],
             __m256 vx1 = _mm256_min_ps(vx1i, vx1j);
             __m256 vy1 = _mm256_min_ps(vy1i, vy1j);
 
-            __m256 vwidth  = _mm256_add_ps(_mm256_sub_ps(vx1, vx0), vc_fone);
+            __m256 vwidth = _mm256_add_ps(_mm256_sub_ps(vx1, vx0), vc_fone);
             __m256 vheight = _mm256_add_ps(_mm256_sub_ps(vy1, vy0), vc_fone);
             __m256 varea = _mm256_mul_ps(_mm256_max_ps(vc_zero, vwidth), _mm256_max_ps(vc_zero, vheight));
 
-            __m256 vB_width  = _mm256_sub_ps(vx1j, vx0j);
+            __m256 vB_width = _mm256_sub_ps(vx1j, vx0j);
             __m256 vB_height = _mm256_sub_ps(vy1j, vy0j);
-            __m256 vB_area   = _mm256_mul_ps(_mm256_add_ps(vB_width, vc_fone), _mm256_add_ps(vB_height, vc_fone));
+            __m256 vB_area = _mm256_mul_ps(_mm256_add_ps(vB_width, vc_fone), _mm256_add_ps(vB_height, vc_fone));
 
             __m256 vdivisor = _mm256_sub_ps(_mm256_add_ps(vA_area, vB_area), varea);
             __m256 vintersection_area = _mm256_div_ps(varea, vdivisor);
@@ -229,9 +244,9 @@ static void nms_cpu(const int num_boxes, int is_dead[],
                 const float y1 = std::min<float>(y1i, y1j);
 
                 // intersection area
-                const float width  = std::max<float>(0.0f,  x1 - x0 + coordinates_offset);
-                const float height = std::max<float>(0.0f,  y1 - y0 + coordinates_offset);
-                const float area   = width * height;
+                const float width = std::max<float>(0.0f, x1 - x0 + coordinates_offset);
+                const float height = std::max<float>(0.0f, y1 - y0 + coordinates_offset);
+                const float area = width * height;
 
                 // area of A, B
                 const float A_area = (x1i - x0i + coordinates_offset) * (y1i - y0i + coordinates_offset);
@@ -241,24 +256,32 @@ static void nms_cpu(const int num_boxes, int is_dead[],
                 res = area / (A_area + B_area - area);
             }
 
-            if (nms_thresh < res)
+            if (nms_thresh < res) {
                 is_dead[tail] = 1;
+            }
         }
     }
 
     *num_out = count;
 }
 
-static void retrieve_rois_cpu(const int num_rois, const int item_index,
+static void retrieve_rois_cpu(const int num_rois,
+                              const int item_index,
                               const int num_proposals,
-                              const float* proposals, const int roi_indices[],
-                              float* rois, int post_nms_topn_,
-                              bool normalize, float img_h, float img_w, bool clip_after_nms, float* probs) {
-    const float *src_x0 = proposals + 0 * num_proposals;
-    const float *src_y0 = proposals + 1 * num_proposals;
-    const float *src_x1 = proposals + 2 * num_proposals;
-    const float *src_y1 = proposals + 3 * num_proposals;
-    const float *src_probs = proposals + 4 * num_proposals;
+                              const float* proposals,
+                              const int roi_indices[],
+                              float* rois,
+                              int post_nms_topn_,
+                              bool normalize,
+                              float img_h,
+                              float img_w,
+                              bool clip_after_nms,
+                              float* probs) {
+    const float* src_x0 = proposals + 0 * num_proposals;
+    const float* src_y0 = proposals + 1 * num_proposals;
+    const float* src_x1 = proposals + 2 * num_proposals;
+    const float* src_y1 = proposals + 3 * num_proposals;
+    const float* src_probs = proposals + 4 * num_proposals;
 
     parallel_for(num_rois, [&](size_t roi) {
         int index = roi_indices[roi];
@@ -288,8 +311,9 @@ static void retrieve_rois_cpu(const int num_rois, const int item_index,
         rois[roi * 5 + 3] = x1;
         rois[roi * 5 + 4] = y1;
 
-        if (probs)
+        if (probs) {
             probs[roi] = src_probs[index];
+        }
     });
 
     if (num_rois < post_nms_topn_) {
@@ -302,16 +326,21 @@ static void retrieve_rois_cpu(const int num_rois, const int item_index,
     }
 }
 
-void proposal_exec(const float* input0, const float* input1,
-             std::vector<size_t> dims0, std::array<float, 4> img_info,
-             const float* anchors, int* roi_indices,
-             float* output0, float* output1, proposal_conf &conf) {
+void proposal_exec(const float* input0,
+                   const float* input1,
+                   std::vector<size_t> dims0,
+                   std::array<float, 4> img_info,
+                   const float* anchors,
+                   int* roi_indices,
+                   float* output0,
+                   float* output1,
+                   proposal_conf& conf) {
     // Prepare memory
-    const float *p_bottom_item = input0;
-    const float *p_d_anchor_item = input1;
+    const float* p_bottom_item = input0;
+    const float* p_d_anchor_item = input1;
 
-    float *p_roi_item = output0;
-    float *p_prob_item = output1;
+    float* p_roi_item = output0;
+    float* p_prob_item = output1;
     auto store_prob = p_prob_item != nullptr;
 
     // bottom shape: (2 x num_anchors) x H x W
@@ -360,28 +389,54 @@ void proposal_exec(const float* input0, const float* input1,
     for (int n = 0; n < nn; ++n) {
         enumerate_proposals_cpu(p_bottom_item + num_proposals + n * num_proposals * 2,
                                 p_d_anchor_item + n * num_proposals * 4,
-                                anchors, reinterpret_cast<float *>(&proposals_[0]),
-                                conf.anchors_shape_0, bottom_H, bottom_W, img_H, img_W,
-                                min_box_H, min_box_W, conf.feat_stride_,
-                                conf.box_coordinate_scale_, conf.box_size_scale_,
-                                conf.coordinates_offset, conf.initial_clip, conf.swap_xy, conf.clip_before_nms);
-        std::partial_sort(proposals_.begin(), proposals_.begin() + pre_nms_topn, proposals_.end(),
-                          [](const ProposalBox &struct1, const ProposalBox &struct2) {
+                                anchors,
+                                reinterpret_cast<float*>(&proposals_[0]),
+                                conf.anchors_shape_0,
+                                bottom_H,
+                                bottom_W,
+                                img_H,
+                                img_W,
+                                min_box_H,
+                                min_box_W,
+                                conf.feat_stride_,
+                                conf.box_coordinate_scale_,
+                                conf.box_size_scale_,
+                                conf.coordinates_offset,
+                                conf.initial_clip,
+                                conf.swap_xy,
+                                conf.clip_before_nms);
+        std::partial_sort(proposals_.begin(),
+                          proposals_.begin() + pre_nms_topn,
+                          proposals_.end(),
+                          [](const ProposalBox& struct1, const ProposalBox& struct2) {
                               return (struct1.score > struct2.score);
                           });
 
-        unpack_boxes(reinterpret_cast<float *>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn, store_prob);
-        nms_cpu(pre_nms_topn, &is_dead[0], &unpacked_boxes[0], roi_indices, &num_rois, 0, conf.nms_thresh_,
-                conf.post_nms_topn_, conf.coordinates_offset);
+        unpack_boxes(reinterpret_cast<float*>(&proposals_[0]), &unpacked_boxes[0], pre_nms_topn, store_prob);
+        nms_cpu(pre_nms_topn,
+                &is_dead[0],
+                &unpacked_boxes[0],
+                roi_indices,
+                &num_rois,
+                0,
+                conf.nms_thresh_,
+                conf.post_nms_topn_,
+                conf.coordinates_offset);
 
         float* p_probs = store_prob ? p_prob_item + n * conf.post_nms_topn_ : nullptr;
-        retrieve_rois_cpu(num_rois, n, pre_nms_topn, &unpacked_boxes[0], roi_indices,
+        retrieve_rois_cpu(num_rois,
+                          n,
+                          pre_nms_topn,
+                          &unpacked_boxes[0],
+                          roi_indices,
                           p_roi_item + n * conf.post_nms_topn_ * 5,
-                          conf.post_nms_topn_, conf.normalize_, img_H, img_W, conf.clip_after_nms, p_probs);
+                          conf.post_nms_topn_,
+                          conf.normalize_,
+                          img_H,
+                          img_W,
+                          conf.clip_after_nms,
+                          p_probs);
     }
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

@@ -18,9 +18,15 @@ The software was validated on the following devices:
 ## How to build
 Currently, there are three ways to build OpenVINO Runtime for 64-bit RISC-V platforms:
 
-1. **Recommended**. The build with vectorized (using RVV instructions) primitives for limited scope of operations from [`SHL`](https://github.com/XUANTIE-RV/csi-nn2) using [`xuantie-gnu-toolchain`](https://github.com/XUANTIE-RV/). This GNU Compiler Toolchain supports RVV 0.7.1, ratified RVV 1.0 and Xuantie-specific instruction sets. The vector intrinsics don't use the common prefix `__riscv_`. This method provides the best performance available at the moment.
-2. The build without optimized primitives using [`riscv-gnu-toolchain`](https://github.com/riscv-collab/riscv-gnu-toolchain.git). This GNU Compiler Toolchain supports RVV 0.7.1 and ratified RVV 1.0. The vector intrinsics use the common prefix `__riscv_`. However, as  mentioned earlier, this build method doesn't yet provide optimized primitives implemented using the RVV intrinsics.
+1. **Recommended**. The build with vectorized (using RVV intrinsics) primitives for limited scope of operations from [`SHL`](https://github.com/XUANTIE-RV/csi-nn2) operations using [`xuantie-gnu-toolchain`](https://github.com/XUANTIE-RV/).
+This GNU Compiler Toolchain supports RVV 0.7.1, ratified RVV 1.0 and Xuantie-specific instruction sets.
+The vector intrinsics don't use the common prefix `__riscv_`.
+This method provides the best performance available at the moment.
+2. The build without optimized primitives implemented with RVV intrinsics using [`riscv-gnu-toolchain`](https://github.com/riscv-collab/riscv-gnu-toolchain.git). This GNU Compiler Toolchain supports RVV 0.7.1 and ratified RVV 1.0. The vector intrinsics use the common prefix `__riscv_`. However, as mentioned earlier, this build method doesn't yet provide optimized primitives implemented using the RVV intrinsics.
 3. The build without optimized primitives using installed Linux packages. The compilers in these packages don't support RVV intrinsics.
+
+> **NOTE**: Currently CPU Plugin in OpenVINO supports [Just-In-Time (JIT) code generation](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/emitters/README.md) for limited scope of operations on devices with RVV 1.0.
+  All three described above ways to build OpenVINO Runtime for 64-bit RISC-V supports JIT code generation.
 
 ### Steps
 

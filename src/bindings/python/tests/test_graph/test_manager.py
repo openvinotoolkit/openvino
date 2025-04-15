@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -7,12 +7,12 @@ import os
 import numpy as np
 import pytest
 
-import openvino.runtime.opset10 as ops
+import openvino.opset10 as ops
 from openvino import Core, Model
-from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
+from openvino.passes import Manager, Serialize, ConstantFolding, Version
 
 from tests.test_graph.util import count_ops_of_type
-from tests.utils.helpers import create_filename_for_test, compare_models
+from tests.utils.helpers import create_filenames_for_ir, compare_models
 
 
 def create_model():
@@ -51,7 +51,7 @@ def test_constant_folding():
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 @pytest.fixture
 def prepare_ir_paths(request, tmp_path):
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
 
     yield xml_path, bin_path
 
@@ -138,7 +138,7 @@ def test_serialize_pass_mixed_args_kwargs_v2(prepare_ir_paths):
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_pass_wrong_num_of_args(request, tmp_path):
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
 
     pass_manager = Manager()
     with pytest.raises(TypeError) as e:

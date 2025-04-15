@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
@@ -209,9 +210,9 @@ private:
                         " version: ",
                         reduction_type_info.version_id);
 
-        if (auto arithmetic_reduce = std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduction))
+        if (auto arithmetic_reduce = ov::as_type_ptr<op::util::ArithmeticReductionKeepDims>(reduction))
             arithmetic_reduce->set_keep_dims(keep_dims);
-        else if (auto logical_reduce = std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduction))
+        else if (auto logical_reduce = ov::as_type_ptr<op::util::LogicalReductionKeepDims>(reduction))
             logical_reduce->set_keep_dims(keep_dims);
         reduction->validate_and_infer_types();
         return reduction;

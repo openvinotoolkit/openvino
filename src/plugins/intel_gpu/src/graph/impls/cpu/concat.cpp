@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "concatenation_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 
 #include "openvino/op/concat.hpp"
 
@@ -22,7 +23,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::concatenation_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<concatenation_impl>(*this);
+        return std::make_unique<concatenation_impl>(*this);
     }
 
     concatenation_impl() : parent("concatenation_cpu_impl") {}
@@ -54,9 +55,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
         const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
-            for (auto e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         auto params = instance.get_impl_params();
@@ -81,7 +80,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> output_lock(output_mem_ptr, stream);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read_write> output_lock(output_mem_ptr, stream);
 
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
@@ -97,14 +96,10 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
             input_mem_ptrs[i]->unlock(stream);
 
         if (pass_through_events) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
+            return stream.group_events(events);
         }
 
-        return stream.create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
@@ -113,7 +108,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<concatenation_impl>();
+        return std::make_unique<concatenation_impl>();
     }
 };
 

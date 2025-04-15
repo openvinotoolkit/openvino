@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
@@ -36,24 +36,32 @@ ov::log::Level getTestsLogLevelFromEnvironmentOr(ov::log::Level instead) {
     return instead;
 }
 
-const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
+const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
     // OV
     {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT}},
-    {{ov::hint::execution_mode.name(), ov::hint::ExecutionMode::ACCURACY}},
     {{ov::hint::num_requests.name(), 2u}},
     {{ov::log::level.name(), ov::log::Level::ERR}},
     {{ov::device::id.name(), removeDeviceNameOnlyID(ov::test::utils::getTestsPlatformFromEnvironmentOr("3720"))}},
     {{ov::enable_profiling.name(), true}},
 };
 
-const std::vector<ov::AnyMap> CorrectPluginDefaultMutableProperties = {
+const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
+    // OV
+    {{ov::hint::execution_mode.name(), ov::hint::ExecutionMode::ACCURACY}},
+};
+
+const std::vector<ov::AnyMap> compat_CorrectPluginDefaultMutableProperties = {
     /// OV
     {{ov::enable_profiling.name(), false}},
     {{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}},
     {{ov::hint::num_requests.name(), 1u}},
-    {{ov::log::level.name(), getTestsLogLevelFromEnvironmentOr(ov::log::Level::NO)}},
+    {{ov::log::level.name(), getTestsLogLevelFromEnvironmentOr(ov::log::Level::WARNING)}},
     {{ov::device::id.name(), ""}},
     {{ov::num_streams.name(), ov::streams::Num(1)}},
+};
+
+const std::vector<ov::AnyMap> CorrectPluginDefaultMutableProperties = {
+    /// OV
     {{ov::hint::execution_mode.name(), ov::hint::ExecutionMode::PERFORMANCE}},
 };
 
@@ -142,6 +150,12 @@ const std::vector<ov::AnyMap> IncorrectInexistingProperties = {
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(compat_CorrectPluginMutableProperties)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTests>));
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVPropertiesTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(CorrectPluginMutableProperties)),
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTests>));
 
@@ -166,6 +180,12 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassCommon,
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(compat_CorrectPluginDefaultMutableProperties)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesDefaultTests>));
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVPropertiesDefaultTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(CorrectPluginDefaultMutableProperties)),
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesDefaultTests>));
 
@@ -173,7 +193,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckSetSupportedRWMetricsPropsTests,
     OVCheckSetSupportedRWMetricsPropsTests,
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                       ::testing::ValuesIn(getRWMandatoryPropertiesValues(CorrectPluginMutableProperties))),
+                       ::testing::ValuesIn(getRWMandatoryPropertiesValues(compat_CorrectPluginMutableProperties))),
     (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>));
 
 INSTANTIATE_TEST_SUITE_P(

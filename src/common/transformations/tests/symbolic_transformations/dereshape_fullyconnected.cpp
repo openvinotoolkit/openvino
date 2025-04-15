@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
-#include "transformations/symbolic_transformations/dereshape_matmul.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -36,7 +36,7 @@ TEST_F(TransformationTestsF, DeReshapeFC) {
         auto out_reshape = make_shared<v1::Reshape>(matmul, pattern, false);
 
         model = make_shared<Model>(NodeVector{out_reshape}, ParameterVector{data, second_input});
-        manager.register_pass<pass::DeReshapeFullyConnected>();
+        manager.register_pass<pass::SymbolicOptimizations>();
     }
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, DeReshapeFCWithConvert) {
         auto out_reshape = make_shared<v1::Reshape>(matmul, pattern, false);
 
         model = make_shared<Model>(NodeVector{out_reshape}, ParameterVector{data, second_input});
-        manager.register_pass<pass::DeReshapeFullyConnected>();
+        manager.register_pass<pass::SymbolicOptimizations>();
     }
     {
         auto data = make_shared<v0::Parameter>(element::f16, shape);
@@ -91,6 +91,6 @@ TEST_F(TransformationTestsF, DeReshapeFCNegative) {
         auto out_reshape = make_shared<v1::Reshape>(matmul, pattern, false);
 
         model = make_shared<Model>(NodeVector{out_reshape}, ParameterVector{data, second_input});
-        manager.register_pass<pass::DeReshapeFullyConnected>();
+        manager.register_pass<pass::SymbolicOptimizations>();
     }
 }

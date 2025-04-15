@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -131,6 +131,7 @@ public:
                                                                                  get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
         params->_can_be_optimized = this->optimized;
+        params->_runtime_skippable = this->runtime_skippable;
         params->in_port_to_shape_info_offset = get_input_port_to_shape_info_offset_map();
         params->out_port_to_shape_info_offset = get_output_port_to_shape_info_offset_map();
         auto deps = get_dependencies();
@@ -157,6 +158,7 @@ public:
 
     program& get_program() { return myprog; }
     program& get_program() const { return myprog; }
+    const ExecutionConfig& get_config() const { return myprog.get_config(); }
 
     primitive_impl* get_selected_impl() const { return selected_impl.get(); }
     void set_selected_impl(std::unique_ptr<primitive_impl> impl);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -586,6 +586,8 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         return create_tensor_random<double, double>(inputInfo.second);
     } else if (type == ov::element::f16) {
         return create_tensor_random<ov::float16, float>(inputInfo.second);
+    } else if (type == ov::element::bf16) {
+        return create_tensor_random<ov::bfloat16, float>(inputInfo.second);
     } else if (type == ov::element::i32) {
         return create_tensor_random<int32_t, int32_t>(inputInfo.second);
     } else if (type == ov::element::i64) {
@@ -609,6 +611,8 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
     } else if (type == ov::element::u4) {
         return create_tensor_random_4bit(inputInfo.second, 0, 15);
     } else if (type == ov::element::i4) {
+        return create_tensor_random_4bit(inputInfo.second, 0, 15);
+    } else if (type == ov::element::nf4) {
         return create_tensor_random_4bit(inputInfo.second, 0, 15);
     } else if (type == ov::element::string) {
         const auto& in_info = inputInfo.second;
@@ -1011,6 +1015,7 @@ void copy_tensor_data(ov::Tensor& dst, const ov::Tensor& src) {
         throw std::runtime_error(
             "Source and destination tensors shapes and byte sizes are expected to be equal for data copying.");
     }
-
-    memcpy(dst.data(), src.data(), src.get_byte_size());
+    OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
+        memcpy(dst.data(), src.data(), src.get_byte_size());
+    OPENVINO_SUPPRESS_DEPRECATED_END  // keep until 2026.0 release
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,10 +50,13 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         if (transpose) {
             const auto parent = transpose->get_input_node_shared_ptr(0);
             const auto child = transpose->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-            auto is_brgemm_case = ov::is_type<opset1::MatMul>(parent) || ov::is_type<opset1::MatMul>(child);
+            auto is_brgemm_case = ov::is_type_any_of<opset1::MatMul, opset1::MatMul>(child);
+            auto decomposition_case = true;
             // Check for Transpose parent is MatMul inside Subgraph
             if (const auto subgraph = ov::as_type_ptr<const op::Subgraph>(parent)) {
                 if (GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
+                    // Transpose decomposition is supported only for Transpose nodes right after Subgraph's parameters
+                    decomposition_case = false;
                     const auto body = subgraph->body_ptr();
                     const auto subgraph_output = body->get_results()[transpose->input_value(0).get_index()]->get_input_node_shared_ptr(0);
                     is_brgemm_case = is_brgemm_case || ov::is_type<opset1::MatMul>(subgraph_output);
@@ -63,7 +66,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
             if (order) {
                 const auto order_value = order->cast_vector<int>();
-                return (TransposeDecomposition::is_supported_transpose_order(order_value)) ||
+                return (decomposition_case && TransposeDecomposition::is_supported_transpose_order(order_value)) ||
                        (is_brgemm_case && FuseTransposeBrgemm::is_supported_transpose_order(order_value));
             }
         }
@@ -78,51 +81,51 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         return ov::is_type<ov::op::v1::Select>(n);
     };
 
-    auto is_supported_binary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
-        return ov::is_type<ov::op::v1::Add>(n)
-            || ov::is_type<ov::op::v1::Divide>(n)
-            || ov::is_type<ov::op::v1::Equal>(n)
-            || ov::is_type<ov::op::v1::FloorMod>(n)
-            || ov::is_type<ov::op::v1::Greater>(n)
-            || ov::is_type<ov::op::v1::GreaterEqual>(n)
-            || ov::is_type<ov::op::v1::Less>(n)
-            || ov::is_type<ov::op::v1::LessEqual>(n)
-            || ov::is_type<ov::op::v1::LogicalAnd>(n)
-            || ov::is_type<ov::op::v1::LogicalOr>(n)
-            || ov::is_type<ov::op::v1::LogicalXor>(n)
-            || ov::is_type<ov::op::v1::Maximum>(n)
-            || ov::is_type<ov::op::v1::Minimum>(n)
-            || ov::is_type<ov::op::v1::Mod>(n)
-            || ov::is_type<ov::op::v1::Multiply>(n)
-            || ov::is_type<ov::op::v1::NotEqual>(n)
-            || ov::is_type<ov::op::v0::PRelu>(n)
-            || ov::is_type<ov::op::v1::Power>(n)
-            || ov::is_type<ov::op::v0::SquaredDifference>(n)
-            || ov::is_type<ov::op::v1::Subtract>(n)
-            || ov::is_type<ov::op::v0::Xor>(n)
-            || ov::is_type<ov::op::v0::Convert>(n);
+    auto is_supported_binary_eltwise_op = [](const std::shared_ptr<const Node>& n) -> bool {
+        return ov::is_type_any_of<ov::op::v1::Add,
+                                  ov::op::v1::Divide,
+                                  ov::op::v1::Equal,
+                                  ov::op::v1::FloorMod,
+                                  ov::op::v1::Greater,
+                                  ov::op::v1::GreaterEqual,
+                                  ov::op::v1::Less,
+                                  ov::op::v1::LessEqual,
+                                  ov::op::v1::LogicalAnd,
+                                  ov::op::v1::LogicalOr,
+                                  ov::op::v1::LogicalXor,
+                                  ov::op::v1::Maximum,
+                                  ov::op::v1::Minimum,
+                                  ov::op::v1::Mod,
+                                  ov::op::v1::Multiply,
+                                  ov::op::v1::NotEqual,
+                                  ov::op::v0::PRelu,
+                                  ov::op::v1::Power,
+                                  ov::op::v0::SquaredDifference,
+                                  ov::op::v1::Subtract,
+                                  ov::op::v0::Xor,
+                                  ov::op::v0::Convert>(n);
     };
 
-    auto is_supported_unary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
-        return ov::is_type<ov::op::v0::Abs>(n)
-            || ov::is_type<ov::op::v0::Clamp>(n)
-            || ov::is_type<ov::op::v0::Floor>(n)
-            || ov::is_type<ov::op::v0::Ceiling>(n)
-            || ov::is_type<ov::op::v0::Elu>(n)
-            || ov::is_type<ov::op::v0::Erf>(n)
-            || ov::is_type<ov::op::v0::Exp>(n)
-            || ov::is_type<ov::op::v1::LogicalNot>(n)
-            || ov::is_type<ov::op::v4::Mish>(n)
-            || ov::is_type<ov::op::v0::Negative>(n)
-            || ov::is_type<ov::op::v0::Relu>(n)
-            || ov::is_type<ov::op::v5::Round>(n)
-            || ov::is_type<ov::op::v0::Sigmoid>(n)
-            || ov::is_type<ov::op::v0::Sqrt>(n)
-            || ov::is_type<ov::op::v0::Tanh>(n)
-            || ov::is_type<ov::op::v0::Gelu>(n)
-            || ov::is_type<ov::op::v7::Gelu>(n)
-            || ov::is_type<ov::op::v4::Swish>(n)
-            || ov::is_type<ov::op::v4::HSwish>(n);
+    auto is_supported_unary_eltwise_op = [](const std::shared_ptr<const Node>& n) -> bool {
+        return ov::is_type_any_of<ov::op::v0::Abs,
+                                  ov::op::v0::Clamp,
+                                  ov::op::v0::Floor,
+                                  ov::op::v0::Ceiling,
+                                  ov::op::v0::Elu,
+                                  ov::op::v0::Erf,
+                                  ov::op::v0::Exp,
+                                  ov::op::v1::LogicalNot,
+                                  ov::op::v4::Mish,
+                                  ov::op::v0::Negative,
+                                  ov::op::v0::Relu,
+                                  ov::op::v5::Round,
+                                  ov::op::v0::Sigmoid,
+                                  ov::op::v0::Sqrt,
+                                  ov::op::v0::Tanh,
+                                  ov::op::v0::Gelu,
+                                  ov::op::v7::Gelu,
+                                  ov::op::v4::Swish,
+                                  ov::op::v4::HSwish>(n);
     };
 
     auto is_supported_softmax = [](const std::shared_ptr<const Node> &n) -> bool {
@@ -153,7 +156,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
 
     auto is_supported_reduce_op = [](const std::shared_ptr<const Node> &n) -> bool {
-        if (ov::is_type<const ov::op::v1::ReduceMax>(n) || ov::is_type<const ov::op::v1::ReduceSum>(n)) {
+        if (ov::is_type_any_of<const ov::op::v1::ReduceMax, const ov::op::v1::ReduceSum>(n)) {
             const auto& reduce_base = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(n);
             const auto& axis_constant = ov::as_type_ptr<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
             const auto rank = n->get_input_partial_shape(0).rank();
@@ -226,8 +229,8 @@ TokenizeSnippets::TokenizeSnippets(const SnippetsTokenization::Config& config) {
             //  This is a temporary solution. Either modify SnippetsMarkSkipped
             //  or align this with the custom MHA tokenization pass.
             return (GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin ||
-                    ov::is_type<ov::op::v0::MatMul>(n) || ov::is_type<ov::op::v1::Transpose>(n))
-                    && AppropriateForSubgraph(n);
+                    ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v1::Transpose>(n)) &&
+                   AppropriateForSubgraph(n);
         });
     ov::graph_rewrite_callback callback = [=](ov::pass::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")

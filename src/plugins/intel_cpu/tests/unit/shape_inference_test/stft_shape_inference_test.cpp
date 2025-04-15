@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,8 @@ TEST_F(STFTShapeInferenceTest, all_input_as_params_1D_signal) {
     int32_t frame_size = 16;
     int32_t frame_step = 16;
 
-    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, Shape{}, &frame_size}},
-                                                         {3, {element::i32, Shape{}, &frame_step}}};
+    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, ov::Shape{}, &frame_size}},
+                                                         {3, {element::i32, ov::Shape{}, &frame_step}}};
     auto acc = make_tensor_accessor(const_data);
     auto static_output_shapes = shape_infer(op.get(), static_input_shapes, acc);
     ASSERT_EQ(static_output_shapes[0], StaticShape({9, 3, 2}));
@@ -50,8 +50,8 @@ TEST_F(STFTShapeInferenceTest, all_input_as_params) {
     int32_t frame_size = 16;
     int32_t frame_step = 16;
 
-    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, Shape{}, &frame_size}},
-                                                         {3, {element::i32, Shape{}, &frame_step}}};
+    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, ov::Shape{}, &frame_size}},
+                                                         {3, {element::i32, ov::Shape{}, &frame_step}}};
     auto acc = make_tensor_accessor(const_data);
     auto static_output_shapes = shape_infer(op.get(), static_input_shapes, acc);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 9, 3, 2}));
@@ -70,8 +70,8 @@ TEST_F(STFTShapeInferenceTest, all_input_as_params_equal_dims) {
     int32_t frame_size = 16;
     int32_t frame_step = 16;
 
-    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, Shape{}, &frame_size}},
-                                                         {3, {element::i32, Shape{}, &frame_step}}};
+    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, ov::Shape{}, &frame_size}},
+                                                         {3, {element::i32, ov::Shape{}, &frame_step}}};
     auto acc = make_tensor_accessor(const_data);
     auto static_output_shapes = shape_infer(op.get(), static_input_shapes, acc);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 9, 1, 2}));
@@ -111,8 +111,8 @@ TEST_F(STFTShapeInferenceTest, frame_size_incompatible_value_big) {
     int32_t frame_size = 49;
     int32_t frame_step = 16;
 
-    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, Shape{}, &frame_size}},
-                                                         {3, {element::i32, Shape{}, &frame_step}}};
+    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, ov::Shape{}, &frame_size}},
+                                                         {3, {element::i32, ov::Shape{}, &frame_step}}};
     auto acc = make_tensor_accessor(const_data);
     OV_EXPECT_THROW(std::ignore = shape_infer(op.get(), static_input_shapes, acc),
                     NodeValidationFailure,
@@ -133,8 +133,8 @@ TEST_F(STFTShapeInferenceTest, frame_size_incompatible_value_small) {
     int32_t frame_size = -1;
     int32_t frame_step = 16;
 
-    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, Shape{}, &frame_size}},
-                                                         {3, {element::i32, Shape{}, &frame_step}}};
+    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, ov::Shape{}, &frame_size}},
+                                                         {3, {element::i32, ov::Shape{}, &frame_step}}};
     auto acc = make_tensor_accessor(const_data);
     OV_EXPECT_THROW(std::ignore = shape_infer(op.get(), static_input_shapes, acc),
                     NodeValidationFailure,
@@ -155,8 +155,8 @@ TEST_F(STFTShapeInferenceTest, frame_step_incompatible_value) {
     int32_t frame_size = 16;
     int32_t frame_step = -1;
 
-    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, Shape{}, &frame_size}},
-                                                         {3, {element::i32, Shape{}, &frame_step}}};
+    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, ov::Shape{}, &frame_size}},
+                                                         {3, {element::i32, ov::Shape{}, &frame_step}}};
     auto acc = make_tensor_accessor(const_data);
     OV_EXPECT_THROW(std::ignore = shape_infer(op.get(), static_input_shapes, acc),
                     NodeValidationFailure,
@@ -177,8 +177,8 @@ TEST_F(STFTShapeInferenceTest, window_incompatible_dim_with_frame_size) {
     int32_t frame_size = 8;
     int32_t frame_step = 4;
 
-    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, Shape{}, &frame_size}},
-                                                         {3, {element::i32, Shape{}, &frame_step}}};
+    auto const_data = std::unordered_map<size_t, Tensor>{{2, {element::i32, ov::Shape{}, &frame_size}},
+                                                         {3, {element::i32, ov::Shape{}, &frame_step}}};
     auto acc = make_tensor_accessor(const_data);
 
     OV_EXPECT_THROW(std::ignore = shape_infer(op.get(), static_input_shapes, acc),

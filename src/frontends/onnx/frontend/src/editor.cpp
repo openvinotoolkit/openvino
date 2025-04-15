@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <onnx/shape_inference/implementation.h>
 
 #include <fstream>
+#include <stack>
 
 #include "detail/subgraph_extraction.hpp"
 #include "edge_mapper.hpp"

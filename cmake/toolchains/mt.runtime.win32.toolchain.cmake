@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -31,6 +31,16 @@ if(use_static_runtime)
                 set(${flag_var} "/MTd")
             else()
                 set(${flag_var} "/MT")
+            endif()
+        endforeach()
+    endforeach()
+    foreach(type EXE SHARED MODULE)
+        foreach(build_type "_DEBUG" "_MINSIZEREL" "_RELEASE" "_RELWITHDEBINFO")
+            set(flag_var "CMAKE_${type}_LINKER_FLAGS${build_type}_INIT")
+            if (build_type STREQUAL "_DEBUG")
+                string(APPEND ${flag_var} " /NODEFAULTLIB:libucrtd.lib /DEFAULTLIB:ucrtd.lib")
+            else()
+                string(APPEND ${flag_var} " /NODEFAULTLIB:libucrt.lib /DEFAULTLIB:ucrt.lib")
             endif()
         endforeach()
     endforeach()

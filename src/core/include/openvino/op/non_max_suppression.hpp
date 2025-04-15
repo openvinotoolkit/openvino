@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -526,6 +526,7 @@ class OPENVINO_API AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>
 public:
     AttributeAdapter(op::v1::NonMaxSuppression::BoxEncodingType& value)
         : EnumAttributeAdapterBase<op::v1::NonMaxSuppression::BoxEncodingType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::v1::NonMaxSuppression::BoxEncodingType>");
 };
@@ -536,6 +537,7 @@ class OPENVINO_API AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>
 public:
     AttributeAdapter(op::v3::NonMaxSuppression::BoxEncodingType& value)
         : EnumAttributeAdapterBase<op::v3::NonMaxSuppression::BoxEncodingType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::v3::NonMaxSuppression::BoxEncodingType>");
 };
@@ -546,6 +548,7 @@ class OPENVINO_API AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>
 public:
     AttributeAdapter(op::v5::NonMaxSuppression::BoxEncodingType& value)
         : EnumAttributeAdapterBase<op::v5::NonMaxSuppression::BoxEncodingType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::v5::NonMaxSuppression::BoxEncodingType>");
 };
@@ -556,6 +559,7 @@ class OPENVINO_API AttributeAdapter<op::v9::NonMaxSuppression::BoxEncodingType>
 public:
     AttributeAdapter(op::v9::NonMaxSuppression::BoxEncodingType& value)
         : EnumAttributeAdapterBase<op::v9::NonMaxSuppression::BoxEncodingType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::v9::NonMaxSuppression::BoxEncodingType>");
 };

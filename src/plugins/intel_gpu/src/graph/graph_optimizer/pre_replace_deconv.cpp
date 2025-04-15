@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -277,7 +277,9 @@ void pre_replace_deconv::run(program& p) {
                 p.add_connection(input_node, conv_node);
 
                 {
-                    auto weights_node_conv_rpl_ptr = p.nodes_map.find(weight_replace_node_id)->second;
+                    auto iter = p.nodes_map.find(weight_replace_node_id);
+                    OPENVINO_ASSERT(iter != p.nodes_map.end(), weight_replace_node_id, " is not in nodes_map.");
+                    auto weights_node_conv_rpl_ptr = iter->second;
                     p.add_connection(*weights_node_conv_rpl_ptr, conv_node);
                     p.inputs.push_back(weights_node_conv_rpl_ptr.get());
                 }

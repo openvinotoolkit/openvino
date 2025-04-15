@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,7 +76,7 @@ void RoPE::validate_and_infer_types() {
     if (m_config.input_trans0213) {
         // transpose 0213 ([B,L,H,S]=>[B,H,L,S]) happens before RoPE
         std::swap(input_pshape[2], input_pshape[1]);
-    } else if (m_config.is_interleaved) {
+    } else if (m_config.output_trans0213) {
         // transpose 0213 ([B,L,H,S]=>[B,H,L,S]) happens after RoPE
         std::swap(input_pshape[2], input_pshape[1]);
     }
@@ -90,6 +90,7 @@ bool RoPE::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("slice_start", m_config.slice_start);
     visitor.on_attribute("slice_stop", m_config.slice_stop);
     visitor.on_attribute("input_trans0213", m_config.input_trans0213);
+    visitor.on_attribute("output_trans0213", m_config.output_trans0213);
     visitor.on_attribute("is_interleaved", m_config.is_interleaved);
     visitor.on_attribute("rotary_ndims", m_config.rotary_ndims);
     visitor.on_attribute("is_chatglm", m_config.is_chatglm);

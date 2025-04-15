@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,10 @@
 
 #include "edge.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-using edgeCluster = std::unordered_set<EdgePtr>;
-using edgeClusters = std::vector<edgeCluster>;
+using EdgeCluster = std::vector<EdgePtr>;
+using EdgeClusters = std::vector<EdgeCluster>;
 
 struct MemoryRegion {
     int start;     // Execution order index of first use.
@@ -22,33 +21,52 @@ struct MemoryRegion {
     enum class AllocType : uint8_t { POD, STRING, UNKNOWN } alloc_type;
 };
 
+using MemoryRegions = std::vector<MemoryRegion>;
+struct MemoryStatisticsRecord {
+    const char* id;
+    size_t total_regions;        // number of regions
+    size_t total_unique_blocks;  // bytes
+    size_t total_size;           // bytes
+    size_t optimal_total_size;   // bytes
+    size_t max_region_size;      // bytes
+};
+
+using MemoryStatistics = std::vector<MemoryStatisticsRecord>;
+
 class MemoryControl {
 public:
     class RegionHandler;
 
     using RegionHandlerPtr = std::shared_ptr<RegionHandler>;
-    using MemoryBlockMap = std::unordered_map<decltype(MemoryRegion::id), MemoryBlockPtr>;
+    using MemorySolution = std::unordered_map<decltype(MemoryRegion::id), MemoryBlockPtr>;
+    using Ptr = std::shared_ptr<MemoryControl>;
+    using CPtr = std::shared_ptr<const MemoryControl>;
 
 public:
-    static edgeClusters findEdgeClusters(const std::vector<EdgePtr>& graphEdges);
+    void insert(const MemoryRegions& regions, const std::vector<size_t>& syncInds);
 
-    MemoryBlockMap insert(const std::vector<MemoryRegion>& regions);
+    MemorySolution solve();
 
-    bool allocated() const {
+    [[nodiscard]] bool allocated() const {
         return m_allocated;
     }
 
     void allocateMemory();
     void releaseMemory();
 
+    const std::string& getId() const {
+        return m_id;
+    }
+
 private:
-    explicit MemoryControl(std::vector<size_t> syncInds);
-    void insert(const MemoryRegion& region);
+    explicit MemoryControl(std::string id);
+    void insert(const MemoryRegion& region, const std::vector<size_t>& syncInds);
+    MemoryStatistics dumpStatistics() const;
 
     friend class NetworkMemoryControl;
 
 private:
-    std::vector<size_t> m_syncInds;
+    std::string m_id;
     std::vector<RegionHandlerPtr> m_handlers;
     bool m_allocated = false;
 };
@@ -56,17 +74,19 @@ private:
 class NetworkMemoryControl {
 public:
     NetworkMemoryControl() = default;
-    MemoryControl& createMemoryControlUnit(std::vector<size_t> syncInds);
+    MemoryControl::Ptr createMemoryControlUnit(std::string id);
 
     void allocateMemory();
     void releaseMemory();
 
-private:
-    using value_type = std::unique_ptr<MemoryControl>;
+    std::vector<std::pair<std::string, MemoryStatistics>> dumpStatistics() const;
+
+    const std::vector<MemoryControl::Ptr>& controlUnits() const {
+        return m_controlUnits;
+    }
 
 private:
-    std::vector<value_type> m_controlUnits;
+    std::vector<MemoryControl::Ptr> m_controlUnits;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

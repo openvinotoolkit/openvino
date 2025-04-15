@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,16 +32,16 @@ MatMulTransformation::MatMulTransformation(const Params& params) : LayerTransfor
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool MatMulTransformation::transform(TransformationContext &context, ov::pass::pattern::Matcher &m) {
+bool MatMulTransformation::transform(ov::pass::pattern::Matcher &m) {
     std::shared_ptr<ov::opset1::MatMul> matMul = ov::as_type_ptr<ov::opset1::MatMul>(m.get_match_root());
-    if ((matMul == nullptr) || !canBeTransformed(context, matMul)) {
+    if ((matMul == nullptr) || !canBeTransformed(matMul)) {
         return false;
     }
 
@@ -174,7 +174,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
     NetworkHelper::insertDequantizationAfter(matMul, newMultiply, newMatMul);
     copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
-    updateOutput(context, newMultiply, newMatMul);
+    updateOutput(newMultiply, newMatMul);
 
     OPENVINO_DEBUG("LPT: done: ", newMatMul);
     return true;
@@ -184,8 +184,8 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
     return false;
 }
 
-bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformedSpatialDimension(context, layer)) {
+bool MatMulTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
+    if (!LayerTransformation::canBeTransformedSpatialDimension(layer)) {
         return false;
     }
 
@@ -213,10 +213,6 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
             if ((constantShape.size() == rank) && (constantShape[columnsIdx] != 1)) {
                 return false;
             }
-        }
-
-        if (!NetworkHelper::checkZeroPoint(dequantization1.subtract)) {
-            return false;
         }
     } else {
         return false;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 #include "graph_iterator.hpp"
 
-#include "openvino/frontend/graph_iterator.hpp"
+#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 
 namespace py = pybind11;
 

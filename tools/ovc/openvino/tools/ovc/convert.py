@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pathlib
 from typing import Any
 
-from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
+from openvino import Model  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.cli_parser import get_all_cli_parser
 from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.logger import get_logger_state, restore_logger_state
@@ -85,7 +85,11 @@ def convert_model(
             list of paths, objects derived from BaseExtension class or lists of
             objects.
         :param verbose:
-            Print detailed information about conversion.
+            Print detailed information about conversion. The detailed information is logged via standard logging library.
+            The log level can be changed by setting the log level using logging library.
+            Example:
+                import logging
+                logging.getLogger().setLevel(logging.DEBUG)
         :param share_weights:
             Reuse weights allocated in the original model. If input model is in file,
             then mmap is used to allocate weights directly from file. If input model is
@@ -93,7 +97,7 @@ def convert_model(
             are reused for weights in the converted model.
 
     Returns:
-        openvino.runtime.Model
+        openvino.Model
     """
     params = locals()
     logger_state = get_logger_state()

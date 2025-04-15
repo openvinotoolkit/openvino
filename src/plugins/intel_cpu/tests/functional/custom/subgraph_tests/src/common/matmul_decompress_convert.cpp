@@ -222,17 +222,18 @@ protected:
         function = CPUTestsBase::makeNgraphFunction(netType, params, matMul, cpuNodeType);
     }
 
-    void check_execution_graph() {
+    virtual void check_execution_graph() {
         CheckPluginRelatedResults(compiledModel, "FullyConnected");
         CheckNumberOfNodesWithType(compiledModel, "FullyConnected", fullyConnectedCount);
         CheckNumberOfNodesWithType(compiledModel, "Transpose", transposeCount);
-        CheckNumberOfNodesWithType(compiledModel, "Convert", 0);
+        CheckNumberOfNodesWithType(compiledModel, "Convert", convertCount);
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
         check_fc_weights_precision(expectedWeiConstElemType);
     }
 
     size_t fullyConnectedCount = 1;
     size_t transposeCount = 0;
+    size_t convertCount = 0;
     ElementType expectedWeiConstElemType = ElementType::f32;
 };
 
@@ -410,11 +411,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16,
                                 |Output|
                                 --------
 */
-using MatMulDecompressConvertParams2 = std::tuple<std::vector<InputShape>,  // input shapes
-                                                  std::pair<bool, bool>,    // transposeA, transposeB
-                                                  ElementType,              // weights precision
-                                                  ov::AnyMap,               // additional property
-                                                  CPUSpecificParams>;
 
 class MatMulDecompressConvertTest2 : public MatMulDecompressConvertTest {
 protected:
@@ -439,7 +435,7 @@ protected:
         if (transpA)
             transposeCount += 2;
         if (!transpB)
-            transposeCount++;
+            transposeCount += 2;
 
         if (transpA) {
             transpose_shape(inputDynamicShapes[0]);
@@ -507,7 +503,7 @@ namespace {
 
 const auto testParams2D_FP16_2_smoke =
     ::testing::Combine(::testing::Values(static_shapes_to_test_representation({{2, 3}, {2, 3}, {3, 4}})),
-                       ::testing::Values(std::pair<bool, bool>{false, true}),
+                       ::testing::Values(std::pair<bool, bool>{false, true}, std::pair<bool, bool>{true, false}),
                        ::testing::Values(ElementType::f16),
                        ::testing::Values(emptyConfig),
                        ::testing::ValuesIn(filter_specific_params(false)));
@@ -516,6 +512,145 @@ INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_2,
                          MatMulDecompressConvertTest2,
                          testParams2D_FP16_2_smoke,
                          MatMulDecompressConvertTest2::getTestCaseName);
+
+}  // namespace
+
+
+/* This test covers NNCF-case when decompression convert has not only MatMul consumer.
+ * Graph before:
+   ------------             ---------------
+   |Input(f32)|             |Constant(f16)|
+   ------------             ---------------
+        |                         |
+        |         ---------------------------------
+        |         |Convert(decompression f16->f32)|
+        |         ---------------------------------
+        |             |                       | 
+    ----------------------------        -----------------------
+    |MatMul (transposed_b=true)|        |       Result        |
+    ----------------------------        -----------------------
+              |
+    -----------------------
+    |       Result        |
+    -----------------------
+
+ * Exec graph:
+   ------------     -----------------------------
+   |Input(f32)|     |       Constant(f16)       |
+   ------------     -----------------------------
+        |             |                   |
+        |        -------------      ---------------------
+        |        | Transpose |      | Convert(f16->f32) |
+        |        -------------      ---------------------
+        |             |                       |
+    -----------------------        -----------------------
+    |    FullyConnected   |        |       Result        |
+    -----------------------        -----------------------
+              |
+    -----------------------
+    |       Result        |
+    -----------------------
+*/
+
+class MatMulDecompressConvertTest3 : public MatMulDecompressConvertTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
+
+        std::vector<InputShape> inputShapes;
+        std::pair<bool, bool> transpose;
+        ElementType weiConstElemType;
+        ov::AnyMap additionalConfig;
+        CPUSpecificParams cpuParams;
+
+        std::tie(inputShapes, transpose, weiConstElemType, additionalConfig, cpuParams) = this->GetParam();
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+
+        init_input_shapes(inputShapes);
+
+        bool transpA = transpose.first;
+        bool transpB = transpose.second;
+
+        if (transpA)
+            transposeCount++;
+        if (!transpB)
+            transposeCount++;
+
+        if (transpA) {
+            transpose_shape(inputDynamicShapes[0]);
+            for (auto& shapes : targetStaticShapes) {
+                transpose_shape(shapes[0]);
+            }
+        }
+        if (transpB) {
+            transpose_shape(inputDynamicShapes[1]);
+            for (auto& shapes : targetStaticShapes) {
+                transpose_shape(shapes[1]);
+            }
+        }
+
+        const auto& inShapeA = inputDynamicShapes[0];
+        const auto& inShapeB = inputDynamicShapes[1];
+
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
+
+        ElementType netType = ElementType::f32;
+        ElementType convertOutType = ElementType::f32;
+        inType = outType = netType;
+
+        std::string cpuNodeType = "FullyConnected";
+        selectedType = makeSelectedTypeStr(selectedType, outType);
+
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
+        std::shared_ptr<ov::Node> inputB = ov::test::utils::make_constant(weiConstElemType, inShapeB.get_shape());
+        inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
+        mark_as_decompression(inputB);
+        expectedWeiConstElemType = weiConstElemType;
+        convertCount = 1;
+
+        auto matMul = std::make_shared<ov::op::v0::MatMul>(params[0], inputB, transpA, transpB);
+        auto result0 = std::make_shared<ov::op::v0::Result>(matMul);
+        auto result1 = std::make_shared<ov::op::v0::Result>(inputB);
+        result1->set_friendly_name("ConstantResult");
+
+        modifyGraph(netType, params, matMul);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, params, "MatMulDecompressed3");
+    }
+
+    void check_execution_graph() override {
+        MatMulDecompressConvertTest::check_execution_graph();
+
+        // Check that Result has correct shape: the same as origin Constant
+        const auto results = compiledModel.outputs();
+        const auto result_it = std::find_if(results.cbegin(), results.cend(),
+                                      [](const ov::Output<const ov::Node>& out) {
+                                        return out.get_node()->get_friendly_name() == "ConstantResult";
+                                        });
+        ASSERT_NE(result_it, results.cend())
+            << "Target Result has not been found!";
+        ASSERT_EQ(result_it->get_partial_shape(), inputDynamicShapes[1])
+            << "Target Result has not origin shape. It has: " << result_it->get_partial_shape() << " but should have origin: " << inputDynamicShapes[1];
+    }
+};
+
+TEST_P(MatMulDecompressConvertTest3, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    check_execution_graph();
+}
+
+namespace {
+const auto testParams2D_FP16_3_smoke =
+    ::testing::Combine(::testing::Values(static_shapes_to_test_representation({{1, 16, 32}, {32, 64}})),
+                       ::testing::Values(std::pair<bool, bool>{false, false}),
+                       ::testing::Values(ElementType::f16),
+                       ::testing::Values(emptyConfig),
+                       ::testing::ValuesIn(filter_specific_params(false)));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_FP16_3,
+                         MatMulDecompressConvertTest3,
+                         testParams2D_FP16_3_smoke,
+                         MatMulDecompressConvertTest3::getTestCaseName);
 
 }  // namespace
 

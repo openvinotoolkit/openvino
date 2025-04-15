@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include <typeinfo>
 
 #include "itt.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 namespace ov {
 namespace op {
@@ -18,14 +20,20 @@ Result::Result(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 
+Result::Result(const Output<Node>& arg, bool use_input_names) : Result(arg) {
+    if (use_input_names) {
+        descriptor::add_not_parameter_names(get_output_tensor(0), get_input_tensor(0));
+    }
+}
+
 void Result::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Result_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
-    // Result doesn't change change in/out tensors
-    auto& output = get_output_descriptor(0);
-    auto& input = get_input_descriptor(0);
-    output.set_tensor_ptr(input.get_tensor_ptr());
+    // Result shares input tensor but can have specific properties which are added/removed to input.
+    descriptor::set_shared_tensor(get_output_descriptor(0),
+                                  get_input_descriptor(0),
+                                  util::is_parameter(get_input_node_ptr(0)));
 }
 
 std::shared_ptr<Node> Result::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -104,4 +112,6 @@ bool AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visitor)
     }
     return true;
 }
+
+AttributeAdapter<ResultVector>::~AttributeAdapter() = default;
 }  // namespace ov

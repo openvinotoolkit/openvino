@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ using namespace intel_npu;
 
 ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs)
     : _initStructs(initStructs),
-      _graph_ddi_table_ext(_initStructs->getGraphDdiTable()),
       log("ZeroDevice", Logger::global().level()) {
     log.debug("ZeroDevice::ZeroDevice init");
     device_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
@@ -121,9 +120,10 @@ uint32_t ZeroDevice::getMaxNumSlices() const {
 
 uint64_t ZeroDevice::getAllocMemSize() const {
     ze_graph_memory_query_t query{};
-    ze_result_t result =
-        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+    ze_result_t result = _initStructs->getGraphDdiTable().pfnQueryContextMemory(_initStructs->getContext(),
+                                                                                ZE_GRAPH_QUERY_MEMORY_DDR,
+                                                                                &query);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _initStructs->getGraphDdiTable());
 
     return query.allocated;
 }
@@ -132,9 +132,10 @@ uint64_t ZeroDevice::getTotalMemSize() const {
 #define LEGACY_MAX_MEM_ALLOC_SIZE_BYTES (2147483648)  // 2GB in base-2
 
     ze_graph_memory_query_t query{};
-    ze_result_t result =
-        _graph_ddi_table_ext.pfnQueryContextMemory(_initStructs->getContext(), ZE_GRAPH_QUERY_MEMORY_DDR, &query);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _graph_ddi_table_ext);
+    ze_result_t result = _initStructs->getGraphDdiTable().pfnQueryContextMemory(_initStructs->getContext(),
+                                                                                ZE_GRAPH_QUERY_MEMORY_DDR,
+                                                                                &query);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnQueryContextMemory", result, _initStructs->getGraphDdiTable());
 
     // For drivers with graph_extension < 1.9 we report fixed 2GB max allocation size (old drivers don't support more)
     // For drivers with graph_extension > 1.9 we report the value they return
@@ -183,13 +184,27 @@ ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::
                                                             ov::intel_npu::TensorType tensor_type,
                                                             ov::intel_npu::MemType mem_type,
                                                             void* mem) {
-    return {std::make_shared<
-        ZeroRemoteTensor>(context, _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
+    return {std::make_shared<ZeroRemoteTensor>(context,
+                                               _initStructs,
+                                               device_properties,
+                                               element_type,
+                                               shape,
+                                               config,
+                                               tensor_type,
+                                               mem_type,
+                                               mem)};
 };
 
 ov::SoPtr<ov::ITensor> ZeroDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
                                                     const ov::element::Type& element_type,
                                                     const ov::Shape& shape,
-                                                    const Config& config) {
-    return {std::make_shared<ZeroHostTensor>(context, _initStructs, element_type, shape, config)};
+                                                    const Config& config,
+                                                    ov::intel_npu::TensorType tensor_type) {
+    return {std::make_shared<ZeroHostTensor>(context,
+                                             _initStructs,
+                                             device_properties,
+                                             element_type,
+                                             shape,
+                                             config,
+                                             tensor_type)};
 };

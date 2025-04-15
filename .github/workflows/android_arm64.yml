@@ -25,6 +25,7 @@ jobs:
     steps:
       - name: checkout action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -54,6 +55,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -99,6 +101,7 @@ jobs:
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           path: 'openvino'
 
@@ -117,6 +120,7 @@ jobs:
 
       - name: Clone vcpkg
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           repository: 'microsoft/vcpkg'
           ref: ${{ env.VCPKG_VERSION }}
@@ -169,7 +173,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake - build
-        run: cmake --build ${BUILD_DIR} --parallel
+        run: cmake --build ${BUILD_DIR} --parallel $(nproc)
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -178,7 +182,7 @@ jobs:
       # Upload build logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         if: always()
         with:
           name: build_logs

@@ -14,8 +14,12 @@ productTypes = (
     'public_linux_ubuntu_22_04_x86_64_release',
     'public_linux_ubuntu_22_04_dpcpp_x86_64_release',
     'public_linux_ubuntu_24_04_x86_64_release',
-    'public_windows_vs2019_Release',
-    'public_windows_vs2019_Debug',
+    'public_windows_vs2019_release',
+    'public_windows_vs2019_debug',
+    'public_windows_vs2022_release',
+    'public_windows_vs2022_debug',
+    'public_manylinux2014_x86_64_release',
+    'public_macos_x86_64_release',
 )
 ProductType = Enum('ProductType', {t.upper(): t for t in productTypes})
 
@@ -40,5 +44,6 @@ PlatformMapping = {
     PlatformKey.UBUNTU20_ARM64: ProductType.PUBLIC_LINUX_UBUNTU_20_04_ARM64_RELEASE,
     PlatformKey.UBUNTU22_X86_64: ProductType.PUBLIC_LINUX_UBUNTU_22_04_X86_64_RELEASE,
     PlatformKey.UBUNTU24_X86_64: ProductType.PUBLIC_LINUX_UBUNTU_24_04_X86_64_RELEASE,
-    PlatformKey.WINDOWS_X86_64: ProductType.PUBLIC_WINDOWS_VS2019_RELEASE,
+    PlatformKey.WINDOWS_X86_64: ProductType.PUBLIC_WINDOWS_VS2022_RELEASE,
+    PlatformKey.MACOS_12_6_X86_64: ProductType.PUBLIC_MACOS_X86_64_RELEASE,
 }

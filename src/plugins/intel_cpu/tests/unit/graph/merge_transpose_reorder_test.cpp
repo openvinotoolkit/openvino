@@ -1,14 +1,15 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gtest/gtest.h>
+#include <memory_desc/cpu_blocked_memory_desc.h>
 
 #include <common_test_utils/test_common.hpp>
-#include <memory_desc/cpu_blocked_memory_desc.h>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "dummy_node.hpp"
 #include "graph.h"
+#include "memory_control.hpp"
 #include "nodes/input.h"
 #include "nodes/reorder.h"
 #include "nodes/reshape.h"
@@ -73,10 +74,12 @@ protected:
         const auto& shape = std::get<0>(GetParam());
         const auto& params = std::get<1>(GetParam());
         OPENVINO_ASSERT(shape.size() == 4 || shape.size() == 3,
-                        "MergeTransposeReorderCPUTest doesn't support shape", shape,
+                        "MergeTransposeReorderCPUTest doesn't support shape",
+                        shape,
                         ". Only 4D and 3D shapes are supported");
         Config conf;
-        m_context = std::make_shared<GraphContext>(conf, nullptr, false);
+        m_context =
+            std::make_shared<GraphContext>(conf, nullptr, false);
         const auto replication_result = CreateModelAndReplicate(shape,
                                                                 params.firstNodeLayout,
                                                                 params.firstNodeInplaceDirection,
@@ -87,12 +90,13 @@ protected:
         m_graph->CreateGraph(replication_result.first, replication_result.second, m_context, "fused_graph");
     }
 
-    virtual std::pair<std::vector<NodePtr>, std::vector<EdgePtr>> CreateModelAndReplicate(const ov::Shape& testShape,
-                                                                                          LayoutType firstNodeLayout,
-                                                                                          LOOK firstNodeInplaceDirection,
-                                                                                          LayoutType lastNodeLayout,
-                                                                                          LOOK lastNodeInplaceDirection,
-                                                                                          size_t num_consumers) {
+    virtual std::pair<std::vector<NodePtr>, std::vector<EdgePtr>> CreateModelAndReplicate(
+        const ov::Shape& testShape,
+        LayoutType firstNodeLayout,
+        LOOK firstNodeInplaceDirection,
+        LayoutType lastNodeLayout,
+        LOOK lastNodeInplaceDirection,
+        size_t num_consumers) {
         const auto precision = ov::element::f32;
         // ov::Model with only a transpose node
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(precision, testShape)};
@@ -118,8 +122,13 @@ protected:
 
         auto inputNode = std::make_shared<node::Input>(params[0], m_context);
 
-        auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
-            testShape, precision, "reshape", "DummyNode", m_context, firstNodeLayout, firstNodeInplaceDirection);
+        auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(testShape,
+                                                                     precision,
+                                                                     "reshape",
+                                                                     "DummyNode",
+                                                                     m_context,
+                                                                     firstNodeLayout,
+                                                                     firstNodeInplaceDirection);
 
         auto orderNode = std::make_shared<node::Input>(constOrder, m_context);
         auto transposeNode = std::make_shared<node::Transpose>(transpose, m_context);
@@ -142,13 +151,14 @@ protected:
             addEdge(transposeNode, dummyConsumer, 0, 0);
             addEdge(dummyConsumer, outputNode, 0, 0);
         }
-        for (auto &node : nodesSet) nodes.emplace_back(node);
+        for (auto& node : nodesSet)
+            nodes.emplace_back(node);
         return {nodes, edges};
     }
 
     void CheckTransposeCount(size_t ref_transpose_count) const {
         size_t transpose_count = 0;
-        for (auto &node : m_graph->GetNodes()) {
+        for (auto& node : m_graph->GetNodes()) {
             if (node->getType() == Type::Transpose) {
                 transpose_count++;
             }
@@ -159,7 +169,7 @@ protected:
     void CheckReorderCount(size_t ref_optimized_reorder_count, size_t ref_not_optimized_reorder_count) const {
         size_t optimized_count = 0;
         size_t not_optimized_count = 0;
-        for (auto &node : m_graph->GetNodes()) {
+        for (auto& node : m_graph->GetNodes()) {
             if (auto reorder_node = std::dynamic_pointer_cast<node::Reorder>(node)) {
                 if (reorder_node->getOptimized())
                     optimized_count++;
@@ -176,29 +186,29 @@ protected:
 };  // class MergeTransposeReorderCPUTest
 
 /*
- ┌───────┐  
- │ Input │  
- └───┬───┘  
-     │      
- ┌───┴───┐  
- │ Dummy │  
- └───┬───┘  
-     │      
- ┌───┴───┐  
- │Reshape│  
- └───┬───┘  
-     │      
-┌────┴────┐ 
-│Transpose│ 
-└────┬────┘ 
-     │      
- ┌───┴───┐  
- │ Dummy │  
- └───┬───┘  
-     │      
-┌────┴───┐  
-│ Output │  
-└────────┘  
+ ┌───────┐
+ │ Input │
+ └───┬───┘
+     │
+ ┌───┴───┐
+ │ Dummy │
+ └───┬───┘
+     │
+ ┌───┴───┐
+ │Reshape│
+ └───┬───┘
+     │
+┌────┴────┐
+│Transpose│
+└────┬────┘
+     │
+ ┌───┴───┐
+ │ Dummy │
+ └───┬───┘
+     │
+┌────┴───┐
+│ Output │
+└────────┘
  */
 class MergeTransposeReorderWithReshapeCPUTest : public MergeTransposeReorderCPUTest {
     std::pair<std::vector<NodePtr>, std::vector<EdgePtr>> CreateModelAndReplicate(const ov::Shape& testShape,
@@ -209,7 +219,8 @@ class MergeTransposeReorderWithReshapeCPUTest : public MergeTransposeReorderCPUT
                                                                                   size_t num_consumers) override {
         const auto precision = ov::element::f32;
         const auto param = std::make_shared<ov::op::v0::Parameter>(precision, testShape);
-        auto reshape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int>{0, 0, -1});
+        auto reshape_const =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int>{0, 0, -1});
         auto reshape = std::make_shared<ov::op::v1::Reshape>(param, reshape_const, true);
         auto order = std::vector<int32_t>{0, 2, 1};
         auto transpose_order = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{order.size()}, order);
@@ -232,8 +243,13 @@ class MergeTransposeReorderWithReshapeCPUTest : public MergeTransposeReorderCPUT
         };
 
         auto inputNode = std::make_shared<node::Input>(param, m_context);
-        auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
-            testShape, precision, "before_reshape", "DummyNode", m_context, LayoutType::nspc, LOOK::LOOK_UP);
+        auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(testShape,
+                                                                     precision,
+                                                                     "before_reshape",
+                                                                     "DummyNode",
+                                                                     m_context,
+                                                                     LayoutType::nspc,
+                                                                     LOOK::LOOK_UP);
 
         auto reshapeConstNode = std::make_shared<node::Input>(reshape_const, m_context);
         auto reshapeNode = std::make_shared<node::Reshape>(reshape, m_context);
@@ -261,7 +277,8 @@ class MergeTransposeReorderWithReshapeCPUTest : public MergeTransposeReorderCPUT
             addEdge(transposeNode, dummyConsumer, 0, 0);
             addEdge(dummyConsumer, outputNode, 0, 0);
         }
-        for (auto &node : nodesSet) nodes.emplace_back(node);
+        for (auto& node : nodesSet)
+            nodes.emplace_back(node);
         return {nodes, edges};
     }
 };
@@ -340,30 +357,46 @@ TEST(MergeTransposeReorder, smoke_InplaceConflict) {
     std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
 
     const ov::Shape testShape{1, 8, 8, 8};
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 8, 8, 8})};
+    ov::ParameterVector params{
+        std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 8, 8, 8})};
 
-    auto shape_constant = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{3}, std::vector<int64_t>{1, 8, 64});
+    auto shape_constant =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{3}, std::vector<int64_t>{1, 8, 64});
     auto reshape_node = std::make_shared<ov::op::v1::Reshape>(params[0], shape_constant, true);
-    auto order_constant = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
+    auto order_constant =
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{3}, std::vector<int64_t>{0, 2, 1});
     auto transpose_node = std::make_shared<ov::op::v1::Transpose>(reshape_node, order_constant);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose_node),
                              std::make_shared<ov::op::v0::Result>(params[0])};
 
     auto nspcCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::nspc);
-    auto inDesc = nspcCreator->createSharedDesc(ov::element::Type_t::f32, ov::intel_cpu::Shape(ov::intel_cpu::VectorDims{1, 8, 8, 8}));
+    auto inDesc = nspcCreator->createSharedDesc(ov::element::Type_t::f32,
+                                                ov::intel_cpu::Shape(ov::intel_cpu::VectorDims{1, 8, 8, 8}));
     auto inputNode = std::make_shared<node::Input>(inDesc->clone(), "Input0", "Parameter", context);
 
     auto shapeConst = std::make_shared<node::Input>(shape_constant, context);
     auto reshapeNode = std::make_shared<node::Reshape>(reshape_node, context);
     auto orderConst = std::make_shared<node::Input>(order_constant, context);
     auto transposeNode = std::make_shared<node::Transpose>(transpose_node, context);
-    auto dummyNode0 = std::make_shared<cpu_unit_test::DummyNode>(
-        ov::Shape{1, 64, 8}, ov::element::Type_t::f32, "Dummy0", "DummyNode", context, LayoutType::ncsp, Edge::LOOK::LOOK_UP, true);
+    auto dummyNode0 = std::make_shared<cpu_unit_test::DummyNode>(ov::Shape{1, 64, 8},
+                                                                 ov::element::Type_t::f32,
+                                                                 "Dummy0",
+                                                                 "DummyNode",
+                                                                 context,
+                                                                 LayoutType::ncsp,
+                                                                 Edge::LOOK::LOOK_UP,
+                                                                 true);
     auto outputNode0 = std::make_shared<node::Input>(results[0], context);
 
-    auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
-        ov::Shape{1, 8, 8, 8}, ov::element::Type_t::f32, "Dummy1", "DummyNode", context, LayoutType::nspc, Edge::LOOK::LOOK_UP, true);
+    auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(ov::Shape{1, 8, 8, 8},
+                                                                 ov::element::Type_t::f32,
+                                                                 "Dummy1",
+                                                                 "DummyNode",
+                                                                 context,
+                                                                 LayoutType::nspc,
+                                                                 Edge::LOOK::LOOK_UP,
+                                                                 true);
     auto outputNode1 = std::make_shared<node::Input>(results[1], context);
 
     std::vector<NodePtr> graphNodes;
@@ -387,7 +420,8 @@ TEST(MergeTransposeReorder, smoke_InplaceConflict) {
     addEdge(transposeNode, dummyNode0, 0, 0);
     addEdge(dummyNode0, outputNode0, 0, 0);
 
-    for (auto &node : nodesSet) graphNodes.emplace_back(node);
+    for (auto& node : nodesSet)
+        graphNodes.emplace_back(node);
 
     graph->CreateGraph(graphNodes, graphEdges, context, "test_graph");
     auto expected_reorder_node0 = dummyNode0->getParentEdgeAt(0)->getParent();

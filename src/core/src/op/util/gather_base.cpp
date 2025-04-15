@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,9 +32,9 @@ Shape out_shape_infer(const Shape& data_shape, const Shape& indices_shape, int64
 bool cf_gather_with_subgraph(OutputVector& output_values,
                              const OutputVector& input_values,
                              const PartialShape& gather_ps) {
-    const auto concat = std::dynamic_pointer_cast<v0::Concat>(input_values[0].get_node_shared_ptr());
-    const auto indices = std::dynamic_pointer_cast<v0::Constant>(input_values[1].get_node_shared_ptr());
-    const auto axis = std::dynamic_pointer_cast<v0::Constant>(input_values[2].get_node_shared_ptr());
+    const auto concat = ov::as_type_ptr<v0::Concat>(input_values[0].get_node_shared_ptr());
+    const auto indices = ov::as_type_ptr<v0::Constant>(input_values[1].get_node_shared_ptr());
+    const auto axis = ov::as_type_ptr<v0::Constant>(input_values[2].get_node_shared_ptr());
 
     if (!concat || !indices || !axis) {
         return false;

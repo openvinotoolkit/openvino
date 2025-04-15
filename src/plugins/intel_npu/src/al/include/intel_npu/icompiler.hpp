@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,11 @@
 #include "openvino/runtime/profiling_info.hpp"
 
 namespace intel_npu {
+
+#ifndef ICOMPILER_MAKE_VERSION
+/// @brief Generates npu compiler (generic 'oneAPI') API version number
+#    define ICOMPILER_MAKE_VERSION(_major, _minor) ((_major << 16) | (_minor & 0x0000ffff))
+#endif  // ICOMPILER_MAKE_VERSION
 
 /**
  * @struct NetworkDescription
@@ -70,6 +75,14 @@ public:
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
     virtual NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const = 0;
+
+    /**
+     * @brief Returns the compiler version
+     * @return composite uint32_t value of compiler version.
+     *         MSB 16 bits = Major version
+     *         LSB 16bits = Minor version
+     */
+    virtual uint32_t get_version() const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const std::vector<uint8_t>& network,

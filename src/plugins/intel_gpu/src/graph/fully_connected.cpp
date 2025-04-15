@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "fully_connected_inst.h"
@@ -7,8 +7,10 @@
 #include <string>
 #include <algorithm>
 #include "utils.hpp"
+#include "swiglu_inst.h"
 
 #include "matmul_shape_inference.hpp"
+#include "glu_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(fully_connected)
@@ -82,7 +84,9 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
     // "is_batch_after_spatial" should return true)
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         input_layout.format == format::bfyx &&
-        input_layout.batch() > 1)
+        input_layout.batch() > 1 &&
+        input_pitches[2] == 1 &&
+        input_pitches[3] == 1)
         return format::yxfb;
 
     return format::bfyx;
@@ -171,14 +175,32 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
         output_type = impl_param.get_output_element_type();
     }
 
-    ov::op::v0::MatMul op;
-    op.set_transpose_b(true);
+    ov::op::v0::MatMul matmul_op;
+    matmul_op.set_transpose_b(true);
     std::vector<ShapeType> input_shapes = {
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
     };
 
-    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
+    std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&matmul_op, input_shapes);
+    bool has_swiglu = false;
+    auto& fused_prims = node.get_fused_primitives();
+    for (auto f : fused_prims) {
+        if (f.is_type<swiglu>()) {
+            has_swiglu = true;
+            OPENVINO_ASSERT(fused_prims.size() == 1, "Other operation is fused in addition to swiglu!");
+        }
+    }
+    if (has_swiglu) {
+        ov::op::internal::GLU swiglu_op;
+        OPENVINO_ASSERT(fused_prims.size() == 1);
+        OPENVINO_ASSERT(fused_prims[0].typed_desc<swiglu>()->glu_type == ov::op::internal::GLU::GluType::Swish);
+        swiglu_op.set_axis(fused_prims[0].typed_desc<swiglu>()->axis);
+        swiglu_op.set_split_lengths(fused_prims[0].typed_desc<swiglu>()->split_lengths);
+        swiglu_op.set_glu_type(fused_prims[0].typed_desc<swiglu>()->glu_type);
+        std::vector<ShapeType> input_shapes = { output_shapes[0] };
+        output_shapes = shape_infer(&swiglu_op, input_shapes);
+    }
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
     bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
@@ -192,6 +214,10 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 }
 
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
+    if (can_apply_single_batch_optimization(orig_impl_param)) {
+        return std::move(orig_impl_param);
+    }
+
     // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
     const auto& orig_input_layout = orig_impl_param.get_input_layout();
@@ -228,8 +254,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         }
     }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
+    GPU_DEBUG_IF(orig_impl_param.get_program().get_config().get_disable_fake_alignment()) {
         can_apply_fake_alignment = false;
     }
 
@@ -248,8 +273,9 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
             auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
             auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
+            auto is_8bit = weights_layout_dt == data_types::i8 || weights_layout_dt == data_types::u8;
             auto is_extra_alignment_needed = batch_size >= 256;
-            fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
+            fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
         }
 
         std::fill(input_shape.begin(), input_shape.end() - 1, 1);
@@ -302,6 +328,32 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     node_info->dump(primitive_description);
 
     return primitive_description.str();
+}
+
+bool fully_connected_inst::can_apply_single_batch_optimization(const kernel_impl_params& impl_param) {
+    if (impl_param.output_layouts.empty() || impl_param.output_layouts[0].is_dynamic())
+        return false;
+
+    // Only support i4/u4 weight so far
+    if (impl_param.weights_layout) {
+        auto weights_layout_dt = impl_param.weights_layout.value().data_type;
+        if (weights_layout_dt != data_types::i4 && weights_layout_dt != data_types::u4) {
+            return false;
+        }
+    }
+
+    // Don't support swiglu fused
+    if (impl_param.fused_desc.size() > 0) {
+        for (const auto& f : impl_param.fused_desc) {
+            if (f.is_type<swiglu>())
+                return false;
+        }
+    }
+
+    // Single batch
+    auto shape = impl_param.output_layouts[0].get_partial_shape().to_shape();
+    auto shape_size = ov::shape_size(shape);
+    return one_of(shape_size, shape) && (shape_size % 16 == 0);
 }
 
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)

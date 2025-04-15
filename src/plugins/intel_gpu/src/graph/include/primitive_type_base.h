@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
@@ -17,7 +17,7 @@
 #include "layout_optimizer.h"
 #include "primitive_inst.h"
 #include "intel_gpu/graph/network.hpp"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 #include <string>
@@ -51,7 +51,7 @@ struct primitive_type_base : primitive_type {
             if ((node.get_forced_impl_type() & impl_type) != impl_type)
                 continue;
 
-            if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().get_optimization_attributes().use_onednn_impls)
+            if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node))
                 continue;
 
             shape_types supported_shape_type = impl->get_shape_type();
@@ -168,7 +168,7 @@ struct primitive_type_base : primitive_type {
                     return true;
                 continue;
             } else {
-                if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().get_optimization_attributes().use_onednn_impls)
+                if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node))
                     continue;
 
                 if (!impl->validate(node))

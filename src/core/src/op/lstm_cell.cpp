@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -232,6 +232,8 @@ std::shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector
         OPENVINO_THROW("Incorrect number of new arguments");
     }
 }
+
+AttributeAdapter<op::LSTMWeightsFormat>::~AttributeAdapter() = default;
 
 template <>
 OPENVINO_API EnumNames<op::LSTMWeightsFormat>& EnumNames<op::LSTMWeightsFormat>::get() {

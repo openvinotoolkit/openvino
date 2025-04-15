@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ bool TRANSFORMATIONS_API is_model_optimized(const std::shared_ptr<ov::Model>& mo
  */
 class ov::pass::CompressFloatConstantsImpl : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("CompressFloatConstantsImpl", "0");
+    OPENVINO_MATCHER_PASS_RTTI("CompressFloatConstantsImpl");
     /// @brief Transformation constructor
     /// @param postponed If true then the transformation won't compress the constants
     ///                  keeping them in the original type but still will insert Converts. This is
@@ -41,7 +41,7 @@ public:
  */
 class ov::pass::CompressFloatConstants : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("CompressFloatConstants", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("CompressFloatConstants");
     /// @brief Transformation constructor
     /// @param postponed Postponed compression, see ov::pass::CompressFloatConstantsImpl for details.
     CompressFloatConstants(bool postponed = false) {

@@ -14,7 +14,7 @@ from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
 
 project = 'OpenVINO™'
-copyright = '2024, Intel®'
+copyright = '2025, Intel®'
 author = 'Intel®'
 
 language = 'en'
@@ -48,7 +48,7 @@ if "openvino" not in autodoc_mock_imports:
     except ImportError:
         autodoc_mock_imports.append("openvino_genai")
 
-        
+
 breathe_projects = {
     "openvino": "../xml/"
 }
@@ -66,7 +66,7 @@ source_suffix = {
 }
 
 
-# html_baseurl = 'https://docs.openvino.ai/2024/'
+# html_baseurl = 'https://docs.openvino.ai/2025/'
 
 
 # -- Sitemap configuration ---------------------------------------------------
@@ -84,7 +84,8 @@ ov_sitemap_urlset = [
 ov_sitemap_meta = [
     ('coveo:metadata', {
         'ovversion': version_name,
-        'ovdoctype': 'null'
+        'ovdoctype': 'null',
+        'ovcategory': 'null'
     })
 ]
 
@@ -186,13 +187,11 @@ except FileNotFoundError:
 html_static_path = ['_static']
 
 html_css_files = [
-    'css/custom.css',
     'css/openvino_sphinx_theme.css',
     'css/button.css',
     'css/input.css',
     'css/textfield.css',
     'css/tabs.css',
-    'css/coveo_custom.css',
     'https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css',
 ]
 

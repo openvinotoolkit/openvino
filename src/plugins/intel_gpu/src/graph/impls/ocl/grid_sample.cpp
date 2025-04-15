@@ -49,7 +49,7 @@ struct grid_sample_impl : public typed_primitive_impl_ocl<grid_sample> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::grid_sample_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<grid_sample_impl>(*this);
+        return make_deep_copy<grid_sample_impl, kernel_params_t>(*this);
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {

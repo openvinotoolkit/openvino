@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/runtime/layout.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -32,14 +35,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
-    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, false);
+    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config);
     m_config = program_builder->get_config();
 
     build(program_builder->get_compiled_program());
@@ -86,15 +88,11 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
             ib >> perfEntry.parentPrimitive;
         }
     }
-    {
-        bool bool_prop_value;
-        ib >> bool_prop_value;
-        m_config.set_property(ov::intel_gpu::partial_build_program(bool_prop_value));
-        ib >> bool_prop_value;
-        m_config.set_property(ov::intel_gpu::optimize_data(bool_prop_value));
-        ib >> bool_prop_value;
-        m_config.set_property(ov::intel_gpu::allow_new_shape_infer(bool_prop_value));
-    }
+
+    IstreamAttributeVisitor<cldnn::BinaryInputBuffer> visitor(ib);
+    m_config.visit_attributes(visitor);
+    m_config.set_user_property(config.get_user_properties()); // Copy user properties if those were modified on import call
+    m_config.finalize(context.get(), nullptr);
 
     auto imported_prog = std::make_shared<cldnn::program>(get_engine(), m_config);
     imported_prog->load(ib);
@@ -115,9 +113,8 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
 }
 
 Graph::~Graph() {
-    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
-        const auto log_level = cldnn::debug_configuration::get_instance()->host_time_profiling;
-
+    auto log_level = GPU_DEBUG_VALUE_OR(m_config.get_host_time_profiling(), 0);
+    GPU_DEBUG_IF(log_level) {
         auto get_time_str = [](int64_t time_mcs, int64_t iters_num = 1) {
             double time = static_cast<double>(time_mcs);
             time /= iters_num;
@@ -178,25 +175,26 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
 
     auto external_queue = m_context->get_external_queue();
     if (external_queue) {
-        OPENVINO_ASSERT(m_config.get_property(ov::num_streams) == 1, "[GPU] Throughput streams can't be used with shared queue!");
+        OPENVINO_ASSERT(m_config.get_num_streams() == 1, "[GPU] Throughput streams can't be used with shared queue!");
         const auto &engine = program->get_engine();
         m_network = std::make_shared<cldnn::network>(program, engine.create_stream(m_config, external_queue), m_stream_id);
     } else {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dry_run_path.empty()) {
-        ov::pass::Serialize(debug_config->dry_run_path, "").run_on_model(get_runtime_model());
+    std::string dry_run_path = GPU_DEBUG_VALUE_OR(m_config.get_dry_run_path(), "");
+    std::string dump_graphs_path = GPU_DEBUG_VALUE_OR(m_config.get_dump_graphs_path(), "");
+    GPU_DEBUG_IF(!dry_run_path.empty()) {
+        ov::pass::Serialize(dry_run_path, "").run_on_model(get_runtime_model());
         exit(0);
     }
 
-    GPU_DEBUG_IF(!debug_config->dump_graphs.empty() && m_stream_id == 0) {
+    GPU_DEBUG_IF(!dump_graphs_path.empty() && m_stream_id == 0) {
         static int net_id = 0;
         auto steps_info = get_network()->get_optimizer_passes_info();
         size_t step_idx = 0;
         for (auto& step : steps_info) {
-            auto xml_path = debug_config->dump_graphs + std::to_string(net_id) + "_" + std::to_string(step_idx) + "_" + step.first + "_graph.xml";
+            auto xml_path = dump_graphs_path + std::to_string(net_id) + "_" + std::to_string(step_idx) + "_" + step.first + "_graph.xml";
             ov::pass::Serialize(xml_path, "").run_on_model(get_runtime_model(step.second, true));
             step_idx++;
         }
@@ -210,7 +208,7 @@ bool Graph::use_external_queue() const {
 
 std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive_info>& primitives_info, bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::get_runtime_model");
-    if (m_config.get_property(ov::enable_profiling)) {
+    if (m_config.get_enable_profiling()) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
             // since network->get_executed_primitives() method can't be called before network execution
@@ -247,7 +245,8 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "gemm", "Gemm" },
                 { "input_layout", "Input" },
                 { "lrn", "LRN" },
-                { "lstm_elt", "LSTM_Eltwise" },
+                { "lstm_cell", "LSTM_Cell" },
+                { "lstm_seq", "LSTM_Seq" },
                 { "mvn", "MVN" },
                 { "normalize", "Normalize" },
                 { "permute", "Permute" },
@@ -520,11 +519,8 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
             ob << perf_item.second.second.parentPrimitive;
         }
     }
-    {
-        ob << m_config.get_property(ov::intel_gpu::partial_build_program);
-        ob << m_config.get_property(ov::intel_gpu::optimize_data);
-        ob << m_config.get_property(ov::intel_gpu::allow_new_shape_infer);
-    }
+    OstreamAttributeVisitor<cldnn::BinaryOutputBuffer> visitor(ob);
+    m_config.visit_attributes(visitor);
 
     ob.set_stream(m_network->get_stream_ptr().get());
     m_network->get_program()->save(ob);
@@ -578,9 +574,11 @@ void Graph::update_profiling_info() {
         auto event = execIter->second;
         executedPrimitives.erase(execIter);
 
-        cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event->get_profiling_info()};
+        if (event) {
+            cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event->get_profiling_info()};
+            collectTimings(cldnnInfo, perfCount);
+        }
 
-        collectTimings(cldnnInfo, perfCount);
         perfCount.num++;
     }
 
@@ -590,10 +588,10 @@ void Graph::update_profiling_info() {
             perfMap[executedID.first].first = executedID.first;
             pcIter = perfMap.find(executedID.first);
             auto& perfCount = pcIter->second.second;
-
-            cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second->get_profiling_info()};
-
-            collectTimings(cldnnInfo, perfCount);
+            if (executedID.second) {
+                cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second->get_profiling_info()};
+                collectTimings(cldnnInfo, perfCount);
+            }
             perfCount.num++;
         }
     }
@@ -719,6 +717,8 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         if ((!existInProfiling || (existInProfiling && perfIter->second.first.length() == 0)) &&
             executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
+            if (!event)
+                continue;
 
             cldnn::instrumentation::profiling_info cldnnInfo{primId, event->get_profiling_info()};
 
@@ -833,5 +833,4 @@ std::string Graph::out_port_index_to_internal(size_t out_port_index) const {
     OPENVINO_THROW("[GPU] Unable to map output port index ", out_port_index, " to the internal primitive id");
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

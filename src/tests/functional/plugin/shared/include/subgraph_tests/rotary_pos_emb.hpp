@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,13 @@ inline void CheckNumberOfNodesWithType(std::shared_ptr<const ov::Model> function
     }
     ASSERT_EQ(num_ops, expectedCount);
 }
+
+TEST_P(RoPETestFlux, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
 
 TEST_P(RoPETestLlama2StridedSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();

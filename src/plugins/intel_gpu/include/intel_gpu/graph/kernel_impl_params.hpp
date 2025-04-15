@@ -25,6 +25,14 @@ struct program;
 struct network;
 
 
+struct ExecutionFlags : public std::bitset<5> {
+    static const size_t SHAPE_CHANGED = 0;
+    static const size_t IMPL_CHANGED = 1;
+    static const size_t MEMORY_CHANGED = 2;
+    static const size_t ARG_UPDATE_REQUIRED = 3;
+    static const size_t SKIP = 4;
+};
+
 struct kernel_impl_params final {
     struct Hasher {
         size_t operator()(const kernel_impl_params &k) const {
@@ -38,6 +46,7 @@ struct kernel_impl_params final {
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
     bool _can_be_optimized = false;
+    bool _runtime_skippable = false;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
     std::vector<tensor> input_offsets;
@@ -46,6 +55,11 @@ struct kernel_impl_params final {
     std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
     std::shared_ptr<dnnl::primitive_attr> attrs_onednn;
 #endif // ENABLE_ONEDNN_FOR_GPU
+
+    std::vector<event::ptr> dep_events = {};
+    event::ptr out_event = nullptr;
+
+    ExecutionFlags flags;
 
     optional_layout weights_layout = optional_layout();
 
@@ -145,6 +159,10 @@ struct kernel_impl_params final {
         return _can_be_optimized;
     }
 
+    bool runtime_skippable() const {
+        return _runtime_skippable;
+    }
+
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
 
@@ -157,6 +175,9 @@ struct kernel_impl_params final {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params is not initialized");
         return *prog;
     }
+
+    const device_info& get_device_info() const;
+
     stream& get_stream() const { return *strm; }
     stream::ptr get_stream_ptr() const { return strm; }
 
@@ -165,3 +186,7 @@ struct kernel_impl_params final {
 };
 
 }  // namespace cldnn
+
+namespace ov::intel_gpu {
+using RuntimeParams = cldnn::kernel_impl_params;
+}  // namespace ov::intel_gpu

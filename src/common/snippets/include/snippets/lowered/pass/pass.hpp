@@ -27,7 +27,7 @@ public:
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static {"PassBase"};
+        static ::ov::DiscreteTypeInfo type_info_static {"snippets::lowered::pass::PassBase"};
         type_info_static.hash();
         return type_info_static;
     }
@@ -59,6 +59,7 @@ public:
  */
 class Pass : public PassBase {
 public:
+    OPENVINO_RTTI("snippets::lowered::pass::Pass")
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
@@ -68,12 +69,29 @@ public:
 };
 
 /**
+ * @interface ConstPass
+ * @brief Base class for LIR passes which are performed on a full LIR body but doesn't change it
+ * @ingroup snippets
+ */
+class ConstPass : public PassBase {
+public:
+    OPENVINO_RTTI("snippets::lowered::pass::ConstPass")
+    /**
+     * @brief Apply the pass to the Linear IR
+     * @param linear_ir the target Linear IR
+     * @return status of the pass
+     */
+    virtual bool run(const lowered::LinearIR& linear_ir) = 0;
+};
+
+/**
  * @interface RangedPass
  * @brief Base class for LIR passes which are performed on a range of a LIR body
  * @ingroup snippets
  */
 class RangedPass : public PassBase {
 public:
+    OPENVINO_RTTI("snippets::lowered::pass::RangedPass")
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
@@ -114,6 +132,7 @@ public:
     void register_positioned_passes(const std::vector<PositionedPassLowered>& pos_passes);
 
     void run(lowered::LinearIR& linear_ir) const;
+    void run(const lowered::LinearIR& linear_ir) const;
     void run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) const;
 
     /**

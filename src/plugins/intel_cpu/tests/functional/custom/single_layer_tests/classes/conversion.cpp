@@ -16,11 +16,45 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
+static std::string special_value_to_string(const ov::test::SpecialValue& value) {
+    if (value == SpecialValue::none) {
+        return "none";
+    } else if (value == SpecialValue::nan) {
+        return "nan";
+    } else if (value == SpecialValue::inf) {
+        return "inf";
+    } else if (value == SpecialValue::overflow) {
+        return "overflow";
+    }
+    return "unknown";
+}
+
+template <typename T>
+static T set_special_value(T& value, const ov::test::SpecialValue& special_value) {
+    if (special_value == ov::test::SpecialValue::nan) {
+        value = NAN;
+    } else if (special_value == ov::test::SpecialValue::inf) {
+        value = INFINITY;
+    } else if (special_value == ov::test::SpecialValue::overflow) {
+        value = value + std::numeric_limits<ov::float8_e5m2>::max();
+    }
+    return value;
+}
+
+template <typename T>
+static void modify_value(ov::Tensor& tensor, const ov::test::SpecialValue& special_value) {
+    T* dataPtr = static_cast<T*>(tensor.data());
+    for (size_t i = 0; i < tensor.get_size(); i++) {
+        set_special_value<T>(dataPtr[i], special_value);
+    }
+}
+
 std::string ConvertCPULayerTest::getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj) {
     InputShape inputShape;
     ov::element::Type inPrc, outPrc;
+    ov::test::SpecialValue special_value;
     CPUSpecificParams cpuParams;
-    std::tie(inputShape, inPrc, outPrc, cpuParams) = obj.param;
+    std::tie(inputShape, inPrc, outPrc, special_value, cpuParams) = obj.param;
 
     std::ostringstream result;
 
@@ -30,6 +64,7 @@ std::string ConvertCPULayerTest::getTestCaseName(testing::TestParamInfo<convertL
         result << ov::test::utils::vec2str(shape) << "_";
     }
     result << "inputPRC=" << inPrc.to_string() << "_";
+    result << "specialValue=" << special_value_to_string(special_value) << "_";
     result << "targetPRC=" << outPrc.to_string() << "_";
     result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -47,7 +82,9 @@ bool ConvertCPULayerTest::isInOutPrecisionSupported(ov::element::Type inPrc, ov:
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if ((inPrc == ov::element::i8 && outPrc == ov::element::u8) ||
         (inPrc == ov::element::u8 && outPrc == ov::element::i8) ||
-        (inPrc == ov::element::f32 && (outPrc == ov::element::u8 || outPrc == ov::element::i8)))
+        (inPrc == ov::element::f32 && (outPrc == ov::element::u8 || outPrc == ov::element::i8)) ||
+        (inPrc == ov::element::f8e4m3 || inPrc == ov::element::f8e5m2 ||
+        outPrc == ov::element::f8e4m3 || outPrc == ov::element::f8e5m2))
         return false;
 #endif
     return true;
@@ -58,14 +95,17 @@ void ConvertCPULayerTest::SetUp() {
 
     InputShape shapes;
     CPUSpecificParams cpuParams;
-    std::tie(shapes, inPrc, outPrc, cpuParams) = GetParam();
+    std::tie(shapes, inPrc, outPrc, special_value, cpuParams) = GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     auto primitive = selectedType;
     if (primitive.empty())
         primitive = getPrimitiveType();
 #if defined(OPENVINO_ARCH_ARM64)
-    if (inPrc == ov::element::u4 || inPrc == ov::element::i4) {
+    if (inPrc == ov::element::u4 || inPrc == ov::element::i4 ||
+        inPrc == ov::element::f8e4m3 || inPrc == ov::element::f8e5m2 ||
+        outPrc == ov::element::f8e4m3 || outPrc == ov::element::f8e5m2 ||
+        outPrc == ov::element::nf4) {
         primitive = "ref";
     } else if (shapes.first.is_static() &&
         inPrc != ov::element::bf16 && outPrc != ov::element::bf16 &&
@@ -92,6 +132,12 @@ void ConvertCPULayerTest::SetUp() {
 
     inputDynamicShapes.push_back(shapes.first);
 
+    if (outPrc == ov::element::f16) {
+        configuration.insert(ov::hint::inference_precision(ov::element::f16));
+    } else if (outPrc == ov::element::bf16) {
+        configuration.insert(ov::hint::inference_precision(ov::element::bf16));
+    }
+
     ov::ParameterVector params;
     for (auto&& shape : inputDynamicShapes) {
         params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
@@ -99,11 +145,88 @@ void ConvertCPULayerTest::SetUp() {
     auto conversion = std::make_shared<ov::op::v0::Convert>(params.front(), outPrc);
 
     function = makeNgraphFunction(inPrc, params, conversion, "ConversionCPU");
+
+    // issue 161636
+    if (special_value == ov::test::SpecialValue::none && outPrc == ov::element::f8e4m3) {
+        abs_threshold = 0.0078125f;
+        rel_threshold = 1e-2f;
+    }
+}
+
+void ConvertCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    if (outPrc != ov::element::nf4 && special_value == ov::test::SpecialValue::none) {
+        SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+        return;
+    }
+
+    inputs.clear();
+    const auto& funcInputs = function->inputs();
+    for (size_t i = 0; i < funcInputs.size(); ++i) {
+        const auto& funcInput = funcInputs[i];
+        ov::Tensor tensor;
+        if (outPrc == ov::element::nf4) {
+            tensor = ov::test::utils::create_and_fill_tensor_real_distribution(funcInput.get_element_type(),
+                                                                               targetInputStaticShapes[i],
+                                                                               -1.f,
+                                                                               1.f,
+                                                                               1);
+        } else {
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+        }
+
+        if (inPrc == ov::element::f32) {
+            modify_value<float>(tensor, special_value);
+        } else if (inPrc == ov::element::f16) {
+            modify_value<ov::float16>(tensor, special_value);
+        } else if (inPrc == ov::element::bf16) {
+            modify_value<ov::bfloat16>(tensor, special_value);
+        } else if (inPrc == ov::element::f8e4m3) {
+            modify_value<ov::float8_e4m3>(tensor, special_value);
+        } else if (inPrc == ov::element::f8e5m2) {
+            modify_value<ov::float8_e5m2>(tensor, special_value);
+        }
+
+        inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+    }
 }
 
 void ConvertCPULayerTest::validate_out_prc() const {
     if (outPrc == ov::element::boolean)
         FAIL() << "ConvertCPULayerTest supports only non boolean output prc";
+}
+
+void ConvertCPULayerTest::validate() {
+    if (outPrc == ov::element::nf4) {
+        // Use custom bit-exact validation, because common tests infra doesn't support 4bits tensors comparision
+        auto actualOutputs = get_plugin_outputs();
+        auto expectedOutputs = calculate_refs();
+        ASSERT_EQ(expectedOutputs.size(), actualOutputs.size());
+        ASSERT_EQ(expectedOutputs.size(), 1);
+        ASSERT_EQ(expectedOutputs[0].get_shape(), actualOutputs[0].get_shape());
+        ASSERT_EQ(expectedOutputs[0].get_element_type(), ov::element::nf4);
+        ASSERT_EQ(expectedOutputs[0].get_element_type(), actualOutputs[0].get_element_type());
+
+        auto expected_data = reinterpret_cast<const uint8_t*>(expectedOutputs[0].data());
+        auto actual_data = reinterpret_cast<const uint8_t*>(actualOutputs[0].data());
+        size_t byte_count = shape_size(expectedOutputs[0].get_shape()) / 2;
+        bool has_tile = shape_size(expectedOutputs[0].get_shape()) % 2 != 0;
+        for (size_t i = 0; i < byte_count; ++i) {
+            uint8_t expected_value = expected_data[i];
+            uint8_t actual_value = actual_data[i];
+            ASSERT_EQ(expected_value, actual_value);
+        }
+
+        // Convert operation doc doesn't specify behavior for odd amount of elements: should upper 4 bits of last byte be filled with zeros or not.
+        // CPU Plugin fills these bits with zeros as it better fits optimized kernels which get NF4 inputs.
+        // In general it is considered as UB, so skip the check for last 4 bits.
+        if (has_tile) {
+            ASSERT_EQ(expected_data[byte_count] & 0x0F, actual_data[byte_count] & 0x0F);
+        }
+
+        return;
+    }
+
+    SubgraphBaseTest::validate();
 }
 
 void ConvertToBooleanCPULayerTest::validate_out_prc() const {
@@ -204,7 +327,9 @@ const std::vector<InputShape>& inShapes_4D_dynamic() {
                 {
                     {2, 4, 4, 1},
                     {2, 17, 5, 4},
-                    {1, 2, 3, 4}
+                    {1, 2, 3, 4},
+                    // odd number of elements
+                    {1, 3, 3, 3}
                 }
             },
             {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,44 +105,6 @@ inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
     } break;
     case CompilerType::DRIVER: {
         out << "DRIVER";
-    } break;
-    default:
-        out << static_cast<uint32_t>(fmt);
-        break;
-    }
-    return out;
-}
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: String. Default is "AUTO".
- * This option is added for enabling ELF backend.
- * Possible values: "AUTO", "YES", "NO".
- */
-
-enum class ElfCompilerBackend {
-    AUTO = 0,
-    NO = 1,
-    YES = 2,
-};
-
-/**
- * @brief Prints a string representation of ov::intel_npu::ElfCompilerBackend to a stream
- * @param out An output stream to send to
- * @param fmt A elf compiler backend value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
- */
-inline std::ostream& operator<<(std::ostream& out, const ElfCompilerBackend& fmt) {
-    switch (fmt) {
-    case ElfCompilerBackend::AUTO: {
-        out << "AUTO";
-    } break;
-    case ElfCompilerBackend::NO: {
-        out << "NO";
-    } break;
-    case ElfCompilerBackend::YES: {
-        out << "YES";
     } break;
     default:
         out << static_cast<uint32_t>(fmt);
@@ -329,14 +291,6 @@ static constexpr ov::Property<std::string> dynamic_shape_to_static{"NPU_DYNAMIC_
 static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"};
 
 /**
- * @brief
- * Type: String. Default is "AUTO".
- * Sets the format in which the compiled model is stored.
- * Possible values: "AUTO", "YES", "NO".
- */
-static constexpr ov::Property<ElfCompilerBackend> use_elf_compiler_backend{"NPU_USE_ELF_COMPILER_BACKEND"};
-
-/**
  * @brief [Only for NPU Plugin]
  * Type: String. Default is "AUTO".
  * This option is added for enabling batching on plugin, otherwise batching will be handled by compiler.
@@ -346,17 +300,44 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: String. Default is "".
+ * This option is added for providing a fine-grained batched model compilation control, otherwise batching compilation
+ * params will be determined automatically. Should be specified only when a model compilation is failed due to incorrect
+ * detection of batch dimension presence including false-positive and false-negative cases. NPU compiler supports two
+ * batch compile options by now: "unroll" and "debatch" - either can be activated using by setting
+ * "batch-compile-method" into the desired value. Leveragind the compile method "debatch" allows the additional param
+ * "debatcher-settings" being configured, which introduces the declared fine-grained compilation control suboptions. The
+ * suboption "debatcher-input-coefficients-partitions" determines how to split or debatch input tensors of an original
+ * model.
+ *
+ * Let's look at the following example:
+ * "batch-compile-method=debatch debatcher-settings={debatcher-input-coefficients-partitions=[0-1],[13-4],[1-1]}".
+ *
+ * These mean that we want to "debatch" inputs of a batched network providing that:
+ * - a batch dimension N of a first intput is on the 0-position (of its layout abbreviation);
+ * - the N dimension of a second input is on 13th-position of its layout;
+ * - and the N dimension of a third input is on 1-position of its layout accordingly.
+ * Thus the first digit of a pair of values enclosed by symbols'[' and ']' determines N dimension position in a layout
+ * of a corresponding input. A second value of the pair represents a "native" value of N-dimension of a tensor in
+ * assumption that having this value, the tensor becomes "non-batched" or a plain tensor. In the example above:
+ * - the non-batched tensor of the first input is assumed to have 1 in N-dimension (on the 0 position);
+ * - the second tensor assumed non-batched when it got 4 as a valua of N-dimension on the 13th-position
+ * - the third tensor is a plain tensor when it has 1 in N-dimension on the 1-position of its layout
+ *
+ * The given "debatcher-input-coefficients-partitions" provides the NPU compiler with sufficient information in order to
+ * compile a complicatied batched model, which might not be auto recognized by intrinsic heuristics
+ *
+ * Possible values: "", "batch-compile-method=unroll batch-unroll-settings={skip-unroll-batch=false}",
+ * "batch-compile-method=debatch debatcher-settings={debatcher-input-coefficients-partitions=[0-1],[0-1],[0-1]}".
+ */
+static constexpr ov::Property<std::string> batch_compiler_mode_settings{"NPU_BATCH_COMPILER_MODE_SETTINGS"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: integer, default is 1
  * This option allows to omit creating an executor and therefore to omit running an inference when its value is 0
  */
 static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: boolean, default is false
- * This option allows to omit loading the weights until inference is created
- */
-static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"};
 
 /**
  * @brief Read-only property to get the name of used backend
@@ -372,6 +353,22 @@ static constexpr ov::Property<std::string, ov::PropertyMutability::RO> backend_n
  * Available values: enable-partial-workload-management=true/false
  */
 static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKEND_COMPILATION_PARAMS"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to run inferences sequentially, in the order in which they were created
+ * @note Experimental property, for now it only works in very specific scenarios. We need driver updates before we can
+ * implement a robust solution for in-order execution
+ */
+static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
+ * This option allows to skip the blob version check
+ */
+static constexpr ov::Property<bool> disable_version_check{"NPU_DISABLE_VERSION_CHECK"};
 
 }  // namespace intel_npu
 }  // namespace ov

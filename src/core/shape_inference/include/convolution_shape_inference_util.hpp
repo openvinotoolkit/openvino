@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "dimension_util.hpp"
 #include "openvino/op/util/convolution_backprop_base.hpp"
 #include "openvino/op/util/convolution_base.hpp"
+#include "openvino/op/util/deformable_convolution_base.hpp"
 #include "pooling_shape_inference_util.hpp"
 #include "utils.hpp"
 

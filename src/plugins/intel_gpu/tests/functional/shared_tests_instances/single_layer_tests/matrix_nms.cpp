@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -117,8 +117,8 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
-        const auto actualBuffer = static_cast<uint8_t*>(actual.data());
-        const auto expectedBuffer = static_cast<uint8_t*>(expected.data());
+        const auto actualBuffer = static_cast<const uint8_t*>(actual.data());
+        const auto expectedBuffer = static_cast<const uint8_t*>(expected.data());
 
         //Compare Selected Outputs & Selected Indices
         if (outputIndex != batchIndex) {
@@ -147,7 +147,7 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
                             default:
                                 break;
                         }
-                        const auto fBuffer = static_cast<float*>(actual.data());
+                        const auto fBuffer = static_cast<const float*>(actual.data());
                         for (size_t tailing = validNums * 6; tailing < maxOutputBoxesPerBatch * 6; tailing++) {
                             ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] + 1.f) < 1e-5)
                                 << "Invalid default value: " << fBuffer[i] << " at index: " << i;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Result>& op) {
     validate_inputs_count(op, {1});
@@ -30,7 +29,8 @@ static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
     auto out_format = cldnn::format::get_default_format(out_rank);
 
     auto out_primitive_name = layer_type_name_ID(op);
-    auto out_data_type = cldnn::element_type_to_data_type(convert_to_supported_device_type(op->get_input_element_type(0)));
+    auto out_data_type = convert_to_supported_device_type(op->get_input_element_type(0));
+    out_data_type = out_data_type == ov::element::boolean ? ov::element::u8 : out_data_type;
 
     auto reorder_primitive = cldnn::reorder(out_primitive_name,
                                             inputs[0],
@@ -47,5 +47,4 @@ static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
 
 REGISTER_FACTORY_IMPL(v0, Result);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

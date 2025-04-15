@@ -3,7 +3,8 @@
 //
 
 #include "eltwise_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "impls/cpu/cpu_impl_helpers.hpp"
+#include "registry/implementation_map.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_left_shift.hpp"
@@ -49,7 +50,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::eltwise_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<eltwise_impl>(*this);
+        return std::make_unique<eltwise_impl>(*this);
     }
 
     eltwise_impl() : parent("eltwise_cpu_impl") {}
@@ -84,9 +85,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
         const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.all_dependencies_cpu_impl();
 
         if (!pass_through_events) {
-            for (auto e : events) {
-                e->wait();
-            }
+            stream.wait_for_events(events);
         }
 
         auto params = instance.get_impl_params();
@@ -210,14 +209,10 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
             input_mem_ptrs[i]->unlock(stream);
 
         if (pass_through_events) {
-            if (events.size() > 1) {
-                return stream.group_events(events);
-            } else if (events.size() == 1) {
-                return events[0];
-            }
+            return stream.group_events(events);
         }
 
-        return stream.create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
@@ -226,7 +221,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const eltwise_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<eltwise_impl>();
+        return std::make_unique<eltwise_impl>();
     }
 };
 

@@ -15,14 +15,11 @@ updates:
       timezone: "Poland"
     open-pull-requests-limit: 3
     assignees:
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
       - "ceciliapeng2011"
       - "meiyang-intel"
-      - "mbencer"
-      - "tomdol"
       - "jane-intel"
     versioning-strategy: increase-if-necessary
 
@@ -35,13 +32,12 @@ updates:
       timezone: "Poland"
     open-pull-requests-limit: 3
     assignees:
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
     versioning-strategy: increase-if-necessary
 
-  # Model Optimizer, openvino_dev and Benchmark tool
+  # ovc and Benchmark tools
   - package-ecosystem: pip
     directory: "/tools"
     schedule:
@@ -52,7 +48,6 @@ updates:
     assignees:
       - "rkazants"
       - "andrei-kochin"
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "Wovchena"
@@ -74,7 +69,6 @@ updates:
     open-pull-requests-limit: 3
     assignees:
       - "Wovchena"
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
@@ -89,7 +83,6 @@ updates:
     open-pull-requests-limit: 3
     assignees:
       - "Wovchena"
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
@@ -104,7 +97,6 @@ updates:
     open-pull-requests-limit: 3
     assignees:
       - "Wovchena"
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
@@ -119,7 +111,6 @@ updates:
     open-pull-requests-limit: 3
     assignees:
       - "Wovchena"
-      - "jiwaszki"
       - "p-wysocki"
       - "akuporos"
       - "rkazants"
@@ -136,6 +127,22 @@ updates:
       interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
+    assignees:
+      - "akashchi"
+      - "mryzhov"
+      - "ilya-lavrenov"
+    open-pull-requests-limit: 3
+
+  # Docker images
+  - package-ecosystem: docker
+    directories:
+      - "/.github/dockerfiles/**/*"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    allow:
+      - dependency-type: "direct"
     assignees:
       - "akashchi"
       - "mryzhov"

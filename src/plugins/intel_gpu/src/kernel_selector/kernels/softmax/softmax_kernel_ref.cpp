@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,8 +52,8 @@ void SoftmaxKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
 }
@@ -74,8 +74,8 @@ KernelsData SoftmaxKernelRef::GetKernelsData(const Params& params) const {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
-            kds[0].internalBufferSizes.clear();
-            kds[0].internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+            kds[0].internalBuffers.clear();
+            kds[0].internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
             kds[0].internalBufferDataType = orgParams.inputs[0].GetDType();
         }
     }

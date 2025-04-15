@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,6 +80,7 @@ public:
 #define CASE_MVN_I8_6       { 2, 16, 8, 8 },    { 1, 1, 1, 1 },     data_types::i8, format::b_fs_yx_fsv16, {1, 2, 3}, true, data_types::f32, format::bfyx
 #define CASE_MVN_I8_7       { 2, 16, 1, 8 },    { 1, 1, 8, 1 },     data_types::i8, format::b_fs_yx_fsv16, {1, 2, 3}, true, data_types::f32, format::bfyx
 #define CASE_MVN_I8_8       { 2, 16, 3, 8 },    { 1, 1, 3, 8 },     data_types::i8, format::b_fs_yx_fsv16, {3}, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_8_NA    { 2, 15, 3, 8 },    { 1, 1, 3, 8 },     data_types::i8, format::b_fs_yx_fsv16, {3}, true, data_types::f32, format::bfyx
 #define CASE_MVN_3D_I8_1    { 1, 16, 8, 8, 8 }, { 1, 16, 8, 8, 8 }, data_types::i8, format::bfzyx, {2, 3, 4}, true, data_types::f32, format::bfzyx
 #define CASE_MVN_3D_I8_2    { 2, 16, 8, 8, 8 }, { 2, 16, 8, 8, 8 }, data_types::i8, format::bfzyx, {1, 2, 3, 4}, true, data_types::f32, format::bfzyx
 #define CASE_MVN_3D_I8_3    { 2, 16, 8, 8, 8 }, { 2, 1, 8, 8, 1 },  data_types::i8, format::bfzyx, {1, 2, 3, 4}, true, data_types::f32, format::bfzyx
@@ -171,6 +172,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_quantize_i8, ::testing::ValuesIn
     mvn_test_params{ CASE_MVN_I8_3, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_I8_4, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_I8_8, 3, 3, 4 },
+    mvn_test_params{ CASE_MVN_I8_8_NA, 3, 3, 4 },
     mvn_test_params{ CASE_MVN_3D_I8_1, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_3D_I8_2, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_U8_1, 2, 2, 4 },

@@ -4,30 +4,29 @@
 
 #pragma once
 
+#include "../scaled_attn/executor_pa_common.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "../scaled_attn/executor_pa_common.hpp"
 #include "utils/plain_tensor.hpp"
 
 // register blocking size for K dimension (1x2 AMX B-tiles)
-#define REG_BLK_K_SIZE 32
-#define REG_BLK_K_SIZE_I8 64
+constexpr int REG_BLK_K_SIZE = 32;
+constexpr int REG_BLK_K_SIZE_I8 = 64;
 
 // register blocking size for N dimension (1x2 AMX B-tiles)
-#define REG_BLK_N_SIZE 32
+constexpr int REG_BLK_N_SIZE = 32;
 
 // cache blocking sie for K dimension
-#define CACHE_BLK_K_SIZE 256
+constexpr int CACHE_BLK_K_SIZE = 256;
 
 // cache blocking sie for M dimension
-#define CACHE_BLK_M_SIZE 256
+constexpr int CACHE_BLK_M_SIZE = 256;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AutoTileConfiger {
 public:
-    AutoTileConfiger() {}
+    AutoTileConfiger() = default;
     ~AutoTileConfiger() {
         do_config(nullptr);
     }
@@ -55,32 +54,33 @@ public:
     int m_M_hint;
 
     MKernel(int M_hint, TMUL_TYPE tmul_type) : jit_generator("MKernel"), m_tmul_type(tmul_type), m_M_hint(M_hint) {
-        if (m_tmul_type == TMUL_TYPE::FP16 || m_tmul_type == TMUL_TYPE::BF16)
+        if (m_tmul_type == TMUL_TYPE::FP16 || m_tmul_type == TMUL_TYPE::BF16) {
             m_tile_reg_ksize = 32;
-        else
+        } else {
             m_tile_reg_ksize = 64;
+        }
         setup(M_hint);
     }
 
     void tmul(const Xbyak::Tmm& x1, const Xbyak::Tmm& x2, const Xbyak::Tmm& x3) {
         switch (m_tmul_type) {
-            case TMUL_TYPE::SSD:
-                tdpbssd(x1, x2, x3);
+        case TMUL_TYPE::SSD:
+            tdpbssd(x1, x2, x3);
             break;
-            case TMUL_TYPE::USD:
-                tdpbusd(x1, x2, x3);
+        case TMUL_TYPE::USD:
+            tdpbusd(x1, x2, x3);
             break;
-            case TMUL_TYPE::SUD:
-                tdpbsud(x1, x2, x3);
+        case TMUL_TYPE::SUD:
+            tdpbsud(x1, x2, x3);
             break;
-            case TMUL_TYPE::UUD:
-                tdpbuud(x1, x2, x3);
+        case TMUL_TYPE::UUD:
+            tdpbuud(x1, x2, x3);
             break;
-            case TMUL_TYPE::FP16:
-                tdpfp16ps(x1, x2, x3);
+        case TMUL_TYPE::FP16:
+            tdpfp16ps(x1, x2, x3);
             break;
-            case TMUL_TYPE::BF16:
-                tdpbf16ps(x1, x2, x3);
+        case TMUL_TYPE::BF16:
+            tdpbf16ps(x1, x2, x3);
             break;
         }
     }
@@ -103,7 +103,8 @@ public:
         } else {
             // next block size: 32 * N * sizeof(ov::bfloat16),
             // call number: N / 32 * M / 32
-            // each call needs fetch: 32 * N * sizeof(ov::bfloat16) / (N / 32 * M / 32) = 32 * 1024 * sizeof(ov::bfloat16) / M
+            // each call needs fetch: 32 * N * sizeof(ov::bfloat16) / (N / 32 * M / 32) = 32 * 1024 *
+            // sizeof(ov::bfloat16) / M
             m_prefetch_Blines = 32768 * sizeof(ov::bfloat16) / 64 / M_hint;
         }
 
@@ -132,21 +133,22 @@ public:
     };
 
     // each 32x16(64x16) sub-matrix in [K, N]-shaped BMatrix to be loaded as B-tile is packed into AMX B-tile layout
-    // and two neighboring B-tiles in same row are grouped as a pair (B0-B1), and all such pairs are arranged in [nN, nK] shape
+    // and two neighboring B-tiles in same row are grouped as a pair (B0-B1), and all such pairs are arranged in [nN,
+    // nK] shape
     struct BMatrix {
-        uint8_t * ptr;
+        uint8_t* ptr;
         // Bpair is two 1KB sub-matrixes repacked in AMX-Btile layout
         const size_t Bpair_size = 2048;
         size_t Bpair_rows;
         size_t Bpair_cols;
 
         // convert
-        template<typename Tdst>
+        template <typename Tdst>
         void setup(Tdst* ext_buff, ov::float16* p_weight, int stride, int N, int K);
 
         void setup(int8_t* ext_buff, int8_t* p_weight, int stride, int N, int K);
         // two B tiles in each pair (B0 & B1) comes from different raw weight matrix
-        template<typename Tdst>
+        template <typename Tdst>
         void setup(Tdst* ext_buff, ov::float16* p_weight_B0, ov::float16* p_weight_B1, int stride, int N, int K);
 
         void setup(int8_t* ext_buff, int8_t* p_weight_B0, int8_t* p_weight_B1, int stride, int N, int K);
@@ -196,8 +198,12 @@ struct Work {
         static MKernel jit_amx_bf16(BM, TMUL_TYPE::BF16);
         static MKernel jit_amx_f16(BM, TMUL_TYPE::FP16);
         static MKernel jit_amx_i8(BM, TMUL_TYPE::SSD);
-        if (quant_i8) return jit_amx_i8;
-        if (is_f16) return jit_amx_f16;
+        if (quant_i8) {
+            return jit_amx_i8;
+        }
+        if (is_f16) {
+            return jit_amx_f16;
+        }
         return jit_amx_bf16;
     }
 
@@ -205,8 +211,12 @@ struct Work {
         static MKernel jit_amx_bf16(16, TMUL_TYPE::BF16);
         static MKernel jit_amx_f16(16, TMUL_TYPE::FP16);
         static MKernel jit_amx_i8(16, TMUL_TYPE::SSD);
-        if (quant_i8) return jit_amx_i8;
-        if (is_f16) return jit_amx_f16;
+        if (quant_i8) {
+            return jit_amx_i8;
+        }
+        if (is_f16) {
+            return jit_amx_f16;
+        }
         return jit_amx_bf16;
     }
 
@@ -219,12 +229,13 @@ struct Work {
 
         if (do_sum_per_oc) {
             w_sum_per_oc.resize<float>({static_cast<size_t>(n1 - n0)});
-            auto * p_wsum_per_oc = w_sum_per_oc.ptr<float>();
+            auto* p_wsum_per_oc = w_sum_per_oc.ptr<float>();
             auto* pw_temp = pw;
             for (int n = n0; n < n1; n++, pw_temp += stride_in_bytes / sizeof(Tsrc)) {
                 float fsum = 0;
-                for (int k = k0; k < k1; k++)
+                for (int k = k0; k < k1; k++) {
                     fsum += pw_temp[k];
+                }
                 *p_wsum_per_oc++ = fsum;
             }
         }
@@ -234,7 +245,7 @@ struct Work {
         for (int k = k0, ki = 0; k < k1;) {
             auto subK = std::min(blk_K_size, k1 - k);
             weights[ki].setup(dst, pw + k, stride_in_bytes, BN, subK);
-            dst += BN*subK;
+            dst += BN * subK;
             k += subK;
             ki++;
         }
@@ -250,24 +261,28 @@ struct Work {
     void setup(Tdst* dst, Tsrc* p_weight1, Tsrc* p_weight2, int stride_in_bytes, bool do_sum_per_oc = false) {
         auto& mkernel = get_MKernel();
         auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
-        auto* pw1 = p_weight1 + (n0/2) * stride_in_bytes / sizeof(Tsrc);
-        auto* pw2 = p_weight2 + (n0/2) * stride_in_bytes / sizeof(Tsrc);
+        auto* pw1 = p_weight1 + (n0 / 2) * stride_in_bytes / sizeof(Tsrc);
+        auto* pw2 = p_weight2 + (n0 / 2) * stride_in_bytes / sizeof(Tsrc);
 
         if (do_sum_per_oc) {
             w_sum_per_oc.resize<float>({static_cast<size_t>(n1 - n0)});
-            auto * p_wsum_per_oc = w_sum_per_oc.ptr<float>();
+            auto* p_wsum_per_oc = w_sum_per_oc.ptr<float>();
             auto* pw1_temp = pw1;
             auto* pw2_temp = pw2;
             auto stride_temp = stride_in_bytes / sizeof(Tsrc);
-            for (int n = n0; n < n1; n+=32) {
+            for (int n = n0; n < n1; n += 32) {
                 for (int dn = 0; dn < 16; dn++, pw1_temp += stride_temp) {
                     float fsum = 0;
-                    for (int k = k0; k < k1; k++) fsum += pw1_temp[k];
+                    for (int k = k0; k < k1; k++) {
+                        fsum += pw1_temp[k];
+                    }
                     *p_wsum_per_oc++ = fsum;
                 }
                 for (int dn = 0; dn < 16; dn++, pw2_temp += stride_temp) {
                     float fsum = 0;
-                    for (int k = k0; k < k1; k++) fsum += pw2_temp[k];
+                    for (int k = k0; k < k1; k++) {
+                        fsum += pw2_temp[k];
+                    }
                     *p_wsum_per_oc++ = fsum;
                 }
             }
@@ -278,7 +293,7 @@ struct Work {
         for (int k = k0, ki = 0; k < k1;) {
             auto subK = std::min(blk_K_size, k1 - k);
             weights[ki].setup(dst, pw1 + k, pw2 + k, stride_in_bytes, BN, subK);
-            dst += BN*subK;
+            dst += BN * subK;
             k += subK;
             ki++;
         }
@@ -293,7 +308,7 @@ struct Work {
 
     PlainTensor m_C;
 
-    size_t set_C(int M, float * ext_buff) {
+    size_t set_C(int M, float* ext_buff) {
         auto Mtails = M % 32;
         auto Mbody = M - Mtails;
         auto C_M = Mbody + (Mtails ? 32 : 0);
@@ -318,7 +333,7 @@ struct Work {
 
         pA += k0 * element_size;
 
-        if (M > 16 || num_blk_K ==1) {
+        if (M > 16 || num_blk_K == 1) {
             bool do_accumulation = false;
             for (size_t ki = 0; ki < num_blk_K; ki++) {
                 auto& blockB = weights[ki];
@@ -355,8 +370,8 @@ struct Work {
             auto num_blkN = blockB.Bpair_cols;
             m_tile_configer.do_config(&m_tcfg[Mtails]);
             // original: bit0: 0-tilezero+skip load from mem, 1-tilezero+load from mem; tilestore
-            // new: bit0: 0-skip load from mem, 1-load from mem; bit1: 0-skip tilezero, 1-tilezero; bit2: 0-skip store, 1-store
-            // if M > 32, firstK: 1 1 0(store, tilezero, skip load)
+            // new: bit0: 0-skip load from mem, 1-load from mem; bit1: 0-skip tilezero, 1-tilezero; bit2: 0-skip store,
+            // 1-store if M > 32, firstK: 1 1 0(store, tilezero, skip load)
             //      the otherK except last: 1 0 1(store, skip tilezero, load) lastK: 1 0 1
             // else
             //      firstK: 0 1 0(skip store, tilezero, skip load), the otherK except last: 0 0 0(skip all),
@@ -400,21 +415,21 @@ struct WeightBuffer {
         }
         buffer.resize<int8_t>({weight_size});
     }
-    template<typename T = ov::bfloat16>
+    template <typename T = ov::bfloat16>
     T* get(int work_id) {
         return reinterpret_cast<T*>(buffer.ptr<int8_t>() + offsets[work_id]);
     }
 };
 
 struct ScratchBuffAllocator {
-    using CallBack = std::function<void(void * ptr)>;
+    using CallBack = std::function<void(void* ptr)>;
     std::vector<CallBack> m_allocs;
     std::vector<size_t> m_sizes;
     size_t m_total_size = 0;
     ScratchBuffAllocator() = default;
 
     // register size / allocate totally size / inform consumers
-    void register_allocation(size_t size, CallBack cb) {
+    void register_allocation(size_t size, const CallBack& cb) {
         m_allocs.push_back(cb);
         m_total_size += size;
         m_sizes.push_back(size);
@@ -435,25 +450,25 @@ struct MatrixDynQuantPerRow {
     // M x K
     int M;
     int K;
-    int8_t * data;
-    float * scale;
-    float * zp;
+    int8_t* data;
+    float* scale;
+    float* zp;
     bool asym = true;
 
     MatrixDynQuantPerRow() = default;
 
     size_t size() {
         // size of data & scale & zp
-        return M*K + M*sizeof(float)*2;
+        return M * K + M * sizeof(float) * 2;
     }
 
     size_t stride() {
         return K;
     }
 
-    void setup(void * ext_buf) {
+    void setup(void* ext_buf) {
         data = reinterpret_cast<int8_t*>(ext_buf);
-        scale = reinterpret_cast<float*>(data + M*K);
+        scale = reinterpret_cast<float*>(data + M * K);
         zp = reinterpret_cast<float*>(scale + M);
     }
 
@@ -470,13 +485,16 @@ public:
     const dnnl_alg_kind_t m_act_alg;
     const bool m_to_f16;
 
-    GateUpCombine(dnnl_alg_kind_t act_alg, bool to_f16) : jit_generator(jit_name()), m_act_alg(act_alg), m_to_f16(to_f16) {
+    GateUpCombine(dnnl_alg_kind_t act_alg, bool to_f16)
+        : jit_generator(jit_name()),
+          m_act_alg(act_alg),
+          m_to_f16(to_f16) {
         create_kernel();
     }
 
     void generate() override;
 
-    void call(float* src, size_t src_stride, void * pv_dst, size_t dst_stride, int num_rows, int num_cols) {
+    void call(float* src, size_t src_stride, void* pv_dst, size_t dst_stride, int num_rows, int num_cols) {
         auto* dst = reinterpret_cast<int16_t*>(pv_dst);
         for (int m = 0; m < num_rows; m++, src += src_stride, dst += dst_stride) {
             auto* prefetch_dst = (m + 1 < num_rows) ? (dst + dst_stride) : (dst);
@@ -508,28 +526,43 @@ public:
 
     void generate() override;
 
+    struct CallArgs {
+        float* src0;
+        float* src1;
+        int16_t* dst;
+        int16_t* prefetch_dst;
+        int64_t num_cols;
+    };
     // add two float input eltwise and convert to bf16 : ConvertFP32toBF16(src0 + src1)
-    void call(float * src0, float * src1, size_t src_stride, void * pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
-        auto* dst = reinterpret_cast<int16_t*>(pf16_dst);
-        for (int m = 0; m < num_rows; m++, src0 += src_stride, src1 += src_stride, dst += dst_stride) {
+    void
+    call(float* src0, float* src1, size_t src_stride, void* pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
+        CallArgs args;
+        args.src0 = src0;
+        args.src1 = src1;
+        args.dst = reinterpret_cast<int16_t*>(pf16_dst);
+        args.num_cols = num_cols;
+        for (int m = 0; m < num_rows; m++, args.src0 += src_stride, args.src1 += src_stride, args.dst += dst_stride) {
             // the prefetch distance is increased to ensure by the time store happens
             // prefetch has done and no HW prefetcher is triggered
-            auto* prefetch_dst = (m + 2 < num_rows) ? (dst + 2 * dst_stride) : (dst);
-            (*this)(src0, src1, dst, prefetch_dst, num_cols);
+            args.prefetch_dst = (m + 2 < num_rows) ? (args.dst + 2 * dst_stride) : (args.dst);
+
+            (*this)(&args);
         }
     }
 
     // convert tensor to bf16: ConvertFP32toBF16(src0)
-    void call(float * src0, size_t src_stride, void * pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
-        auto* dst = reinterpret_cast<int16_t*>(pf16_dst);
-        for (int m = 0; m < num_rows; m++, src0 += src_stride, dst += dst_stride) {
+    void call(float* src0, size_t src_stride, void* pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
+        CallArgs args;
+        args.src0 = src0;
+        args.dst = reinterpret_cast<int16_t*>(pf16_dst);
+        args.num_cols = num_cols;
+        for (int m = 0; m < num_rows; m++, args.src0 += src_stride, args.dst += dst_stride) {
             // the prefetch distance is increased to ensure by the time store happens
             // prefetch has done and no HW prefetcher is triggered
-            auto* prefetch_dst = (m + 2 < num_rows) ? (dst + 2 * dst_stride) : (dst);
-            (*this)(src0, dst, prefetch_dst, num_cols);
+            args.prefetch_dst = (m + 2 < num_rows) ? (args.dst + 2 * dst_stride) : (args.dst);
+            (*this)(&args);
         }
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -101,6 +101,8 @@ void AutoSchedule::init() {
     auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
+            // release cloned model here
+            const_cast<std::shared_ptr<ov::Model>&>(model).reset();
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
@@ -187,12 +189,14 @@ void AutoSchedule::init() {
         } else {
             customize_helper_context_from_cache_setting(is_actual_cpu, m_compile_context, m_context);
         }
+        std::shared_ptr<ov::Model> model;
         // initialize the rest members of load context
         for (int i = 0; i < CONTEXTNUM; i++) {
             if (m_compile_context[i].m_is_enabled) {
                 m_compile_context[i].m_future = m_compile_context[i].m_promise.get_future();
                 auto* context_ptr = &m_compile_context[i];
-                auto model = m_context->m_model;
+                // clone this model if multi HW plugins need to load model in a background thread
+                model = !model ? m_context->m_model : m_context->m_model->clone();
                 m_compile_context[i].m_task = std::bind(load_device_task, context_ptr, model);
             }
         }
@@ -297,6 +301,11 @@ void AutoSchedule::init() {
         // only one device need to compile model, do not need to compile it async
         m_compile_context[ACTUALDEVICE].m_task();
         m_passthrough_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
+        if (!m_context->m_bind_buffer) {
+            m_worker_requests.clear();
+            m_idle_worker_requests.clear();
+            m_infer_pipeline_tasks_device_specific.clear();
+        }
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
 }

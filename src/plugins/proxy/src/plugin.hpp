@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -61,7 +61,7 @@ private:
     mutable std::mutex m_plugin_mutex;
     mutable std::mutex m_init_devs_mutex;
     mutable std::vector<std::vector<std::string>> m_hidden_devices;
-    mutable bool m_init_devs{false};
+    mutable std::atomic_bool m_init_devs{false};
 };
 
 }  // namespace proxy

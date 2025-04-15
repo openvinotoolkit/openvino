@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import numpy as np
 import pytest
 import math
 from contextlib import nullcontext as does_not_raise
 from copy import copy
+import tempfile
 
-import openvino.runtime.opset13 as ops
+import openvino.opset13 as ops
 from openvino import (
     Core,
     Model,
@@ -23,14 +25,15 @@ from openvino import (
     get_batch,
     serialize,
     save_model,
+    OVAny,
 )
-from openvino.runtime import Output
-from openvino.runtime.op.util import VariableInfo, Variable
+from openvino import Output
+from openvino.op.util import VariableInfo, Variable
 
 from tests.utils.helpers import (
     generate_add_model,
     generate_model_with_memory,
-    create_filename_for_test,
+    create_filenames_for_ir,
 )
 
 
@@ -211,7 +214,7 @@ def test_get_sink_index(device):
     relu1.get_output_tensor(0).set_names({"relu_t1"})
     model = Model(relu1, [param], "TestModel")
 
-    # test get_sink_index with openvino.runtime.Node argument
+    # test get_sink_index with openvino.Node argument
     assign = ops.assign()
     assign2 = ops.assign()
     assign3 = ops.assign()
@@ -220,7 +223,7 @@ def test_get_sink_index(device):
     assert model.get_sink_index(assign_nodes[2]) == 2
     assert model.get_sink_index(relu1) == -1
 
-    # test get_sink_index with openvino.runtime.Output argument
+    # test get_sink_index with openvino.Output argument
     assign4 = ops.assign(relu1, "assign4")
     model.add_sinks([assign4])
     assert model.get_sink_index(assign4.output(0)) == 3
@@ -505,14 +508,14 @@ def test_reshape_with_python_types():
         model.reshape({model.input().node: shape10})
     assert (
         "Incorrect key type <class 'openvino._pyopenvino.op.Parameter'> to reshape a model, "
-        "expected keys as openvino.runtime.Output, int or str." in str(e.value)
+        "expected keys as openvino.Output, int or str." in str(e.value)
     )
 
     with pytest.raises(TypeError) as e:
         model.reshape({0: range(1, 9)})
     assert (
         "Incorrect value type <class 'range'> to reshape a model, "
-        "expected values as openvino.runtime.PartialShape, str, list or tuple."
+        "expected values as openvino.PartialShape, str, list or tuple."
         in str(e.value)
     )
 
@@ -591,7 +594,7 @@ def test_reshape_with_python_types_for_variable():
         model.reshape({0: shape10}, {var_id: range(1, 9)})
     assert (
         "Incorrect value type <class 'range'> to reshape a model, "
-        "expected values as openvino.runtime.PartialShape, str, list or tuple."
+        "expected values as openvino.PartialShape, str, list or tuple."
         in str(e.value)
     )
 
@@ -618,7 +621,7 @@ def test_serialize_rt_info(request, tmp_path):
             assert model.get_rt_info(["optimization", "test"])
 
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
@@ -661,6 +664,16 @@ def test_serialize_rt_info(request, tmp_path):
     os.remove(bin_path)
 
 
+def make_enum_info():
+    from enum import Enum
+
+    class EnumInfo(Enum):
+        INFO_INT = 1
+        INFO_STR = "info_str"
+
+    return EnumInfo
+
+
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_serialize_complex_rt_info(request, tmp_path):
     def check_rt_info(model):
@@ -675,6 +688,8 @@ def test_serialize_complex_rt_info(request, tmp_path):
         assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]) is True
         assert model.has_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) is True
         assert model.has_rt_info(["config", "model_parameters", "mean_values"]) is True
+        assert model.has_rt_info("enum_info_int") is True
+        assert model.has_rt_info("enum_info_str") is True
 
         assert model.get_rt_info(["config", "type_of_model"]).astype(str) == "classification"
         assert model.get_rt_info(["config", "converter_type"]).astype(str) == "classification"
@@ -688,6 +703,8 @@ def test_serialize_complex_rt_info(request, tmp_path):
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]).aslist() == []
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]).aslist(str) == ["sasd", "fdfdfsdf"]
         assert model.get_rt_info(["config", "model_parameters", "mean_values"]).aslist(float) == [22.3, 33.11, 44.0]
+        assert model.get_rt_info("enum_info_int").astype(int) == 1
+        assert model.get_rt_info("enum_info_str").astype(str) == "info_str"
 
         rt_info = model.get_rt_info()
         assert isinstance(rt_info["config"], dict)
@@ -701,7 +718,7 @@ def test_serialize_complex_rt_info(request, tmp_path):
             assert rt_info_val in ["float_empty", "nodes", "type", "directed"]
 
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
@@ -723,6 +740,8 @@ def test_serialize_complex_rt_info(request, tmp_path):
     model.set_rt_info([], ["config", "model_parameters", "labels", "label_tree", "nodes"])
     model.set_rt_info(["sasd", "fdfdfsdf"], ["config", "model_parameters", "labels", "label_groups", "ids"])
     model.set_rt_info([22.3, 33.11, 44.0], ["config", "model_parameters", "mean_values"])
+    model.set_rt_info(make_enum_info().INFO_INT, "enum_info_int")
+    model.set_rt_info(make_enum_info().INFO_STR, "enum_info_str")
 
     check_rt_info(model)
 
@@ -734,6 +753,41 @@ def test_serialize_complex_rt_info(request, tmp_path):
 
     os.remove(xml_path)
     os.remove(bin_path)
+
+
+def test_rt_info_enum():
+    model = generate_add_model()
+    enum_info = make_enum_info()
+
+    core = Core()
+    model.set_rt_info(enum_info.INFO_INT, "enum_info_int")
+    model.set_rt_info(enum_info.INFO_STR, "enum_info_str")
+    core.compile_model(model, "CPU")
+
+    prop_int = model.get_rt_info("enum_info_int")
+    assert isinstance(prop_int, OVAny)
+    assert isinstance(prop_int.value, int)
+    assert prop_int.value == 1
+    assert enum_info.INFO_INT == enum_info(prop_int.value)
+
+    prop_str = model.get_rt_info("enum_info_str")
+    assert isinstance(prop_str, OVAny)
+    assert isinstance(prop_str.value, str)
+    assert prop_str.value == "info_str"
+    assert enum_info.INFO_STR == enum_info(prop_str.value)
+
+
+def test_rt_info_gil():
+    model = generate_add_model()
+
+    class TestClass:
+        def __init__(self):
+            self.text = "test"
+
+    core = Core()
+    model.set_rt_info(TestClass(), "object_property")
+    core.compile_model(model, "CPU")
+    assert model.get_rt_info("object_property").value.text == "test"
 
 
 def test_model_add_remove_result_parameter_sink():
@@ -801,13 +855,62 @@ def test_model_add_remove_variable():
 
 
 def test_save_model_with_none():
-    with pytest.raises(AttributeError) as e:
+    with pytest.raises(TypeError) as e:
         save_model(model=None, output_model="model.xml")
-    assert "'model' argument is required and cannot be None." in str(e.value)
+    assert "Please provide a valid openvino.Model instance." in str(e.value)
 
 
 def test_copy_failed():
     model = generate_add_model()
     with pytest.raises(TypeError) as e:
         copy(model)
-    assert "Cannot copy 'openvino.runtime.Model. Please, use deepcopy instead." in str(e.value)
+    assert "Cannot copy 'openvino.Model'. Please, use deepcopy instead." in str(e.value)
+
+
+def test_model_attr_not_found():
+    model = generate_add_model()
+    with pytest.raises(AttributeError) as e:
+        _ = model.not_found_attr
+    assert "'openvino._pyopenvino.Model' object has no attribute 'not_found_attr'" in str(e.value)
+
+
+def test_model_with_statement():
+    mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
+    with tempfile.TemporaryDirectory() as model_save_dir:
+        save_model(mem_model, f"{model_save_dir}/model.xml")
+
+        with Core().read_model(f"{model_save_dir}/model.xml") as model:
+            assert mem_model.friendly_name == model.friendly_name
+
+        with pytest.raises(AttributeError):
+            save_model(model, f"{model_save_dir}/model.xml")
+
+    # Behavior after exiting the context manager
+    with mem_model as model:
+        pass
+    assert isinstance(mem_model, Model)
+    with pytest.raises(AttributeError, match="attribute is no longer accessible."):
+        model.friendly_name
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_tempdir_save_load_error():
+    # Generate a model with stateful components, ensuring the .bin file will be non-empty after saving
+    mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
+    with pytest.raises((NotADirectoryError, PermissionError)):
+        with tempfile.TemporaryDirectory() as model_save_dir:
+            save_model(mem_model, f"{model_save_dir}/model.xml")
+            _ = Core().read_model(f"{model_save_dir}/model.xml")
+
+
+def test_model_dir():
+    model = generate_add_model()
+    num_of_attrs = 83
+
+    assert type(dir(model)) == list
+    assert len(dir(model)) >= num_of_attrs
+
+
+def test_model_without_arguments():
+    with pytest.raises(ValueError, match="Model cannot be instantiated without arguments."):
+        Model()

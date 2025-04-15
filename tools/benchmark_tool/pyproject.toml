@@ -1,0 +1,31 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# Use this configuration file to create a wheel with OpenVINO™ Python* benchmark tool:
+# $ python -m pip wheel . --no-deps
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "benchmark_tool"
+version = "0.0.0"
+description = "OpenVINO™ Python* tools package"
+readme = "README.md"
+authors = [
+    {name = "Intel® Corporation", email = "openvino_pushbot@intel.com"}
+]
+urls = {homepage = "https://github.com/openvinotoolkit/openvino"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: Apache Software License"
+]
+requires-python = ">=3.9"
+dependencies = [
+  "numpy>=1.16.6,<2.2.0",
+]
+
+[project.scripts]
+benchmark_app = "openvino.tools.benchmark.main:main"

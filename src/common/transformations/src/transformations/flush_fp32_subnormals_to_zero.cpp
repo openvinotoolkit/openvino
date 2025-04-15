@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -22,7 +23,7 @@ ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
     auto node_pattern = pattern::wrap_type<ov::op::v0::Constant>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto node = dynamic_pointer_cast<ov::op::v0::Constant>(m.get_match_root());
+        auto node = ov::as_type_ptr<ov::op::v0::Constant>(m.get_match_root());
 
         if (!node)
             return false;

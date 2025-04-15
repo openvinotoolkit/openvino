@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,6 +147,12 @@ public:
         } else if (l.data_type == data_types::i8) {
             VF<int8_t> rnd_vec(s.count(), static_cast<int8_t>(fill_value));
             set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::u4) {
+            VF<uint8_t> rnd_vec(s.count()/2, static_cast<uint8_t>(fill_value));
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::i4) {
+            VF<int8_t> rnd_vec(s.count()/2, static_cast<int8_t>(fill_value));
+            set_values(prim, rnd_vec);
         } else {
             throw std::runtime_error("get_mem: Unsupported precision");
         }
@@ -185,6 +191,12 @@ public:
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::u8) {
             VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count(), min, max);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::i4) {
+            VF<int8_t> rnd_vec = rg.generate_random_1d<int8_t>(s.count()/2, min, max);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::u4) {
+            VF<uint8_t> rnd_vec = rg.generate_random_1d<uint8_t>(s.count()/2, min, max);
             set_values(prim, rnd_vec);
         }
 

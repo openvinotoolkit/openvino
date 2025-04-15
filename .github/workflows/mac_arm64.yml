@@ -4,7 +4,17 @@ on:
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
-  #pull_request:
+  push:
+   paths-ignore:
+     - '**/docs/**'
+     - 'docs/**'
+     - '**/**.md'
+     - '**.md'
+     - '**/layer_tests_summary/**'
+     - '**/conformance/**'
+   branches:
+     - 'releases/**'
+  # pull_request:
   #  paths-ignore:
   #    - '**/docs/**'
   #    - 'docs/**'
@@ -12,17 +22,6 @@ on:
   #    - '**.md'
   #    - '**/layer_tests_summary/**'
   #    - '**/conformance/**'
-  #push:
-  #  paths-ignore:
-  #    - '**/docs/**'
-  #    - 'docs/**'
-  #    - '**/**.md'
-  #    - '**.md'
-  #    - '**/layer_tests_summary/**'
-  #    - '**/conformance/**'
-  #  branches:
-  #    - master
-  #    - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -43,6 +42,7 @@ jobs:
     steps:
       - name: checkout action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -83,12 +83,14 @@ jobs:
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
@@ -133,7 +135,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
+        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
@@ -151,6 +153,7 @@ jobs:
             -DENABLE_CPPLINT=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
+            -DENABLE_WHEEL=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
@@ -159,7 +162,7 @@ jobs:
             -B ${{ env.BUILD_DIR }}
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show ccache stats
         run: ccache --show-stats
@@ -168,7 +171,6 @@ jobs:
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_WHEELS_DIR }} -DCOMPONENT=python_wheels -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
@@ -180,6 +182,48 @@ jobs:
             tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           popd
 
+      # Setup additional Python versions for wheels building
+      - name: Setup Python 3.9
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.9"
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Setup Python 3.10
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.10"
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Setup Python 3.12
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: "3.12"
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
+      - name: Build additional Python wheels
+        run: |
+          for py_version in "3.9" "3.10" "3.11" "3.12"
+          do            
+            python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
+            $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+            
+            cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
+            cmake --build ${{ github.workspace }}/py$py_version --parallel
+            cmake --install ${{ github.workspace }}/py$py_version --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
+          done
+
+      # Setup Python 3.11 as the default one
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          should-setup-pip-paths: 'false'
+          self-hosted-runner: 'false'
+
       - name: Cmake & Build - OpenVINO Contrib
         run: |
           cmake \
@@ -187,7 +231,7 @@ jobs:
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
-          cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: CMake configure, build and install - OpenVINO JS API
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
@@ -196,43 +240,47 @@ jobs:
             -DCPACK_GENERATOR=NPM \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
-
-          cmake --build ${{ env.BUILD_DIR }} --parallel
-
+          cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc)
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      - name: Pack openvino_js_package
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_js_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR_JS }}
+
       #
       # Upload build artifacts
       #
 
-      - name: Upload openvino package
+      - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
           
-      - name: Upload openvino wheels
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      - name: Upload OpenVINO wheels
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
-      - name: Upload openvino tests package
+      - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-      - name: Upload openvino js package
+      - name: Upload OpenVINO js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: openvino_js_package
-          path: ${{ env.INSTALL_DIR_JS }}
+          path: ${{ env.BUILD_DIR }}/openvino_js_package.tar.gz
           if-no-files-found: 'error'
 
   Samples:
@@ -279,6 +327,19 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
+  Python_API_Tests:
+    name: Python API tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_python_api_tests.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.9', '3.10', '3.11', '3.12' ]
+    with:
+      runner: 'macos-13-xlarge'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: ${{ matrix.python-version }}
+
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
@@ -297,6 +358,15 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
+  JAX_Layer_Tests:
+    name: JAX Layer Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_jax_layer_tests.yml
+    with:
+      runner: 'macos-13-xlarge'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
   CPU_Functional_Tests:
     name: CPU functional tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
@@ -305,3 +375,4 @@ jobs:
     with:
       runner: 'macos-13-xlarge'
       python-version: '3.11'
+      scope: ${{ contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event_name)  && 'nightly' || 'smoke' }}

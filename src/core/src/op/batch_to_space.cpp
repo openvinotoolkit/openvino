@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ bool batch_to_space_evaluate(TensorVector& outputs, const TensorVector& inputs) 
 
     auto data_shape = in.get_shape();
 
-    auto const block_values_size = shape_size(inputs[1].get_shape());
+    const auto block_values_size = shape_size(inputs[1].get_shape());
 
     const auto* block_values = inputs[1].data<int64_t>();
     const auto* crops_begin_values = inputs[2].data<int64_t>();

@@ -20,9 +20,9 @@ namespace low_precision {
  */
 class LP_TRANSFORMATIONS_API BroadcastTransformation : public TransparentBaseTransformation {
 public:
-    OPENVINO_RTTI("BroadcastTransformation", "0");
+    OPENVINO_RTTI("BroadcastTransformation", "0", TransparentBaseTransformation);
     BroadcastTransformation(const Params& params = Params());
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<ov::Node> layer) const override;
+    bool canBeTransformed(const std::shared_ptr<ov::Node>& layer) const override;
 };
 
 }  // namespace low_precision

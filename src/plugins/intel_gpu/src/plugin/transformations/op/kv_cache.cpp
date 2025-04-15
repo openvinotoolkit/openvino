@@ -10,9 +10,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 
-namespace ov {
-namespace intel_gpu {
-namespace op {
+namespace ov::intel_gpu::op {
 
 KVCache::KVCache(const OutputVector& inputs,
                  const std::shared_ptr<ov::op::util::Variable>& past_variable,
@@ -61,7 +59,7 @@ bool KVCache::visit_attributes(ov::AttributeVisitor& visitor) {
 
 void KVCache::validate_and_infer_types() {
     auto output_type = m_output_type;
-    if (m_output_type == ov::element::undefined) {
+    if (m_output_type == ov::element::dynamic) {
         output_type = get_input_element_type(0);
     }
 
@@ -106,18 +104,21 @@ std::vector<ov::PartialShape> shape_infer(const KVCache* op, const std::vector<o
 
     const auto& gather_axis = op->get_gather_axis();
     const auto& concat_axis = ov::util::normalize(op->get_concat_axis(), input_shapes[0].size());
+    // We update output shape with input1 shape by default, as input1 is always new, and in some situations, input0 shape
+    // has zeros in some dimensions. For example to concat input0 [-1, 0, 0, 0] + input1 [-1, 4, -1, 128] along axis 2,
+    // we could (and should) infer dim value of axis 1 and 3 in this case.
     if (op->get_output_size() >= 2) {
-        out_shapes[0] = input_shapes[0];
+        out_shapes[0] = input_shapes[1];
         out_shapes[0][gather_axis] = input_shapes[2][0];
-        out_shapes[0][concat_axis] += input_shapes[1][concat_axis];
+        out_shapes[0][concat_axis] += input_shapes[0][concat_axis];
 
         std::vector<ov::Dimension> dims(out_shapes[0].size(), 1);
         dims[gather_axis] = out_shapes[0][gather_axis];
         dims[concat_axis] = out_shapes[0][concat_axis];
         out_shapes[1] = dims;
     } else {
-        out_shapes[0] = input_shapes[0];
-        out_shapes[0][concat_axis] += input_shapes[1][concat_axis];
+        out_shapes[0] = input_shapes[1];
+        out_shapes[0][concat_axis] += input_shapes[0][concat_axis];
     }
 
     return out_shapes;
@@ -204,6 +205,4 @@ std::vector<ov::PartialShape> shape_infer(const KVCacheCompressed* op,
     return out_shapes;
 }
 
-}  // namespace op
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu::op

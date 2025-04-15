@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,15 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 
 /**
  * \brief Check if \ref ov::Output<ov::Node> can be folded base on `can_be_folded` attribute.
@@ -50,7 +53,7 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
 
 static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& node) {
     bool restored = false;
-    if (ov::is_type<ov::op::v0::Convert>(node)) {
+    if (ov::is_type<ov::op::v0::Convert>(node) && !is_decompression(node) && !is_dequantization_node(node)) {
         auto input = node->input(0);
         ov::util::remove_original_input_precision_attribute(input);
         return restored;
@@ -75,7 +78,7 @@ static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& no
 
 class RequiresPrecisionConversion : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("requires_precision_conversion", "0");
+    OPENVINO_RTTI("requires_precision_conversion", "0", RuntimeAttribute);
 
     bool is_copyable() const override {
         return false;
@@ -106,7 +109,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
     for (const auto& original_node : model->get_ordered_ops()) {
         auto node = original_node;
         if (!original_node->can_constant_fold(original_node->input_values())) {
-            if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+            if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
                 // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
                 size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
                 for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
@@ -153,6 +156,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                     copy_runtime_info_from_input_values(original_node);
                     // Propagate runtime info attributes to replacement
                     copy_runtime_info(original_node, replacement_ptr);
+                    ov::copy_weightless_cache_attr(original_node, replacement_ptr);
 
                     rewritten = true;
                 }

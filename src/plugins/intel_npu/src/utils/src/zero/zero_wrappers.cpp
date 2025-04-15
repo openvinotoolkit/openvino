@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,11 +22,15 @@ EventPool::~EventPool() {
     if (ZE_RESULT_SUCCESS != result) {
         _log.error("zeEventPoolDestroy failed %#X", uint64_t(result));
     }
+
+    _handle = nullptr;
 }
 
-Event::Event(const ze_event_pool_handle_t& event_pool, uint32_t event_index) : _log("Event", Logger::global().level()) {
+Event::Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index)
+    : _event_pool(event_pool),
+      _log("Event", Logger::global().level()) {
     ze_event_desc_t event_desc = {ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, event_index, 0, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeEventCreate", zeEventCreate(event_pool, &event_desc, &_handle));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeEventCreate", zeEventCreate(_event_pool->handle(), &event_desc, &_handle));
 }
 void Event::AppendSignalEvent(CommandList& command_list) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendSignalEvent",
@@ -51,26 +55,42 @@ Event::~Event() {
     if (ZE_RESULT_SUCCESS != result) {
         _log.error("zeEventDestroy failed %#X", uint64_t(result));
     }
+
+    _handle = nullptr;
 }
 
-CommandList::CommandList(const ze_device_handle_t& device_handle,
-                         const ze_context_handle_t& context,
-                         ze_graph_dditable_ext_curr_t& graph_ddi_table_ext,
-                         const uint32_t& group_ordinal,
-                         bool mtci_is_supported)
-    : _context(context),
-      _graph_ddi_table_ext(graph_ddi_table_ext),
+CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal)
+    : _init_structs(init_structs),
       _log("CommandList", Logger::global().level()) {
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
     ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, &mutable_desc, group_ordinal, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListCreate", zeCommandListCreate(_context, device_handle, &desc, &_handle));
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeCommandListCreate",
+        zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
 
-    if (mtci_is_supported) {
-        ze_mutable_command_id_exp_desc_t mutableCmdIdDesc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC,
-                                                             nullptr,
-                                                             ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT};
-        THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp",
-                                    zeCommandListGetNextCommandIdExp(_handle, &mutableCmdIdDesc, &_command_id));
+    uint32_t mutable_command_list_ext_version = _init_structs->getMutableCommandListExtVersion();
+    if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 0)) {
+        ze_mutable_command_id_exp_desc_t mutable_cmd_id_desc = {};
+
+        mutable_cmd_id_desc.stype = ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC;
+
+        if (mutable_command_list_ext_version >= ZE_MAKE_VERSION(1, 1)) {
+            mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS;
+        } else {
+            mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
+        };
+
+        auto result = zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id);
+        if (result == ZE_RESULT_ERROR_INVALID_ENUMERATION) {
+            // If ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENTS is not supported by the driver, try again with
+            // ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED
+            mutable_cmd_id_desc.flags = ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT_DEPRECATED;
+
+            THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp",
+                                        zeCommandListGetNextCommandIdExp(_handle, &mutable_cmd_id_desc, &_command_id))
+        } else {
+            THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListGetNextCommandIdExp", result)
+        }
     }
 }
 void CommandList::reset() const {
@@ -81,14 +101,15 @@ void CommandList::appendMemoryCopy(void* dst, const void* src, const std::size_t
                                 zeCommandListAppendMemoryCopy(_handle, dst, src, size, nullptr, 0, nullptr));
 }
 void CommandList::appendGraphInitialize(const ze_graph_handle_t& graph_handle) const {
-    ze_result_t result = _graph_ddi_table_ext.pfnAppendGraphInitialize(_handle, graph_handle, nullptr, 0, nullptr);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphInitialize", result, _graph_ddi_table_ext);
+    ze_result_t result =
+        _init_structs->getGraphDdiTable().pfnAppendGraphInitialize(_handle, graph_handle, nullptr, 0, nullptr);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphInitialize", result, _init_structs->getGraphDdiTable());
 }
 void CommandList::appendGraphExecute(const ze_graph_handle_t& graph_handle,
                                      const ze_graph_profiling_query_handle_t& profiling_query_handle) const {
-    ze_result_t result =
-        _graph_ddi_table_ext.pfnAppendGraphExecute(_handle, graph_handle, profiling_query_handle, nullptr, 0, nullptr);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphExecute", result, _graph_ddi_table_ext);
+    ze_result_t result = _init_structs->getGraphDdiTable()
+                             .pfnAppendGraphExecute(_handle, graph_handle, profiling_query_handle, nullptr, 0, nullptr);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnAppendGraphExecute", result, _init_structs->getGraphDdiTable());
 }
 void CommandList::appendNpuTimestamp(uint64_t* timestamp_buff) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListAppendWriteGlobalTimestamp",
@@ -105,13 +126,18 @@ CommandList::~CommandList() {
     if (ZE_RESULT_SUCCESS != result) {
         _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
     }
+
+    _handle = nullptr;
 }
 void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
-    ze_mutable_graph_argument_exp_desc_t desc = {ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC,
-                                                 nullptr,
-                                                 _command_id,
-                                                 arg_index,
-                                                 arg_value};
+    ze_mutable_graph_argument_exp_desc_t desc = {
+        (_init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 11))
+            ? ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC
+            : static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC_DEPRECATED),
+        nullptr,
+        _command_id,
+        arg_index,
+        arg_value};
 
     ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
                                                                   &desc,
@@ -121,29 +147,31 @@ void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_v
                                 zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
 }
 
-CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
-                           const ze_context_handle_t& context,
+CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                            const ze_command_queue_priority_t& priority,
-                           ze_command_queue_npu_dditable_ext_curr_t& command_queue_npu_dditable_ext,
-                           bool turbo,
-                           const uint32_t& group_ordinal)
-    : _context(context),
-      _command_queue_npu_dditable_ext(command_queue_npu_dditable_ext),
+                           const uint32_t& group_ordinal,
+                           bool turbo)
+    : _init_structs(init_structs),
       _log("CommandQueue", Logger::global().level()) {
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
 
+    ze_command_queue_desc_npu_ext_t turbo_cfg = {};
+
     if (turbo) {
-        if (_command_queue_npu_dditable_ext.version()) {
-            ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
+        if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+            turbo_cfg.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT;
+            turbo_cfg.turbo = turbo;
+
             queue_desc.pNext = &turbo_cfg;
         } else {
             OPENVINO_THROW("Turbo is not supported by the current driver");
         }
     }
 
-    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueCreate",
-                                zeCommandQueueCreate(_context, device_handle, &queue_desc, &_handle));
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeCommandQueueCreate",
+        zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &queue_desc, &_handle));
 }
 void CommandQueue::executeCommandList(CommandList& command_list) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",
@@ -155,9 +183,9 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
 }
 
 void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
-    if (_command_queue_npu_dditable_ext.version()) {
+    if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
         THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType",
-                                    _command_queue_npu_dditable_ext.pfnSetWorkloadType(_handle, workloadType));
+                                    _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
     } else {
         OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
     }
@@ -168,11 +196,15 @@ CommandQueue::~CommandQueue() {
     if (ZE_RESULT_SUCCESS != result) {
         _log.error("zeCommandQueueDestroy failed %#X", uint64_t(result));
     }
+
+    _handle = nullptr;
 }
 
-Fence::Fence(const CommandQueue& command_queue) : _log("Fence", Logger::global().level()) {
+Fence::Fence(const std::shared_ptr<CommandQueue>& command_queue)
+    : _command_queue(command_queue),
+      _log("Fence", Logger::global().level()) {
     ze_fence_desc_t fence_desc = {ZE_STRUCTURE_TYPE_FENCE_DESC, nullptr, 0};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeFenceCreate", zeFenceCreate(command_queue.handle(), &fence_desc, &_handle));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeFenceCreate", zeFenceCreate(_command_queue->handle(), &fence_desc, &_handle));
 }
 void Fence::reset() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeFenceReset", zeFenceReset(_handle));
@@ -185,6 +217,8 @@ Fence::~Fence() {
     if (ZE_RESULT_SUCCESS != result) {
         _log.error("zeFenceDestroy failed %#X", uint64_t(result));
     }
+
+    _handle = nullptr;
 }
 
 }  // namespace intel_npu

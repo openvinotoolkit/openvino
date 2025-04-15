@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ class VisitorAdapter;
 /// deserialization.
 class OPENVINO_API AttributeVisitor {
 public:
-    virtual ~AttributeVisitor() = default;
+    virtual ~AttributeVisitor();
     // Must implement these methods
     /// \brief handles all specialized on_adapter methods implemented by the visitor.
     ///

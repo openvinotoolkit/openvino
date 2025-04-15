@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2024 Intel Corporation
+ Copyright (C) 2018-2025 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -26,7 +26,7 @@ import zipfile
 import logging as log
 from common.common_utils import shell
 from shutil import which
-import openvino.runtime as ov
+import openvino as ov
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
@@ -79,7 +79,7 @@ def download(test_data_dir, file_path):
 def prepend(cache, inp='', model='', tmp_path=None):
     test_data_dir = cache.mkdir('test_data')
     if model:
-        if type(model) is ov.ie_api.Model:
+        if type(model) is ov.Model:
             model_sv_path = tmp_path / "model_with_4bit_input.xml"
             ov.save_model(model, model_sv_path)
             model = '-m', model_sv_path

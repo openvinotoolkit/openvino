@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include "openvino/core/axis_set.hpp"
 #include "openvino/core/axis_vector.hpp"
 #include "openvino/core/coordinate_diff.hpp"
-#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -162,7 +161,6 @@ public:
         case Type_t::f8e8m0:
             fill_data<Type_t::f8e8m0>(value);
             break;
-        case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
         }
@@ -750,7 +748,6 @@ private:
         case Type_t::f8e8m0:
             write_buffer<Type_t::f8e8m0>(source);
             break;
-        case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
         }

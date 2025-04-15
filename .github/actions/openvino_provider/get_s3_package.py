@@ -54,6 +54,10 @@ def main(product, version_pattern, platform, arch, folder):
     matching_files = filter_files_by_criteria(all_files, product, version_pattern, platform, arch, folder)
     if matching_files:
         logger.info(f"Matching packages: {sorted(matching_files)}")
+        if len(matching_files) > 1:
+            custom_release_build_pattern = fr".*/{version_pattern}/(linux_|windows_|macos_).*/.*"
+            # Exclude custom release builds, if any, from matches
+            matching_files = [file for file in matching_files if not re.search(custom_release_build_pattern, file)]
         package_url = f"https://storage.openvinotoolkit.org{sorted(matching_files)[-1]}"
         logger.info(f"Returning package URL: {package_url}")
         action_utils.set_github_output("package_url", package_url)

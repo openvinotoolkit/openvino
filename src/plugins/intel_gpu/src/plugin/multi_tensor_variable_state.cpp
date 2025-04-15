@@ -19,8 +19,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 MultiTensorState::MultiTensorState(const std::vector<VariableStateInfo>& infos,
                                    std::shared_ptr<RemoteContextImpl> context,
@@ -87,10 +86,10 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
         for (size_t f = 0; f < kv_shape[1]; f++) {
             for (size_t y = 0; y < kv_shape[2]; y++) {
                 for (size_t x = 0; x < kv_shape[3]; x++) {
-                    size_t b_kv = bt_in_ptr[b* kv_shape[concat_axis] + y];
-
-                    auto in_idx = std::vector<int>{static_cast<int>(b_kv), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
                     auto out_idx = std::vector<int>{static_cast<int>(b), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
+
+                    size_t b_kv = bt_in_ptr[b * kv_shape[concat_axis] + out_idx[concat_axis]]; // bt_idx = b * total_seq_len + seq_len_idx
+                    auto in_idx = std::vector<int>{static_cast<int>(b_kv), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
 
                     cldnn::tensor in(cldnn::format::bfyx, in_idx, 0);
                     cldnn::tensor out(cldnn::format::bfyx, out_idx, 0);
@@ -211,5 +210,4 @@ ov::SoPtr<ov::ITensor> VariableStateIndirectKVCacheCompressed::get_state() const
     OPENVINO_THROW("[GPU] get_state API is supported only when KV-cache compression is disabled");
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

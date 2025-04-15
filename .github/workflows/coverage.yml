@@ -20,19 +20,20 @@ jobs:
 
     steps:
       - name: Setup python
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: '3.10.10'
           architecture: 'x64'
 
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
+        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
         with:
           max-size: 50G
 
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           submodules: 'true'
 
@@ -50,12 +51,6 @@ jobs:
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
           # For running TensorFlow frontend unit tests
           python3 -m pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
-          # For MO unit tests
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_caffe.txt
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_kaldi.txt
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_onnx.txt
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_tf2.txt
-          python3 -m pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
 
       - name: Build OpenVINO with CMake
         uses: ashutoshvarma/action-cmake-build@ade188313bc7eaa6f14349569a64d8bc716342ff # master
@@ -68,7 +63,6 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_PYTHON=ON
             -DENABLE_ONEDNN_FOR_GPU=ON
-            -DBUILD_SHARED_LIBS=ON
             -DENABLE_TESTS=ON
             -DENABLE_OV_ONNX_FRONTEND=ON
             -DENABLE_FASTER_BUILD=ON
@@ -84,9 +78,6 @@ jobs:
       - name: Install wheel packages
         run: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/install_pkg -P '${{ github.workspace }}/build/cmake_install.cmake'
 
-      - name: Install python wheels
-        run: python3 -m pip install openvino-dev --find-links=${{ github.workspace }}/install_pkg/tools
-
       - name: List binaries
         run: ls -la ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}
 
@@ -100,7 +91,7 @@ jobs:
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_proxy_plugin_tests
 
       - name: Run OV Hetero Func tests
-        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_hetero_func_tests --gtest_filter="*smoke*"
+        run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_hetero_func_tests --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
       - name: Run IR frontend tests
         run: ${{ github.workspace }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_ir_frontend_tests
@@ -138,6 +129,6 @@ jobs:
           lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
           genhtml coverage.info --output-directory coverage-report
       - name: Collect coverage
-        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
+        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # v5.4.0
         with:
           verbose: true

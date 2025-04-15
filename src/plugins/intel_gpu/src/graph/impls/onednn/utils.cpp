@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -235,7 +235,7 @@ int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     auto f_padding = l.data_padding._lower_size[1];
     if (b_padding != 0) {
         auto input_pitches = l.get_pitches();
-        offset = b_padding * input_pitches[0];
+        offset = static_cast<int64_t>(b_padding) * input_pitches[0];
     } else if (f_padding != 0) {
         offset = f_padding;
         for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
@@ -270,6 +270,10 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     } else if (target_fmt == dnnl::memory::format_tag::ab) {
         dims.push_back(l.batch());
         dims.push_back(l.get_tensor().count() / l.batch());
+    } else if (target_fmt == dnnl::memory::format_tag::abc) {
+        dims.push_back(l.batch());
+        dims.push_back(l.feature());
+        dims.push_back(l.spatial(1));
     } else if (target_fmt == dnnl::memory::format_tag::ba) {
         dims.push_back(l.feature());
         dims.push_back(l.get_tensor().count() / l.feature());
@@ -570,6 +574,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     traits.internal_order = internal_order;
     traits.block_sizes = block_sizes;
     traits.logic_block_sizes = logic_block_sizes;
+    traits.desc_size = desc.get_size();
     traits.str = "custom";
 
     return traits;

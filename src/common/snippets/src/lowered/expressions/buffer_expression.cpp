@@ -25,12 +25,15 @@ ExpressionPtr BufferExpression::clone() const {
 }
 
 bool BufferExpression::visit_attributes(AttributeVisitor &visitor) {
+    Expression::visit_attributes(visitor);
     auto allocation_size = utils::value2str(m_allocation_size);
     auto offset = utils::value2str(m_offset);
+    auto prc = get_data_type();
     visitor.on_attribute("allocation_size", allocation_size);
     visitor.on_attribute("offset", offset);
     visitor.on_attribute("reg_group", m_reg_group);
     visitor.on_attribute("cluster_id", m_cluster_id);
+    visitor.on_attribute("data_type", prc);
     return true;
 }
 
@@ -38,9 +41,13 @@ bool BufferExpression::is_defined() const {
     return !utils::is_dynamic_value(m_allocation_size);
 }
 
+ov::element::Type BufferExpression::get_data_type() const {
+    return get_node()->get_output_element_type(0);
+}
+
 size_t BufferExpression::get_byte_size() const {
     if (is_defined())
-        return m_allocation_size * get_node()->get_output_element_type(0).size();
+        return m_allocation_size * get_data_type().size();
     return utils::get_dynamic_value<size_t>();
 }
 
@@ -70,10 +77,10 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
     const auto& subtensor = ov::snippets::utils::get_projected_subtensor(parent_port);
 
     auto hard_equal = [&parent_port](const LoopPort& port) {
-        return *port.expr_port == parent_port;
+        return *port.get_expr_port() == parent_port;
     };
     auto soft_equal = [&](const LoopPort& loop_port) {
-        const auto& port = *loop_port.expr_port;
+        const auto& port = *loop_port.get_expr_port();
         // Check semantic of LoopPort
         if (parent_port.get_index() != port.get_index() ||
             port.get_expr()->get_node()->get_type_info() != parent_port.get_expr()->get_node()->get_type_info())
@@ -102,8 +109,10 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
             OPENVINO_ASSERT(it != output_ports.end(), "compute_allocation_shape: output port of parent loop can not be found");
         }
         const auto& loop_port = *it;
-        const auto& dim_idx = loop_port.dim_idx;
-        if (loop_port.is_incremented && dim_idx < rank) {
+        if (!loop_port.is_processed())
+            continue;
+        const auto& dim_idx = loop_port.get_dim_idx();
+        if (dim_idx < rank) {
             if (const auto& unified_loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop_info))
                 m_allocation_size = utils::dynamic_safe_mul(m_allocation_size, unified_loop_info->get_work_amount());
             else if (const auto& expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_info))

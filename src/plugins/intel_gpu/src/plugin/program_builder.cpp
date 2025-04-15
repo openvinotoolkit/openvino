@@ -1,16 +1,22 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/search_sorted.hpp"
+#include "openvino/op/stft.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
@@ -28,8 +34,7 @@
 #endif
 
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 const cldnn::primitive_id ProgramBuilder::m_preProcessTag("_cldnn_input_preprocess");
 const cldnn::primitive_id ProgramBuilder::m_preCustomLayerTag("_cldnn_custom_preprocess");
@@ -57,7 +62,6 @@ std::string layer_type_name_ID(const std::shared_ptr<ov::Node>& op) {
 }
 
 ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
-                               bool partial_build,
                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                std::shared_ptr<cldnn::ICompilationContext> compilation_context,
                                bool is_inner_program)
@@ -101,20 +105,11 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
 
     CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
-    auto custom_layers_config = m_config.get_property(ov::intel_gpu::config_file);
+    auto custom_layers_config = m_config.get_config_file();
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
 
     auto ops = model->get_ordered_ops();
-    // In the case of dynamic models, because most of the layers are mapped to shape agnostic kernels,
-    // smaller # of kernels are built compared to static models.
-    // So having smaller batch size is even better for dynamic model as we can do more parallel build.
-    if (model->is_dynamic()) {
-        m_config.set_property(ov::intel_gpu::max_kernels_per_batch(4));
-    } else {
-        m_config.set_property(ov::intel_gpu::max_kernels_per_batch(8));
-    }
-
-    m_program = build(ops, partial_build, is_inner_program);
+    m_program = build(ops, is_inner_program);
 }
 
 ProgramBuilder::ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config)
@@ -144,24 +139,8 @@ void ProgramBuilder::cleanup_build() {
 #endif
 }
 
-std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool partial_build, bool is_inner_program) {
+std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool is_inner_program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::build");
-    // In the case of inner program, allow_new_shape_infer flag is setted by outside of program.
-    // So, do not check allow_new_shape_infer for inner program build
-    for (const auto& op : ops) {
-        if (requires_new_shape_infer(op)) {
-            allow_new_shape_infer = true;
-            break;
-        }
-    }
-
-    if (is_inner_program) {
-        allow_new_shape_infer = (m_config.get_property(ov::intel_gpu::allow_new_shape_infer) || allow_new_shape_infer);
-    }
-
-    m_config.set_property(ov::intel_gpu::partial_build_program(partial_build));
-    m_config.set_property(ov::intel_gpu::optimize_data(true));
-    m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
 
     prepare_build();
     {
@@ -207,7 +186,6 @@ bool ProgramBuilder::is_op_supported(const std::shared_ptr<ov::Node>& op) {
         if (!data_types_are_supported(op.get()))
             return false;
 
-        allow_new_shape_infer = requires_new_shape_infer(op);
         CreateSingleLayerPrimitive(op);
         cleanup_build();
         DisableQueryMode();
@@ -264,7 +242,7 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
         // Note: Currently Split/Variadic Split are divided to multiple crops
         // LSTMCell contains its own body network, and each output has a unique pid
         // But there is no need to maintain output port index for the next node e.g. Result
-        bool is_legacy_multiple_outputs = !allow_new_shape_infer
+        bool is_legacy_multiple_outputs = !use_new_shape_infer()
                                           || ov::is_type<ov::op::v1::Split>(prevOp)
                                           || ov::is_type<ov::op::v1::VariadicSplit>(prevOp)
                                           || ov::is_type<ov::op::v4::LSTMCell>(prevOp);
@@ -305,14 +283,18 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
 
-    if (this->m_config.get_property(ov::cache_mode) == ov::CacheMode::OPTIMIZE_SIZE) {
+    if (this->m_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             auto rt_info = op.get_rt_info();
+
             auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
             if (weightless_cache_attr != rt_info.end()) {
-                data_prim->bin_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-                data_prim->original_size =
-                    weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().original_size;
+                auto& attr = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>();
+                data_prim->cache_info->set_constant_info(attr.bin_offset,
+                                                         attr.original_size,
+                                                         attr.original_dtype,
+                                                         op.get_output_element_type(0),
+                                                         op.get_output_shape(0));
             }
         }
     }
@@ -332,7 +314,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
             prim->origin_op_type_name = prim->type_string();
     }
 
-    if (this->m_config.get_property(ov::enable_profiling) && should_profile) {
+    if (this->m_config.get_enable_profiling() && should_profile) {
         profiling_ids.push_back(prim_id);
         init_profile_info(*prim);
     }
@@ -342,37 +324,6 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     }
 
     m_topology->add_primitive(prim);
-}
-
-bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) const {
-    if (op->is_dynamic()) {
-        return true;
-    }
-
-    if (ov::is_type<ov::op::v5::Loop>(op)) {
-        const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
-        if (body_function->is_dynamic())
-            return true;
-    }
-    // When input node has dynamic shape with 4 dimension, this function return false
-    // because op.is_dynamic() which only checks input shapes return false.
-    // So, in the case of input data, we need to check output shape.
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).is_dynamic())
-            return true;
-    }
-
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).size() > 6)
-            return true;
-    }
-
-    for (size_t i = 0; i < op->get_input_size(); i++) {
-        if (op->get_input_partial_shape(i).size() > 6)
-            return true;
-    }
-
-    return false;
 }
 
 int64_t ProgramBuilder::get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const {
@@ -399,5 +350,4 @@ void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size
                    " ", op->get_type_info().version_id, ")");
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

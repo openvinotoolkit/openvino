@@ -84,7 +84,7 @@ Use the following command:
 Step 4. Install the Package
 +++++++++++++++++++++++++++
 
-Use the following command to install OpenVINO Base or OpenVINO GenAI package:
+Use the following command to install either the base or GenAI OpenVINO package:
 
 .. code-block:: python
 
@@ -104,7 +104,7 @@ If installation was successful, you will see the list of available devices.
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the
-:doc:`list of additional configurations <../configurations>`
+:doc:`list of additional configurations <./configurations>`
 to see if your case needs any of them.
 
 
@@ -119,7 +119,7 @@ to see if your case needs any of them.
 
 .. code-block:: python
 
-   from openvino import get_cmake_path
+   from openvino.utils import get_cmake_path
    cmake_path = get_cmake_path()
 
 For detailed instructions on how to use these configurations in your build setup, check out the
@@ -141,7 +141,7 @@ the following tutorials.
 .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :width: 400
 
-Try the `Python Quick Start Example <https://docs.openvino.ai/2024/notebooks/vision-monodepth-with-output.html>`__
+Try the `Python Quick Start Example <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vision-monodepth>`__
 to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside
 your web browser.
 
@@ -149,12 +149,12 @@ your web browser.
 Get started with Python
 +++++++++++++++++++++++
 
-Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more
+Visit the :doc:`Tutorials <../../../get-started/learn-openvino/interactive-tutorials-python>` page for more
 Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* `OpenVINO Python API Tutorial <https://docs.openvino.ai/2024/notebooks/openvino-api-with-output.html>`__
-* `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2024/notebooks/hello-world-with-output.html>`__
-* `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2024/notebooks/vision-background-removal-with-output.html>`__
+* `OpenVINO Python API Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-api>`__
+* `Basic image classification program with Hello Image Classification <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-world>`__
+* `Convert a PyTorch model and use it for image background removal <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vision-background-removal>`__
 
 
 

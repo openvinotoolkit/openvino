@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,12 @@ enum class PadMode { CONSTANT = 0, EDGE, REFLECT, SYMMETRIC };
 
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const PadMode& type);
+
+/// \brief Fill modes to set default value for operators like `SegmentMax`.
+enum class FillMode { ZERO = 0, LOWEST };
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const FillMode& type);
 
 /// \brief Padding Type used for `Convolution` and `Pooling`
 ///
@@ -215,14 +221,25 @@ template <>
 class OPENVINO_API AttributeAdapter<op::PadMode> : public EnumAttributeAdapterBase<op::PadMode> {
 public:
     AttributeAdapter(op::PadMode& value) : EnumAttributeAdapterBase<op::PadMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<PadMode>");
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<op::FillMode> : public EnumAttributeAdapterBase<op::FillMode> {
+public:
+    AttributeAdapter(op::FillMode& value) : EnumAttributeAdapterBase<op::FillMode>(value) {}
+    ~AttributeAdapter() override;
+
+    OPENVINO_RTTI("AttributeAdapter<FillMode>");
 };
 
 template <>
 class OPENVINO_API AttributeAdapter<op::PadType> : public EnumAttributeAdapterBase<op::PadType> {
 public:
     AttributeAdapter(op::PadType& value) : EnumAttributeAdapterBase<op::PadType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<PadType>");
 };
@@ -231,6 +248,7 @@ template <>
 class OPENVINO_API AttributeAdapter<op::RoundingType> : public EnumAttributeAdapterBase<op::RoundingType> {
 public:
     AttributeAdapter(op::RoundingType& value) : EnumAttributeAdapterBase<op::RoundingType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<RoundingType>");
 };
@@ -239,6 +257,7 @@ template <>
 class OPENVINO_API AttributeAdapter<op::AutoBroadcastType> : public EnumAttributeAdapterBase<op::AutoBroadcastType> {
 public:
     AttributeAdapter(op::AutoBroadcastType& value) : EnumAttributeAdapterBase<op::AutoBroadcastType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<AutoBroadcastType>");
 };
@@ -247,6 +266,7 @@ template <>
 class OPENVINO_API AttributeAdapter<op::BroadcastType> : public EnumAttributeAdapterBase<op::BroadcastType> {
 public:
     AttributeAdapter(op::BroadcastType& value) : EnumAttributeAdapterBase<op::BroadcastType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<BroadcastType>");
 };
@@ -255,6 +275,7 @@ template <>
 class OPENVINO_API AttributeAdapter<op::EpsMode> : public EnumAttributeAdapterBase<op::EpsMode> {
 public:
     AttributeAdapter(op::EpsMode& value) : EnumAttributeAdapterBase<op::EpsMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<EpsMode>");
 };
@@ -263,6 +284,7 @@ template <>
 class OPENVINO_API AttributeAdapter<op::TopKSortType> : public EnumAttributeAdapterBase<op::TopKSortType> {
 public:
     AttributeAdapter(op::TopKSortType& value) : EnumAttributeAdapterBase<op::TopKSortType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<TopKSortType>");
 };
@@ -271,6 +293,7 @@ template <>
 class OPENVINO_API AttributeAdapter<op::TopKMode> : public EnumAttributeAdapterBase<op::TopKMode> {
 public:
     AttributeAdapter(op::TopKMode& value) : EnumAttributeAdapterBase<op::TopKMode>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<TopKMode>");
 };
@@ -279,6 +302,7 @@ template <>
 class OPENVINO_API AttributeAdapter<op::PhiloxAlignment> : public EnumAttributeAdapterBase<op::PhiloxAlignment> {
 public:
     AttributeAdapter(op::PhiloxAlignment& value) : EnumAttributeAdapterBase<op::PhiloxAlignment>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<PhiloxAlignment>");
 };
@@ -287,6 +311,7 @@ template <>
 class OPENVINO_API AttributeAdapter<op::AutoBroadcastSpec> : public VisitorAdapter {
 public:
     AttributeAdapter(op::AutoBroadcastSpec& value) : m_ref(value) {}
+    ~AttributeAdapter() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<AutoBroadcastSpec>");
@@ -299,6 +324,7 @@ template <>
 class OPENVINO_API AttributeAdapter<op::BroadcastModeSpec> : public VisitorAdapter {
 public:
     AttributeAdapter(op::BroadcastModeSpec& value) : m_ref(value) {}
+    ~AttributeAdapter() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<BroadcastModeSpec>");
@@ -313,6 +339,7 @@ class OPENVINO_API AttributeAdapter<op::RecurrentSequenceDirection>
 public:
     AttributeAdapter(op::RecurrentSequenceDirection& value)
         : EnumAttributeAdapterBase<op::RecurrentSequenceDirection>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<RecurrentSequenceDirection>");
 };

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 def get_convert_model_help_specifics():
@@ -43,4 +43,6 @@ def get_convert_model_help_specifics():
             {'action': 'version',
              # FIXME: Why the following is not accessible from arg parser?
              'version': 'OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version())},
+        'verbose':
+            {'description': 'Print detailed information about conversion.'}
     }

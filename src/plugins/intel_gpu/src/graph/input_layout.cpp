@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "input_layout_inst.h"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
 #include "json_object.h"
@@ -34,11 +35,11 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
     _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
-event::ptr input_layout_inst::set_data(memory::ptr mem) {
+event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memory_to_set) {
     auto ol = get_node_output_layout();
 
     bool empty_mem = mem->size() == 0 && (ol.is_dynamic() || ol.count() == 0);
-    if (!empty_mem) {
+    if (!empty_mem && need_to_check_memory_to_set) {
         check_memory_to_set(*mem, ol);
     }
 
@@ -50,7 +51,6 @@ event::ptr input_layout_inst::set_data(memory::ptr mem) {
     if (mem->is_allocated_by(engine) || mem->get_layout().count() == 0) {
         OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
         _outputs[0] = mem;
-        ev = stream.create_user_event(true);
     } else {
         if (_outputs.empty() || !_outputs[0]) {
             _outputs.resize(1);
@@ -64,15 +64,16 @@ event::ptr input_layout_inst::set_data(memory::ptr mem) {
         ev = _outputs[0]->copy_from(stream, src.data(), false);
     }
     _has_valid_input = true;
-    _output_changed = true;
     return ev;
 }
 
 void input_layout_inst::update_shape() {
     OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "[GPU] input memory is not set");
     auto mem_layout = _outputs[0]->get_layout();
-    if (_impl_params->get_output_layout() != mem_layout) {
-        set_shape_change();
+    // Set SHAPE_CHANGED flag if the actual data layout has changed, or if the node is included
+    // into shape_of subgraph to trigger proper shape_of subgraph shape recalculation
+    if (_impl_params->get_output_layout() != mem_layout || _node->is_in_shape_of_subgraph()) {
+        set_flag(ExecutionFlags::SHAPE_CHANGED);
     }
     _impl_params->output_layouts[0] = mem_layout;
 }

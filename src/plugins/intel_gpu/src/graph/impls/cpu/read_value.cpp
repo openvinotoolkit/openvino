@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/cpu/cpu_impl_helpers.hpp"
+#include "assign_inst.h"
+#include "kv_cache_inst.h"
 #include "read_value_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
@@ -20,7 +23,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::read_value_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<read_value_impl>(*this);
+        return std::make_unique<read_value_impl>(*this);
     }
 
     read_value_impl() : parent() {}
@@ -46,12 +49,9 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, read_value_inst& instance) override {
-        for (auto e : events) {
-            e->wait();
-        }
-
         auto& variable = instance.get_network().get_variable(variable_id);
         auto &stream = instance.get_network().get_stream();
+        stream.wait_for_events(events);
 
         OPENVINO_ASSERT(variable.get_layout() == instance.get_output_layout(),
                 "[GPU] Layout mismatch: variable layout: ", variable.get_layout().to_short_string(),
@@ -62,6 +62,13 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
                 variable.get_memory()->copy_from(stream, instance.dep_memory(0), true);
             } else {
                 variable.get_memory()->fill(stream);
+            }
+            if (!instance.get_user_insts().empty()) {
+                auto user_inst = instance.get_user_insts().front();
+                if (!(user_inst->get_node().is_type<assign>() || user_inst->get_node().is_type<kv_cache>()) &&
+                    instance.get_network().contains_state(variable_id)) {
+                    variable.set();
+                }
             }
         }
 
@@ -83,14 +90,14 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             return stream.aggregate_events(res_events, res_events.size() > 1);
         }
 
-        return instance.get_network().get_stream().create_user_event(true);
+        return make_output_event(stream, instance.is_output());
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
 public:
     static std::unique_ptr<primitive_impl> create(const read_value_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<read_value_impl>(arg);
+        return std::make_unique<read_value_impl>(arg);
     }
 };
 

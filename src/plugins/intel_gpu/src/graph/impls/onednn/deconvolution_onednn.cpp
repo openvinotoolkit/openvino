@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "impls/onednn/utils.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -26,7 +26,7 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     auto output_layout = impl_params.get_output_layout();
 
     dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
-    dnnl::memory::dims dilation(input_layout.get_spatial_rank(), 1);
+    dnnl::memory::dims dilation(stride.size(), 1);
     dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
     dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
 
@@ -49,6 +49,7 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     int64_t insert_count = static_cast<int64_t>(output_md.get_dims().size()) - 2 - stride.size();
     if (insert_count > 0) {
         stride.insert(stride.end(), insert_count, 1);
+        dilation.insert(dilation.end(), insert_count, 0);
         pad_l.insert(pad_l.end(), insert_count, 0);
         pad_r.insert(pad_r.end(), insert_count, 0);
     }
@@ -92,7 +93,7 @@ struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution> {
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<deconvolution_onednn>(*this);
+        return std::make_unique<deconvolution_onednn>(*this);
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(deconvolution_inst& instance) const override {
@@ -217,7 +218,7 @@ public:
         auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_deconvolution_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<deconvolution_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
+        return std::make_unique<deconvolution_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }
 };
 

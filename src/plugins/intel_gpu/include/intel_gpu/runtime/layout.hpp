@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include <functional>
 #include <array>
 #include <bitset>
+#include <optional>
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -48,6 +49,11 @@ struct data_type_traits {
     static bool is_i8_u8(data_types data_type) {
         auto et = ov::element::Type(data_type);
         return et.is_quantized() && et.bitwidth() == 8;
+    }
+
+    static bool is_i4_u4(data_types data_type) {
+        auto et = ov::element::Type(data_type);
+        return et.bitwidth() == 4;
     }
 
     static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {
@@ -263,10 +269,10 @@ struct layout {
     layout(const layout& other) = default;
 
     layout()
-        : data_type(cldnn::data_types::undefined)
-        , format(cldnn::format::any)
-        , data_padding(padding())
-        , size(ov::PartialShape()) { }
+        : data_type(cldnn::data_types::dynamic),
+          format(cldnn::format::any),
+          data_padding(padding()),
+          size(ov::PartialShape()) {}
 
     layout& operator=(const layout& other) {
         if (this == &other)
@@ -330,7 +336,15 @@ struct layout {
     padding data_padding;
 
     /// Number of bytes needed to store this layout
-    size_t bytes_count() const { return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3; }
+    size_t bytes_count() const {
+        if (format == cldnn::format::custom) {
+            auto bytes_of_layout = (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+            auto desc_size = format.traits().desc_size;
+            return desc_size > bytes_of_layout ? desc_size : bytes_of_layout;
+        } else {
+            return (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
+        }
+    }
 
     size_t get_rank() const;
 
@@ -469,8 +483,8 @@ inline ::std::ostream& operator<<(::std::ostream& os, const std::vector<layout>&
     return os << ss.str();
 }
 
-using optional_data_type = optional_value<data_types>;
-using optional_layout = optional_value<layout>;
+using optional_data_type = std::optional<data_types>;
+using optional_layout = std::optional<layout>;
 
 /// @}
 /// @}

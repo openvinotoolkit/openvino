@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include <string>
 
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -69,7 +70,7 @@ public:
     /**
      * @brief Function passing created input stream
      */
-    using StreamReader = std::function<void(std::istream&)>;
+    using StreamReader = std::function<void(std::istream&, ov::Tensor&)>;
 
     /**
      * @brief Callback when OpenVINO intends to read model from cache
@@ -135,19 +136,13 @@ private:
     void read_cache_entry(const std::string& id, bool enable_mmap, StreamReader reader) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
-        auto blob_file_name = getBlobFile(id);
+        const auto blob_file_name = getBlobFile(id);
         if (ov::util::file_exists(blob_file_name)) {
-            if (enable_mmap) {
-                auto mmap = ov::load_mmap_object(blob_file_name);
-                auto shared_buffer =
-                    std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(mmap->data(), mmap->size(), mmap);
-                OwningSharedStreamBuffer buf(shared_buffer);
-                std::istream stream(&buf);
-                reader(stream);
-            } else {
-                std::ifstream stream(blob_file_name, std::ios_base::binary);
-                reader(stream);
-            }
+            auto compiled_blob =
+                read_tensor_data(blob_file_name, element::u8, PartialShape::dynamic(1), 0, enable_mmap);
+            SharedStreamBuffer buf{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
+            std::istream stream(&buf);
+            reader(stream, compiled_blob);
         }
     }
 

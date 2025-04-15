@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,7 @@ struct device_info {
     uint64_t max_local_mem_size;                ///< Maximum size of local memory arena in bytes.
     uint64_t max_global_mem_size;               ///< Maximum size of global device memory in bytes.
     uint64_t max_alloc_mem_size;                ///< Maximum size of memory object allocation in bytes.
+    uint64_t max_global_cache_size;             ///< Maximum size of cache memory bytes.
 
     uint64_t max_image2d_width;                 ///< Maximum image 2d width supported by the device.
     uint64_t max_image2d_height;                ///< Maximum image 2d height supported by the device.
@@ -68,7 +69,6 @@ struct device_info {
     bool supports_intel_subgroups_short;        ///< Does engine support cl_intel_subgroups_short extension.
     bool supports_intel_subgroups_char;         ///< Does engine support cl_intel_subgroups_char extension.
     bool supports_intel_required_subgroup_size; ///< Does engine support cl_intel_required_subgroup_size extension.
-    bool supports_local_block_io;               ///< Does engine support cl_intel_subgroup_local_block_io extension.
     bool supports_queue_families;               ///< Does engine support cl_intel_command_queue_families extension.
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
     bool supports_intel_planar_yuv;             ///< Does engine support cl_intel_planar_yuv extension.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,10 @@
 #include <climits>
 #include <map>
 
-#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/common/igraph.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 
@@ -23,34 +25,32 @@ using LayerStatistics = std::vector<ov::ProfilingInfo>;
 constexpr uint32_t POOL_SIZE = 1;
 
 struct ProfilingPool {
-    ProfilingPool(ze_graph_handle_t graph_handle,
-                  uint32_t profiling_count,
-                  ze_graph_profiling_dditable_ext_curr_t& graph_profiling_ddi_table_ext)
-        : _graph_handle(graph_handle),
-          _profiling_count(profiling_count),
-          _graph_profiling_ddi_table_ext(graph_profiling_ddi_table_ext) {}
+    ProfilingPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                  const std::shared_ptr<IGraph>& graph,
+                  uint32_t profiling_count)
+        : _init_structs(init_structs),
+          _graph(graph),
+          _profiling_count(profiling_count) {}
     ProfilingPool(const ProfilingPool&) = delete;
     ProfilingPool& operator=(const ProfilingPool&) = delete;
     bool create();
 
     ~ProfilingPool();
 
-    ze_graph_handle_t _graph_handle;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    std::shared_ptr<IGraph> _graph;
     const uint32_t _profiling_count;
+
     ze_graph_profiling_pool_handle_t _handle = nullptr;
-    ze_graph_profiling_dditable_ext_curr_t& _graph_profiling_ddi_table_ext;
 };
 
 struct ProfilingQuery {
-    ProfilingQuery(uint32_t index,
-                   ze_device_handle_t device_handle,
-                   ze_graph_profiling_dditable_ext_curr_t& graph_profiling_ddi_table_ext)
-        : _index(index),
-          _device_handle(device_handle),
-          _graph_profiling_ddi_table_ext(graph_profiling_ddi_table_ext) {}
+    ProfilingQuery(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, uint32_t index)
+        : _init_structs(init_structs),
+          _index(index) {}
     ProfilingQuery(const ProfilingQuery&) = delete;
     ProfilingQuery& operator=(const ProfilingQuery&) = delete;
-    void create(const ze_graph_profiling_pool_handle_t& profiling_pool);
+    void create(const std::shared_ptr<ProfilingPool>& profiling_pool);
     ze_graph_profiling_query_handle_t getHandle() const {
         return _handle;
     }
@@ -64,10 +64,12 @@ private:
     void getProfilingProperties(ze_device_profiling_data_properties_t* properties) const;
     void verifyProfilingProperties() const;
 
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     const uint32_t _index;
-    ze_device_handle_t _device_handle;
+
+    std::shared_ptr<ProfilingPool> _profiling_pool = nullptr;
+
     ze_graph_profiling_query_handle_t _handle = nullptr;
-    ze_graph_profiling_dditable_ext_curr_t& _graph_profiling_ddi_table_ext;
 };
 
 extern template std::vector<uint8_t> ProfilingQuery::getData<uint8_t>() const;
@@ -75,7 +77,7 @@ extern template std::vector<uint8_t> ProfilingQuery::getData<uint8_t>() const;
 using NpuInferStatistics = std::vector<ov::ProfilingInfo>;
 
 struct NpuInferProfiling final {
-    explicit NpuInferProfiling(ze_context_handle_t context, ze_device_handle_t device_handle, ov::log::Level loglevel);
+    explicit NpuInferProfiling(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, ov::log::Level loglevel);
     NpuInferProfiling(const NpuInferProfiling&) = delete;
     NpuInferProfiling& operator=(const NpuInferProfiling&) = delete;
     NpuInferProfiling(NpuInferProfiling&&) = delete;
@@ -91,8 +93,7 @@ struct NpuInferProfiling final {
     void* npu_ts_infer_end = 0;
 
 private:
-    ze_context_handle_t _context = nullptr;
-    ze_device_handle_t _device_handle;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     ov::log::Level _loglevel;
     Logger _logger;
     ze_device_properties_t _dev_properties = {};

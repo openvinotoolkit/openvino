@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API StridesOptimization;
  */
 class ov::pass::ConvStridesPropagation : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ConvStridesPropagation", "0");
+    OPENVINO_MATCHER_PASS_RTTI("ConvStridesPropagation");
     ConvStridesPropagation();
 };
 
@@ -40,7 +40,7 @@ public:
  */
 class ov::pass::SupportedNodesStridesPropagation : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SupportedNodesStridesPropagation", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SupportedNodesStridesPropagation");
     SupportedNodesStridesPropagation();
 };
 
@@ -51,7 +51,7 @@ public:
  */
 class ov::pass::UnsupportedNodesStridesPropagation : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("UnsupportedNodesStridesPropagation", "0");
+    OPENVINO_MATCHER_PASS_RTTI("UnsupportedNodesStridesPropagation");
     UnsupportedNodesStridesPropagation();
 };
 
@@ -62,6 +62,6 @@ public:
  */
 class ov::pass::StridesOptimization : public ov::pass::BackwardGraphRewrite {
 public:
-    OPENVINO_RTTI("StridesOptimization", "0");
+    OPENVINO_RTTI("StridesOptimization", "0", ov::pass::BackwardGraphRewrite);
     StridesOptimization();
 };

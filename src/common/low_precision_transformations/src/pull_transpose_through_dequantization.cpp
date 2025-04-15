@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov;
 
@@ -110,7 +111,7 @@ ov::pass::low_precision::PullTransposeThroughDequantization::PullTransposeThroug
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
-        auto transpose = opsMap.find(matcherTranspose)->second.get_node()->shared_from_this();
+        auto transpose = opsMap.at(matcherTranspose).get_node_shared_ptr();
 
         while (transpose != nullptr) {
             const auto parent = transpose->get_input_node_shared_ptr(0);

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -120,7 +120,6 @@ xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1
 xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")
 xfail_issue_52463 = xfail_test(reason="test_operator_add_size1_singleton_broadcast_cpu - "
                                       "Not equal to tolerance")
-xfail_issue_58033 = xfail_test(reason="Einsum operation misses support for complex ellipsis equations")
 xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 skip_issue_58676 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
@@ -147,7 +146,7 @@ xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSeque
 skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")
 
 # ONNX 1.14
-xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8")
+xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8", strict=False)
 xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize): Y>': "
                                        "half_pixel_symmetric - this type of coordinate transformation mode "
                                        "is not supported. Choose one of the following modes: "

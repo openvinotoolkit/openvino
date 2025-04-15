@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,8 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
-OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
-    num_inputs_check(context, 3, 6);
+OutputVector translate_max_pool_base(const NodeContext& context, int dims, bool return_indices) {
+    num_inputs_check(context, 2, 6);
     auto input = context.get_input(0);
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
 
@@ -68,7 +68,7 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
     } else {
         pads = context.const_input<Shape>(3);  // pytorch supports only symmetric paddings
     }
-    Strides dilations;
+    auto dilations = Strides(dims, 1);
     if (!context.input_is_none(4)) {
         dilations = context.const_input<Strides>(4);
     }
@@ -91,7 +91,7 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
                                                                 2));
     if (is_static) {
         if (no_batch_dim) {
-            if (context.get_output_size() == 2) {
+            if (return_indices) {
                 auto out1 = res->output(0);
                 auto out2 = res->output(1);
                 out1 = context.mark_node(std::make_shared<v0::Squeeze>(out1, const_0));
@@ -102,7 +102,7 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
                 return {res};
             }
         } else {
-            if (context.get_output_size() == 2) {
+            if (return_indices) {
                 auto out1 = res->output(0);
                 auto out2 = res->output(1);
                 return {std::move(out1), std::move(out2)};
@@ -125,7 +125,7 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
 
         auto concat_shape = context.mark_node(
             std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
-        if (context.get_output_size() == 2) {
+        if (return_indices) {
             auto out1 = res->output(0);
             auto out2 = res->output(1);
             out1 = context.mark_node(std::make_shared<v1::Reshape>(out1, concat_shape, true));
@@ -139,24 +139,24 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims) {
 };
 
 OutputVector translate_max_pool1d(const NodeContext& context) {
-    return translate_max_pool_base(context, 1);
+    return translate_max_pool_base(context, 1, context.get_output_size() == 2);
 };
 
 OutputVector translate_max_pool2d(const NodeContext& context) {
-    return translate_max_pool_base(context, 2);
+    return translate_max_pool_base(context, 2, context.get_output_size() == 2);
 };
 
 OutputVector translate_max_pool3d(const NodeContext& context) {
-    return translate_max_pool_base(context, 3);
+    return translate_max_pool_base(context, 3, context.get_output_size() == 2);
 };
 
 OutputVector translate_max_pool2d_fx(const NodeContext& context) {
-    auto output = translate_max_pool2d(context);
+    auto output = translate_max_pool_base(context, 2, true);
     return {context.mark_node(make_list_construct(output))};
 };
 
 OutputVector translate_max_pool3d_fx(const NodeContext& context) {
-    auto output = translate_max_pool3d(context);
+    auto output = translate_max_pool_base(context, 3, true);
     return {context.mark_node(make_list_construct(output))};
 };
 

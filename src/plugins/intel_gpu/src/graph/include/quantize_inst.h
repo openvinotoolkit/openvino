@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,6 +43,7 @@ public:
     , _need_clamp(need_clamp)
     , _need_min_clamp(need_min_clamp)
     , _need_max_clamp(need_max_clamp)
+    , _need_out_range(true)
     , _per_tensor_input_range(per_tensor_input_range)
     , _per_tensor_input_scale(per_tensor_input_scale)
     , _per_tensor_input_shift(per_tensor_input_shift)
@@ -56,7 +57,26 @@ public:
     , _out_lo(out_lo)
     , _out_hi(out_hi)
     , _out_scale(out_scale)
-    , _out_shift(out_shift)  {}
+    , _out_shift(out_shift)  {
+        size_t index = 1; // skip activations input
+        _need_out_range = _per_tensor_output_range && _out_lo < _out_hi;
+        if (!_need_out_range && _need_clamp) {
+            in_range_lo_idx = index++;
+            in_range_hi_idx = index++;
+        }
+        if (!_per_tensor_input_scale) {
+            in_scale_idx = index++;
+        }
+        if (!_per_tensor_input_shift && _need_pre_shift) {
+            in_shift_idx = index++;
+        }
+        if (!_per_tensor_output_scale && _need_post_scale) {
+            out_scale_idx = index++;
+        }
+        if (!_per_tensor_output_shift && _need_post_shift) {
+            out_shift_idx = index++;
+        }
+    }
 
     size_t ops_count() const override {
         size_t count = 0;
@@ -111,6 +131,7 @@ public:
     bool _need_clamp;
     bool _need_min_clamp;
     bool _need_max_clamp;
+    bool _need_out_range;
 
     bool _per_tensor_input_range;
     bool _per_tensor_input_scale;
@@ -127,6 +148,13 @@ public:
     float _out_hi;
     float _out_scale;
     float _out_shift;
+
+    size_t in_range_lo_idx = 0;
+    size_t in_range_hi_idx = 0;
+    size_t in_scale_idx = 0;
+    size_t in_shift_idx = 0;
+    size_t out_scale_idx = 0;
+    size_t out_shift_idx = 0;
 };
 
 template <>

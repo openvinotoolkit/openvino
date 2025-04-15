@@ -20,6 +20,7 @@ class TestMatMulOperation(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("matrix, vector, dtype", [
         (np.array([[1, 2], [3, 4]]), np.array([5, 6]), torch.float64),
         (np.array([[0, 0], [0, 0]]), np.array([1, 2]), torch.float32),

@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "tuple_unpack_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -52,7 +53,7 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
         if (if_op) {
             for (size_t i = 1; i < if_op->get_input_size(); i++) {
                 auto input = if_op->input_value(i);
-                auto tuple_construct = std::dynamic_pointer_cast<ov::frontend::pytorch::PtFrameworkNode>(
+                auto tuple_construct = ov::as_type_ptr<ov::frontend::pytorch::PtFrameworkNode>(
                     cast_fw_node(input.get_node_shared_ptr(), "prim::TupleConstruct"));
                 if (!tuple_construct) {
                     continue;

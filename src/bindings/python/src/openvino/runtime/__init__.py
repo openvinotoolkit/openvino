@@ -1,9 +1,19 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """openvino module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
+
+import warnings
+warnings.filterwarnings("once", category=DeprecationWarning, module="openvino.runtime")
+warnings.warn(
+    "The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release. "
+    "Please replace `openvino.runtime` with `openvino`.",
+    DeprecationWarning,
+    stacklevel=1
+)
+
 
 from openvino._pyopenvino import get_version
 
@@ -45,6 +55,7 @@ from openvino._pyopenvino import save_model
 from openvino._pyopenvino import shutdown
 
 # Import opsets
+from openvino.runtime import op
 from openvino.runtime import opset1
 from openvino.runtime import opset2
 from openvino.runtime import opset3
@@ -58,6 +69,14 @@ from openvino.runtime import opset10
 from openvino.runtime import opset11
 from openvino.runtime import opset12
 from openvino.runtime import opset13
+from openvino.runtime import opset14
+from openvino.runtime import opset15
+from openvino.runtime import opset16
+
+# Import runtime proxy modules for backward compatibility
+from openvino.runtime import utils
+from openvino.runtime import opset_utils
+from openvino.runtime import exceptions
 
 # Import properties API
 from openvino.runtime import properties
@@ -69,16 +88,6 @@ from openvino.runtime.ie_api import compile_model
 from openvino.utils import deprecated
 
 # Extend Node class to support binary operators
-Node.__add__ = opset13.add
-Node.__sub__ = opset13.subtract
-Node.__mul__ = opset13.multiply
-Node.__div__ = opset13.divide
-Node.__truediv__ = opset13.divide
-Node.__radd__ = lambda left, right: opset13.add(right, left)
-Node.__rsub__ = lambda left, right: opset13.subtract(right, left)
-Node.__rmul__ = lambda left, right: opset13.multiply(right, left)
-Node.__rdiv__ = lambda left, right: opset13.divide(right, left)
-Node.__rtruediv__ = lambda left, right: opset13.divide(right, left)
 Node.__eq__ = deprecated(version="2025.3", message="Use ops.equal instead")(opset13.equal)
 Node.__ne__ = deprecated(version="2025.3", message="Use ops.not_equal instead")(opset13.not_equal)
 Node.__lt__ = deprecated(version="2025.3", message="Use ops.less instead")(opset13.less)
