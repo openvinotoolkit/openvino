@@ -16,15 +16,8 @@ static inline void set_real_number_generation_data(utils::InputGenerateData& inG
 }
 
 void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::vector<int64_t> axes;
-    std::vector<int64_t> signal_size;
-    ov::test::utils::DFTOpType op_type;
-    std::string target_device;
-    utils::InputLayerType axes_in_type;
-    utils::InputLayerType size_in_type;
-    std::tie(shapes, model_type, axes, signal_size, op_type, target_device, axes_in_type, size_in_type) = GetParam();
+    const auto& [shapes, model_type, axes, signal_size, op_type, target_device, axes_in_type, size_in_type] =
+        this->GetParam();
 
     auto elemType = model_type;
     bool inPrcSigned = elemType.is_signed();
@@ -74,16 +67,7 @@ void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStat
 }
 
 std::string DFTLayerTest::getTestCaseName(const testing::TestParamInfo<DFTParams>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::vector<int64_t> axes;
-    std::vector<int64_t> signal_size;
-    ov::test::utils::DFTOpType op_type;
-    std::string target_device;
-    utils::InputLayerType axes_in_type;
-    utils::InputLayerType size_in_type;
-
-    std::tie(shapes, model_type, axes, signal_size, op_type, target_device, axes_in_type, size_in_type) = obj.param;
+    const auto& [shapes, model_type, axes, signal_size, op_type, target_device, axes_in_type, size_in_type] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -110,16 +94,9 @@ std::string DFTLayerTest::getTestCaseName(const testing::TestParamInfo<DFTParams
 }
 
 void DFTLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::vector<int64_t> axes;
-    std::vector<int64_t> signal_size;
-    ov::test::utils::DFTOpType op_type;
-    utils::InputLayerType axes_in_type;
-    utils::InputLayerType size_in_type;
+    const auto& [shapes, model_type, axes, signal_size, op_type, dev, axes_in_type, size_in_type] = this->GetParam();
+    targetDevice = dev;
 
-    std::tie(shapes, model_type, axes, signal_size, op_type, targetDevice, axes_in_type, size_in_type) =
-        this->GetParam();
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
