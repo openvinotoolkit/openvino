@@ -253,6 +253,12 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
     info.supports_queue_families = extensions.find("cl_intel_command_queue_families ") != std::string::npos;
 
+    auto c_features = device.getInfo<CL_DEVICE_OPENCL_C_FEATURES>();
+    for (size_t i = 0; i < c_features.size(); ++i) {
+        if (std::string(c_features[i].name) == "__opencl_c_work_group_collective_functions")
+            info.supports_work_group = true;
+    }
+
     if (info.supports_intel_required_subgroup_size) {
         info.supported_simd_sizes = device.getInfo<CL_DEVICE_SUB_GROUP_SIZES_INTEL>();
     } else {
