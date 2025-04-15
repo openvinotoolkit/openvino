@@ -90,26 +90,27 @@ protected:
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
-        const auto& funcInputs = function->inputs();
         ov::Shape inputDataShape;
-        for (size_t i = 0lu; i < funcInputs.size(); i++) {
-            const auto& funcInput = funcInputs[i];
-            if (funcInput.get_node()->get_friendly_name() == "input_data") {
-                inputDataShape = function->inputs()[0].get_shape();
+        for (auto op : function->get_ordered_ops()) {
+            if (ov::is_type<ov::op::v6::GatherElements>(op)) {
+                inputDataShape = op->get_input_shape(0);
+                break;
             }
         }
+        const auto& funcInputs = function->inputs();
 
         for (size_t i = 0lu; i < funcInputs.size(); i++) {
             const auto& funcInput = funcInputs[i];
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = 0;
             in_data.resolution = 1;
+            in_data.range = 4096u;
+
             if (funcInput.get_node()->get_friendly_name() == "gather0" || funcInput.get_node()->get_friendly_name() == "gather1") {
-                in_data.range = inputDataShape[axis_gatherElements];
-                in_data.range = std::min(in_data.range, 4096u); //to not go beyond range due to uint32 to half conversion error - it can cause go beyond range
-            } else {
-                in_data.range = 1000;
+                // to not go beyond range due to uint32 to half conversion error - it can cause go beyond range
+                in_data.range = std::min(static_cast<uint>(inputDataShape[axis_gatherElements]), in_data.range);
             }
+
             ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
