@@ -437,7 +437,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
-        pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
+        pass_config->set_callback<ov::pass::RMSFusion>([OV_CAPTURE_CPY_AND_THIS](const_node_ptr& root) -> bool {
             if (!root->get_input_partial_shape(0).is_static()) {
                 return false;
             }
@@ -814,6 +814,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
+        pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(
+            [&](const_node_ptr &node) -> bool {
+            // Convert to NMSIEInternal when model is static
+            return !func->is_dynamic() ? false : true;
+        });
+
         // List of enabled/disabled transformations
         pass_config->disable<ov::pass::ConvertGELU>();
         pass_config->disable<ov::pass::Gelu7Downgrade>();
@@ -1106,8 +1112,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
 
-        bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
-        bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);
+        const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
+        const bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);
 
         // mlp fusion is only supported for cldnn on high performant GPUis
         bool fuse_mlp_swiglu = !device_info.supports_immad &&
@@ -1164,7 +1170,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 
         if (device_info.supports_immad) {
-            bool asymmetric_dyn_quant = GPU_DEBUG_VALUE_OR(config.get_asym_dynamic_quantization(), false);
+            bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {

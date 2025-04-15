@@ -80,8 +80,12 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
 
     jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
     if (!params.conf.is_paged_attention) {
-        jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
-        jit.AddConstant(MakeJitConstant("HAS_SCALE_INPUT", params.inputs.size() > 4));
+        if (params.conf.has_const_attn_mask_val) {
+            jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", 0));
+            jit.AddConstant(MakeJitConstant("STATIC_SCALAR_ATTN_MASK_VALUE", params.conf.attn_mask_val));
+        } else {
+            jit.AddConstant(MakeJitConstant("HAS_ATTN_MASK_INPUT", params.inputs.size() > 3));
+        }
     }
 
     jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
