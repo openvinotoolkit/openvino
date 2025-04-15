@@ -93,12 +93,12 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
     yum update
     # RHEL 8 / CentOS 7 / Fedora 29
     if [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
-        if grep -qi "fedora" /etc/os-release; then
+        . /etc/redhat-release
+        if [[ "$ID" == "fedora" ]]; then
             yum install -y fedora-repos
         else
             yum install -y centos-release-scl
             yum install -y epel-release
-        fi
         yum install -y \
             `# to build and check pip packages` \
             patchelf \
