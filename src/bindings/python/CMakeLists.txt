@@ -242,6 +242,7 @@ macro(ov_define_setup_py_packaging_vars)
         WHEEL_VERSION=${WHEEL_VERSION}
         WHEEL_BUILD=${WHEEL_BUILD}
         # build locations
+        OPENVINO_SOURCE_DIR=${OpenVINO_SOURCE_DIR}
         OPENVINO_BINARY_DIR=${OpenVINO_BINARY_DIR}
         OPENVINO_PYTHON_BINARY_DIR=${OpenVINOPython_BINARY_DIR}
         # to create proper directories for BA, OVC tools
@@ -276,9 +277,10 @@ macro(ov_define_setup_py_dependencies)
 
     list(APPEND ov_setup_py_deps
         ${openvino_py_files}
-        "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
+        "${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
         "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
-        "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
+        "${OpenVINOPython_SOURCE_DIR}/readme.txt"
         "${OpenVINO_SOURCE_DIR}/LICENSE"
         "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
         "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
@@ -327,7 +329,7 @@ if(ENABLE_PYTHON_PACKAGING)
                 # variables to reflect options (extensions only or full wheel package)
                 PYTHON_EXTENSIONS_ONLY=ON
                 SKIP_RPATH=ON
-            "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/wheel/setup.py"
+            "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/setup.py"
                 --no-user-cfg
                 --quiet
                 build
