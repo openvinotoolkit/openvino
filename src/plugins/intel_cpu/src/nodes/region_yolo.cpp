@@ -274,7 +274,7 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
     classes = regionYolo->get_num_classes();
     coords = regionYolo->get_num_coords();
     num = regionYolo->get_num_regions();
-    do_softmax = regionYolo->get_do_softmax();
+    do_softmax = static_cast<float>(regionYolo->get_do_softmax());
     mask = regionYolo->get_mask();
     block_size = 1;
 }
@@ -393,7 +393,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
     }
 }
 
-void RegionYolo::execute(const dnnl::stream& strm) {
+void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& inShape = getParentEdgeAt(0)->getMemory().getShape();
     const auto& inDims = inShape.getStaticDims();
     size_t B = (inShape.getRank() > 0) ? inDims[0] : 1;
@@ -405,7 +405,7 @@ void RegionYolo::execute(const dnnl::stream& strm) {
     int end_index = 0;
     int num_ = 0;
     size_t output_size = 0;
-    if (do_softmax) {
+    if (do_softmax != 0.0f) {
         // Region layer (Yolo v2)
         end_index = IW * IH;
         num_ = num;
@@ -446,7 +446,7 @@ void RegionYolo::execute(const dnnl::stream& strm) {
         }
     }
 
-    if (do_softmax) {
+    if (do_softmax != 0.0f) {
         int index = IW * IH * (coords + 1);
         int batch_offset = inputs_size / num;
         for (size_t b = 0; b < B * num; b++) {
