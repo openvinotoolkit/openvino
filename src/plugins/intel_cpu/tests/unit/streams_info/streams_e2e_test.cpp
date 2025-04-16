@@ -158,14 +158,14 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_1_pinning = {
         {16, 0, 0, 10, EFFICIENT_CORE_PROC, 16, -1}, {17, 0, 0, 11, EFFICIENT_CORE_PROC, 17, -1},
         {18, 0, 0, 12, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 13, EFFICIENT_CORE_PROC, 19, -1},
     },
-    {{20, 6, 8, 6, 0, 0}},  // param[in]: simulated proc_type_table for platform which has one socket, 6 Pcores, 8
-                            // Ecores and hyper threading enabled
+    {{20, 6, 8, 0, 6, 0, 0}},  // param[in]: simulated proc_type_table for platform which has one socket, 6 Pcores, 8
+                               // Ecores and hyper threading enabled
     ov::hint::SchedulingCoreType::ANY_CORE,  // param[expected out]: scheduling core type needs to be the same as input
     true,                                    // param[expected out]: enableHyperThreading needs to be the same as input
     true,                                    // param[expected out]: enableCpuPinning needs to be the same as input
     ov::hint::PerformanceMode::LATENCY,      // param[expected out]: performance mode needs to be the same as input
-    {{20, 6, 8, 6, 0, 0}},  // param[expected out]: since hyper threading is enabled and all core type is used,
-                            // proc_type_table needs to be the same as input
+    {{20, 6, 8, 0, 6, 0, 0}},  // param[expected out]: since hyper threading is enabled and all core type is used,
+                               // proc_type_table needs to be the same as input
     {{1, ALL_PROC, 20, 0, 0},
      {0, MAIN_CORE_PROC, 6, 0, 0},
      {0, EFFICIENT_CORE_PROC, 8, 0, 0},
@@ -204,12 +204,12 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_2_pinning = {
         {12, 0, 0, 12, EFFICIENT_CORE_PROC, 12, -1},
         {13, 0, 0, 13, EFFICIENT_CORE_PROC, 13, -1},
     },
-    {{14, 6, 8, 0, 0, 0}},
+    {{14, 6, 8, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    {{14, 6, 8, 0, 0, 0}},
+    {{14, 6, 8, 0, 0, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
 
@@ -244,12 +244,12 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_linux_unpinning = 
         {12, 0, 0, 12, EFFICIENT_CORE_PROC, 12, -1},
         {13, 0, 0, 13, EFFICIENT_CORE_PROC, 13, -1},
     },
-    {{14, 6, 8, 0, 0, 0}},
+    {{14, 6, 8, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{14, 6, 8, 0, 0, 0}},
+    {{14, 6, 8, 0, 0, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
 
@@ -280,12 +280,12 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_1_pinning = {
         {16, 0, 0, 10, EFFICIENT_CORE_PROC, 16, -1}, {17, 0, 0, 11, EFFICIENT_CORE_PROC, 17, -1},
         {18, 0, 0, 12, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 13, EFFICIENT_CORE_PROC, 19, -1},
     },
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     {{2, MAIN_CORE_PROC, 3, 0, 0}, {2, EFFICIENT_CORE_PROC, 3, 0, 0}, {2, HYPER_THREADING_PROC, 3, 0, 0}},
 };
 
@@ -316,12 +316,12 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_1_unpinning = {
         {16, 0, 0, 10, EFFICIENT_CORE_PROC, 16, -1}, {17, 0, 0, 11, EFFICIENT_CORE_PROC, 17, -1},
         {18, 0, 0, 12, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 13, EFFICIENT_CORE_PROC, 19, -1},
     },
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
     false,  // param[expected out]: enableCpuPinning needs to be false because OS cannot support thread pinning
     ov::hint::PerformanceMode::LATENCY,
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     {{1, ALL_PROC, 20, 0, 0},
      {0, MAIN_CORE_PROC, 6, 0, 0},
      {0, EFFICIENT_CORE_PROC, 8, 0, 0},
@@ -359,12 +359,12 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_2_unpinning = {
         {12, 0, 0, 12, EFFICIENT_CORE_PROC, 12, -1},
         {13, 0, 0, 13, EFFICIENT_CORE_PROC, 13, -1},
     },
-    {{14, 6, 8, 0, 0, 0}},
+    {{14, 6, 8, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{14, 6, 8, 0, 0, 0}},
+    {{14, 6, 8, 0, 0, 0, 0}},
     {{1, ALL_PROC, 14, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, EFFICIENT_CORE_PROC, 8, 0, 0}},
 };
 
@@ -395,12 +395,12 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_1_unpinning = {
         {16, 0, 0, 10, EFFICIENT_CORE_PROC, 16, -1}, {17, 0, 0, 11, EFFICIENT_CORE_PROC, 17, -1},
         {18, 0, 0, 12, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 13, EFFICIENT_CORE_PROC, 19, -1},
     },
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     {{2, MAIN_CORE_PROC, 3, 0, 0}, {2, EFFICIENT_CORE_PROC, 3, 0, 0}, {2, HYPER_THREADING_PROC, 3, 0, 0}},
 };
 
@@ -435,12 +435,12 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_3 = {
         {12, 0, 0, 12, EFFICIENT_CORE_PROC, 12, -1},
         {13, 0, 0, 13, EFFICIENT_CORE_PROC, 13, -1},
     },
-    {{14, 6, 8, 0, 0, 0}},
+    {{14, 6, 8, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{6, 6, 0, 0, 0, 0}},
+    {{6, 6, 0, 0, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}},
 };
 
@@ -475,12 +475,12 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_3_reservation = {
         {12, 0, 0, 12, EFFICIENT_CORE_PROC, 12, -1},
         {13, 0, 0, 13, EFFICIENT_CORE_PROC, 13, -1},
     },
-    {{14, 6, 8, 0, 0, 0}},
+    {{14, 6, 8, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{6, 6, 0, 0, 0, 0}},
+    {{6, 6, 0, 0, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}},
 };
 
@@ -515,12 +515,12 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_4_reservation = {
         {12, 0, 0, 12, EFFICIENT_CORE_PROC, 12, -1},
         {13, 0, 0, 13, EFFICIENT_CORE_PROC, 13, -1},
     },
-    {{14, 6, 8, 0, 0, 0}},
+    {{14, 6, 8, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    {{6, 6, 0, 0, 0, 0}},
+    {{6, 6, 0, 0, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}},
 };
 
@@ -551,12 +551,12 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_4 = {
         {16, 0, 0, 10, EFFICIENT_CORE_PROC, 16, -1}, {17, 0, 0, 11, EFFICIENT_CORE_PROC, 17, -1},
         {18, 0, 0, 12, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 13, EFFICIENT_CORE_PROC, 19, -1},
     },
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     true,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{12, 6, 0, 6, 0, 0}},
+    {{12, 6, 0, 0, 6, 0, 0}},
     {{1, ALL_PROC, 12, 0, 0}, {0, MAIN_CORE_PROC, 6, 0, 0}, {0, HYPER_THREADING_PROC, 6, 0, 0}},
 };
 
@@ -587,12 +587,12 @@ StreamGenerateionTestCase generation_latency_1sockets_14cores_5 = {
         {16, 0, 0, 10, EFFICIENT_CORE_PROC, 16, -1}, {17, 0, 0, 11, EFFICIENT_CORE_PROC, 17, -1},
         {18, 0, 0, 12, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 13, EFFICIENT_CORE_PROC, 19, -1},
     },
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{6, 6, 0, 0, 0, 0}},
+    {{6, 6, 0, 0, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 6, 0, 0}},
 };
 
@@ -661,12 +661,12 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_6 = {
         {92, 1, 1, 92, MAIN_CORE_PROC, 92, -1},       {93, 1, 1, 93, MAIN_CORE_PROC, 93, -1},
         {94, 1, 1, 94, MAIN_CORE_PROC, 94, -1},       {95, 1, 1, 95, MAIN_CORE_PROC, 95, -1},
     },
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
@@ -735,12 +735,12 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_6_reservation = {
         {92, 1, 1, 92, MAIN_CORE_PROC, 92, -1},       {93, 1, 1, 93, MAIN_CORE_PROC, 93, -1},
         {94, 1, 1, 94, MAIN_CORE_PROC, 94, -1},       {95, 1, 1, 95, MAIN_CORE_PROC, 95, -1},
     },
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
@@ -785,12 +785,12 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_7 = {
         {44, 1, 1, 44, MAIN_CORE_PROC, 44, -1}, {45, 1, 1, 45, MAIN_CORE_PROC, 45, -1},
         {46, 1, 1, 46, MAIN_CORE_PROC, 46, -1}, {47, 1, 1, 47, MAIN_CORE_PROC, 47, -1},
     },
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
@@ -859,12 +859,12 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_8 = {
         {92, 1, 1, 92, MAIN_CORE_PROC, 92, -1},       {93, 1, 1, 93, MAIN_CORE_PROC, 93, -1},
         {94, 1, 1, 94, MAIN_CORE_PROC, 94, -1},       {95, 1, 1, 95, MAIN_CORE_PROC, 95, -1},
     },
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
@@ -909,12 +909,12 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_9 = {
         {44, 1, 1, 44, MAIN_CORE_PROC, 44, -1}, {45, 1, 1, 45, MAIN_CORE_PROC, 45, -1},
         {46, 1, 1, 46, MAIN_CORE_PROC, 46, -1}, {47, 1, 1, 47, MAIN_CORE_PROC, 47, -1},
     },
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 24, 0, 0}},
 };
 
@@ -983,12 +983,12 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_10 = {
         {92, 1, 1, 92, MAIN_CORE_PROC, 92, -1},       {93, 1, 1, 93, MAIN_CORE_PROC, 93, -1},
         {94, 1, 1, 94, MAIN_CORE_PROC, 94, -1},       {95, 1, 1, 95, MAIN_CORE_PROC, 95, -1},
     },
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 48, -1, -1}, {-1, MAIN_CORE_PROC, 24, 0, 0}, {-1, MAIN_CORE_PROC, 24, 1, 1}},
 };
 
@@ -1033,12 +1033,12 @@ StreamGenerateionTestCase generation_latency_2sockets_48cores_11 = {
         {44, 1, 1, 44, MAIN_CORE_PROC, 44, -1}, {45, 1, 1, 45, MAIN_CORE_PROC, 45, -1},
         {46, 1, 1, 46, MAIN_CORE_PROC, 46, -1}, {47, 1, 1, 47, MAIN_CORE_PROC, 47, -1},
     },
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{1, MAIN_CORE_PROC, 48, -1, -1}, {-1, MAIN_CORE_PROC, 24, 0, 0}, {-1, MAIN_CORE_PROC, 24, 1, 1}},
 };
 
@@ -1069,12 +1069,12 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_2 = {
         {16, 0, 0, 10, EFFICIENT_CORE_PROC, 16, -1}, {17, 0, 0, 11, EFFICIENT_CORE_PROC, 17, -1},
         {18, 0, 0, 12, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 13, EFFICIENT_CORE_PROC, 19, -1},
     },
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     false,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{6, 6, 0, 0, 0, 0}},
+    {{6, 6, 0, 0, 0, 0, 0}},
     {{2, MAIN_CORE_PROC, 3, 0, 0}},
 };
 
@@ -1105,12 +1105,12 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_3 = {
         {16, 0, 0, 10, EFFICIENT_CORE_PROC, 16, -1}, {17, 0, 0, 11, EFFICIENT_CORE_PROC, 17, -1},
         {18, 0, 0, 12, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 13, EFFICIENT_CORE_PROC, 19, -1},
     },
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     true,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{12, 6, 0, 6, 0, 0}},
+    {{12, 6, 0, 0, 6, 0, 0}},
     {{6, MAIN_CORE_PROC, 1, 0, 0}, {4, HYPER_THREADING_PROC, 1, 0, 0}},
 };
 
@@ -1141,12 +1141,12 @@ StreamGenerateionTestCase generation_tput_1sockets_14cores_4 = {
         {16, 0, 0, 10, EFFICIENT_CORE_PROC, 16, -1}, {17, 0, 0, 11, EFFICIENT_CORE_PROC, 17, -1},
         {18, 0, 0, 12, EFFICIENT_CORE_PROC, 18, -1}, {19, 0, 0, 13, EFFICIENT_CORE_PROC, 19, -1},
     },
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     ov::hint::SchedulingCoreType::PCORE_ONLY,
     true,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{12, 6, 0, 6, 0, 0}},
+    {{12, 6, 0, 0, 6, 0, 0}},
     {{2, MAIN_CORE_PROC, 3, 0, 0}, {1, HYPER_THREADING_PROC, 3, 0, 0}},
 };
 
@@ -1215,12 +1215,12 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_5 = {
         {92, 1, 1, 92, MAIN_CORE_PROC, 92, -1},       {93, 1, 1, 93, MAIN_CORE_PROC, 93, -1},
         {94, 1, 1, 94, MAIN_CORE_PROC, 94, -1},       {95, 1, 1, 95, MAIN_CORE_PROC, 95, -1},
     },
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     true,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     {{6, MAIN_CORE_PROC, 4, 0, 0},
      {6, MAIN_CORE_PROC, 4, 1, 1},
      {6, HYPER_THREADING_PROC, 4, 0, 0},
@@ -1292,12 +1292,12 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_6 = {
         {92, 1, 1, 92, MAIN_CORE_PROC, 92, -1},       {93, 1, 1, 93, MAIN_CORE_PROC, 93, -1},
         {94, 1, 1, 94, MAIN_CORE_PROC, 94, -1},       {95, 1, 1, 95, MAIN_CORE_PROC, 95, -1},
     },
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{6, MAIN_CORE_PROC, 4, 0, 0}, {6, MAIN_CORE_PROC, 4, 1, 1}},
 };
 
@@ -1366,12 +1366,12 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_7 = {
         {92, 1, 1, 92, MAIN_CORE_PROC, 92, -1},       {93, 1, 1, 93, MAIN_CORE_PROC, 93, -1},
         {94, 1, 1, 94, MAIN_CORE_PROC, 94, -1},       {95, 1, 1, 95, MAIN_CORE_PROC, 95, -1},
     },
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{24, MAIN_CORE_PROC, 1, 0, 0}, {24, MAIN_CORE_PROC, 1, 1, 1}},
 };
 
@@ -1440,12 +1440,12 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_8 = {
         {92, 1, 1, 92, MAIN_CORE_PROC, 92, -1},       {93, 1, 1, 93, MAIN_CORE_PROC, 93, -1},
         {94, 1, 1, 94, MAIN_CORE_PROC, 94, -1},       {95, 1, 1, 95, MAIN_CORE_PROC, 95, -1},
     },
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{2, MAIN_CORE_PROC, 10, 0, 0}},
 };
 
@@ -1514,12 +1514,12 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_8_reservation = {
         {92, 1, 1, 92, MAIN_CORE_PROC, 92, -1},       {93, 1, 1, 93, MAIN_CORE_PROC, 93, -1},
         {94, 1, 1, 94, MAIN_CORE_PROC, 94, -1},       {95, 1, 1, 95, MAIN_CORE_PROC, 95, -1},
     },
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{2, MAIN_CORE_PROC, 10, 0, 0}},
 };
 
@@ -1588,12 +1588,12 @@ StreamGenerateionTestCase generation_tput_2sockets_48cores_9 = {
         {92, 1, 1, 92, MAIN_CORE_PROC, 92, -1},       {93, 1, 1, 93, MAIN_CORE_PROC, 93, -1},
         {94, 1, 1, 94, MAIN_CORE_PROC, 94, -1},       {95, 1, 1, 95, MAIN_CORE_PROC, 95, -1},
     },
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {{24, MAIN_CORE_PROC, 1, 0, 0}, {24, MAIN_CORE_PROC, 1, 1, 1}},
 };
 StreamGenerateionTestCase generation_latency_1sockets_96cores_pinning = {
@@ -1661,12 +1661,12 @@ StreamGenerateionTestCase generation_latency_1sockets_96cores_pinning = {
         {92, 0, 0, 92, EFFICIENT_CORE_PROC, 92, -1}, {93, 0, 0, 93, EFFICIENT_CORE_PROC, 93, -1},
         {94, 0, 0, 94, EFFICIENT_CORE_PROC, 94, -1}, {95, 0, 0, 95, EFFICIENT_CORE_PROC, 95, -1},
     },
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     true,
     ov::hint::PerformanceMode::LATENCY,
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     {{1, EFFICIENT_CORE_PROC, 96, 0, 0}},
 };
 StreamGenerateionTestCase generation_tput_1sockets_96cores_pinning = {
@@ -1734,12 +1734,12 @@ StreamGenerateionTestCase generation_tput_1sockets_96cores_pinning = {
         {92, 0, 0, 92, EFFICIENT_CORE_PROC, 92, -1}, {93, 0, 0, 93, EFFICIENT_CORE_PROC, 93, -1},
         {94, 0, 0, 94, EFFICIENT_CORE_PROC, 94, -1}, {95, 0, 0, 95, EFFICIENT_CORE_PROC, 95, -1},
     },
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     {{24, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
 StreamGenerateionTestCase generation_tput_1sockets_96cores_2_pinning = {
@@ -1807,12 +1807,12 @@ StreamGenerateionTestCase generation_tput_1sockets_96cores_2_pinning = {
         {92, 0, 0, 92, EFFICIENT_CORE_PROC, 92, -1}, {93, 0, 0, 93, EFFICIENT_CORE_PROC, 93, -1},
         {94, 0, 0, 94, EFFICIENT_CORE_PROC, 94, -1}, {95, 0, 0, 95, EFFICIENT_CORE_PROC, 95, -1},
     },
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     true,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     {{24, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
 StreamGenerateionTestCase generation_latency_1sockets_96cores_unpinning = {
@@ -1880,12 +1880,12 @@ StreamGenerateionTestCase generation_latency_1sockets_96cores_unpinning = {
         {92, 0, 0, 92, EFFICIENT_CORE_PROC, 92, -1}, {93, 0, 0, 93, EFFICIENT_CORE_PROC, 93, -1},
         {94, 0, 0, 94, EFFICIENT_CORE_PROC, 94, -1}, {95, 0, 0, 95, EFFICIENT_CORE_PROC, 95, -1},
     },
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     {{1, EFFICIENT_CORE_PROC, 96, 0, 0}},
 };
 StreamGenerateionTestCase generation_tput_1sockets_96cores_unpinning = {
@@ -1953,12 +1953,12 @@ StreamGenerateionTestCase generation_tput_1sockets_96cores_unpinning = {
         {92, 0, 0, 92, EFFICIENT_CORE_PROC, 92, -1}, {93, 0, 0, 93, EFFICIENT_CORE_PROC, 93, -1},
         {94, 0, 0, 94, EFFICIENT_CORE_PROC, 94, -1}, {95, 0, 0, 95, EFFICIENT_CORE_PROC, 95, -1},
     },
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     {{24, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
 StreamGenerateionTestCase generation_tput_1sockets_96cores_2_unpinning = {
@@ -2026,12 +2026,12 @@ StreamGenerateionTestCase generation_tput_1sockets_96cores_2_unpinning = {
         {92, 0, 0, 92, EFFICIENT_CORE_PROC, 92, -1}, {93, 0, 0, 93, EFFICIENT_CORE_PROC, 93, -1},
         {94, 0, 0, 94, EFFICIENT_CORE_PROC, 94, -1}, {95, 0, 0, 95, EFFICIENT_CORE_PROC, 95, -1},
     },
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::THROUGHPUT,
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     {{24, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
 
@@ -2051,12 +2051,12 @@ StreamGenerateionTestCase generation_tput_1sockets_0cores_1 = {
     ov::hint::PerformanceMode::LATENCY,
     {},
     {},
-    {{0, 0, 0, 0, 0, 0}},
+    {{0, 0, 0, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     {{24, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
 
@@ -2076,12 +2076,12 @@ StreamGenerateionTestCase generation_tput_1sockets_0cores_1_reservation = {
     ov::hint::PerformanceMode::LATENCY,
     {},
     {},
-    {{0, 0, 0, 0, 0, 0}},
+    {{0, 0, 0, 0, 0, 0, 0}},
     ov::hint::SchedulingCoreType::ANY_CORE,
     false,
     false,
     ov::hint::PerformanceMode::LATENCY,
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     {{24, EFFICIENT_CORE_PROC, 4, 0, 0}},
 };
 
