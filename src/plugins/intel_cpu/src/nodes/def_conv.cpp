@@ -5,7 +5,6 @@
 #include "def_conv.h"
 
 #include <cmath>
-// #include <common/dnnl_thread.hpp>
 #include <memory>
 #include <openvino/op/deformable_convolution.hpp>
 #include <string>

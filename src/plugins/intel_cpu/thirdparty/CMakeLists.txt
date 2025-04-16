@@ -81,7 +81,6 @@ function(ov_add_onednn)
     if(AARCH64 OR ARM)
         set(DNNL_USE_ACL ON CACHE BOOL "Use ARM Compute Library kernels in oneDNN" FORCE)
     endif()
-    message (STATUS "THREADING ......................... " ${THREADING})
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on OV level
     if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR OV_COMPILER_IS_CLANG) AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
@@ -92,7 +91,6 @@ function(ov_add_onednn)
     if(TBB_FOUND)
         set(TBB_cmake_included ON)
         set(DNNL_CPU_THREADING_RUNTIME "${THREADING}")
-        # set(DNNL_CPU_THREADING_RUNTIME "THREADPOOL")
         function(find_package_tbb)
             # dummy
         endfunction()

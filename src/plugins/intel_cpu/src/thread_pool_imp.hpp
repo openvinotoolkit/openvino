@@ -4,24 +4,24 @@
 
 #pragma once
 
-#include <oneapi/dnnl/dnnl_threadpool_iface.hpp>
 #include <common/dnnl_thread.hpp>
-
 #include <iostream>
+#include <oneapi/dnnl/dnnl_threadpool_iface.hpp>
 
+#include "openvino/core/parallel.hpp"
 #include "tbb/parallel_for.h"
 #include "tbb/task_arena.h"
-#include "openvino/core/parallel.hpp"
 
 namespace ov::intel_cpu {
 
 int dnnl_get_multiplier();
 
-class threadpool_t : public dnnl::threadpool_interop::threadpool_iface {
+class threadpool_tbb_static : public dnnl::threadpool_interop::threadpool_iface {
 private:
     int _num_threads;
+
 public:
-    explicit threadpool_t(int num_threads) {
+    explicit threadpool_tbb_static(int num_threads) {
         _num_threads = num_threads;
     }
     int get_num_threads() const override {
@@ -45,11 +45,12 @@ public:
     }
 };
 
-class threadpool_auto : public dnnl::threadpool_interop::threadpool_iface {
+class threadpool_tbb_auto : public dnnl::threadpool_interop::threadpool_iface {
 private:
     int _num_threads;
+
 public:
-    explicit threadpool_auto(int num_threads) {
+    explicit threadpool_tbb_auto(int num_threads) {
         _num_threads = num_threads;
     }
     int get_num_threads() const override {
@@ -63,12 +64,9 @@ public:
         return 0;
     }
     void parallel_for(int n, const std::function<void(int, int)>& fn) override {
-        tbb::parallel_for(
-            0,
-            n,
-            [&](int i) {
-                fn(i, n);
-            });
+        tbb::parallel_for(0, n, [&](int i) {
+            fn(i, n);
+        });
     }
 };
 

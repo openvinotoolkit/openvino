@@ -22,7 +22,12 @@
 #define OV_THREAD_SEQ      2
 #define OV_THREAD_TBB_AUTO 3
 
-#define TBB_OPTION 1
+enum TBB_PARTITIONOR {
+    TBB_STATIC,
+    TBB_AUTO,
+};
+
+#define TBB_OPTION TBB_STATIC
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    ifndef NOMINMAX
@@ -447,7 +452,7 @@ void parallel_for(const T0& D0, const F& func) {
     auto work_amount = static_cast<size_t>(D0);
     const int nthr = parallel_get_max_threads();
     int virtual_threads = nthr;
-    if (TBB_OPTION == 2) {
+    if (TBB_OPTION == TBB_AUTO) {
         virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
     }
     if (static_cast<size_t>(virtual_threads) > work_amount)
@@ -455,7 +460,7 @@ void parallel_for(const T0& D0, const F& func) {
     if (virtual_threads == 1) {
         for_1d(0, 1, D0, func);
     } else {
-        if (TBB_OPTION == 1) {
+        if (TBB_OPTION == TBB_STATIC) {
             tbb::parallel_for(
                 0,
                 virtual_threads,
@@ -502,7 +507,7 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
     auto work_amount = static_cast<size_t>(D0 * D1);
     const int nthr = parallel_get_max_threads();
     int virtual_threads = nthr;
-    if (TBB_OPTION == 2) {
+    if (TBB_OPTION == TBB_AUTO) {
         virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
     }
     if (static_cast<size_t>(virtual_threads) > work_amount)
@@ -510,7 +515,7 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
     if (virtual_threads == 1) {
         for_2d(0, 1, D0, D1, func);
     } else {
-        if (TBB_OPTION == 1) {
+        if (TBB_OPTION == TBB_STATIC) {
             tbb::parallel_for(
                 0,
                 virtual_threads,
@@ -575,7 +580,7 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
     auto work_amount = static_cast<size_t>(D0 * D1 * D2);
     const int nthr = parallel_get_max_threads();
     int virtual_threads = nthr;
-    if (TBB_OPTION == 2) {
+    if (TBB_OPTION == TBB_AUTO) {
         virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
     }
     if (static_cast<size_t>(virtual_threads) > work_amount)
@@ -583,7 +588,7 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
     if (virtual_threads == 1) {
         for_3d(0, 1, D0, D1, D2, func);
     } else {
-        if (TBB_OPTION == 1) {
+        if (TBB_OPTION == TBB_STATIC) {
             tbb::parallel_for(
                 0,
                 virtual_threads,
@@ -652,14 +657,14 @@ void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3);
     const int nthr = parallel_get_max_threads();
     int virtual_threads = nthr;
-    if (TBB_OPTION == 2)
+    if (TBB_OPTION == TBB_AUTO)
         virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
     if (static_cast<size_t>(virtual_threads) > work_amount)
         virtual_threads = static_cast<int>(work_amount);
     if (virtual_threads == 1) {
         for_4d(0, 1, D0, D1, D2, D3, func);
     } else {
-        if (TBB_OPTION == 1) {
+        if (TBB_OPTION == TBB_STATIC) {
             tbb::parallel_for(
                 0,
                 virtual_threads,
@@ -716,14 +721,14 @@ void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4);
     const int nthr = parallel_get_max_threads();
     int virtual_threads = nthr;
-    if (TBB_OPTION == 2)
+    if (TBB_OPTION == TBB_AUTO)
         virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
     if (static_cast<size_t>(virtual_threads) > work_amount)
         virtual_threads = static_cast<int>(work_amount);
     if (virtual_threads == 1) {
         for_5d(0, 1, D0, D1, D2, D3, D4, func);
     } else {
-        if (TBB_OPTION == 1) {
+        if (TBB_OPTION == TBB_STATIC) {
             tbb::parallel_for(
                 0,
                 virtual_threads,
@@ -782,14 +787,14 @@ void parallel_for6d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, cons
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4 * D5);
     const int nthr = parallel_get_max_threads();
     int virtual_threads = nthr;
-    if (TBB_OPTION == 2)
+    if (TBB_OPTION == TBB_AUTO)
         virtual_threads = 1 == nthr ? 1 : nthr * MULTIPLIER;
     if (static_cast<size_t>(virtual_threads) > work_amount)
         virtual_threads = static_cast<int>(work_amount);
     if (virtual_threads == 1) {
         for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
     } else {
-        if (TBB_OPTION == 1) {
+        if (TBB_OPTION == TBB_STATIC) {
             tbb::parallel_for(
                 0,
                 virtual_threads,

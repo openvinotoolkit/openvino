@@ -87,7 +87,6 @@ void Graph::Init(const std::vector<NodePtr>& graphNodes,
     }
 
     m_context = context;
-    // m_stream = dnnl::stream(getEngine());
     m_stream = dnnl::threadpool_interop::make_stream(getEngine(), get_thread_pool());
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
     dnnl::impl::threadpool_utils::activate_threadpool(get_thread_pool());
@@ -350,7 +349,6 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     }
 
     m_context = context;
-    // m_stream = dnnl::stream(getEngine());
     m_stream = dnnl::threadpool_interop::make_stream(getEngine(), get_thread_pool());
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
     dnnl::impl::threadpool_utils::activate_threadpool(get_thread_pool());

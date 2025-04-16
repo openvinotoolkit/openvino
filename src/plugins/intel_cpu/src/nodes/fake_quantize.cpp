@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <cmath>
-// #include <common/dnnl_thread.hpp>
 #include <memory>
 #include <set>
 #include <shape_inference/shape_inference_pass_through.hpp>

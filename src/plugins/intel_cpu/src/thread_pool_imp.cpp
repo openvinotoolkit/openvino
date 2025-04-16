@@ -8,10 +8,10 @@ namespace ov::intel_cpu {
 
 dnnl::threadpool_interop::threadpool_iface* get_thread_pool() {
     if (TBB_OPTION == 1) {
-        static threadpool_t thread_pool(parallel_get_max_threads());
+        static threadpool_tbb_static thread_pool(parallel_get_max_threads());
         return &thread_pool;
     } else {
-        static threadpool_auto thread_pool(parallel_get_max_threads());
+        static threadpool_tbb_auto thread_pool(parallel_get_max_threads());
         return &thread_pool;
     }
 }
