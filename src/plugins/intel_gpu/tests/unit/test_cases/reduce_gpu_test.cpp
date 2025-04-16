@@ -2245,7 +2245,7 @@ TEST(reduce_f32_fw_gpu, large_buffer) {
     auto engine = create_test_engine();
 
     size_t s0 = 16384;
-    size_t s1 = 256 * 512;
+    size_t s1 = 256 * (256 + 128);
     ov::Shape sz_8gb = { 1, 1, s1, s0 }; // *4 bytes;
     size_t peak_mem_usage = (ov::shape_size(sz_8gb) + s0) * sizeof(float);
     if (engine->get_device_info().max_global_mem_size < peak_mem_usage)
