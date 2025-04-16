@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, ConvertNMS4FiveInputsToNMS5) {
                                                                opset4::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS4ToNMS5>();
     }
@@ -57,7 +57,7 @@ TEST_F(TransformationTestsF, ConvertNMS4FiveInputsToNMS5) {
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -70,7 +70,7 @@ TEST_F(TransformationTestsF, ConvertNMS4TwoInputsToNMS5) {
                                                                opset4::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS4ToNMS5>();
     }
@@ -89,7 +89,7 @@ TEST_F(TransformationTestsF, ConvertNMS4TwoInputsToNMS5) {
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -108,7 +108,7 @@ TEST_F(TransformationTestsF, ConvertNMS3FiveInputsToNMS5) {
                                                                opset3::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS3ToNMS5>();
     }
@@ -127,7 +127,7 @@ TEST_F(TransformationTestsF, ConvertNMS3FiveInputsToNMS5) {
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -140,7 +140,7 @@ TEST_F(TransformationTestsF, ConvertNMS3TwoInputsToNMS5) {
                                                                opset3::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS3ToNMS5>();
     }
@@ -159,7 +159,7 @@ TEST_F(TransformationTestsF, ConvertNMS3TwoInputsToNMS5) {
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -178,7 +178,7 @@ TEST_F(TransformationTestsF, ConvertNMS1FiveInputsToNMS5) {
                                                                opset1::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS1ToNMS5>();
     }
@@ -197,7 +197,7 @@ TEST_F(TransformationTestsF, ConvertNMS1FiveInputsToNMS5) {
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -210,7 +210,7 @@ TEST_F(TransformationTestsF, ConvertNMS1TwoInputsToNMS5) {
                                                                opset1::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS1ToNMS5>();
     }
@@ -229,6 +229,6 @@ TEST_F(TransformationTestsF, ConvertNMS1TwoInputsToNMS5) {
                                                                opset5::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                true);
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }

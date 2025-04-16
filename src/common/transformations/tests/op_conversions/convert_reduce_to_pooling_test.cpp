@@ -71,7 +71,7 @@ public:
         // reduce = reduce_type->copy_with_new_inputs({input, axes_const});
         // reduce->set_keep_dims(keep_dims);
 
-        return std::make_shared<ov::Model>(NodeVector{reduce}, ParameterVector{input});
+        return std::make_shared<ov::Model>(OutputVector{reduce}, ParameterVector{input});
     }
 
     static std::shared_ptr<ov::Model> get_reference_function(const PartialShape& input_shape,
@@ -126,7 +126,7 @@ public:
                 true);
         }
 
-        return std::make_shared<ov::Model>(NodeVector{input.get_node_shared_ptr()}, ParameterVector{param});
+        return std::make_shared<ov::Model>(OutputVector{input.get_node_shared_ptr()}, ParameterVector{param});
     }
 };
 

@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest1) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 2, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, true, false);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -46,7 +46,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest1) {
             transpose2,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -56,7 +56,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest2) {
         auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 2, 1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, false);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1, input2});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest2) {
         auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 2, 1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, false);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1, input2});
     }
 }
 
@@ -74,7 +74,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest3) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -85,7 +85,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest3) {
             input2,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -95,7 +95,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest4) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -106,7 +106,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest4) {
             input2,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -115,7 +115,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest5) {
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{3, 2, 2}, {1});
     auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     manager.register_pass<ConvertMatMulToFC>();
 }
 
@@ -124,7 +124,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest6) {
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{3, 1, 2}, {1});
     auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     manager.register_pass<ConvertMatMulToFC>();
 }
 
@@ -134,7 +134,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest7) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{3, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -145,7 +145,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest7) {
             input2,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
     }
 }
 
@@ -155,7 +155,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest8) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{3, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -172,7 +172,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest8) {
         auto O = ov::opset1::Constant::create(ov::element::i64, {1}, {3});
         auto output_shape = std::make_shared<ov::opset1::Concat>(ov::OutputVector{I, O}, 0);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
     }
 }
 
@@ -182,7 +182,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest9) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -193,7 +193,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest9) {
             input2,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -202,7 +202,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest10) {
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 2}, {1});
     auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     manager.register_pass<ConvertMatMulToFC>();
 }
 
@@ -211,7 +211,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest11) {
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{18, 80, 1}, {1});
     auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     manager.register_pass<ConvertMatMulToFC>();
 }
 
@@ -220,7 +220,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest12) {
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 80, 1}, {1});
     auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     manager.register_pass<ConvertMatMulToFC>();
 }
 
@@ -230,7 +230,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest13) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 80, 1}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -241,7 +241,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest13) {
             input2,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -257,7 +257,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest14) {
             false,
             true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -270,7 +270,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest14) {
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}),
             ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -280,7 +280,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_4d_1) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{6, 5}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -293,7 +293,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_4d_1) {
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}),
             ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
     }
 }
 
@@ -303,7 +303,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_4d_2) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 10, 5}, {1});
         auto fc = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -314,7 +314,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_4d_2) {
             input2,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
     }
 }
 
@@ -324,7 +324,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_4d_3) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 5, 4}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -336,7 +336,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_4d_3) {
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}),
             ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
     }
 }
 
@@ -346,7 +346,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_4d_4) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 5, 4}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -358,7 +358,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_4d_4) {
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}),
             ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
     }
 }
 
@@ -368,7 +368,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_4d_5) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 1, 5, 4}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -380,7 +380,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_4d_5) {
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}),
             ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
     }
 }
 
@@ -390,7 +390,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_second_input_rank_adj_1) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 2, 3}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -400,7 +400,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_second_input_rank_adj_1) {
             input1,
             input2,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -410,7 +410,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_second_input_rank_adj_2) {
         auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 3}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, weights, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -421,7 +421,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_second_input_rank_adj_2) {
             weights,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -431,7 +431,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_second_input_rank_adj_3) {
         auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 2, 3}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, weights, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -442,7 +442,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_second_input_rank_adj_3) {
             input1,
             weights,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -454,7 +454,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_decompress_convert_0) {
         ov::mark_as_decompression(convert);
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, convert, false, false);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -470,7 +470,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_decompress_convert_0) {
             transpose,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -482,7 +482,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_decompress_convert_1) {
         ov::mark_as_decompression(convert);
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, convert, true, false);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -500,7 +500,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_decompress_convert_1) {
             transpose2,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -515,7 +515,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_compressed_u8_weights) {
         auto mul = std::make_shared<ov::opset1::Multiply>(sub, mul_const);
         auto matmul = std::make_shared<ov::opset1::MatMul>(data, mul);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
         manager.register_pass<ConvertMatMulToFC>();
     }
     {
@@ -534,6 +534,6 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_compressed_u8_weights) {
             transpose,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
     }
 }

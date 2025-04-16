@@ -24,7 +24,7 @@ TEST_F(TransformationTestsF, ReduceL2DecompositionTest) {
         auto axes = std::make_shared<opset4::Parameter>(element::i32, Shape{1});
         auto reduce_l2 = std::make_shared<opset4::ReduceL2>(data, axes, true);
 
-        model = std::make_shared<ov::Model>(NodeVector{reduce_l2}, ParameterVector{data, axes});
+        model = std::make_shared<ov::Model>(OutputVector{reduce_l2}, ParameterVector{data, axes});
         manager.register_pass<ov::pass::ReduceL2Decomposition>();
     }
 
@@ -35,6 +35,6 @@ TEST_F(TransformationTestsF, ReduceL2DecompositionTest) {
         auto reduce_sum = std::make_shared<opset4::ReduceSum>(pow, axes, true);
         auto sqrt = std::make_shared<opset4::Sqrt>(reduce_sum);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{sqrt}, ParameterVector{data, axes});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sqrt}, ParameterVector{data, axes});
     }
 }

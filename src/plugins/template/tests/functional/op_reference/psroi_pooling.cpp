@@ -107,7 +107,7 @@ private:
                                                                          static_cast<int>(params.spatialBinsX),
                                                                          static_cast<int>(params.spatialBinsY),
                                                                          params.mode);
-        return std::make_shared<ov::Model>(NodeVector{PSROIPooling}, ParameterVector{image, coords});
+        return std::make_shared<ov::Model>(OutputVector{PSROIPooling}, ParameterVector{image, coords});
     }
 };
 
