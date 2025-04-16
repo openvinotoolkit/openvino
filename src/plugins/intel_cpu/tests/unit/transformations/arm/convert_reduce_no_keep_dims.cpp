@@ -17,7 +17,7 @@ template <class T>
 static std::shared_ptr<ov::Model> createInitGraph(std::shared_ptr<ov::opset1::Parameter> param) {
         auto axes = ov::opset1::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
         auto reduce = std::make_shared<T>(param, axes, false);
-        return std::make_shared<ov::Model>(ov::NodeVector{ reduce }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{param});
 }
 
 template <class T>
@@ -25,7 +25,7 @@ static std::shared_ptr<ov::Model> createRefGraph(std::shared_ptr<ov::opset1::Par
         auto axes = ov::opset1::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
         auto reduce = std::make_shared<T>(param, axes, true);
         auto squeeze = std::make_shared<ov::opset1::Squeeze>(reduce, axes);
-        return std::make_shared<ov::Model>(ov::NodeVector{ squeeze }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{squeeze}, ov::ParameterVector{param});
 }
 
 template <class T>

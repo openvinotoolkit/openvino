@@ -25,7 +25,7 @@ TEST_F(TransformationTestsF, NormalizeL2DecomositionFusionWithMax) {
         auto axes_const = opset8::Constant::create(element::i64, Shape{2}, {1, 2});
         auto normalize_l2 = std::make_shared<opset8::NormalizeL2>(input, axes_const, eps_value, op::EpsMode::MAX);
 
-        model = std::make_shared<ov::Model>(NodeVector{normalize_l2}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{normalize_l2}, ParameterVector{input});
 
         manager.register_pass<ov::pass::NormalizeL2Decomposition>();
     }
@@ -41,7 +41,7 @@ TEST_F(TransformationTestsF, NormalizeL2DecomositionFusionWithMax) {
         auto sqrt = std::make_shared<opset8::Sqrt>(max);
         auto divide = std::make_shared<opset8::Divide>(input, sqrt);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{input});
     }
 }
 
@@ -52,7 +52,7 @@ TEST_F(TransformationTestsF, NormalizeL2DecomositionFusionWithAdd) {
         auto axes_const = opset8::Constant::create(element::i64, Shape{2}, {0, 1});
         auto normalize_l2 = std::make_shared<opset8::NormalizeL2>(input, axes_const, eps_value, op::EpsMode::ADD);
 
-        model = std::make_shared<ov::Model>(NodeVector{normalize_l2}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{normalize_l2}, ParameterVector{input});
 
         manager.register_pass<ov::pass::NormalizeL2Decomposition>();
     }
@@ -68,6 +68,6 @@ TEST_F(TransformationTestsF, NormalizeL2DecomositionFusionWithAdd) {
         auto sqrt = std::make_shared<opset8::Sqrt>(max);
         auto divide = std::make_shared<opset8::Divide>(input, sqrt);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{input});
     }
 }

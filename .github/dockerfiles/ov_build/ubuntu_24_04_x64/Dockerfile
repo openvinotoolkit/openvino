@@ -24,7 +24,20 @@ RUN apt-get update && \
         tzdata \
         # parallel gzip
         pigz \
-        # Python
+        # Pythons
+        python3.9-dev \
+        python3.9-venv \
+        python3.9-distutils \
+        python3.10-dev \
+        python3.10-venv \
+        python3.10-distutils \
+        python3.11-dev \
+        python3.11-venv \
+        python3.11-distutils \
+        python3.12-dev \
+        python3.12-venv \
+        python3.13-dev \
+        python3.13-venv \
         python3-dev \
         python3-venv \
         python3-pip \
@@ -59,6 +72,11 @@ ENV PATH="/venv/bin:$PATH"
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
+RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.9 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
+    python3.13 -m pip install --upgrade pip==${PIP_VERSION}
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
