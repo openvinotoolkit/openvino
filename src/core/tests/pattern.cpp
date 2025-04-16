@@ -1519,3 +1519,18 @@ TEST(pattern, predicate_attr_match) {
     ASSERT_TRUE(tm.match(pattern_numpy_or_pdpd, mul_pdpd));
     ASSERT_FALSE(tm.match(pattern_numpy_or_pdpd, mul_none));
 }
+
+TEST(pattern, predicate_value_match) {
+    TestMatcher tm;
+    auto constant_i = op::v0::Constant::create(element::i64, {4}, vector<int64_t>{-1, 0, 1, 2});
+    auto constant_d = op::v0::Constant::create(element::f64, {4}, vector<double>{-1.5, 0, 1.3, 2.75});
+
+    // actual value check
+    auto pattern_i = pattern::any_input(pattern::value_matches("[-1, 0, 1, 2]"));
+    auto pattern_d = pattern::any_input(pattern::value_matches("[-1.5, 0, 1.3, 2.75]"));
+
+    ASSERT_TRUE(tm.match(pattern_i, constant_i));
+    ASSERT_FALSE(tm.match(pattern_i, constant_d));
+    ASSERT_TRUE(tm.match(pattern_d, constant_d));
+    ASSERT_FALSE(tm.match(pattern_d, constant_i));
+}

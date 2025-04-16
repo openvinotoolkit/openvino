@@ -65,6 +65,7 @@ OPENVINO_API op::Predicate all_of(const std::vector<std::function<bool(Output<No
 OPENVINO_API op::Predicate attrs_match(const Attributes& expected_attrs);
 
 OPENVINO_API op::Predicate shape_matches(const std::string& shape_notation);
+OPENVINO_API op::Predicate value_matches(const std::string& value_notation);
 
 namespace op {
 OPENVINO_DEPRECATED("This method is deprecated. Use constructor of ov::pass::pattern::Predicate instead")
