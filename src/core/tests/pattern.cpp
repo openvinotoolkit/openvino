@@ -32,10 +32,12 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
@@ -1466,4 +1468,69 @@ TEST(pattern, pattern_symbol_predicate_and_operators) {
 
         ASSERT_NO_THROW(predicate_and(m, input));
     }
+}
+
+TEST(pattern, predicate_attr_match) {
+    TestMatcher tm;
+    auto input = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto constant = op::v0::Constant::create(element::i64, {4}, {0, 0, 0, 20});
+
+    // boolean attr check
+    auto pattern_true = pattern::any_input(pattern::attrs_match({{"special_zero", true}}));
+    auto pattern_false = pattern::any_input(pattern::attrs_match({{"special_zero", false}}));
+
+    auto reshape_true = std::make_shared<op::v1::Reshape>(input, constant, true);
+    auto reshape_false = std::make_shared<op::v1::Reshape>(input, constant, false);
+
+    ASSERT_TRUE(tm.match(pattern_true, reshape_true));
+    ASSERT_FALSE(tm.match(pattern_true, reshape_false));
+    ASSERT_TRUE(tm.match(pattern_false, reshape_false));
+    ASSERT_FALSE(tm.match(pattern_false, reshape_true));
+
+    // element type check
+    auto pattern_i64 =
+        pattern::wrap_type<op::v0::ShapeOf, op::v3::ShapeOf>(pattern::attrs_match({{"output_type", "i64"}}));
+    auto pattern_i32 = pattern::wrap_type<op::v0::ShapeOf, op::v3::ShapeOf>({{"output_type", "i32"}});
+
+    auto shape_of_i64 = std::make_shared<op::v3::ShapeOf>(input, element::i64);
+    auto shape_of_i32 = std::make_shared<op::v3::ShapeOf>(input, element::i32);
+
+    ASSERT_TRUE(tm.match(pattern_i64, shape_of_i64));
+    ASSERT_FALSE(tm.match(pattern_i64, shape_of_i32));
+    ASSERT_FALSE(tm.match(pattern_i32, shape_of_i64));
+    ASSERT_TRUE(tm.match(pattern_i32, shape_of_i32));
+
+    // broadcasting check
+    auto pattern_numpy = pattern::any_input({{"auto_broadcast", "numpy"}});
+    auto pattern_pdpd = pattern::optional<op::v1::Multiply>({{"auto_broadcast", "pdpd"}});
+    auto pattern_numpy_or_pdpd = pattern::any_input(pattern::attrs_match({{"auto_broadcast", "numpy"}}) ||
+                                                    pattern::attrs_match({{"auto_broadcast", "pdpd"}}));
+
+    auto mul_numpy = std::make_shared<op::v1::Multiply>(input, input, op::AutoBroadcastType::NUMPY);
+    auto mul_pdpd = std::make_shared<op::v1::Multiply>(input, input, op::AutoBroadcastType::PDPD);
+    auto mul_none = std::make_shared<op::v1::Multiply>(input, input, op::AutoBroadcastType::NONE);
+
+    ASSERT_TRUE(tm.match(pattern_numpy, mul_numpy));
+    ASSERT_FALSE(tm.match(pattern_numpy, mul_pdpd));
+    ASSERT_FALSE(tm.match(pattern_pdpd, mul_numpy));
+    ASSERT_TRUE(tm.match(pattern_pdpd, mul_pdpd));
+
+    ASSERT_TRUE(tm.match(pattern_numpy_or_pdpd, mul_numpy));
+    ASSERT_TRUE(tm.match(pattern_numpy_or_pdpd, mul_pdpd));
+    ASSERT_FALSE(tm.match(pattern_numpy_or_pdpd, mul_none));
+}
+
+TEST(pattern, predicate_value_match) {
+    TestMatcher tm;
+    auto constant_i = op::v0::Constant::create(element::i64, {4}, vector<int64_t>{-1, 0, 1, 2});
+    auto constant_d = op::v0::Constant::create(element::f64, {4}, vector<double>{-1.5, 0, 1.3, 2.75});
+
+    // actual value check
+    auto pattern_i = pattern::any_input(pattern::value_matches("[-1, 0, 1, 2]"));
+    auto pattern_d = pattern::any_input(pattern::value_matches("[-1.5, 0, 1.3, 2.75]"));
+
+    ASSERT_TRUE(tm.match(pattern_i, constant_i));
+    ASSERT_FALSE(tm.match(pattern_i, constant_d));
+    ASSERT_TRUE(tm.match(pattern_d, constant_d));
+    ASSERT_FALSE(tm.match(pattern_d, constant_i));
 }

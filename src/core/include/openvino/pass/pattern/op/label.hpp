@@ -72,7 +72,7 @@ protected:
 };
 }  // namespace op
 
-OPENVINO_API std::shared_ptr<Node> any_input();
+OPENVINO_API std::shared_ptr<Node> any_input(const Attributes& attrs = {});
 
 template <typename TPredicate>
 std::shared_ptr<Node> any_input(const TPredicate& pred) {

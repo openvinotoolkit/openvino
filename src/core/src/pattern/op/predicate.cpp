@@ -70,7 +70,7 @@ constexpr bool symbol_true_predicate(pass::pattern::PatternSymbolMap&, const Out
 }
 }  // namespace
 
-Predicate::Predicate() : m_pred(symbol_true_predicate) {}
+Predicate::Predicate() : m_name("always_true"), m_pred(symbol_true_predicate) {}
 Predicate::Predicate(std::nullptr_t) : Predicate() {}
 
 bool Predicate::operator()(pass::pattern::PatternSymbolMap& m, const Output<Node>& output) const {
