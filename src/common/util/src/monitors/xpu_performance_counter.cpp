@@ -84,7 +84,6 @@ public:
         for (size_t i = 0; i < PathListLength;) {
             std::wstring wpath(ExpandedPathList + i);
             if (wpath.length() > 0) {
-                // std::cout << path << std::endl;
                 pathList.push_back(wpath);
                 i += wpath.length() + 1;
             } else {

@@ -81,7 +81,7 @@ public:
             if (ret != ERROR_SUCCESS) {
                 return {};
                 if (PDH_CSTATUS_VALID_DATA != displayValue.CStatus && PDH_CSTATUS_NEW_DATA != displayValue.CStatus) {
-                    throw std::runtime_error("Failed to get counter data.");
+                    throw std::runtime_error("PdhGetFormattedCounterValue() failed. Error status: " + std::to_string(ret));
                 }
 
                 cpuLoad[i] = displayValue.doubleValue * 100.0;
@@ -122,7 +122,7 @@ namespace util {
 namespace monitor {
 class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
-    PerformanceCounterImpl() : {}
+    PerformanceCounterImpl(const std::string& deviceLuid) {}
 
     std::map<std::string, double> get_utilization() {
         // TODO: Implement.
