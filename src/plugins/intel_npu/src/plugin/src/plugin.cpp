@@ -440,12 +440,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
     }
 
-    if (!model->get_variables().empty()) {
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) && !model->get_variables().empty()) {
         if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
             OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on the plugin");
         }
-
-        _logger.info("The batching will be handled by the compiler due to states found inside the IR");
 
         std::stringstream strStream;
         strStream << ov::intel_npu::BatchMode::COMPILER;
