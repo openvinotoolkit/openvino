@@ -57,6 +57,23 @@ protected:
     const std::vector<ov::element::Type> precisions;
 };
 
+class MHA2DFunction : public SnippetsFunctionBase {
+public:
+    explicit MHA2DFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
+        : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+        OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
+        for (const auto& shape : input_shapes) {
+            OPENVINO_ASSERT(shape.rank().is_static() && shape.rank().get_length() == 2, "All input shapes must be 2D");
+        }
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
+
+    const std::vector<ov::element::Type> precisions;
+};
+
 class MHASplitMFunction : public MHAFunction {
 public:
     explicit MHASplitMFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,

@@ -11,6 +11,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "simplify_fakequantize.hpp"

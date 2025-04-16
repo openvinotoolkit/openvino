@@ -13,6 +13,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 
 using namespace ov;
 
@@ -133,8 +134,16 @@ ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDeq
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         auto reshape = opsMap.at(reshapeWrapper).get_node_shared_ptr();
+        if (reshape == nullptr) {
+            return false;
+        }
 
-        auto child = reshape->get_output_target_inputs(0).begin()->get_node();
+        auto reshape_target_inputs = reshape->get_output_target_inputs(0);
+        if (reshape_target_inputs.empty()) {
+            return false;
+        }
+
+        auto child = reshape_target_inputs.begin()->get_node();
         if (ov::is_type<opset1::GroupConvolution>(child)) {
             return false;
         }
@@ -149,7 +158,7 @@ ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDeq
                 pull_reshape_through_dequantization::fuseConstant(reshape, ov::as_type_ptr<opset1::Constant>(parent));
                 reshape = nullptr;
             } else {
-                THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";
+                THROW_IE_LPT_EXCEPTION(*parent) << " unexpected operation type";
             }
         } while (reshape != nullptr);
 
