@@ -394,7 +394,7 @@ jobs:
       - name: Download OpenVINO artifacts
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
-          pattern: "{openvino_package,openvino_developer_package,openvino_js_package,openvino_package_manifest}"
+          pattern: "{openvino_package,openvino_developer_package,openvino_js_package,openvino_node_npm_package,openvino_package_manifest}"
           path: ${{ env.ARTIFACTS_DIR }}
           merge-multiple: true
 
@@ -416,6 +416,6 @@ jobs:
             ${{ env.ARTIFACTS_DIR }}/developer_package.tar.gz
             ${{ env.WHEELS_DIR }}
             ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/openvino_js_package.tar.gz', env.ARTIFACTS_DIR) || '' }}
-            ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/{1}', env.ARTIFACTS_DIR, ${{ needs.Build.outputs.openvino_npm_archive_name }}) || '' }}
+            ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/{1}', env.ARTIFACTS_DIR, needs.Build.outputs.openvino_npm_archive_name) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
