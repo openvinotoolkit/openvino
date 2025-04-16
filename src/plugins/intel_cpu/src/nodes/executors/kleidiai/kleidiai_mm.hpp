@@ -19,10 +19,7 @@ namespace intel_cpu {
 
 class MatMulKleidiAIExecutor : public Executor {
 public:
-    MatMulKleidiAIExecutor(const FCAttrs& attrs,
-                           const PostOps& postOps,
-                           const MemoryArgs& memory,
-                           const ExecutorContext::CPtr& context);
+    MatMulKleidiAIExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
     void execute(const MemoryArgs& memory) override;
 
