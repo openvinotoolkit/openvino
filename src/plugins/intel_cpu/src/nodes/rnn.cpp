@@ -362,8 +362,8 @@ bool RNN::testNativeOrder(const std::shared_ptr<const ov::Node>& op) {
         return true;
     }
     const auto& rtInfo = op->get_rt_info();
-    if (rtInfo.count("seqAxis")) {
-        return rtInfo.at("seqAxis").as<int64_t>() == 0;
+    if (auto it = rtInfo.find("seqAxis"); it != rtInfo.end()) {
+        return it->second.as<int64_t>() == 0;
     }
     return false;
 }
@@ -509,16 +509,16 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 
     const auto& rtInfo = op->get_rt_info();
 
-    if (rtInfo.count("inputScale")) {
-        inputScale = rtInfo.at("inputScale").as<float>();
+    if (auto it = rtInfo.find("inputScale"); it != rtInfo.end()) {
+        inputScale = it->second.as<float>();
     }
 
-    if (rtInfo.count("inputShift")) {
-        inputShift = rtInfo.at("inputShift").as<float>();
+    if (auto it = rtInfo.find("inputShift"); it != rtInfo.end()) {
+        inputShift = it->second.as<float>();
     }
 
-    if (rtInfo.count("weightsScales")) {
-        weightsScales = rtInfo.at("weightsScales").as<std::vector<float>>();
+    if (auto it = rtInfo.find("weightsScales"); it != rtInfo.end()) {
+        weightsScales = it->second.as<std::vector<float>>();
     }
 
     if (is_cell) {
@@ -1387,20 +1387,22 @@ void RNN::prepareParams() {
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 
-    if (!primArgs.count(DNNL_ARG_WEIGHTS_LAYER) || !prevExecPtr ||
+    if (auto it = primArgs.find(DNNL_ARG_WEIGHTS_LAYER);
+        it == primArgs.end() || !prevExecPtr ||
         !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
         prepareMemory(execPtr->getWeightDesc(), 0);
         primArgs[DNNL_ARG_WEIGHTS_LAYER] = internalBlobMemory[0]->getPrimitive();
     }
 
-    if (!primArgs.count(DNNL_ARG_WEIGHTS_ITER) || !prevExecPtr ||
+    if (auto it = primArgs.find(DNNL_ARG_WEIGHTS_ITER);
+        it == primArgs.end() || !prevExecPtr ||
         !execPtr->getWeightIterDesc()->isCompatible(*(prevExecPtr->getWeightIterDesc()))) {
         prepareMemory(execPtr->getWeightIterDesc(), 1);
         primArgs[DNNL_ARG_WEIGHTS_ITER] = internalBlobMemory[1]->getPrimitive();
     }
 
-    if (!primArgs.count(DNNL_ARG_BIAS) || !prevExecPtr ||
-        !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
+    if (auto it = primArgs.find(DNNL_ARG_BIAS);
+        it == primArgs.end() || !prevExecPtr || !execPtr->getBiasDesc()->isCompatible(*(prevExecPtr->getBiasDesc()))) {
         prepareMemory(execPtr->getBiasDesc(), 2);
         primArgs[DNNL_ARG_BIAS] = internalBlobMemory[2]->getPrimitive();
     }
@@ -1478,7 +1480,7 @@ void RNN::cleanup() {
     }
 }
 
-RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutor(pd) {
+RNN::RnnDnnlExecutor::RnnDnnlExecutor(const dnnl::primitive_desc& pd) : DnnlExecutorLegacy(pd) {
     wghts_iter_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(1));
     bias_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc(2));
 }

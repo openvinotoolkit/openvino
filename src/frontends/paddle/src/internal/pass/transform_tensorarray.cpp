@@ -6,6 +6,7 @@
 
 #include "default_opset.hpp"
 #include "internal/op/tensorarray_write.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"

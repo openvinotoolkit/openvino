@@ -1,9 +1,9 @@
 # type: ignore
+from __future__ import annotations
+import openvino._pyopenvino
 """
 openvino.experimental submodule
 """
-from __future__ import annotations
-import openvino._pyopenvino
 __all__ = ['evaluate_as_partial_shape', 'evaluate_both_bounds', 'set_element_type', 'set_tensor_type']
 def evaluate_as_partial_shape(output: openvino._pyopenvino.Output, partial_shape: openvino._pyopenvino.PartialShape) -> bool:
     """
