@@ -1151,7 +1151,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                !disable_fc_swiglu_fusion;
         if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
-            manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();
+            // manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();
         }
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.

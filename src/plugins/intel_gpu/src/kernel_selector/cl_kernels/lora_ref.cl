@@ -22,7 +22,7 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
 
     for (uint ki = 0; ki < K; ++ki) {
         uint lora_input_idx = bf * K + ki;
-        uint state_a_idx = local_id * K + ki;
+        uint state_a_idx = ki * LORA_RANK + local_id;
 
         acc = mad(TO_ACCUMULATOR_TYPE(lora_input[lora_input_idx]),
                   TO_ACCUMULATOR_TYPE(state_a[state_a_idx]),
@@ -44,7 +44,7 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
     }
 
     for (uint ki = 0; ki < LORA_RANK; ++ki) {
-        uint state_b_idx = new_yx * LORA_RANK + ki;
+        uint state_b_idx = ki * INPUT0_SIZE_Y * INPUT0_SIZE_X + new_yx;
 
         final_acc = mad(tmp_buf[ki], TO_ACCUMULATOR_TYPE(state_b[state_b_idx]), final_acc);
     }

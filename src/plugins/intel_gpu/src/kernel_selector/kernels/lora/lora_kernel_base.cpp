@@ -23,8 +23,7 @@ JitConstants LoRAKernelBase::GetJitConstants(const lora_params& params) const {
     DimensionAccessHelperJit dims(params.inputs[3]);
     jit.AddConstant(MakeJitConstant("LORA_RANK", dims.f()));
 
-    size_t lora_count = (params.inputs.size() - 2ul) / 3ul;
-    jit.AddConstant(MakeJitConstant("LORA_COUNT", lora_count));
+    jit.AddConstant(MakeJitConstant("LORA_COUNT", params.lora_count));
 
     return jit;
 }
