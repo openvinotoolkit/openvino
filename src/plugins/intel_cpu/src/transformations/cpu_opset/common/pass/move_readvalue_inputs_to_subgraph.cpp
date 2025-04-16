@@ -32,8 +32,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        if (readvalue->get_rt_info().count("DisableInitSubgraphFusing") &&
-            readvalue->get_rt_info()["DisableInitSubgraphFusing"].as<bool>()) {
+        if (auto it = readvalue->get_rt_info().find("DisableInitSubgraphFusing");
+            it != readvalue->get_rt_info().end() && it->second.as<bool>()) {
             return false;
         }
 
