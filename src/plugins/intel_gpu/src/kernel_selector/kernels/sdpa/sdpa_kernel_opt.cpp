@@ -301,6 +301,10 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
     const auto& prim_params = static_cast<const sdpa_params&>(params);
 
     if (prim_params.conf.is_paged_attention || unaligned_head_size(prim_params)) {
+        // TODO: Unaligned head size is currently supported by only multi tokens kernel.
+        // So far this case was observed only from the non-lm models such as vision embedding model.
+        // If we need to optimize unaligned head size SDPA for 2nd+ token phase of LM model,
+        // we'll need to fix single_token kernel to support unaligned head size.
         kernels_type = { KernelsTypes::MULTI_TOKENS };
     } else if (params.is_shape_agnostic) {
         kernels_type = { KernelsTypes::SINGLE_TOKEN, KernelsTypes::MULTI_TOKENS, KernelsTypes::FINALIZATION };
