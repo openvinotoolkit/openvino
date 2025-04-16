@@ -76,11 +76,12 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
                 layout = cldnn::layout(new_shape, out_dtype, constFormat);
             }
         }
-        auto mem = p.get_engine().allocate_memory(layout, false);
+        auto mem = p.get_engine().allocate_memory(layout, cldnn::allocation_type::usm_device, false);
         auto& stream = p.get_engine().get_service_stream();
-        cldnn::mem_lock<uint8_t> lock{mem, stream};
-        auto buf = lock.data();
-        std::memcpy(&buf[0], &data[0], layout.bytes_count());
+        // cldnn::mem_lock<uint8_t> lock{mem, stream};
+        // auto buf = lock.data();
+        // std::memcpy(&buf[0], &data[0], layout.bytes_count());
+        mem->copy_from(stream, data, 0, 0, layout.bytes_count(), true);
         return mem;
     };
     OPENVINO_ASSERT(op->get_config().expert_num == bodys.size());
