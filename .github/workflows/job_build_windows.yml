@@ -400,7 +400,7 @@ jobs:
             ${{ env.BUILD_DIR }}/openvino_tests.zip
             ${{ env.MANIFEST_PATH }}
             ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_js_package.zip', env.BUILD_DIR) || '' }}
-            ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/{1}', env.BUILD_DIR, ${{ steps.openvino_node_npm_package.outputs.archive_name }}) || '' }}
+            ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/{1}', env.BUILD_DIR, steps.openvino_node_npm_package.outputs.archive_name) || '' }}
             ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
