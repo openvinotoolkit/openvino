@@ -65,9 +65,12 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     const auto& input = p.input;
     const auto& output = p.output;
 
-    if (input.LogicalSize() != input.OFM().v * input.IFM().v ||
-        output.LogicalSize() != output.OFM().v * output.IFM().v) {
-        return false;
+    if (input.GetLayout() != WeightsLayout::oiyx
+            || output.GetLayout() != WeightsLayout::oiyx
+            || !output.HasPadding()) {
+        OPENVINO_ASSERT((input.LogicalSize() == input.OFM().v * input.IFM().v
+                        && output.LogicalSize() == output.OFM().v * output.IFM().v),
+                        "Reorder weight i4 only supports 2D input/output, except when adding padding for the same shape(WeightsLayout::oiyx).");
     }
 
     bool supported_case = input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
