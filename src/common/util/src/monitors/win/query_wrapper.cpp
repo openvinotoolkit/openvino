@@ -32,97 +32,82 @@ QueryWrapper::~QueryWrapper() {
     }
 }
 
-PDH_STATUS QueryWrapper::pdhExpandWildCardPathW(LPCWSTR szDataSource,
-                                                LPCWSTR szWildCardPath,
-                                                PZZWSTR mszExpandedPathList,
-                                                LPDWORD pcchPathListLength,
-                                                DWORD dwFlags) {
+bool QueryWrapper::pdhExpandWildCardPathW(LPCWSTR szDataSource,
+                                          LPCWSTR szWildCardPath,
+                                          PZZWSTR mszExpandedPathList,
+                                          LPDWORD pcchPathListLength,
+                                          DWORD dwFlags) {
     if (!hPdh) {
-        return ERROR;
+        return false;
     }
-    try {
-        using PdhExpandWildCardPathW_fn = PDH_STATUS (*)(LPCWSTR, LPCWSTR, PZZWSTR, LPDWORD, DWORD);
-        auto pPdhExpandWildCardPathW =
-            reinterpret_cast<PdhExpandWildCardPathW_fn>(GetProcAddress(hPdh, "PdhExpandWildCardPathW"));
-        if (pPdhExpandWildCardPathW) {
-            return pPdhExpandWildCardPathW(szDataSource,
-                                           szWildCardPath,
-                                           mszExpandedPathList,
-                                           pcchPathListLength,
-                                           dwFlags);
-            // return status == ERROR_SUCCESS || status == PDH_MORE_DATA;
-        }
-    } catch (...) {
-        return ERROR;
+    using PdhExpandWildCardPathW_fn = PDH_STATUS (*)(LPCWSTR, LPCWSTR, PZZWSTR, LPDWORD, DWORD);
+    auto pPdhExpandWildCardPathW =
+        reinterpret_cast<PdhExpandWildCardPathW_fn>(GetProcAddress(hPdh, "PdhExpandWildCardPathW"));
+    if (pPdhExpandWildCardPathW) {
+        auto status =
+            pPdhExpandWildCardPathW(szDataSource, szWildCardPath, mszExpandedPathList, pcchPathListLength, dwFlags);
+        if (status != ERROR_SUCCESS && status != PDH_MORE_DATA)
+            throw std::runtime_error("PPdhExpandWildCardPathW() failed. Error status: " + std::to_string(status));
+        return true;
     }
-    return ERROR;
+    return false;
 }
 
-PDH_STATUS QueryWrapper::pdhAddCounterW(LPCWSTR szFullCounterPath, DWORD_PTR dwUserData, PDH_HCOUNTER* phCounter) {
+bool QueryWrapper::pdhAddCounterW(LPCWSTR szFullCounterPath, DWORD_PTR dwUserData, PDH_HCOUNTER* phCounter) {
     if (!hPdh) {
-        return ERROR;
+        return false;
     }
-    try {
-        using PdhAddCounterW_fn = PDH_STATUS (*)(PDH_HQUERY, LPCWSTR, DWORD_PTR, PDH_HCOUNTER*);
-        auto pPdhAddCounterW = reinterpret_cast<PdhAddCounterW_fn>(GetProcAddress(hPdh, "PdhAddCounterW"));
-        if (pPdhAddCounterW) {
-            return pPdhAddCounterW(query, szFullCounterPath, dwUserData, phCounter);
-        }
-    } catch (...) {
-        return ERROR;
+    using PdhAddCounterW_fn = PDH_STATUS (*)(PDH_HQUERY, LPCWSTR, DWORD_PTR, PDH_HCOUNTER*);
+    auto pPdhAddCounterW = reinterpret_cast<PdhAddCounterW_fn>(GetProcAddress(hPdh, "PdhAddCounterW"));
+    if (pPdhAddCounterW) {
+        auto status = pPdhAddCounterW(query, szFullCounterPath, dwUserData, phCounter);
+        if (status != ERROR_SUCCESS)
+            throw std::runtime_error("pPdhAddCounterW() failed. Error status: " + std::to_string(status));
+        return true;
     }
-    return ERROR;
+    return false;
 }
 PDH_STATUS QueryWrapper::pdhGetFormattedCounterValue(PDH_HCOUNTER hCounter,
                                                      DWORD dwFormat,
                                                      LPDWORD lpdwType,
                                                      PPDH_FMT_COUNTERVALUE pValue) {
     if (!hPdh) {
-        return ERROR;
+        return ERROR_INVALID_HANDLE;
     }
-    try {
-        using PdhGetFormattedCounterValue_fn = PDH_STATUS (*)(PDH_HCOUNTER, DWORD, LPDWORD, PPDH_FMT_COUNTERVALUE);
-        auto pPdhGetFormattedCounterValue =
-            reinterpret_cast<PdhGetFormattedCounterValue_fn>(GetProcAddress(hPdh, "PdhGetFormattedCounterValue"));
-        if (pPdhGetFormattedCounterValue) {
-            return pPdhGetFormattedCounterValue(hCounter, dwFormat, lpdwType, pValue);
-        }
-    } catch (...) {
-        return ERROR;
+    using PdhGetFormattedCounterValue_fn = PDH_STATUS (*)(PDH_HCOUNTER, DWORD, LPDWORD, PPDH_FMT_COUNTERVALUE);
+    auto pPdhGetFormattedCounterValue =
+        reinterpret_cast<PdhGetFormattedCounterValue_fn>(GetProcAddress(hPdh, "PdhGetFormattedCounterValue"));
+    if (pPdhGetFormattedCounterValue) {
+        return pPdhGetFormattedCounterValue(hCounter, dwFormat, lpdwType, pValue);
     }
-    return ERROR;
+    return ERROR_INVALID_FUNCTION;
 }
-
-PDH_STATUS QueryWrapper::pdhCollectQueryData() {
+bool QueryWrapper::pdhCollectQueryData() {
     if (!hPdh) {
-        return ERROR;
+        return false;
     }
-    try {
-        using PdhCollectQueryData_fn = PDH_STATUS (*)(PDH_HQUERY);
-        auto pPdhCollectQueryData =
-            reinterpret_cast<PdhCollectQueryData_fn>(GetProcAddress(hPdh, "PdhCollectQueryData"));
-        if (pPdhCollectQueryData) {
-            return pPdhCollectQueryData(query);
-        }
-    } catch (...) {
-        return ERROR;
+    using PdhCollectQueryData_fn = PDH_STATUS (*)(PDH_HQUERY);
+    auto pPdhCollectQueryData = reinterpret_cast<PdhCollectQueryData_fn>(GetProcAddress(hPdh, "PdhCollectQueryData"));
+    if (pPdhCollectQueryData) {
+        auto status = pPdhCollectQueryData(query);
+        if (status != ERROR_SUCCESS)
+            throw std::runtime_error("PdhCollectQueryData() failed. Error status: " + std::to_string(status));
+        return true;
     }
-    return ERROR;
+    return false;
 }
-
-PDH_STATUS QueryWrapper::pdhSetCounterScaleFactor(PDH_HCOUNTER hCounter, LONG dwScaleFactor) {
+bool QueryWrapper::pdhSetCounterScaleFactor(PDH_HCOUNTER hCounter, LONG dwScaleFactor) {
     if (!hPdh) {
-        return ERROR;
+        return false;
     }
-    try {
-        using PdhSetCounterScaleFactor_fn = PDH_STATUS (*)(PDH_HCOUNTER, LONG);
-        auto pPdhSetCounterScaleFactor =
-            reinterpret_cast<PdhSetCounterScaleFactor_fn>(GetProcAddress(hPdh, "PdhSetCounterScaleFactor"));
-        if (pPdhSetCounterScaleFactor) {
-            return pPdhSetCounterScaleFactor(hCounter, dwScaleFactor);
-        }
-    } catch (...) {
-        return ERROR;
+    using PdhSetCounterScaleFactor_fn = PDH_STATUS (*)(PDH_HCOUNTER, LONG);
+    auto pPdhSetCounterScaleFactor =
+        reinterpret_cast<PdhSetCounterScaleFactor_fn>(GetProcAddress(hPdh, "PdhSetCounterScaleFactor"));
+    if (pPdhSetCounterScaleFactor) {
+        auto status = pPdhSetCounterScaleFactor(hCounter, dwScaleFactor);
+        if (status != ERROR_SUCCESS)
+            throw std::runtime_error("PdhSetCounterScaleFactor() failed. Error status: " + std::to_string(status));
+        return true;
     }
-    return ERROR;
+    return false;
 }

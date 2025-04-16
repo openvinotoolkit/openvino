@@ -32,32 +32,17 @@ public:
         if (n_cores == 0) {
             coreTimeCounters.resize(1);
             std::wstring fullCounterPath{L"\\Processor(_Total)\\% Processor Time"};
-            auto ret = query.pdhAddCounterW(fullCounterPath.c_str(), 0, &coreTimeCounters[0]);
-            if (!ret) {
-                throw std::runtime_error("PdhAddCounterW() failed. Error status: " + std::to_string(ret));
-            }
-            ret = query.pdhSetCounterScaleFactor(coreTimeCounters[0], -2);  // scale counter to [0, 1]
-            if (ret != ERROR_SUCCESS) {
-                throw std::runtime_error("PdhSetCounterScaleFactor() failed. Error status: " + std::to_string(ret));
-            }
+            query.pdhAddCounterW(fullCounterPath.c_str(), 0, &coreTimeCounters[0]);
+            query.pdhSetCounterScaleFactor(coreTimeCounters[0], -2);  // scale counter to [0, 1]
         } else {
             coreTimeCounters.resize(n_cores);
             for (std::size_t i = 0; i < n_cores; ++i) {
                 std::wstring fullCounterPath{L"\\Processor(" + std::to_wstring(i) + L")\\% Processor Time"};
-                auto ret = query.pdhAddCounterW(fullCounterPath.c_str(), 0, &coreTimeCounters[i]);
-                if (ret != ERROR_SUCCESS) {
-                    throw std::runtime_error("PdhAddCounterW() failed. Error status: " + std::to_string(ret));
-                }
-                ret = query.pdhSetCounterScaleFactor(coreTimeCounters[i], -2);  // scale counter to [0, 1]
-                if (ret != ERROR_SUCCESS) {
-                    throw std::runtime_error("PdhSetCounterScaleFactor() failed. Error status: " + std::to_string(ret));
-                }
+                query.pdhAddCounterW(fullCounterPath.c_str(), 0, &coreTimeCounters[i]);
+                query.pdhSetCounterScaleFactor(coreTimeCounters[i], -2);  // scale counter to [0, 1]
             }
         }
-        auto ret = query.pdhCollectQueryData();
-        if (ret != ERROR_SUCCESS) {
-            throw std::runtime_error("PdhCollectQueryData() failed. Error status: " + std::to_string(ret));
-        }
+        query.pdhCollectQueryData();
     }
 
     std::map<std::string, double> get_utilization() {
@@ -71,31 +56,30 @@ public:
         }
         lastTimeStamp = std::chrono::system_clock::now();
         auto ret = query.pdhCollectQueryData();
-        if (ret != ERROR_SUCCESS) {
+        if (!ret) {
             return {};
         }
         PDH_FMT_COUNTERVALUE displayValue;
         std::vector<double> cpuLoad(coreTimeCounters.size());
         for (std::size_t i = 0; i < coreTimeCounters.size(); ++i) {
             auto ret = query.pdhGetFormattedCounterValue(coreTimeCounters[i], PDH_FMT_DOUBLE, NULL, &displayValue);
-            if (ret != ERROR_SUCCESS) {
-                return {};
-                if (PDH_CSTATUS_VALID_DATA != displayValue.CStatus && PDH_CSTATUS_NEW_DATA != displayValue.CStatus) {
-                    throw std::runtime_error("PdhGetFormattedCounterValue() failed. Error status: " + std::to_string(ret));
-                }
+            if (ret != ERROR_SUCCESS)
+                throw std::runtime_error("PdhGetFormattedCounterValue() failed. Error status: " + std::to_string(ret));
+            if (PDH_CSTATUS_VALID_DATA != displayValue.CStatus && PDH_CSTATUS_NEW_DATA != displayValue.CStatus) {
+                throw std::runtime_error("Error in counter data");
+            }
 
-                cpuLoad[i] = displayValue.doubleValue * 100.0;
-            }
-            std::map<std::string, double> cpusUtilization;
-            if (cpuLoad.size() == 1) {
-                cpusUtilization["Total"] = cpuLoad.at(0);
-                return cpusUtilization;
-            }
-            for (int index = 0; index < cpuLoad.size(); index++) {
-                cpusUtilization[std::to_string(index)] = cpuLoad.at(index);
-            }
+            cpuLoad[i] = displayValue.doubleValue * 100.0;
+        }
+        std::map<std::string, double> cpusUtilization;
+        if (cpuLoad.size() == 1) {
+            cpusUtilization["Total"] = cpuLoad.at(0);
             return cpusUtilization;
         }
+        for (int index = 0; index < cpuLoad.size(); index++) {
+            cpusUtilization[std::to_string(index)] = cpuLoad.at(index);
+        }
+        return cpusUtilization;
     }
 
     int getNumberOfCores() {
@@ -122,7 +106,7 @@ namespace util {
 namespace monitor {
 class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
-    PerformanceCounterImpl(const std::string& deviceLuid) {}
+    PerformanceCounterImpl() {}
 
     std::map<std::string, double> get_utilization() {
         // TODO: Implement.
