@@ -23,18 +23,16 @@ selection of public neural networks and Intel® devices. The results may help yo
 hardware to use in your applications or plan AI workload for the hardware you have already
 implemented in your solutions. Click the buttons below to see the chosen benchmark data.
 
+.. warning::
+
+   Currently, benchmark data for the OpenVINO inference engine is only available on the
+   `Model Hub page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/model-hub.html>`__.
+   Hopefully, it will be possible to bring it back soon.
+
+
+
 .. grid:: 1 1 2 2
    :gutter: 4
-
-   .. grid-item::
-
-      .. button-link:: #
-         :class: ov-toolkit-benchmark-results
-         :color: primary
-         :outline:
-         :expand:
-
-         :material-regular:`bar_chart;1.4em` OpenVINO Benchmark Graphs (general)
 
    .. grid-item::
 
@@ -66,7 +64,15 @@ implemented in your solutions. Click the buttons below to see the chosen benchma
 
          :material-regular:`bar_chart;1.4em` OVMS for GenAI
 
+   .. grid-item::
 
+      .. button-link:: #
+         :class: ov-toolkit-benchmark-results
+         :color: primary
+         :outline:
+         :expand:
+
+         :material-regular:`bar_chart;1.4em` OpenVINO Benchmark Graphs (general)
 
 
 
@@ -153,11 +159,10 @@ For a listing of all platforms and configurations used for testing, refer to the
 
 **Disclaimers**
 
-* Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2025.0, as of February 13, 2025.
+* System configurations used for Intel® Distribution of OpenVINO™ toolkit performance results
+  are based on release 2025.1, as of April 9th, 2025.
 
-* OpenVINO Model Server performance results are based on release
-  2025.0, as of February 13, 2025.
+* OpenVINO Model Server performance results are based on release 2025.0, as of February 13, 2025.
 
 The results may not reflect all publicly available updates. Intel technologies' features and
 benefits depend on system configuration and may require enabled hardware, software, or service

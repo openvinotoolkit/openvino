@@ -8,7 +8,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <fstream>
-#include <mutex>
 #include <thread>
 
 #include "common_test_utils/common_utils.hpp"
@@ -107,10 +106,11 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
 TEST_F(CoreThreadingTests, RegisterPlugins) {
     ov::Core core;
     std::atomic<unsigned int> index{0};
+    auto file_prefix = ov::test::utils::generateTestFilePrefix();
 
     auto getPluginXml = [&]() -> std::tuple<std::string, std::string> {
         std::string indexStr = std::to_string(index++);
-        std::string pluginsXML = "test_plugins" + indexStr + ".xml";
+        std::string pluginsXML = file_prefix + indexStr + ".xml";
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";
@@ -169,61 +169,16 @@ TEST_F(CoreThreadingTests, GetAvailableDevices) {
 }
 
 #if defined(ENABLE_OV_IR_FRONTEND)
-
-namespace ov {
-namespace test {
-namespace util {
-class Barrier {
-private:
-    std::mutex m_mutex;
-    std::condition_variable m_cv;
-    size_t m_count;
-    const size_t m_expected;
-    size_t m_wait_id;
-
-public:
-    explicit Barrier(std::size_t count) : m_count{count}, m_expected{count}, m_wait_id{} {}
-
-    void arrive_and_wait() {
-        std::unique_lock<std::mutex> lock(m_mutex);
-
-        if (--m_count == 0) {
-            ++m_wait_id;
-            m_count = m_expected;
-            m_cv.notify_all();
-        } else {
-            const auto wait_id = m_wait_id;
-            m_cv.wait(lock, [this, wait_id] {
-                return wait_id != m_wait_id;
-            });
-        }
-    }
-};
-}  // namespace util
-}  // namespace test
-}  // namespace ov
-
 // tested function: read_model and add_extension
 TEST_F(CoreThreadingTests, ReadModel) {
     ov::Core core;
     auto model = core.read_model(modelName, weightsName);
-
     constexpr size_t threads_num = 12;
-    ov::test::util::Barrier sync_point(threads_num);
 
     runParallel(
         [&]() {
             safeAddExtension(core);
-            // Add the extension and read model are thread-safe when use separately.
-            // The barrier is required here to wait until all threads add extensions to core before read model.
-            // The read_model loads Frontend which check extension vector and assume it want change. If extension vector
-            // is expanded then all iterators are invalidated and can result in segfault when frontend check extensions
-            // to be added in frontend.
-            sync_point.arrive_and_wait();
             std::ignore = core.read_model(modelName, weightsName);
-
-            // sync before next iteration (modification of extensions vector)
-            sync_point.arrive_and_wait();
         },
         100,
         threads_num);

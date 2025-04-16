@@ -1,6 +1,6 @@
 # type: ignore
-from functools import wraps
 from __future__ import annotations
+from functools import wraps
 from inspect import signature
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Output
