@@ -3610,36 +3610,15 @@ TEST(reorder_gpu_fp32, test_needs_completion_events) {
     }
 }
 
-inline void unpack8to4(uint8_t v, uint8_t &v0, uint8_t &v1) {
-    v0 = v & 0x0F;
-    v1 = (v & 0xF0) >> 4;
-}
-
-inline std::vector<uint8_t> convert_to_int8_vector(std::vector<uint8_t> int4_packed) {
-    std::vector<uint8_t> result_vec;
-    for (uint8_t val : int4_packed) {
-        uint8_t v0;
-        uint8_t v1;
-
-        unpack8to4(val, v0, v1);
-        result_vec.push_back(v0);
-        result_vec.push_back(v1);
-    }
-    return result_vec;
-}
-
-TEST(reorder_gpu_i4, reorder_for_padding_2d)
-{
+static void run_reorder_weight_int4(const ov::Shape in_shape, const std::vector<int32_t> upper_size) {
     auto& engine = get_test_engine();
 
-    long int ifm_num = 7;
-    long int ofm_num = 4;
-
-    layout in_layout({{ofm_num, ifm_num}, data_types::i4, format::bfyx});
+    layout in_layout({in_shape, data_types::i4, format::bfyx});
     auto input = engine.allocate_memory(in_layout);
 
-    size_t input_data_size = ifm_num * ofm_num / 2;
     std::vector<uint8_t> input_data  = {
+        0x21, 0x43, 0x65, 0x87, 0xa9, 0xcb, 0xed,
+        0x1f, 0x25, 0x83, 0x2a, 0x7d, 0x9f, 0xe8,
         0x21, 0x43, 0x65, 0x87, 0xa9, 0xcb, 0xed,
         0x1f, 0x25, 0x83, 0x2a, 0x7d, 0x9f, 0xe8
     };
@@ -3648,8 +3627,7 @@ TEST(reorder_gpu_i4, reorder_for_padding_2d)
 
     layout reorder_in_layout = in_layout.convert_to_weights_layout(false);
     layout reorder_out_layout = reorder_in_layout;
-    reorder_out_layout.data_padding = padding::max(reorder_out_layout.data_padding,
-                                padding({0}, {0,1}));
+    reorder_out_layout.data_padding = padding::max(reorder_out_layout.data_padding, padding({0}, upper_size));
     auto weights_reorder_params = std::make_shared<WeightsReorderParams>(reorder_in_layout, reorder_out_layout, false, false);
     layout out_layout(reorder_out_layout.get_partial_shape(), reorder_out_layout.data_type, format::bfyx, reorder_out_layout.data_padding);
 
@@ -3665,18 +3643,37 @@ TEST(reorder_gpu_i4, reorder_for_padding_2d)
     ASSERT_EQ(outputs.begin()->first, "reorder");
 
     auto output = outputs.begin()->second.get_memory();
-    ASSERT_EQ(output->get_layout().bytes_count(), (ofm_num * (ifm_num + 1) / 2));
 
-    uint8_t answers[16] = {
+    std::vector<uint8_t> expected_data  = {
+        0x21, 0x43, 0x65, 0x07,
+        0x98, 0xba, 0xdc, 0x0e,
+        0x1f, 0x25, 0x83, 0x0a,
+        0xd2, 0xf7, 0x89, 0x0e,
         0x21, 0x43, 0x65, 0x07,
         0x98, 0xba, 0xdc, 0x0e,
         0x1f, 0x25, 0x83, 0x0a,
         0xd2, 0xf7, 0x89, 0x0e
     };
 
-    uint8_t* a_ptr = answers;
     cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
 
-    for (auto& val : output_ptr)
-        ASSERT_EQ(*(a_ptr++), val);
+    ASSERT_EQ(expected_data.size(), output_ptr.size());
+    for (size_t idx = 0; idx < output_ptr.size(); idx++)
+        ASSERT_EQ(expected_data[idx], output_ptr[idx]);
+}
+
+
+TEST(reorder_gpu_i4, reorder_for_padding_2d)
+{
+    run_reorder_weight_int4({8, 7}, {0, 1});
+}
+
+TEST(reorder_gpu_i4, reorder_for_padding_3d)
+{
+    run_reorder_weight_int4({4, 2, 7}, {0, 0, 1});
+}
+
+TEST(reorder_gpu_i4, reorder_for_padding_4d)
+{
+    run_reorder_weight_int4({2, 2, 2, 7}, {0, 0, 0, 1});
 }
