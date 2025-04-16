@@ -96,17 +96,18 @@ public:
             }
             return cpusUtilization;
         }
+    }
 
-        int getNumberOfCores() {
-            return 0;
-        }
+    int getNumberOfCores() {
+        return 0;
+    }
 
-    private:
-        QueryWrapper query;
-        std::vector<PDH_HCOUNTER> coreTimeCounters;
-        std::chrono::time_point<std::chrono::system_clock> lastTimeStamp = std::chrono::system_clock::now();
-        int monitor_duration = 500;
-    };
+private:
+    QueryWrapper query;
+    std::vector<PDH_HCOUNTER> coreTimeCounters;
+    std::chrono::time_point<std::chrono::system_clock> lastTimeStamp = std::chrono::system_clock::now();
+    int monitor_duration = 500;
+};
 
 #elif defined(__linux__)
 #    include <unistd.h>
@@ -141,21 +142,21 @@ public:
     }
 };
 #endif
-    CpuPerformanceCounter::CpuPerformanceCounter(int numCores)
-        : PerformanceCounter("CPU"),
-          n_cores(numCores >= 0 ? numCores : 0) {}
-    std::map<std::string, double> CpuPerformanceCounter::get_utilization() {
-        if (!performance_counter)
-            performance_counter = std::make_shared<PerformanceCounterImpl>();
-        if (n_cores == 0)
-            return performance_counter->get_utilization();
-        std::map<std::string, double> ret;
-        ret["Total"] = 0.0;
-        for (int i = 0; i < n_cores; i++) {
-            ret[std::to_string(i)] = 0.0;
-        }
-        return ret;
+CpuPerformanceCounter::CpuPerformanceCounter(int numCores)
+    : PerformanceCounter("CPU"),
+      n_cores(numCores >= 0 ? numCores : 0) {}
+std::map<std::string, double> CpuPerformanceCounter::get_utilization() {
+    if (!performance_counter)
+        performance_counter = std::make_shared<PerformanceCounterImpl>();
+    if (n_cores == 0)
+        return performance_counter->get_utilization();
+    std::map<std::string, double> ret;
+    ret["Total"] = 0.0;
+    for (int i = 0; i < n_cores; i++) {
+        ret[std::to_string(i)] = 0.0;
     }
+    return ret;
+}
 }
 }
 }

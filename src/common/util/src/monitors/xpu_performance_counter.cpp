@@ -126,7 +126,7 @@ public:
         lastTimeStamp = std::chrono::system_clock::now();
         auto ret = query.pdhCollectQueryData();
         if (ret != ERROR_SUCCESS)
-            return {}
+            return {};
         PDH_FMT_COUNTERVALUE displayValue;
         std::map<std::string, double> utilizationMap;
         for (auto item : coreTimeCounters) {
