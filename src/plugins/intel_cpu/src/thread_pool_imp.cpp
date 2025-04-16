@@ -7,7 +7,7 @@
 namespace ov::intel_cpu {
 
 dnnl::threadpool_interop::threadpool_iface* get_thread_pool() {
-    if (TBB_OPTION == 1) {
+    if (get_tbb_partitioner() == TBB_STATIC) {
         static threadpool_tbb_static thread_pool(parallel_get_max_threads());
         return &thread_pool;
     } else {
