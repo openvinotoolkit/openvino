@@ -310,16 +310,6 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     } else if (target_fmt == dnnl::memory::format_tag::ba) {
         dims.push_back(l.feature());
         dims.push_back(l.get_tensor().count() / l.feature());
-        // if weights_layout has data_padding, add strides to memory desc
-        auto padded_dims = l.get_padded_dims();
-        if (l.data_padding
-            && l.get_partial_shape().size() == 2
-            && l.get_shape().front() == static_cast<uint64_t>(padded_dims[0])) {
-                dnnl::memory::dims strides({1, padded_dims[1]});
-                dnnl::memory::data_type dt = convert_data_type(l.data_type);
-                dnnl::memory::desc res(dims, dt, strides);
-                return res;
-            }
     } else if (flatten) {
         dims = flatten_tensor(l.get_tensor());
     } else {
@@ -328,10 +318,31 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     }
 
     dnnl::memory::data_type dt = convert_data_type(l.data_type);
-    dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
-    dnnl::memory::desc res(dims, dt, fmt);
-
-    return res;
+    // if weights_layout has data_padding, add strides to memory desc
+    if (l.data_padding) {
+        dnnl::memory::dims strides;
+        OPENVINO_ASSERT(flatten == false, "The padded layout cannot be flattened.");
+        auto padded_dims = l.get_padded_dims();
+        if (target_fmt == dnnl::memory::format_tag::ab) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+        } else if (target_fmt == dnnl::memory::format_tag::ba) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[1]);
+        } else if (target_fmt == dnnl::memory::format_tag::abc) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+        } else {
+            OPENVINO_ASSERT(false, "Not support other cases for padded layout yet.");
+        }
+        dnnl::memory::desc res(dims, dt, strides);
+        return res;
+    } else {
+        dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
+        dnnl::memory::desc res(dims, dt, fmt);
+        return res;
+    }
 }
 static void get_identical_order(std::vector<std::vector<size_t>>& orders, std::vector<size_t> order,
                             size_t first, size_t depth) {

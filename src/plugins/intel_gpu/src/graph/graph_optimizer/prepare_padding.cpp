@@ -17,9 +17,10 @@ using namespace ov::intel_gpu;
 
 void prepare_padding::run(program& p) {
     if (p.get_config().get_use_onednn()) {
-        for (const auto& node: p.get_processing_order()) {
+        for (const auto& node : p.get_processing_order()) {
             if (!node->is_type<fully_connected>())
                 continue;
+
             if (node->get_preferred_impl_type() != impl_types::onednn)
                 continue;
 
