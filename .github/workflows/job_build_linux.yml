@@ -51,6 +51,11 @@ on:
         type: boolean
         required: false
         default: false
+      tbb-path:
+        description: 'JSON to TBB package path'
+        type: string
+        required: false
+        default: '{"url": null, "local": null, "name": null}'
 
 permissions: read-all
 
@@ -167,6 +172,13 @@ jobs:
 
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
+
+      - name: Download and extract tbb package
+        if: fromJSON(inputs.tbb-path).url
+        run: |
+          mkdir -p ${{ fromJson(inputs.tbb-path).local }}
+          wget -P ${{ fromJson(inputs.tbb-path).local }} ${{ fromJSON(inputs.tbb-path).url }}
+          tar -xzf ${{ fromJson(inputs.tbb-path).local }}/${{ fromJson(inputs.tbb-path).name }} -C ${{ fromJson(inputs.tbb-path).local }}
 
       #
       # Build
