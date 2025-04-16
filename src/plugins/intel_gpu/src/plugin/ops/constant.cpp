@@ -71,51 +71,6 @@ struct ConstProperties {
     bool needsBatchInterpretation;
 };
 
-
-// Function to pack two 4-bit integers into one 8-bit integer
-inline uint8_t pack4to8(uint8_t s0, uint8_t s1) {
-    return (s1 << 4) | (s0 & 0x0F);
-}
-
-// Function to unpack an 8-bit integer into two 4-bit integers
-inline void unpack8to4(uint8_t v, uint8_t &v0, uint8_t &v1) {
-    v0 = v & 0x0F;
-    v1 = (v & 0xF0) >> 4;
-}
-
-// Function to convert a non-padded vector to a padded vector
-static void copy_to_padded_4bit_vector(const std::vector<int> &non_padded_dims, const uint8_t* non_padded_vec,
-                                        const std::vector<int> &padded_dims, uint8_t* padded_vec) {
-    size_t non_padded_row_size = non_padded_dims[1] / 2;
-    size_t padded_row_size = padded_dims[1] / 2;
-
-    // Even rows
-    for (int i = 0; i < non_padded_dims[0]; i += 2) {
-        std::memcpy(&padded_vec[i * padded_row_size], &non_padded_vec[(i * non_padded_dims[1]) / 2], non_padded_row_size);
-    }
-
-    // Odd rows
-    for (int i = 1; i < non_padded_dims[0]; i += 2) {
-        const size_t padded_begin = i * padded_row_size;
-        const size_t non_padded_begin = (i * non_padded_dims[1]) / 2;
-        size_t non_padded_end = non_padded_begin + non_padded_row_size;
-
-        uint8_t s0, s1, prev_s1 = 0;
-        unpack8to4(non_padded_vec[non_padded_begin], s0, s1);
-        padded_vec[padded_begin - 1] = pack4to8(s0, 0);
-        prev_s1 = s1;
-
-        for (size_t k = non_padded_begin + 1, index = 0; k <= non_padded_end; ++k, ++index) {
-            unpack8to4(non_padded_vec[k], s0, s1);
-            padded_vec[padded_begin + index] = pack4to8(prev_s1, s0);
-            prev_s1 = s1;
-        }
-        padded_vec[padded_begin + non_padded_row_size] = pack4to8(prev_s1, 0);
-    }
-}
-
-
-
 static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const std::shared_ptr<ov::op::v0::Constant>& op, const ConstProperties& props) {
     cldnn::tensor constTensor = getConstTensor(const_shape);
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
@@ -124,8 +79,6 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
         constTensor.feature[0] = 1;
     }
-
-    cldnn::padding padding_data = cldnn::padding();
 
     cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     cldnn::layout constLayout = p.use_new_shape_infer() ? cldnn::layout(const_shape, out_dtype, constFormat) :

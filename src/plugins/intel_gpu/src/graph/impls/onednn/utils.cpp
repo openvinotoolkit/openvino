@@ -314,7 +314,7 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
         auto padded_dims = l.get_padded_dims();
         if (l.data_padding
             && l.get_partial_shape().size() == 2
-            && l.get_shape().front() == padded_dims[0]) {
+            && l.get_shape().front() == static_cast<uint64_t>(padded_dims[0])) {
                 dnnl::memory::dims strides({1, padded_dims[1]});
                 dnnl::memory::data_type dt = convert_data_type(l.data_type);
                 dnnl::memory::desc res(dims, dt, strides);

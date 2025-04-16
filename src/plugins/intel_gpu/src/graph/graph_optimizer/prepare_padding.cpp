@@ -31,9 +31,8 @@ void prepare_padding::run(program& p) {
                     || input_node.get_output_layout(0).data_type == cldnn::data_types::i4)) {
                 const size_t alignment = 2;
                 auto input_layout = input_node.get_output_layout(0);
-                auto& const_shape = input_layout.get_partial_shape().to_shape();
+                const auto const_shape = input_layout.get_partial_shape().to_shape();
                 if (const_shape.back() % alignment != 0) {
-                    // GPU_DEBUG_COUT << node->id() << ", " << weight_node.id() << ", " << const_shape.to_string() << std::endl;
                     auto weight_in_layout  = input_layout.convert_to_weights_layout(false);
                     auto weight_out_layout = weight_in_layout;
                     std::vector<int32_t> new_paddings(const_shape.size(), 0);
