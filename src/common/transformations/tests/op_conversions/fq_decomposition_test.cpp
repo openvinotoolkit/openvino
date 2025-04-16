@@ -81,7 +81,7 @@ protected:
             const auto oh = std::make_shared<opset1::Constant>(ranges_prec, oh_shape);
 
             const auto fq = std::make_shared<opset1::FakeQuantize>(data, il, ih, ol, oh, levels);
-            f = std::make_shared<ov::Model>(NodeVector{fq}, ParameterVector{data});
+            f = std::make_shared<ov::Model>(OutputVector{fq}, ParameterVector{data});
 
             pass::Manager manager;
             manager.register_pass<ov::pass::InitNodeInfo>();
@@ -132,10 +132,10 @@ protected:
                     result = std::make_shared<opset1::Convert>(result, data_prec);
                 }
 
-                f_ref = std::make_shared<ov::Model>(NodeVector{result}, params);
+                f_ref = std::make_shared<ov::Model>(OutputVector{result}, params);
             } else {
                 const auto fq = std::make_shared<opset1::FakeQuantize>(data, il, ih, ol, oh, levels);
-                f_ref = std::make_shared<ov::Model>(NodeVector{fq}, params);
+                f_ref = std::make_shared<ov::Model>(OutputVector{fq}, params);
             }
         }
 

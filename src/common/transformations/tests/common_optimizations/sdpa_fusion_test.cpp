@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest1) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(qk, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv}, ParameterVector{query, key, value});
+        model = std::make_shared<ov::Model>(OutputVector{qkv}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
@@ -47,7 +47,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest1) {
                                                                                    mask_const,
                                                                                    scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -68,7 +68,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest2) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(qk, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv}, ParameterVector{query, key, value});
+        model = std::make_shared<ov::Model>(OutputVector{qkv}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
@@ -81,7 +81,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest2) {
                                                                                    mask_const,
                                                                                    scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -105,7 +105,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest3) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(qk, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv}, ParameterVector{query, key, value});
+        model = std::make_shared<ov::Model>(OutputVector{qkv}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
@@ -118,7 +118,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest3) {
                                                                                    mask_const,
                                                                                    scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -138,7 +138,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest4) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(qk, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv}, ParameterVector{query, key, value});
+        model = std::make_shared<ov::Model>(OutputVector{qkv}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
@@ -165,7 +165,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest5) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(mask_add, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv}, ParameterVector{query, key, value, mask});
+        model = std::make_shared<ov::Model>(OutputVector{qkv}, ParameterVector{query, key, value, mask});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
@@ -173,7 +173,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest5) {
         const auto scale_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{1.0f});
         const auto sdpa =
             std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value, mask});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -197,7 +197,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest6) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(mask_add, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv}, ParameterVector{query, key, value, mask});
+        model = std::make_shared<ov::Model>(OutputVector{qkv}, ParameterVector{query, key, value, mask});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
@@ -205,7 +205,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest6) {
         const auto scale_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{1.0f});
         const auto sdpa =
             std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value, mask});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -228,7 +228,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest7) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(qk, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv}, ParameterVector{query, key, value});
+        model = std::make_shared<ov::Model>(OutputVector{qkv}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 }

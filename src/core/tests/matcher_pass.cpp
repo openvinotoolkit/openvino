@@ -61,7 +61,7 @@ TEST(pattern, matcher_pass) {
         auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1});
         auto b = make_shared<op::v0::Relu>(a);
         auto c = make_shared<op::v0::Relu>(b);
-        auto f = std::make_shared<Model>(ov::NodeVector{c}, ParameterVector{a});
+        auto f = std::make_shared<Model>(ov::OutputVector{c}, ParameterVector{a});
 
         ASSERT_TRUE(test_matcher.get_matcher()->match(c->output(0)));
         ASSERT_TRUE(test_matcher.get_matcher()->get_matched_nodes().size() == 2);
@@ -79,7 +79,7 @@ TEST(pattern, matcher_pass) {
         auto a = make_shared<op::v0::Parameter>(element::f32, Shape{1});
         auto b = make_shared<op::v0::Relu>(a);
         auto c = make_shared<op::v0::Relu>(b);
-        auto f = std::make_shared<Model>(ov::NodeVector{b, c}, ParameterVector{a});
+        auto f = std::make_shared<Model>(ov::OutputVector{b, c}, ParameterVector{a});
 
         ASSERT_FALSE(test_matcher.get_matcher()->match(c->output(0)));
     }
@@ -91,7 +91,7 @@ TEST(pattern, matcher_pass) {
             auto b = make_shared<op::v0::Relu>(a);
             auto c = make_shared<op::v0::Relu>(b);
             auto d = make_shared<op::v0::Relu>(c);
-            f = std::make_shared<Model>(ov::NodeVector{d}, ParameterVector{a});
+            f = std::make_shared<Model>(ov::OutputVector{d}, ParameterVector{a});
         }
 
         pass::GraphRewrite pass;

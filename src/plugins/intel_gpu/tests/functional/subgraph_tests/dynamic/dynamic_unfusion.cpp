@@ -67,7 +67,7 @@ protected:
         matmul->set_friendly_name("MatMul");
         mul->set_friendly_name("Multiply");
 
-        return std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{input0, input1, input2}, "DynamicUnfusions");
+        return std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input0, input1, input2}, "DynamicUnfusions");
     }
 
     void SetUp() override {

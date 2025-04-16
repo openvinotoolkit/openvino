@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, StridesOptimization1) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model = std::make_shared<ov::Model>(NodeVector{conv_2}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{conv_2}, ParameterVector{data});
         manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
@@ -58,7 +58,7 @@ TEST_F(TransformationTestsF, StridesOptimization1) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv_2}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv_2}, ParameterVector{data});
     }
 }
 
@@ -81,7 +81,7 @@ TEST_F(TransformationTestsF, StridesOptimization2) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model = std::make_shared<ov::Model>(NodeVector{conv_2}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{conv_2}, ParameterVector{data});
         manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
@@ -101,7 +101,7 @@ TEST_F(TransformationTestsF, StridesOptimization2) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv_2}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv_2}, ParameterVector{data});
     }
 }
 
@@ -124,7 +124,7 @@ TEST_F(TransformationTestsF, StridesOptimization3) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model = std::make_shared<ov::Model>(NodeVector{conv_2}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{conv_2}, ParameterVector{data});
         manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
@@ -144,7 +144,7 @@ TEST_F(TransformationTestsF, StridesOptimization3) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv_2}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv_2}, ParameterVector{data});
     }
 }
 
@@ -178,7 +178,7 @@ TEST_F(TransformationTestsF, StridesOptimization4) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model = std::make_shared<ov::Model>(NodeVector{conv_3}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{conv_3}, ParameterVector{data});
         manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
@@ -208,7 +208,7 @@ TEST_F(TransformationTestsF, StridesOptimization4) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv_3}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv_3}, ParameterVector{data});
     }
 }
 
@@ -235,7 +235,7 @@ TEST_F(TransformationTestsF, StridesOptimization5) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model = std::make_shared<ov::Model>(NodeVector{conv_2}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{conv_2}, ParameterVector{data});
         manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
@@ -259,7 +259,7 @@ TEST_F(TransformationTestsF, StridesOptimization5) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv_2}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv_2}, ParameterVector{data});
     }
 }
 
@@ -298,7 +298,7 @@ TEST_F(TransformationTestsF, StridesOptimization6) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model = std::make_shared<ov::Model>(NodeVector{conv_4}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{conv_4}, ParameterVector{data});
         manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
@@ -332,7 +332,7 @@ TEST_F(TransformationTestsF, StridesOptimization6) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv_4}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv_4}, ParameterVector{data});
     }
 }
 
@@ -374,7 +374,7 @@ TEST_F(TransformationTestsF, StridesOptimization7) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model = std::make_shared<ov::Model>(NodeVector{conv_3, conv_4}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{conv_3, conv_4}, ParameterVector{data});
         manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
@@ -410,7 +410,7 @@ TEST_F(TransformationTestsF, StridesOptimization7) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv_3, conv_4}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv_3, conv_4}, ParameterVector{data});
     }
 }
 
@@ -451,7 +451,7 @@ TEST_F(TransformationTestsF, StridesOptimization8) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model = std::make_shared<ov::Model>(NodeVector{conv_3}, ParameterVector{data, data_2});
+        model = std::make_shared<ov::Model>(OutputVector{conv_3}, ParameterVector{data, data_2});
         manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
@@ -491,7 +491,7 @@ TEST_F(TransformationTestsF, StridesOptimization8) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv_3}, ParameterVector{data, data_2});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv_3}, ParameterVector{data, data_2});
     }
 }
 
@@ -542,7 +542,7 @@ TEST_F(TransformationTestsF, StridesOptimization9) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model = std::make_shared<ov::Model>(NodeVector{conv_3}, ParameterVector{data, data_2, data_3});
+        model = std::make_shared<ov::Model>(OutputVector{conv_3}, ParameterVector{data, data_2, data_3});
         manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
@@ -597,6 +597,6 @@ TEST_F(TransformationTestsF, StridesOptimization9) {
                                                                 CoordinateDiff{},
                                                                 Strides{});
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{conv_3}, ParameterVector{data, data_2, data_3});
+        model_ref = std::make_shared<ov::Model>(OutputVector{conv_3}, ParameterVector{data, data_2, data_3});
     }
 }

@@ -51,7 +51,7 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
                                               const std::vector<IODescriptor>& outputDescriptors) {
     ov::ParameterVector parameters;
-    ov::NodeVector results;
+    ov::ResultVector results;
 
     for (const IODescriptor& inputDescriptor : inputDescriptors) {
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
@@ -86,10 +86,9 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
                                                           : outputDescriptor.shapeFromCompiler,
             outputDescriptor.outputTensorNames);
 
-        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
+        auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-        results.push_back(std::move(result));
     }
 
     return std::make_shared<ov::Model>(results, parameters);

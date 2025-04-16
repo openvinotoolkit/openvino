@@ -16,7 +16,7 @@ TEST(SmartReshapeTests, MimickingSBS) {
         auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 3, 4});
         auto reshape =
             std::make_shared<opset5::Reshape>(input, opset5::Constant::create(element::i64, {2}, {6, -1}), true);
-        f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{input});
     }
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
@@ -30,7 +30,7 @@ TEST(SmartReshapeTests, MimickingSBS_1) {
         auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 3, 4});
         auto reshape =
             std::make_shared<opset5::Reshape>(input, opset5::Constant::create(element::i64, {2}, {1, -1}), true);
-        f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{input});
     }
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
@@ -44,7 +44,7 @@ TEST(SmartReshapeTests, MimickingSBS_2) {
         auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{2, 2, 3, 4});
         auto reshape =
             std::make_shared<opset5::Reshape>(input, opset5::Constant::create(element::i64, {2}, {12, -1}), true);
-        f = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{input});
     }
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();

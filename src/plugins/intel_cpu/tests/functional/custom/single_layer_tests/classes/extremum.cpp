@@ -73,7 +73,7 @@ void ExtremumLayerCPUTest::SetUp() {
     auto param2 = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[1]);
     auto extremum = utils::make_extremum(param1, param2, extremumType);
     extremum->get_rt_info() = getCPUInfo();
-    function = std::make_shared<ov::Model>(ov::NodeVector{extremum}, ov::ParameterVector{param1, param2}, "Extremum");
+    function = std::make_shared<ov::Model>(ov::OutputVector{extremum}, ov::ParameterVector{param1, param2}, "Extremum");
 }
 
 std::string ExtremumLayerCPUTest::getPrimitiveType() {

@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalar) {
         auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
         auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-        model = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
+        model = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
         manager.register_pass<ov::pass::ConvertU4WeightsZeroPointToScalar>();
     }
     {
@@ -40,7 +40,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalar) {
         auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
         auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-        model_ref = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
+        model_ref = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::ACCURACY);
     comparator.enable(FunctionsComparator::CONST_VALUES);
@@ -59,7 +59,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsU4ZeroPointToScalar) {
         auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point_convert);
         auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-        model = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
+        model = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
         manager.register_pass<ov::pass::ConvertU4WeightsZeroPointToScalar>();
     }
     {
@@ -71,7 +71,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsU4ZeroPointToScalar) {
         auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point_convert);
         auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-        model_ref = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
+        model_ref = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::ACCURACY);
     comparator.enable(FunctionsComparator::CONST_VALUES);
@@ -89,7 +89,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalarWeightsWithBi
         auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
         auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-        model = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
+        model = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
         manager.register_pass<ov::pass::ConvertU4WeightsZeroPointToScalar>();
     }
     {
@@ -100,7 +100,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalarWeightsWithBi
         auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
         auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-        model_ref = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
+        model_ref = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
     }
     comparator.enable(FunctionsComparator::ACCURACY);
     comparator.enable(FunctionsComparator::CONST_VALUES);
@@ -120,7 +120,7 @@ TEST_F(TransformationTestsF, FuseU4WeightsAndZeroPointNotScalarLikeZP) {
     auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point_convert);
     auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-    model = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
+    model = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
     manager.register_pass<ov::pass::ConvertU4WeightsZeroPointToScalar>();
 }
 
@@ -136,7 +136,7 @@ TEST_F(TransformationTestsF, FuseU4WeightsAndZeroPointNotU4Weights) {
     auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point_convert);
     auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-    model = std::make_shared<Model>(NodeVector{multiply}, ParameterVector{});
+    model = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
     manager.register_pass<ov::pass::ConvertU4WeightsZeroPointToScalar>();
 }
 
@@ -152,7 +152,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsFloatZeroPointToScalarAdditionalZPC
     auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
     auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-    model = std::make_shared<Model>(NodeVector{multiply, zero_point_consumer}, ParameterVector{});
+    model = std::make_shared<Model>(OutputVector{multiply, zero_point_consumer}, ParameterVector{});
     manager.register_pass<ov::pass::ConvertU4WeightsZeroPointToScalar>();
 }
 
@@ -169,7 +169,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsU4ZeroPointToScalarAdditionalZPCons
     auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point_convert);
     auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-    model = std::make_shared<Model>(NodeVector{multiply, zero_point_consumer}, ParameterVector{});
+    model = std::make_shared<Model>(OutputVector{multiply, zero_point_consumer}, ParameterVector{});
     manager.register_pass<ov::pass::ConvertU4WeightsZeroPointToScalar>();
 }
 
@@ -186,7 +186,7 @@ TEST_F(TransformationTestsF, ConvertU4WeightsU4ZeroPointToScalarAdditionalZPConv
     auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point_convert);
     auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-    model = std::make_shared<Model>(NodeVector{multiply, zero_point_convert_consumer}, ParameterVector{});
+    model = std::make_shared<Model>(OutputVector{multiply, zero_point_convert_consumer}, ParameterVector{});
     manager.register_pass<ov::pass::ConvertU4WeightsZeroPointToScalar>();
 }
 
@@ -203,6 +203,6 @@ TEST_F(TransformationTestsF, ConvertU4WeightsU4ZeroPointToScalarZPWithBiggerRank
     auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point_convert);
     auto scale = ov::op::v0::Constant::create(decompression_precision, decompression_shape, {3.f});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
-    model = std::make_shared<Model>(NodeVector{multiply, zero_point_convert_consumer}, ParameterVector{});
+    model = std::make_shared<Model>(OutputVector{multiply, zero_point_convert_consumer}, ParameterVector{});
     manager.register_pass<ov::pass::ConvertU4WeightsZeroPointToScalar>();
 }

@@ -62,7 +62,7 @@ void InferRequestIOPrecision::SetUp() {
                                                        {},
                                                        {clamp_min, clamp_max});
 
-    function = std::make_shared<ov::Model>(ov::NodeVector{activation}, params);
+    function = std::make_shared<ov::Model>(ov::OutputVector{activation}, params);
 }
 
 TEST_P(InferRequestIOPrecision, Inference) {

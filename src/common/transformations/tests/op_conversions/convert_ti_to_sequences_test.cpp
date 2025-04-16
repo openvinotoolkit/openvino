@@ -87,7 +87,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         res_ti_0->set_friendly_name("Result1");
         res_ti_1->set_friendly_name("Result2");
         res_ti_2->set_friendly_name("Result3");
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_0, res_ti_1, res_ti_2}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_0, res_ti_1, res_ti_2}, ParameterVector{X, Y, Z});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -134,7 +134,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         res_ti_1->set_friendly_name("Result2");
         res_ti_2->set_friendly_name("Result3");
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_0, res_ti_1, res_ti_2}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_0, res_ti_1, res_ti_2}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -182,7 +182,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase)
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -224,7 +224,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase)
         auto out_1 = std::make_shared<opset5::Squeeze>(lstm_seq->output(1), axis_out);
         auto out_2 = std::make_shared<opset5::Squeeze>(lstm_seq->output(2), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -272,7 +272,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicSqueezeCase)
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -314,7 +314,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicSqueezeCase)
         auto out_1 = std::make_shared<opset5::Squeeze>(lstm_seq->output(1), axis_out);
         auto out_2 = std::make_shared<opset5::Squeeze>(lstm_seq->output(2), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y, Z});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y, Z});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -358,7 +358,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -394,7 +394,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         auto out_0 = std::make_shared<opset5::Squeeze>(rnn_sequence->output(0), axis_out);
         auto out_1 = std::make_shared<opset5::Squeeze>(rnn_sequence->output(1), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -438,7 +438,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) 
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -475,7 +475,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) 
         auto out_0 = std::make_shared<opset5::Squeeze>(rnn_sequence->output(0), axis_out);
         auto out_1 = std::make_shared<opset5::Squeeze>(rnn_sequence->output(1), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -519,7 +519,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicSqueezeCase) 
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -555,7 +555,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicSqueezeCase) 
         auto out_0 = std::make_shared<opset5::Squeeze>(rnn_sequence->output(0), axis_out);
         auto out_1 = std::make_shared<opset5::Squeeze>(rnn_sequence->output(1), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -599,7 +599,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -635,7 +635,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         auto out_0 = std::make_shared<opset5::Squeeze>(gru_sequence->output(0), axis_out);
         auto out_1 = std::make_shared<opset5::Squeeze>(gru_sequence->output(1), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -679,7 +679,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) 
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -716,7 +716,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) 
         auto out_0 = std::make_shared<opset5::Squeeze>(gru_sequence->output(0), axis_out);
         auto out_1 = std::make_shared<opset5::Squeeze>(gru_sequence->output(1), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -760,7 +760,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicSqueezeCase) 
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 1);
 
         auto res_ti_1 = std::make_shared<opset5::Result>(tensor_iterator->output(1));
-        f = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -797,7 +797,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicSqueezeCase) 
         auto out_0 = std::make_shared<opset5::Squeeze>(gru_sequence->output(0), axis_out);
         auto out_1 = std::make_shared<opset5::Squeeze>(gru_sequence->output(1), axis_out);
         auto res_ti_1 = std::make_shared<opset5::Result>(out_0);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
     }
 
     auto res = compare_functions(f, f_ref);

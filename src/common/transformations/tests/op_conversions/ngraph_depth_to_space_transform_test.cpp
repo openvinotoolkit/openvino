@@ -29,7 +29,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
     {
         auto depth_to_space =
             std::make_shared<op::v0::DepthToSpace>(input, op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{depth_to_space}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{depth_to_space}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertDepthToSpace>();
@@ -72,7 +72,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
     {
         auto depth_to_space =
             std::make_shared<op::v0::DepthToSpace>(input, op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{depth_to_space}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{depth_to_space}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertDepthToSpace>();
@@ -115,7 +115,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
     {
         auto space_to_depth =
             std::make_shared<op::v0::SpaceToDepth>(input, op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{space_to_depth}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{space_to_depth}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
@@ -158,7 +158,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
     {
         auto space_to_depth =
             std::make_shared<op::v0::SpaceToDepth>(input, op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{space_to_depth}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{space_to_depth}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
@@ -201,7 +201,7 @@ TEST(TransformationTests, TestSpaceToDepthDynamic) {
     {
         auto space_to_depth =
             std::make_shared<op::v0::SpaceToDepth>(input, op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{space_to_depth}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{space_to_depth}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
         OV_ASSERT_NO_THROW(m.run_passes(f));
@@ -215,7 +215,7 @@ TEST(TransformationTests, TestDepthToSpaceDynamic) {
     {
         auto depth_to_space =
             std::make_shared<op::v0::DepthToSpace>(input, op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
-        f = std::make_shared<ov::Model>(ov::NodeVector{depth_to_space}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{depth_to_space}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::ConvertDepthToSpace>();
         OV_ASSERT_NO_THROW(m.run_passes(f));

@@ -24,7 +24,7 @@ TEST_F(TransformationTestsF, ConvertSoftMax1ToSoftMax8) {
         size_t axis = 1;
         auto softmax_1 = std::make_shared<opset1::Softmax>(data, axis);
 
-        model = std::make_shared<ov::Model>(NodeVector{softmax_1}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{softmax_1}, ParameterVector{data});
         manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
     }
 
@@ -33,7 +33,7 @@ TEST_F(TransformationTestsF, ConvertSoftMax1ToSoftMax8) {
         int64_t axis = 1;
         auto softmax_8 = std::make_shared<opset8::Softmax>(data, axis);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{softmax_8}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{softmax_8}, ParameterVector{data});
     }
 }
 
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, ConvertSoftMax1ToSoftMax8_dynamic_rank) {
         size_t axis = 1;
         auto softmax_1 = std::make_shared<opset1::Softmax>(data, axis);
 
-        model = std::make_shared<ov::Model>(NodeVector{softmax_1}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{softmax_1}, ParameterVector{data});
         manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
     }
 
@@ -52,6 +52,6 @@ TEST_F(TransformationTestsF, ConvertSoftMax1ToSoftMax8_dynamic_rank) {
         int64_t axis = 1;
         auto softmax_8 = std::make_shared<opset8::Softmax>(data, axis);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{softmax_8}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{softmax_8}, ParameterVector{data});
     }
 }

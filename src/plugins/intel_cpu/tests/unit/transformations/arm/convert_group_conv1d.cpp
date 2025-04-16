@@ -35,7 +35,7 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::Shape param_shape, ov::Sha
                                         is1Dinput ? ov::CoordinateDiff{0} : ov::CoordinateDiff{0, 0},
                                         is1Dinput ? ov::Strides{1} :        ov::Strides{1, 1});
 
-        return std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{param});
 }
 
 template <class T>
@@ -59,7 +59,7 @@ static std::shared_ptr<ov::Model> createTransformedGraph(ov::Shape param_shape, 
 
         auto reshape = std::make_shared<ov::opset1::Squeeze>(conv2d,
             ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
-        return std::make_shared<ov::Model>(ov::NodeVector{ reshape }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{param});
 }
 
 TEST(TransformationTests, CheckConvertConv1DIsAppliedFor1DShapes) {

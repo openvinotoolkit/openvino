@@ -484,7 +484,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
 
     struct FunctionNodes {
         ov::ParameterVector parameters;
-        ov::ResultVector results;
+        ov::OutputVector results;
         ov::NodeVector all;
         ov::SinkVector sinks;
     };

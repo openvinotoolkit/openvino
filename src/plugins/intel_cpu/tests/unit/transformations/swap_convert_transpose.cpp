@@ -35,7 +35,7 @@ TEST_F(SwapConvertTransposeTest, SwapConvertTranspose) {
         auto transpose = std::make_shared<ov::op::v1::Transpose>(convert, transpose_const);
         transpose->set_friendly_name(transpose_name);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{transpose}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{transpose}, ov::ParameterVector{input});
         manager.register_pass<ov::intel_cpu::SwapConvertTranspose>();
     }
     {
@@ -49,7 +49,7 @@ TEST_F(SwapConvertTransposeTest, SwapConvertTranspose) {
         transpose->set_friendly_name(transpose_name + "_original");
         convert->set_friendly_name(transpose_name);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{convert}, ov::ParameterVector{input});
     }
 }
 
@@ -73,7 +73,7 @@ TEST_F(SwapConvertTransposeTest, SwapConvertTransposeImpossible) {
         auto transpose1 = std::make_shared<ov::op::v1::Transpose>(convert, transpose1_const);
         transpose1->set_friendly_name(transpose_name + "_1");
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{transpose0, transpose1}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{transpose0, transpose1}, ov::ParameterVector{input});
         manager.register_pass<ov::intel_cpu::SwapConvertTranspose>();
     }
 }

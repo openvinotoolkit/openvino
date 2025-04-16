@@ -153,10 +153,11 @@ std::shared_ptr<ov::Model> MHAFunction::initReference() const {
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
-            std::make_shared<ov::Model>(NodeVector{transpose3}, subgraph_params));
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
+        subgraph_inputs,
+        std::make_shared<ov::Model>(OutputVector{transpose3}, subgraph_params));
 
-    return std::make_shared<ov::Model>(NodeVector{subgraph}, ngraphParams);
+    return std::make_shared<ov::Model>(OutputVector{subgraph}, ngraphParams);
 }
 
 std::shared_ptr<ov::Model> MHA2DFunction::initOriginal() const {
@@ -204,10 +205,11 @@ std::shared_ptr<ov::Model> MHA2DFunction::initReference() const {
     const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, param2);
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
-            std::make_shared<ov::Model>(NodeVector{matMul1}, subgraph_params));
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
+        subgraph_inputs,
+        std::make_shared<ov::Model>(OutputVector{matMul1}, subgraph_params));
 
-    return std::make_shared<ov::Model>(NodeVector{subgraph}, ngraphParams);
+    return std::make_shared<ov::Model>(OutputVector{subgraph}, ngraphParams);
 }
 
 std::shared_ptr<ov::Model> MHASplitMFunction::initReference() const {
@@ -393,10 +395,11 @@ std::shared_ptr<ov::Model> MHAMatMul0TransposeFunction::initReference() const {
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
-            std::make_shared<ov::Model>(NodeVector{transpose3}, subgraph_params));
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
+        subgraph_inputs,
+        std::make_shared<ov::Model>(OutputVector{transpose3}, subgraph_params));
 
-    return std::make_shared<ov::Model>(NodeVector{subgraph}, ngraphParams);
+    return std::make_shared<ov::Model>(OutputVector{subgraph}, ngraphParams);
 }
 
 std::shared_ptr<ov::Model> MHASelectFunction::initOriginal() const {
@@ -929,13 +932,14 @@ std::shared_ptr<ov::Model> MHAINT8MatMulTypeRelaxedFunction::initReference() con
             ov::op::TemporaryReplaceOutputType(transpose2, element::f32).get(), transA, transB);
     const auto fq5 = decomposed_fq(matMul1, ov::element::i8, fq_signed_params.inputLowValues[0], fq_signed_params.inputHighValues[0], 0.00346764503f);
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
-                                                                     std::make_shared<ov::Model>(NodeVector{fq5}, subgraph_params));
+    auto subgraph =
+        std::make_shared<ov::snippets::op::Subgraph>(subgraph_inputs,
+                                                     std::make_shared<ov::Model>(OutputVector{fq5}, subgraph_params));
     // TODO: At the moment Snippets don't support explicitly Transpose.
     //       So we cannot collapse Transpose into Subgraph if there are ops between MatMul2 and Transpose3
     auto transpose3 = std::make_shared<ov::op::v1::Transpose>(subgraph, transpose3Const);
 
-    return std::make_shared<ov::Model>(NodeVector{transpose3}, ngraphParams);
+    return std::make_shared<ov::Model>(OutputVector{transpose3}, ngraphParams);
 }
 
 std::shared_ptr<ov::Model> MHAMulAddFunction::initOriginal() const {
@@ -1032,7 +1036,9 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, param2);
 
-    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(subgraphs_inputs, std::make_shared<ov::Model>(NodeVector{matMul1}, subgraph_params));
+    auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(
+        subgraphs_inputs,
+        std::make_shared<ov::Model>(OutputVector{matMul1}, subgraph_params));
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(subgraph)};
     return std::make_shared<ov::Model>(results, ngraphParam, "mha");
@@ -1112,7 +1118,8 @@ std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initReference() cons
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(add_internal, -1);
     const auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(softmax, param_3);
 
-    auto subgraph_model = std::make_shared<ov::Model>(NodeVector{matmul_1}, ov::ParameterVector{param_0, param_1, param_2, param_3});
+    auto subgraph_model =
+        std::make_shared<ov::Model>(OutputVector{matmul_1}, ov::ParameterVector{param_0, param_1, param_2, param_3});
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{data_0, data_1, reshape, data_4}, subgraph_model);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(subgraph)};

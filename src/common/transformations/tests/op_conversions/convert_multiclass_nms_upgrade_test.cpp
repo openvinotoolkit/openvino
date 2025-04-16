@@ -27,7 +27,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNms8ToMulticlassNms9) {
 
         auto nms = std::make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertMulticlassNms8ToMulticlassNms9>();
     }
@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNms8ToMulticlassNms9) {
         auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
         auto nms = std::make_shared<opset9::MulticlassNms>(boxes, scores, opset9::MulticlassNms::Attributes());
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -48,7 +48,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNms8ToMulticlassNms9_dynamic_rank)
 
         auto nms = std::make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertMulticlassNms8ToMulticlassNms9>();
     }
@@ -58,7 +58,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNms8ToMulticlassNms9_dynamic_rank)
         auto scores = std::make_shared<opset1::Parameter>(element::f32, PartialShape::dynamic());
         auto nms = std::make_shared<opset9::MulticlassNms>(boxes, scores, opset9::MulticlassNms::Attributes());
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }
 
@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNms8ToMulticlassNms9_dynamic_dims)
 
         auto nms = std::make_shared<opset8::MulticlassNms>(boxes, scores, opset8::MulticlassNms::Attributes());
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertMulticlassNms8ToMulticlassNms9>();
     }
@@ -85,6 +85,6 @@ TEST_F(TransformationTestsF, ConvertMulticlassNms8ToMulticlassNms9_dynamic_dims)
             PartialShape({Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
         auto nms = std::make_shared<opset9::MulticlassNms>(boxes, scores, opset9::MulticlassNms::Attributes());
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }

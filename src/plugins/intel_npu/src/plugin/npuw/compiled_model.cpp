@@ -746,7 +746,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     read(stream, parameters);
     read(stream, results);
 
-    auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+    auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
 
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, true);
 

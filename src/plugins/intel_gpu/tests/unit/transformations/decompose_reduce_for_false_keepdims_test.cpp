@@ -79,8 +79,7 @@ public:
         else
             throw std::runtime_error("Invalid reduce type for this test-case.");
 
-        return std::make_shared<ov::Model>(ov::NodeVector{input.get_node_shared_ptr()},
-                                                  ov::ParameterVector{param});
+        return std::make_shared<ov::Model>(ov::OutputVector{input.get_node_shared_ptr()}, ov::ParameterVector{param});
     }
 };
 

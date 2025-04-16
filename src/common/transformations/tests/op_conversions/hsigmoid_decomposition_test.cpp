@@ -23,7 +23,7 @@ TEST_F(TransformationTestsF, HSigmoidDecompositionTest) {
         auto input = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<opset5::HSigmoid>(input);
 
-        model = std::make_shared<ov::Model>(NodeVector{hsigmoid}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{hsigmoid}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidDecomposition>();
     }
@@ -38,6 +38,6 @@ TEST_F(TransformationTestsF, HSigmoidDecompositionTest) {
         auto mul_constant = opset5::Constant::create(element::f32, Shape{}, {(1.0 / 6.0)});  // const(1/6)
         auto mul = std::make_shared<opset5::Multiply>(min, mul_constant);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
     }
 }

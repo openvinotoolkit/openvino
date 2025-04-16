@@ -131,7 +131,7 @@ protected:
                                                                        per_tensor_zp);
 
         auto mat_mul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
-        return std::make_shared<ov::Model>(ov::NodeVector{mat_mul}, params, "MatmulWeightsDecompression");
+        return std::make_shared<ov::Model>(ov::OutputVector{mat_mul}, params, "MatmulWeightsDecompression");
     }
 
     std::shared_ptr<ov::Node> init_compressed_weights_subgraph(const ov::Shape& weights_shape,

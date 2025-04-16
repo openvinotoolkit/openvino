@@ -61,7 +61,7 @@ TEST_P(FakeConvertDecompositionTest, CompareFunctions) {
 
         const auto fake_convert = default_shift ? std::make_shared<opset13::FakeConvert>(data, scale, dst_prec)
                                                 : std::make_shared<opset13::FakeConvert>(data, scale, shift, dst_prec);
-        model = std::make_shared<ov::Model>(NodeVector{fake_convert}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{fake_convert}, ParameterVector{data});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -106,7 +106,7 @@ TEST_P(FakeConvertDecompositionTest, CompareFunctions) {
             result = std::make_shared<ov::op::v1::Divide>(deshift, input_scale);
         }
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{result}, params);
+        model_ref = std::make_shared<ov::Model>(OutputVector{result}, params);
     }
 
     const auto res = compare_functions(model, model_ref);

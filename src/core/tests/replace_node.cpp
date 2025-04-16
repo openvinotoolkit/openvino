@@ -66,7 +66,7 @@ TEST(replace_node, replace_nodes) {
     auto mul = make_shared<op::v1::Multiply>(add, k);
     auto sub = make_shared<op::v1::Subtract>(mul, z);
 
-    auto f = make_shared<Model>(NodeVector{sub}, ParameterVector{x, y, z});
+    auto f = make_shared<Model>(OutputVector{sub}, ParameterVector{x, y, z});
 
     unordered_map<shared_ptr<ov::op::v0::Parameter>, shared_ptr<ov::op::v0::Parameter>> parameter_replacement_map;
     auto x_replacement = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2});

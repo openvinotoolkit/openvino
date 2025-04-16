@@ -35,7 +35,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
 
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
 
         manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
@@ -48,7 +48,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
             opset7::Constant::create<int64_t>(element::i64, Shape{5}, {1, 2, 640, 20, 2 * (int64_t)num_splits});
         auto reshape = std::make_shared<opset7::Reshape>(transpose, reshape_shape, false);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{input});
     }
 }
 
@@ -67,7 +67,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionSqueezeWithoutAxesInput) {
 
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
 
         manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
@@ -80,7 +80,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionSqueezeWithoutAxesInput) {
             opset7::Constant::create<int64_t>(element::i64, Shape{5}, {3, 2, 640, 20, 2 * (int64_t)num_splits});
         auto reshape = std::make_shared<opset7::Reshape>(transpose, reshape_shape, false);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{input});
     }
 }
 
@@ -100,8 +100,8 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutp
 
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
-        model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
 
         manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
@@ -119,7 +119,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutp
 
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
     }
 }
 
@@ -141,8 +141,8 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoI
 
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
-        model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
 
         manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
@@ -162,7 +162,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoI
 
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
     }
 }
 
@@ -182,8 +182,8 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitAxisDiffer
 
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
-        model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
 
         manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
@@ -201,7 +201,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitAxisDiffer
 
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 4);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
     }
 }
 
@@ -220,7 +220,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeSqueezeWithoutAxesI
 
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, 3);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
 
         manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(false);
     }
@@ -255,7 +255,7 @@ TEST_P(SplitReshapeConcatFusion, SplitSqueezeConcatFusion) {
             squeeze_vec.push_back(std::make_shared<opset7::Reshape>(split->output(i), reshaped_shape_node, true));
         }
         auto concat = std::make_shared<opset7::Concat>(squeeze_vec, params.concat_axis);
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitSqueezeConcatFusion>(true);
     }
 
@@ -272,7 +272,7 @@ TEST_P(SplitReshapeConcatFusion, SplitSqueezeConcatFusion) {
         auto reshape_shape_node = opset7::Constant::create(element::i64, Shape{reshape_shape.size()}, reshape_shape);
         auto reshape = std::make_shared<opset7::Reshape>(transpose, reshape_shape_node, false);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{reshape}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);

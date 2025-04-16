@@ -86,7 +86,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8) {
             auto detection_output_v1 =
                 std::make_shared<opset1::DetectionOutput>(box_logits, class_preds, proposals, attributes_v1);
 
-            f = std::make_shared<ov::Model>(NodeVector{detection_output_v1},
+            f = std::make_shared<ov::Model>(OutputVector{detection_output_v1},
                                             ParameterVector{box_logits, class_preds, proposals});
 
             pass::Manager manager;
@@ -102,7 +102,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8) {
             auto detection_output_v8 =
                 std::make_shared<opset8::DetectionOutput>(box_logits, class_preds, proposals, attributes_v8);
 
-            f_ref = std::make_shared<ov::Model>(NodeVector{detection_output_v8},
+            f_ref = std::make_shared<ov::Model>(OutputVector{detection_output_v8},
                                                 ParameterVector{box_logits, class_preds, proposals});
         }
         const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -156,7 +156,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8FiveArguments) {
                                                                                  attributes_v1);
 
             f = std::make_shared<ov::Model>(
-                NodeVector{detection_output_v1},
+                OutputVector{detection_output_v1},
                 ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
 
             pass::Manager manager;
@@ -179,7 +179,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8FiveArguments) {
                                                                                  attributes_v8);
 
             f_ref = std::make_shared<ov::Model>(
-                NodeVector{detection_output_v8},
+                OutputVector{detection_output_v8},
                 ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
         }
         const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);

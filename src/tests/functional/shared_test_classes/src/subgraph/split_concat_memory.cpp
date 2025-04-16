@@ -79,9 +79,8 @@ void SplitConcatMemory::SetUp() {
     mem_w->add_control_dependency(mem_r);
     plus->add_control_dependency(mem_w);
 
-    function = std::make_shared<ov::Model>(ov::NodeVector{plus}, ov::ParameterVector{input}, "CyclicBuffer4");
+    function = std::make_shared<ov::Model>(ov::OutputVector{plus}, ov::ParameterVector{input}, "CyclicBuffer4");
 }
 
 }  // namespace test
 }  // namespace ov
-

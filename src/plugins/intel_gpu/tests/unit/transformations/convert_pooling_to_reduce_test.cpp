@@ -33,7 +33,7 @@ static std::shared_ptr<ov::Model> CreateFunction(const ov::Shape& input_shape,
                                                             exclude_pad,
                                                             rounding_type,
                                                             pad_type);
-    return std::make_shared<ov::Model>(ov::NodeVector{avgPool}, ov::ParameterVector{in});
+    return std::make_shared<ov::Model>(ov::OutputVector{avgPool}, ov::ParameterVector{in});
 }
 
 TEST(TransformationTests, ConvertAvgPoolToReduce) {

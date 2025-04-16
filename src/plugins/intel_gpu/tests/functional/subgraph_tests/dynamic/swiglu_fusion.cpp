@@ -64,7 +64,7 @@ protected:
         // Mul(Xw, Xv) = Swish(Xw) * Xv
         auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(1));
 
-        return std::make_shared<ov::Model>(ov::NodeVector{mul}, params, "SwiGLUFusion");
+        return std::make_shared<ov::Model>(ov::OutputVector{mul}, params, "SwiGLUFusion");
     }
 
     void SetUp() override {

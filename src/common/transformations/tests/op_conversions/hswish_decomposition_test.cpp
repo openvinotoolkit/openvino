@@ -23,7 +23,7 @@ TEST_F(TransformationTestsF, HSwishDecompositionTest) {
         auto input = std::make_shared<opset4::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hswish = std::make_shared<opset4::HSwish>(input);
 
-        model = std::make_shared<ov::Model>(NodeVector{hswish}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{hswish}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSwishDecomposition>();
     }
@@ -39,6 +39,6 @@ TEST_F(TransformationTestsF, HSwishDecompositionTest) {
         auto mul_constant = opset4::Constant::create(element::f16, Shape{}, {0.1666666716});
         auto mul_second = std::make_shared<opset4::Multiply>(mul_first, mul_constant);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul_second}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul_second}, ParameterVector{input});
     }
 }

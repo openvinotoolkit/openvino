@@ -24,7 +24,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6) {
         auto data = std::make_shared<opset2::Parameter>(element::f32, Shape{1, 2, 3, 4});
         auto mvn = std::make_shared<op::v0::MVN>(data, false, true, 1e-5);
 
-        model = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6) {
         auto axes_const = opset6::Constant::create(element::i64, Shape{2}, {2, 3});
         auto mvn = std::make_shared<op::v6::MVN>(data, axes_const, true, 1e-5f, op::MVNEpsMode::INSIDE_SQRT);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
     }
 }
 
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_across_channels) {
         auto data = std::make_shared<opset2::Parameter>(element::f32, Shape{1, 2, 3, 4});
         auto mvn = std::make_shared<op::v0::MVN>(data, true, true, 1e-5);
 
-        model = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
@@ -53,7 +53,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_across_channels) {
         auto axes_const = opset6::Constant::create(element::i64, Shape{3}, {1, 2, 3});
         auto mvn = std::make_shared<op::v6::MVN>(data, axes_const, true, 1e-5f, op::MVNEpsMode::INSIDE_SQRT);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
     }
 }
 
@@ -62,7 +62,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_5D) {
         auto data = std::make_shared<opset2::Parameter>(element::f32, Shape{1, 2, 3, 4, 5});
         auto mvn = std::make_shared<op::v0::MVN>(data, false, true, 1e-5);
 
-        model = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_5D) {
         auto axes_const = opset6::Constant::create(element::i64, Shape{3}, {2, 3, 4});
         auto mvn = std::make_shared<op::v6::MVN>(data, axes_const, true, 1e-5f, op::MVNEpsMode::INSIDE_SQRT);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
     }
 }
 
@@ -92,14 +92,14 @@ TEST_P(ConvertMVN1ToMVN6_OutOfFloat32Eps, Limits) {
     {
         auto data = std::make_shared<opset2::Parameter>(element::f32, Shape{1, 2, 3, 4});
         auto mvn = std::make_shared<op::v0::MVN>(data, true, true, params.eps_d);
-        model = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
     }
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 3, 4});
         auto axes_const = opset6::Constant::create(element::i64, Shape{3}, {1, 2, 3});
         auto mvn = std::make_shared<op::v6::MVN>(data, axes_const, true, params.eps_f, op::MVNEpsMode::INSIDE_SQRT);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
     }
 }
 

@@ -36,7 +36,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacy) {
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::Strides{1, 1});
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -58,7 +58,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacy) {
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::Strides{1, 1});
 
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref, true);
@@ -80,7 +80,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacyNoConvertion) {
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::Strides{1, 1});
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+        f = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -102,7 +102,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacyNoConvertion) {
                                                               ov::CoordinateDiff{0, 0},
                                                               ov::Strides{1, 1});
 
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref, true);

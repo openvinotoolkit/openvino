@@ -65,7 +65,7 @@ private:
         // WA to test cases with transpose elimination
         auto relu = std::make_shared<opset3::Relu>(transpose);
 
-        return std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{data});
+        return std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{data});
     }
 
     std::shared_ptr<ov::Model> get_reference_function(const PartialShape& input_shape,
@@ -95,7 +95,7 @@ private:
 
         last = std::make_shared<opset3::Relu>(last);
 
-        return std::make_shared<ov::Model>(NodeVector{last.get_node_shared_ptr()}, ParameterVector{data});
+        return std::make_shared<ov::Model>(OutputVector{last.get_node_shared_ptr()}, ParameterVector{data});
     }
 };
 

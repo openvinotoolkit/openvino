@@ -26,14 +26,14 @@ TEST_F(TransformationTestsF, RemoveConcatZeroDimInputStaticShape) {
         auto input2 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 0, 3});
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input2, input3});
 
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input3}, axis);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input3});
     }
 }
 
@@ -46,14 +46,14 @@ TEST_F(TransformationTestsF, DisableRemoveConcatZeroDimInputStaticShape) {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
         ov::pass::disable_remove_concat_zerodim_input(concat);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input2, input3});
 
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input2, input3});
     }
 }
 
@@ -66,14 +66,14 @@ TEST_F(TransformationTestsF, DisableRemoveConcatZeroDimInputPartiallyKnowShape) 
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
         ov::pass::disable_remove_concat_zerodim_input(concat);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input2, input3});
 
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input2, input3});
     }
 }
 
@@ -86,14 +86,14 @@ TEST_F(TransformationTestsF, RemoveConcatZeroDimInputSubgraph) {
         auto abs = std::make_shared<ov::opset8::Abs>(in_abs);
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, abs, input3}, axis);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3, in_abs});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input3, in_abs});
 
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input3}, axis);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input3});
     }
 }
 
@@ -108,14 +108,14 @@ TEST_F(TransformationTestsF, RemoveConcatZeroDimInputSubgraph2) {
         auto mul = std::make_shared<ov::opset8::Multiply>(in_mul, abs);
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{mul, input3}, axis);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3, in_mul});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input3, in_mul});
 
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input3}, axis);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input3});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input3});
     }
 }
 
@@ -130,13 +130,13 @@ TEST_F(TransformationTestsF, RemoveConcatZeroDimInputPartiallyKnowShape) {
             ov::PartialShape{0, ov::Dimension::dynamic(), ov::Dimension::dynamic()});
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input2, input3});
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input3}, axis);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input3});
     }
 }
 
@@ -148,14 +148,14 @@ TEST_F(TransformationTestsF, RemoveConcatZeroDimInputDynamicRank) {
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input2, input3});
 
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input2, input3});
     }
 }
 
@@ -171,14 +171,14 @@ TEST_F(TransformationTestsF, RemoveConcatZeroDimTwoInputs) {
             std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, ov::Dimension::dynamic(), 0});
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input2, input3});
 
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1}, axis);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1});
     }
 }
 
@@ -190,7 +190,7 @@ TEST_F(TransformationTestsF, RemoveConcatZeroDimAllInputsEmpty) {
         int64_t axis = -1;
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2}, axis);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input1, input2});
 
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     }
@@ -198,6 +198,6 @@ TEST_F(TransformationTestsF, RemoveConcatZeroDimAllInputsEmpty) {
     {
         auto concat =
             std::make_shared<ov::opset8::Constant>(ov::element::f32, ov::Shape{1, 0, 2}, std::vector<float>{});
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{});
     }
 }

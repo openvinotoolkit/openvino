@@ -39,7 +39,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D1) {
         }
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
@@ -74,7 +74,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D1) {
 
         auto interpolate =
             std::make_shared<opset8::Interpolate>(input, cast_mul_result_to_int, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -98,7 +98,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D2) {
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
@@ -133,7 +133,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D2) {
 
         auto interpolate =
             std::make_shared<opset8::Interpolate>(input, cast_mul_result_to_int, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -157,7 +157,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D1) {
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
@@ -192,7 +192,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D1) {
 
         auto interpolate =
             std::make_shared<opset8::Interpolate>(input, cast_mul_result_to_int, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -215,7 +215,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D2) {
         }
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
@@ -250,7 +250,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D2) {
 
         auto interpolate =
             std::make_shared<opset8::Interpolate>(input, cast_mul_result_to_int, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -270,7 +270,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionTwoSplitsOneConca
         OutputVector concat_inputs_vec{split1->output(0), split1->output(1), split2->output(0), split2->output(1)};
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input1, input2});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
     {
@@ -286,7 +286,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionTwoSplitsOneConca
         OutputVector concat_inputs_vec{split1->output(0), split1->output(1), split2->output(0), split2->output(1)};
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
-        model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input1, input2});
     }
 }
 
@@ -310,7 +310,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D1WithCon
         }
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
     {
@@ -332,7 +332,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D1WithCon
         auto sizes_node = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{target_size});
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -356,7 +356,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D2WithCon
         }
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
     {
@@ -378,7 +378,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D2WithCon
         auto sizes_node = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{target_size});
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -403,7 +403,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D1WithCon
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
     {
@@ -425,7 +425,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D1WithCon
         auto sizes_node = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{target_size});
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -450,7 +450,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D2WithCon
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
     {
@@ -472,7 +472,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D2WithCon
         auto sizes_node = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{target_size});
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -495,7 +495,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D1Dynamic
         }
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
@@ -530,7 +530,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D1Dynamic
 
         auto interpolate =
             std::make_shared<opset8::Interpolate>(input, cast_mul_result_to_int, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -554,7 +554,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D2Dynamic
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
@@ -589,7 +589,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial2D2Dynamic
 
         auto interpolate =
             std::make_shared<opset8::Interpolate>(input, cast_mul_result_to_int, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -617,7 +617,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D1Dynamic
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
 
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
@@ -652,7 +652,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D1Dynamic
 
         auto interpolate =
             std::make_shared<opset8::Interpolate>(input, cast_mul_result_to_int, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -679,7 +679,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D2Dynamic
         }
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>(false);
     }
     {
@@ -714,7 +714,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSpatial3D2Dynamic
 
         auto interpolate =
             std::make_shared<opset8::Interpolate>(input, cast_mul_result_to_int, scales_node, axis_node, attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -737,7 +737,7 @@ TEST_F(TransformationTestsF, SplitConcatPairToInterpolateFusionSplitWithEmptyPor
         OutputVector concat_inputs_vec{split1->output(0), concat_const1, concat_const2};
 
         auto concat = std::make_shared<opset8::Concat>(concat_inputs_vec, axis);
-        model = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{input1});
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{input1});
         manager.register_pass<ov::pass::SplitConcatPairToInterpolateFusion>();
     }
 }

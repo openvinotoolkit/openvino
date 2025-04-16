@@ -164,7 +164,7 @@ void ActivationLayerCPUTest::SetUp() {
     auto params = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes.front());
     auto activation = utils::make_activation(params, netPrecision, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
-    function = std::make_shared<ov::Model>(ov::NodeVector{activation}, ov::ParameterVector{params}, "Activation");
+    function = std::make_shared<ov::Model>(ov::OutputVector{activation}, ov::ParameterVector{params}, "Activation");
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (netPrecision == ov::element::f32 && outPrecision == ov::element::f32) {
         abs_threshold = 8e-4;

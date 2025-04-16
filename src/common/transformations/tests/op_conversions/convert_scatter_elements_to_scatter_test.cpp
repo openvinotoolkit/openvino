@@ -46,7 +46,7 @@ std::shared_ptr<ov::Model> get_initial_function(const PartialShape& data_shape,
 
     auto scatter = std::make_shared<opset3::ScatterElementsUpdate>(data, broadcast, updates, axis_const);
 
-    return std::make_shared<ov::Model>(NodeVector{scatter},
+    return std::make_shared<ov::Model>(OutputVector{scatter},
                                        ParameterVector{data, indexes, updates, broadcast_shape_param});
 }
 
@@ -77,7 +77,7 @@ std::shared_ptr<ov::Model> get_reference_function(const PartialShape& data_shape
 
     auto scatter = std::make_shared<opset3::ScatterUpdate>(data, index_out, updates, axis_const);
 
-    return std::make_shared<ov::Model>(NodeVector{scatter}, ParameterVector{data, indexes, updates});
+    return std::make_shared<ov::Model>(OutputVector{scatter}, ParameterVector{data, indexes, updates});
 }
 
 void gen_test(std::shared_ptr<ov::Model> f, std::shared_ptr<ov::Model> f_ref) {
