@@ -58,7 +58,7 @@ TEST(engine, large_allocation) {
     auto& engine = get_test_engine();
 
     std::shared_ptr<memory> mem = nullptr;
-    ov::Shape sz_8gb = {8, 1024, 1024, 1024};
+    ov::Shape sz_8gb = {8, 1024, 1024, 512+256};
     layout layout_to_allocate = {sz_8gb, data_types::u8, format::bfyx};
 
     if (engine.supports_allocation(allocation_type::usm_device) && ov::shape_size(sz_8gb) < engine.get_device_info().max_global_mem_size) {
