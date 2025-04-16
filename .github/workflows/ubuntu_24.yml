@@ -88,6 +88,7 @@ jobs:
       build-js: true
       build-debian-packages: true
       build-contrib: true
+      build-additional-python-packages: true
       cmake-options: >- 
             -G 'Ninja Multi-Config'
             -DENABLE_CPPLINT=OFF

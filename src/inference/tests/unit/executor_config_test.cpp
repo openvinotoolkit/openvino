@@ -96,7 +96,7 @@ ExecutorConfigTestCase _1sockets_streams_4_threads_1 = {
     // param[in]: proc_type_table, {total processors, number of physical processors, number of Efficient processors,
     // number of hyper threading processors}
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     // param[in]: cpu_mapping_table, {PROCESSOR_ID, NUMA_ID, SOCKET_ID, CORE_ID, CORE_TYPE, GROUP_ID, Used}
     {
@@ -131,7 +131,7 @@ ExecutorConfigTestCase _1sockets_streams_4_threads_1 = {
 
 ExecutorConfigTestCase _1sockets_streams_4_threads_0 = {
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -160,7 +160,7 @@ ExecutorConfigTestCase _1sockets_streams_4_threads_0 = {
 
 ExecutorConfigTestCase _1sockets_streams_1_threads_12 = {
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -193,7 +193,7 @@ ExecutorConfigTestCase _1sockets_streams_1_threads_12 = {
 
 ExecutorConfigTestCase _1sockets_streams_1_threads_10 = {
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -226,7 +226,7 @@ ExecutorConfigTestCase _1sockets_streams_1_threads_10 = {
 
 ExecutorConfigTestCase _1sockets_streams_12_threads_1 = {
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -258,7 +258,7 @@ ExecutorConfigTestCase _1sockets_streams_12_threads_1 = {
 
 ExecutorConfigTestCase _1sockets_streams_13_threads_1 = {
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -290,7 +290,7 @@ ExecutorConfigTestCase _1sockets_streams_13_threads_1 = {
 
 ExecutorConfigTestCase _1sockets_streams_6_threads_1_core_e = {
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -322,7 +322,7 @@ ExecutorConfigTestCase _1sockets_streams_6_threads_1_core_e = {
 
 ExecutorConfigTestCase _1sockets_streams_5_threads_1_binding = {
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -353,7 +353,7 @@ ExecutorConfigTestCase _1sockets_streams_5_threads_1_binding = {
 
 ExecutorConfigTestCase _1sockets_streams_5_threads_1_reservation = {
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -384,7 +384,7 @@ ExecutorConfigTestCase _1sockets_streams_5_threads_1_reservation = {
 
 ExecutorConfigTestCase _1sockets_streams_5_threads_1_binding_reservation = {
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -415,9 +415,9 @@ ExecutorConfigTestCase _1sockets_streams_5_threads_1_binding_reservation = {
 
 ExecutorConfigTestCase _2sockets_streams_36_threads_1 = {
     {
-        {72, 36, 0, 36, -1, -1},
-        {36, 18, 0, 18, 0, 0},
-        {36, 18, 0, 18, 1, 1},
+        {72, 36, 0, 0, 36, -1, -1},
+        {36, 18, 0, 0, 18, 0, 0},
+        {36, 18, 0, 0, 18, 1, 1},
     },
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
@@ -473,9 +473,9 @@ ExecutorConfigTestCase _2sockets_streams_36_threads_1 = {
 
 ExecutorConfigTestCase _2sockets_streams_4_threads_5 = {
     {
-        {72, 36, 0, 36, -1, -1},
-        {36, 18, 0, 18, 0, 0},
-        {36, 18, 0, 18, 1, 1},
+        {72, 36, 0, 0, 36, -1, -1},
+        {36, 18, 0, 0, 18, 0, 0},
+        {36, 18, 0, 0, 18, 1, 1},
     },
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
@@ -531,9 +531,9 @@ ExecutorConfigTestCase _2sockets_streams_4_threads_5 = {
 
 ExecutorConfigTestCase _2sockets_streams_1_threads_36 = {
     {
-        {72, 36, 0, 36, -1, -1},
-        {36, 18, 0, 18, 0, 0},
-        {36, 18, 0, 18, 1, 1},
+        {72, 36, 0, 0, 36, -1, -1},
+        {36, 18, 0, 0, 18, 0, 0},
+        {36, 18, 0, 0, 18, 1, 1},
     },
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
@@ -590,9 +590,9 @@ ExecutorConfigTestCase _2sockets_streams_1_threads_36 = {
 
 ExecutorConfigTestCase _2sockets_streams_1_threads_30 = {
     {
-        {72, 36, 0, 36, -1, -1},
-        {36, 18, 0, 18, 0, 0},
-        {36, 18, 0, 18, 1, 1},
+        {72, 36, 0, 0, 36, -1, -1},
+        {36, 18, 0, 0, 18, 0, 0},
+        {36, 18, 0, 0, 18, 1, 1},
     },
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
@@ -649,9 +649,9 @@ ExecutorConfigTestCase _2sockets_streams_1_threads_30 = {
 
 ExecutorConfigTestCase _2sockets_streams_1_threads_30_binding = {
     {
-        {72, 36, 0, 36, -1, -1},
-        {36, 18, 0, 18, 0, 0},
-        {36, 18, 0, 18, 1, 1},
+        {72, 36, 0, 0, 36, -1, -1},
+        {36, 18, 0, 0, 18, 0, 0},
+        {36, 18, 0, 0, 18, 1, 1},
     },
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
@@ -709,9 +709,9 @@ ExecutorConfigTestCase _2sockets_streams_1_threads_30_binding = {
 
 ExecutorConfigTestCase _2sockets_streams_1_threads_30_reservation = {
     {
-        {72, 36, 0, 36, -1, -1},
-        {36, 18, 0, 18, 0, 0},
-        {36, 18, 0, 18, 1, 1},
+        {72, 36, 0, 0, 36, -1, -1},
+        {36, 18, 0, 0, 18, 0, 0},
+        {36, 18, 0, 0, 18, 1, 1},
     },
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
@@ -769,7 +769,7 @@ ExecutorConfigTestCase _2sockets_streams_1_threads_30_reservation = {
 
 ExecutorConfigTestCase _pecore_streams_5_threads_2 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -801,7 +801,7 @@ ExecutorConfigTestCase _pecore_streams_5_threads_2 = {
 
 ExecutorConfigTestCase _pecore_streams_5_threads_5 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -834,7 +834,7 @@ ExecutorConfigTestCase _pecore_streams_5_threads_5 = {
 
 ExecutorConfigTestCase _pecore_streams_4_threads_5 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -867,7 +867,7 @@ ExecutorConfigTestCase _pecore_streams_4_threads_5 = {
 
 ExecutorConfigTestCase _pecore_streams_4_threads_1 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -898,7 +898,7 @@ ExecutorConfigTestCase _pecore_streams_4_threads_1 = {
 
 ExecutorConfigTestCase _pecore_streams_5_threads_10 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -931,7 +931,7 @@ ExecutorConfigTestCase _pecore_streams_5_threads_10 = {
 
 ExecutorConfigTestCase _pecore_streams_26_threads_1 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -964,7 +964,7 @@ ExecutorConfigTestCase _pecore_streams_26_threads_1 = {
 
 ExecutorConfigTestCase _pecore_streams_26_threads_1_p = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -996,7 +996,7 @@ ExecutorConfigTestCase _pecore_streams_26_threads_1_p = {
 
 ExecutorConfigTestCase _pecore_streams_26_threads_1_e = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1027,7 +1027,7 @@ ExecutorConfigTestCase _pecore_streams_26_threads_1_e = {
 
 ExecutorConfigTestCase _pecore_streams_1_threads_0 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1056,7 +1056,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_0 = {
 
 ExecutorConfigTestCase _pecore_streams_1_threads_1_p = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1087,7 +1087,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_1_p = {
 
 ExecutorConfigTestCase _pecore_streams_1_threads_1_e = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1118,7 +1118,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_1_e = {
 
 ExecutorConfigTestCase _pecore_streams_1_threads_16_p = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1151,7 +1151,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_16_p = {
 
 ExecutorConfigTestCase _pecore_streams_1_threads_18_p = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1184,7 +1184,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_18_p = {
 
 ExecutorConfigTestCase _pecore_streams_1_threads_10_p = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1217,7 +1217,7 @@ ExecutorConfigTestCase _pecore_streams_1_threads_10_p = {
 
 ExecutorConfigTestCase _pecore_streams_10_threads_1_e = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1248,7 +1248,7 @@ ExecutorConfigTestCase _pecore_streams_10_threads_1_e = {
 
 ExecutorConfigTestCase _pecore_streams_10_threads_1_binding = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1281,7 +1281,7 @@ ExecutorConfigTestCase _pecore_streams_10_threads_1_binding = {
 
 ExecutorConfigTestCase _pecore_streams_10_threads_2_reservation = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1314,7 +1314,7 @@ ExecutorConfigTestCase _pecore_streams_10_threads_2_reservation = {
 
 ExecutorConfigTestCase _pecore_streams_info_table_1 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1349,7 +1349,7 @@ ExecutorConfigTestCase _pecore_streams_info_table_1 = {
 
 ExecutorConfigTestCase _pecore_streams_info_table_2 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},         {1, 0, 0, 0, HYPER_THREADING_PROC, 1, -1},
@@ -1386,7 +1386,7 @@ ExecutorConfigTestCase _pecore_streams_info_table_2 = {
 
 ExecutorConfigTestCase _streams_info_table_cores_limit_false_1 = {
     {
-        {1, 1, 0, 0, 0, 0},
+        {1, 1, 0, 0, 0, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1404,7 +1404,7 @@ ExecutorConfigTestCase _streams_info_table_cores_limit_false_1 = {
 
 ExecutorConfigTestCase _streams_info_table_cores_limit_false_2 = {
     {
-        {1, 1, 0, 0, 0, 0},
+        {1, 1, 0, 0, 0, 0, 0},
     },
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},

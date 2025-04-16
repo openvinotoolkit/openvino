@@ -91,6 +91,7 @@ jobs:
       build-debian-packages: true
       build-js: true
       build-rpm-packages: false
+      build-additional-python-packages: true
       cmake-options: >- 
             -G 'Ninja Multi-Config'
             -DENABLE_CPPLINT=OFF
@@ -101,6 +102,7 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DCPACK_GENERATOR=TGZ
             -DENABLE_WHEEL=ON
+            -DENABLE_PYTHON=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   CXX_Unit_Tests:
