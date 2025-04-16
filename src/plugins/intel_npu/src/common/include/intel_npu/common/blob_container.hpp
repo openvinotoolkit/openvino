@@ -13,9 +13,8 @@ namespace {
 
 class stringbuf_helper : public std::stringbuf {
 public:
-    stringbuf_helper(const std::shared_ptr<ov::AlignedBuffer>& blob) : _blob(blob) {
-        setg(reinterpret_cast<char*>(_blob->get_ptr()), reinterpret_cast<char*>(_blob->get_ptr()), reinterpret_cast<char*>(_blob->get_ptr()) + _blob->size());
-        setp(reinterpret_cast<char*>(_blob->get_ptr()), reinterpret_cast<char*>(_blob->get_ptr()) + _blob->size(), reinterpret_cast<char*>(_blob->get_ptr()) + _blob->size());
+    stringbuf_helper(const std::shared_ptr<ov::AlignedBuffer>& blob) : std::stringbuf(std::ios::in), _blob(blob) {
+        setg(_blob->get_ptr<char>(), _blob->get_ptr<char>(), _blob->get_ptr<char>() + _blob->size());
     }
 private:
     std::shared_ptr<ov::AlignedBuffer> _blob;
