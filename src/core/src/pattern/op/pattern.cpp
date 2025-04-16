@@ -330,22 +330,11 @@ struct GroupDetails {
     }
 };
 
-ov::Any get_element(const ov::Any& values, size_t idx) {
-    if (values.is<std::vector<int64_t>>()) {
-        const auto& vec = values.as<std::vector<int64_t>>();
-        if (idx < 0)
-            idx += vec.size();
-        OPENVINO_ASSERT(idx < vec.size(), "Unexpected index");
-        return {vec[idx]};
-    }
-    if (values.is<std::vector<double>>()) {
-        const auto& vec = values.as<std::vector<double>>();
-        if (idx < 0)
-            idx += vec.size();
-        OPENVINO_ASSERT(idx < vec.size(), "Unexpected index");
-        return {vec[idx]};
-    }
-    OPENVINO_ASSERT(false, "Unreachable");
+const PatternSymbolValue& get_element(const std::vector<PatternSymbolValue>& values, size_t idx) {
+    if (idx < 0)
+        idx += values.size();
+    OPENVINO_ASSERT(idx < values.size(), "Unexpected index");
+    return values[idx];
 }
 
 }  // namespace
@@ -396,6 +385,8 @@ op::Predicate shape_matches(const std::string& shape_notation) {
             PatternSymbolMap local_m;
             GroupDetails group;
             for (const auto& [this_dim_idx, name] : idx_to_name) {
+                if (!group.name.empty() && this_dim_idx < group.end)
+                    group.end = this_dim_idx;
                 if (name == "?" || name == "...")
                     continue;
                 if (ends_with(name, "...")) {  // named group detected
@@ -403,8 +394,6 @@ op::Predicate shape_matches(const std::string& shape_notation) {
                     group.begin = this_dim_idx;
                     continue;
                 }
-                if (!group.name.empty() && this_dim_idx < group.end)
-                    group.end = this_dim_idx;
                 const auto& this_dim = shape[this_dim_idx];
                 const auto& [conversion_failed, converted_int] = str2int(name);
                 if (conversion_failed) {  // failed the conversion -- this is a name
@@ -485,10 +474,10 @@ op::Predicate shape_matches(const std::string& shape_notation) {
 
 op::Predicate value_matches(const std::string& value_notation) {
     auto item = parse_notation(value_notation);
-    const auto& idx_to_name = item.first;
+    const auto& position_to_name = item.first;
     const auto& element_count_restrictions = item.second;
     return op::Predicate(
-        [idx_to_name, element_count_restrictions](PatternSymbolMap& m, const Output<Node>& output) -> bool {
+        [position_to_name, element_count_restrictions](PatternSymbolMap& m, const Output<Node>& output) -> bool {
             const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
             if (!constant)
                 return false;
@@ -499,101 +488,76 @@ op::Predicate value_matches(const std::string& value_notation) {
                 return element_count == 0;
             if (element_count_restrictions == -1)  // fully dynamic (impossible to have dynamic number of elements)
                 return false;
-            if (element_count_restrictions == -2 && element_count + 1 < idx_to_name.size())
+            if (element_count_restrictions == -2 && element_count + 1 < position_to_name.size())
                 // minimum num element check; checking element_count + 1 because idx_to_name contains a record with
                 // group that may match to an empty set of elements
                 return false;
-
             if (element_count_restrictions > 0 && static_cast<int64_t>(element_count) != element_count_restrictions)
                 return false;
 
-            bool is_int = constant->get_element_type().is_integral();
+            bool is_integral = constant->get_element_type().is_integral();
             // TODO: check for dynamic et
-            const auto& values =
-                is_int ? ov::Any(constant->cast_vector<int64_t>()) : ov::Any(constant->cast_vector<double>());
+            const auto& values = is_integral ? PatternSymbolValue::make_value_vector(constant->cast_vector<int64_t>()) : PatternSymbolValue::make_value_vector(constant->cast_vector<double>());
 
             PatternSymbolMap local_m;
             GroupDetails group;
-            for (const auto& [this_el_idx, name] : idx_to_name) {
-                if (name == "?" || name == "...")
+            for (const auto& [position, expected_as_string] : position_to_name) {
+                if (!group.name.empty() && position < group.end)
+                    // placement is intentional -- record end of the group even if ? is placed after the group
+                    // after epsilon all positions are negative (python style)
+                    group.end = position;
+                if (expected_as_string == "?" || expected_as_string == "...")
                     continue;
-                if (ends_with(name, "...")) {  // named group detected
-                    group.name = {name.substr(0, name.size() - 3)};
-                    group.begin = this_el_idx;
+                if (ends_with(expected_as_string, "...")) {  // named group detected
+                    group.name = {expected_as_string.substr(0, expected_as_string.size() - 3)};
+                    group.begin = position;
                     continue;
                 }
-                if (!group.name.empty() && this_el_idx < group.end)
-                    group.end = this_el_idx;
-                const auto& this_el = get_element(values, this_el_idx);
-                const auto& [i_conversion_failed, converted_int] = str2int(name);
-                const auto& [d_conversion_failed, converted_double] = str2double(name);
+                const auto& actual_value = get_element(values, position);
+                const auto& [i_conversion_failed, converted_int] = str2int(expected_as_string);
+                const auto& [d_conversion_failed, converted_double] = str2double(expected_as_string);
                 if (i_conversion_failed && d_conversion_failed) {  // failed the conversion -- this is a name
+                    const auto& name = expected_as_string;
                     if (m.count(name) || local_m.count(name)) {
+                        // we have encountered the value under same name -- comparing it with the actual value
                         const auto& recorded_value = m.count(name) ? m.at(name) : local_m.at(name);
-                        if (recorded_value.is_integer()) {
-                            if (!this_el.is<int64_t>() || this_el.as<int64_t>() != recorded_value.i())
-                                return false;
-                        }
-                        if (recorded_value.is_double()) {
-                            if (!this_el.is<double>() ||
-                                this_el.as<double>() != recorded_value.d())  // TODO: double cmp
-                                return false;
-                        } else {
+                        if (recorded_value != actual_value)
                             return false;
-                        }
                     } else {
-                        if (this_el.is<int64_t>())
-                            local_m[name] = {this_el.as<int64_t>()};
-                        else if (this_el.is<int64_t>())
-                            local_m[name] = {this_el.as<double>()};
-                        else
-                            return false;
+                        OPENVINO_ASSERT(actual_value.is_integer() || actual_value.is_double());
+                        local_m[name] = actual_value;
                     }
-                } else if (!i_conversion_failed) {  // this_dim is not a name, but an integer
-                    if (!this_el.is<int64_t>() || this_el.as<int64_t>() != converted_int)
+                } else if (!i_conversion_failed) {  // comparison to static integer value was requested
+                    if (actual_value != PatternSymbolValue(converted_int))
                         return false;
-                } else if (!d_conversion_failed) {  // this_dim is not a name, but a double
-                    if (!this_el.is<double>() || this_el.as<double>() != converted_double)  // TODO: cmp double
+                } else if (!d_conversion_failed) {  // comparison to static double value was requested
+                    if (actual_value != PatternSymbolValue(converted_double))
                         return false;
                 }
             }
 
-            if (!group.name.empty()) {
-                OPENVINO_ASSERT(group.end <= 0);  // end == 0 means group is placed at the end of the notation
+            if (!group.name.empty()) { // named group functionality used
+                OPENVINO_ASSERT(group.end <= 0);
+                // after epsilon all positions are negative (python style)
+                // end == 0 means group is placed last in the notation string
                 group.end = group.end + element_count;
 
                 if (m.count(group.name) || local_m.count(group.name)) {
                     const auto& recorded_value = m.count(group.name) ? m.at(group.name) : local_m.at(group.name);
                     OPENVINO_ASSERT(recorded_value.is_group(),
-                                    "Mixing group and non group symbolic predicate notation");
+                                    "Mixing group and non-group symbolic predicate notation");
+                    // group notation -- "Name..." and non-group notation "Name" are mutually exclusive
+                    // group and non-group namespace is shared
                     const auto& recorded_group = recorded_value.g();
                     if (recorded_group.size() != group.size())
                         return false;
-                    for (size_t i = 0; i < recorded_group.size(); ++i) {
-                        const auto& recorded_i = recorded_group[i];
-                        const auto& this_el = get_element(values, group.begin + i);
-                        if (recorded_i.is_integer()) {
-                            if (!this_el.is<int64_t>() || this_el.as<int64_t>() != recorded_i.i())
-                                return false;
-                        }
-                        if (recorded_i.is_double()) {
-                            if (!this_el.is<double>() || this_el.as<double>() != recorded_i.d())  // TODO: cmp double
-                                return false;
-                        } else {  // FIXME: allow conversion comparison -- int with double
+                    for (size_t i = 0; i < recorded_group.size(); ++i)
+                        if (get_element(values, group.begin + i) != recorded_group[i])
                             return false;
-                        }
-                    }
                 } else {
                     std::vector<PatternSymbolValue> group_value;
-                    for (size_t i = 0; i < group.size(); ++i) {
-                        const auto& this_el = get_element(values, group.begin + i);
-                        if (this_el.is<int64_t>())
-                            group_value.emplace_back(this_el.as<int64_t>());
-                        else if (this_el.is<double>())
-                            group_value.emplace_back(this_el.as<double>());
-                        else
-                            return false;
-                    }
+                    for (size_t i = 0; i < group.size(); ++i)
+                        group_value.emplace_back(get_element(values, group.begin + i));
                     local_m[group.name] = group_value;
                 }
             }
