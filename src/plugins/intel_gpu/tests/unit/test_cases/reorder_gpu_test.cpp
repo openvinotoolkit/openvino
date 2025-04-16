@@ -3610,6 +3610,24 @@ TEST(reorder_gpu_fp32, test_needs_completion_events) {
     }
 }
 
+inline void unpack8to4(uint8_t v, uint8_t &v0, uint8_t &v1) {
+    v0 = v & 0x0F;
+    v1 = (v & 0xF0) >> 4;
+}
+
+inline std::vector<uint8_t> convert_to_int8_vector(std::vector<uint8_t> int4_packed) {
+    std::vector<uint8_t> result_vec;
+    for (uint8_t val : int4_packed) {
+        uint8_t v0;
+        uint8_t v1;
+
+        unpack8to4(val, v0, v1);
+        result_vec.push_back(v0);
+        result_vec.push_back(v1);
+    }
+    return result_vec;
+}
+
 TEST(reorder_gpu_i4, reorder_for_padding_2d)
 {
     auto& engine = get_test_engine();
@@ -3650,34 +3668,15 @@ TEST(reorder_gpu_i4, reorder_for_padding_2d)
     ASSERT_EQ(output->get_layout().bytes_count(), (ofm_num * (ifm_num + 1) / 2));
 
     uint8_t answers[16] = {
-        0x21, 0x43, 0x65, 0x80,
-        0x7a, 0x9c, 0xbe, 0xd0,
-        0x1f, 0x25, 0x83, 0x20,
-        0xa7, 0xd9, 0xfe, 0x80
+        0x21, 0x43, 0x65, 0x07,
+        0x98, 0xba, 0xdc, 0x0e,
+        0x1f, 0x25, 0x83, 0x0a,
+        0xd2, 0xf7, 0x89, 0x0e
     };
 
     uint8_t* a_ptr = answers;
     cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
 
-    // std::stringstream ss_org;
-    // ss_org << "org_ptr: ";
-    // for (auto&val : input_data) {
-    //     ss_org << std::hex << static_cast<int>(val) << ",";
-    // }
-    // std::stringstream ss_act;
-    // std::stringstream ss_exp;
-    // ss_exp << "exp_ptr: ";
-    // ss_act << "act_ptr: ";
-    // for (auto&val : output_ptr) {
-    //     ss_act << std::hex << static_cast<int>(val) << ",";
-    //     ss_exp << std::hex << static_cast<int>(*(a_ptr++)) << ",";
-    // }
-    // GPU_DEBUG_COUT << "reorder_in_layout  : " << reorder_in_layout.to_string() << std::endl;
-    // GPU_DEBUG_COUT << "reorder_out_layout : " << reorder_out_layout.to_string() << std::endl;
-    // GPU_DEBUG_COUT << ss_org.str() << std::endl;
-    // GPU_DEBUG_COUT << ss_exp.str() << std::endl;
-    // GPU_DEBUG_COUT << ss_act.str() << std::endl;
-    a_ptr = answers;
     for (auto& val : output_ptr)
         ASSERT_EQ(*(a_ptr++), val);
 }

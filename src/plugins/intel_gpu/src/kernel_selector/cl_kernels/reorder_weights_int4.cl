@@ -9,7 +9,7 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     const uint out_byte_offset = get_global_id(0);
     const uint output_index = out_byte_offset * 2;
     const uint ii = output_index % OUTPUT_OFM_PITCH;
-    const uint io = output_index / OUTPUT_OFM_PITCH; 
+    const uint io = output_index / OUTPUT_OFM_PITCH;
     const uint in_byte_offset = (io * INPUT0_OFM_PITCH + ii) / 2;
     const bool within_pitch = (ii + 1 < INPUT0_OFM_PITCH);
 
@@ -17,16 +17,16 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
         if (within_pitch) {
             output[out_byte_offset] = input[in_byte_offset];
         } else {
-            INPUT0_TYPE in0 = (input[in_byte_offset] >> 4) & 0x0F;
-            output[out_byte_offset] = (in0 << 4) | 0x0;
+            INPUT0_TYPE out0 = input[in_byte_offset] & 0x0F;
+            output[out_byte_offset] = out0;
         }
     } else {
-        INPUT0_TYPE in0 = input[in_byte_offset] & 0x0F;
-        INPUT0_TYPE in1 = 0x0;
+        INPUT0_TYPE out1 = (input[in_byte_offset] & 0xF0) >> 4;
+        INPUT0_TYPE out0 = 0x0;
         if (within_pitch) {
-            in1 = (input[in_byte_offset + 1] >> 4) & 0x0F;
+            out0 = input[in_byte_offset + 1] & 0x0F;
         }
-        output[out_byte_offset] = (in0 << 4) | in1;
+        output[out_byte_offset] = (out0 << 4) | out1;
     }
 #elif defined(INPUT0_LAYOUT_IOYX) && defined(OUTPUT_LAYOUT_OIYX)
     const uint out_byte_offset = get_global_id(0);
@@ -104,7 +104,7 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     const unsigned o = (uint)get_global_id(0);
     const unsigned i = (uint)get_global_id(1) * 2;
 
-    const uint input0_offset = GET_FILTER_INDEX(INPUT0, 0, o, i, 0, 
+    const uint input0_offset = GET_FILTER_INDEX(INPUT0, 0, o, i, 0,
                     break;1);
 
     INPUT0_TYPE in1 = input[input0_offset / 2] & 0xFF;
