@@ -108,7 +108,7 @@ protected:
 
             if (funcInput.get_node()->get_friendly_name() == "gather0" || funcInput.get_node()->get_friendly_name() == "gather1") {
                 // to not go beyond range due to uint32 to half conversion error - it can cause go beyond range
-                in_data.range = std::min(static_cast<uint>(inputDataShape[axis_gatherElements]), in_data.range);
+                in_data.range = std::min(static_cast<unsigned int>(inputDataShape[axis_gatherElements]), in_data.range);
             }
 
             ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
