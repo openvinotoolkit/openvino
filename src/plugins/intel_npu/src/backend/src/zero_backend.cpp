@@ -29,10 +29,6 @@ uint32_t ZeroEngineBackend::getGraphExtVersion() const {
     return _initStruct->getGraphDdiTable().version();
 }
 
-bool ZeroEngineBackend::isBatchingSupported() const {
-    return _initStruct->isExtensionSupported("ZE_extension_graph_1_6", ZE_MAKE_VERSION(1, 6));
-}
-
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {
     return _initStruct->isExtensionSupported(std::string(ZE_COMMAND_QUEUE_NPU_EXT_NAME), ZE_MAKE_VERSION(1, 0));
 }
