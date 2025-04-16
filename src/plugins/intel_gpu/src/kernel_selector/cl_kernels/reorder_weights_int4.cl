@@ -134,8 +134,7 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     const unsigned o = (uint)get_global_id(0);
     const unsigned i = (uint)get_global_id(1) * 2;
 
-    const uint input0_offset = GET_FILTER_INDEX(INPUT0, 0, o, i, 0,
-                    break;1);
+    const uint input0_offset = GET_FILTER_INDEX(INPUT0, 0, o, i, 0, 0);
 
     INPUT0_TYPE in1 = input[input0_offset / 2] & 0xFF;
 
