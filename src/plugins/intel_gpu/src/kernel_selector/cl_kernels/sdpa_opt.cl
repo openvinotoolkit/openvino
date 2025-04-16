@@ -1681,6 +1681,7 @@ KERNEL(sdpa_opt)(
                                         value_seq_offset * value_pitch +
                                         heads_dim * HEAD_SIZE +
                                         (start_partition_idx + seq_len_leftovers_start) * value_pitch + head_size_idx;
+
 #else // !IS_PAGED_ATTENTION
 #ifdef BEAM_TABLE_TYPE
                     const uint b_idx = beam_table[FUNC_CALL(get_bt_index_value)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, start_partition_idx + seq_len_leftovers_start + sglid, sgid * SUBGROUP_SIZE)];
@@ -1705,11 +1706,25 @@ KERNEL(sdpa_opt)(
 #endif
 
                     for (uint seq_len_idx = 0; seq_len_idx < partition_seq_len - seq_len_leftovers_start; seq_len_idx++) {
-#ifdef BEAM_TABLE_TYPE
+                    #ifdef HEAD_SIZE_LEFTOVER
+                        #ifdef BEAM_TABLE_TYPE
+                        const uint value_offset_seq = sub_group_broadcast(value_offset, seq_len_idx);
+                        const INPUT2_TYPE value_packed = (head_size_idx <= HEAD_SIZE) ? value_input[value_offset_seq] : INPUT2_VAL_ZERO;
+                        #else // !BEAM_TABLE_TYPE
+                        INPUT2_TYPE value_packed;
+                        if (sgid < SUBGROUPS_PER_WG - 1)
+                            value_packed = VALUE_BLOCK_READ(value_input, value_offset);
+                        else
+                            value_packed = (sglid < HEAD_SIZE_LEFTOVER) ? value_input[value_offset] : INPUT2_VAL_ZERO;
+                        #endif // BEAM_TABLE_TYPE
+ 
+                    #else // !HEAD_SIZE_LEFTOVER
+                        #ifdef BEAM_TABLE_TYPE
                         const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, seq_len_idx));
-#else
+                        #else
                         const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
-#endif
+                        #endif
+                    #endif // HEAD_SIZE_LEFTOVER
 
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, seq_len_idx)) * sub_group_broadcast(comp_scale, seq_len_idx);
