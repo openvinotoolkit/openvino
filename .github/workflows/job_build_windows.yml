@@ -246,7 +246,7 @@ jobs:
 
             & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
-            cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir" &&
+            cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir" &&
             cmake --build "$pyBuildDir" --parallel $ENV:NUMBER_OF_PROCESSORS --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} &&
             cmake --install "$pyBuildDir" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels &&
             cmake --install "$pyBuildDir" --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pyopenvino_python$pyVersion
