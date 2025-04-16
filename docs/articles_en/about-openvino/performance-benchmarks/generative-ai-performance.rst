@@ -29,7 +29,7 @@ The tables below list the key performance indicators for inference on built-in G
          :class: modeldata stripe
          :name: supportedModelsTable_V2
          :header-rows: 1
-         :file:  ../../_static/benchmarks_files/llm_models_7-258V.csv
+         :file:  ../../_static/benchmarks_files/llm_models_7-268V.csv
          :data-column-hidden: [3,4,6]
          :data-order: [[ 0, "asc" ]]
 
@@ -64,10 +64,24 @@ The tables below list the key performance indicators for inference on built-in G
 
          :material-regular:`download;1.5em` Get system descriptions [PDF]
 
-      .. button-link:: ../../_static/benchmarks_files/llm_models.csv
+      .. button-link:: ../../_static/benchmarks_files/llm_models_9-288V.csv 
          :color: primary
          :outline:
          :expand:
 
-         :material-regular:`download;1.5em` Get the data in .csv [CSV]
+         :material-regular:`download;1.5em` Get the 9-288V table [CSV]
+      
+      .. button-link:: ../../_static/benchmarks_files/llm_models_7-268V.csv 
+         :color: primary
+         :outline:
+         :expand:
+
+         :material-regular:`download;1.5em` Get the 7-268V table [CSV]
+
+      .. button-link:: ../../_static/benchmarks_files/llm_models_7-155H.csv 
+         :color: primary
+         :outline:
+         :expand:
+
+         :material-regular:`download;1.5em` Get the 7-155H table [CSV]
 
