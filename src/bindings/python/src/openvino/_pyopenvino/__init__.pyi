@@ -1,20 +1,20 @@
 # type: ignore
-"""
-Package openvino._pyopenvino which wraps openvino C++ APIs
-"""
-from __future__ import annotations
+from . import _offline_transformations
 from . import experimental
 from . import frontend
 from . import layout_helpers
-from . import _offline_transformations
 from . import op
 from . import passes
 from . import preprocess
 from . import properties
 from . import util
+from __future__ import annotations
 import datetime
 import numpy
 import typing
+"""
+Package openvino._pyopenvino which wraps openvino C++ APIs
+"""
 __all__ = ['AsyncInferQueue', 'AttributeVisitor', 'AxisSet', 'AxisVector', 'CompiledModel', 'ConstOutput', 'ConversionExtension', 'ConversionExtensionBase', 'Coordinate', 'CoordinateDiff', 'Core', 'DecoderTransformationExtension', 'DescriptorTensor', 'Dimension', 'DiscreteTypeInfo', 'Extension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InferRequest', 'InitializationFailure', 'Input', 'InputModel', 'Iterator', 'Layout', 'Model', 'Node', 'NodeContext', 'NodeFactory', 'NotImplementedFailure', 'OVAny', 'Op', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Output', 'PartialShape', 'Place', 'ProfilingInfo', 'ProgressReporterExtension', 'RTMap', 'RemoteContext', 'RemoteTensor', 'Shape', 'Strides', 'Symbol', 'TelemetryExtension', 'Tensor', 'Type', 'VAContext', 'VASurfaceTensor', 'VariableState', 'Version', 'experimental', 'frontend', 'get_batch', 'get_version', 'layout_helpers', 'op', 'passes', 'preprocess', 'properties', 'save_model', 'serialize', 'set_batch', 'shutdown', 'util']
 class AsyncInferQueue:
     """
@@ -4591,18 +4591,18 @@ class Tensor:
     @typing.overload
     def __init__(self, image: typing.Any) -> None:
         """
-                        Constructs Tensor from a Pillow Image.
+                    Constructs Tensor from a Pillow Image.
         
-                        :param image: Pillow Image to create the tensor from.
-                        :type image: PIL.Image.Image
-                        :Example:
-                        .. code-block:: python
+                    :param image: Pillow Image to create the tensor from.
+                    :type image: PIL.Image.Image
+                    :Example:
+                    .. code-block:: python
         
-                            from PIL import Image
-                            import openvino as ov
+                        from PIL import Image
+                        import openvino as ov
         
-                            img = Image.open("example.jpg")
-                            tensor = ov.Tensor(img)
+                        img = Image.open("example.jpg")
+                        tensor = ov.Tensor(img)
         """
     def __repr__(self) -> str:
         ...

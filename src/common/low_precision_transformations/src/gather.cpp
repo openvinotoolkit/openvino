@@ -16,6 +16,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {
