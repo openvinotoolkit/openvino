@@ -4491,6 +4491,22 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_clip_no_min_set_max_int64) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_clip_no_min_set_max_int64_equal_to_int64_min) {
+    auto model = convert_model("clip_no_min_set_max_int64.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    const std::vector<int64_t> data{INT64_MAX, INT64_MIN, INT32_MAX, INT32_MIN, 0, -1, 1, 0};
+    const std::vector<int64_t> max_val{INT64_MIN};
+    const std::vector<int64_t>
+        output{INT64_MIN, INT64_MIN, INT64_MIN, INT64_MIN, INT64_MIN, INT64_MIN, INT64_MIN, INT64_MIN};
+
+    test_case.add_input<int64_t>(data);
+    test_case.add_input<int64_t>(max_val);
+
+    test_case.add_expected_output<int64_t>(Shape{2, 4}, output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_clip_set_min_no_max_initializers) {
     auto model = convert_model("clip_set_min_no_max_initializers.onnx");
 
