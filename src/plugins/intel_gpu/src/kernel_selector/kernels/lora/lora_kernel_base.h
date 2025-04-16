@@ -13,6 +13,9 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct lora_params : public base_params {
     lora_params() : base_params(KernelType::LORA) {}
+
+    size_t lora_count = 0ul;
+    bool is_ref_kernel = false;
 };
 
 struct lora_fuse_params : fuse_params {
