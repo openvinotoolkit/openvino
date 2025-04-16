@@ -347,6 +347,11 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
             ov::template_plugin::disable_transformations,
             ov::log::level,
             ov::hint::model_priority,
+            ov::hint::enable_hyper_threading,
+            ov::hint::enable_cpu_pinning,
+            ov::hint::scheduling_core_type,
+            ov::compilation_num_threads,
+            ov::inference_num_threads,
             ov::weights_path,
             ov::cache_mode,
         };
