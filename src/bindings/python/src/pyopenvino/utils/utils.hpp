@@ -6,6 +6,8 @@
 
 #include <pybind11/pybind11.h>
 
+#include <filesystem>
+
 #ifdef _MSC_VER
     // Warning occurred at the junction of pybind11 
     // and the templates inside ov::Any.
@@ -73,7 +75,7 @@ protected:
     pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
         return seekoff(pos, std::ios_base::beg, which);
     }
-    
+
 private:
     py::object m_py_stream;
 };
@@ -146,6 +148,7 @@ protected:
 
     std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback);
 
+    std::filesystem::path to_fs_path(const py::object& obj);
 }; // namespace utils
 }; // namespace Common
 

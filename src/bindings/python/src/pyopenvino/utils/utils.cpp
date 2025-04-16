@@ -5,6 +5,7 @@
 #include "utils.hpp"
 
 #include <pybind11/stl.h>
+#include <pybind11/stl/filesystem.h>
 
 #include <map>
 #include <set>
@@ -567,6 +568,21 @@ std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
         delete c;
     });
     return callback_sp;
+}
+
+std::filesystem::path to_fs_path(const py::object& obj) {
+    // import pathlib.Path
+    py::object Path = py::module_::import("pathlib").attr("Path");
+
+    if (py::isinstance(obj, Path) || py::isinstance<py::str>(obj) || py::isinstance<py::bytes>(obj)) {
+        return obj.cast<std::filesystem::path>();
+    }
+
+    std::stringstream str;
+    str << "Path: '" << obj << "'"
+        << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
+           "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
+    OPENVINO_THROW(str.str());
 }
 };  // namespace utils
 };  // namespace Common

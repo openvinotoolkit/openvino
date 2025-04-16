@@ -165,7 +165,7 @@ def test_get_result_index_invalid():
     ([PartialShape([1]), PartialShape([4])], ["relu1", "relu2"], "TestModel1", 1, True, -1)
 ])
 def test_result_index(shapes, relu_names, model_name, expected_outputs_length, is_invalid, expected_result_index):
-    params = [ops.parameter(shape, dtype=np.float32, name=f"data{i+1}") for i, shape in enumerate(shapes)]
+    params = [ops.parameter(shape, dtype=np.float32, name=f"data{i + 1}") for i, shape in enumerate(shapes)]
     relus = [ops.relu(param, name=relu_name) for param, relu_name in zip(params, relu_names)]
 
     model = Model(relus[0], [params[0]], model_name)
@@ -914,3 +914,55 @@ def test_model_dir():
 def test_model_without_arguments():
     with pytest.raises(TypeError, match="The following argument types are supported"):
         Model()
+
+
+@pytest.mark.parametrize("model_name", ["test_model", r"晚安_пут"])
+def test_model_save(model_name):
+    from pathlib import Path
+
+    model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
+
+    with tempfile.TemporaryDirectory() as model_save_dir:
+        model_path = Path(model_save_dir, model_name)
+        xml_path = model_path.with_suffix(".xml")
+        bin_path = model_path.with_suffix(".bin")
+
+        def save_and_check_model(model, test_path):
+            nonlocal xml_path, bin_path
+
+            save_model(model, test_path)
+            assert os.path.exists(xml_path)
+            assert os.path.exists(bin_path)
+
+            with Core().read_model(xml_path) as m:
+                assert m.friendly_name == model.friendly_name
+
+        save_and_check_model(model, xml_path)
+        save_and_check_model(model, str(xml_path))
+        save_and_check_model(model, str(xml_path).encode("utf-8"))
+
+
+@pytest.mark.parametrize("model_name", ["test_model", r"晚安_пут"])
+def test_model_serialize(model_name):
+    from pathlib import Path
+
+    model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
+
+    with tempfile.TemporaryDirectory() as model_save_dir:
+        model_path = Path(model_save_dir, model_name)
+        xml_path = model_path.with_suffix(".xml")
+        bin_path = model_path.with_suffix(".bin")
+
+        def serialize_and_check_model(model, xml_test_path, bin_test_path):
+            nonlocal xml_path, bin_path
+
+            serialize(model, xml_test_path, bin_test_path)
+            assert os.path.exists(xml_path)
+            assert os.path.exists(bin_path)
+
+            with Core().read_model(xml_path) as m:
+                assert m.friendly_name == model.friendly_name
+
+        serialize_and_check_model(model, xml_path, bin_path)
+        serialize_and_check_model(model, str(xml_path), str(bin_path))
+        serialize_and_check_model(model, str(xml_path).encode("utf-8"), str(bin_path).encode("utf-8"))
