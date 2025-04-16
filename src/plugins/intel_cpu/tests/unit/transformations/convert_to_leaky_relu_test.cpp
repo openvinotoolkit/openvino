@@ -27,7 +27,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest1) {
         auto slope = ov::opset1::Constant::create(ov::element::f32, ov::Shape{}, { -2.f });
         auto prelu = std::make_shared<ov::opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{ prelu }, ov::ParameterVector{ input });
+        f = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertToLeakyRelu>();
@@ -38,7 +38,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest1) {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{ 1, 3, 16, 16 });
         auto prelu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ov::element::f32);
 
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{ prelu }, ov::ParameterVector{ input });
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -52,7 +52,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest2) {
         auto slope = ov::opset1::Constant::create(ov::element::f32, ov::Shape{}, { -2.f });
         auto prelu = std::make_shared<ov::opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{ prelu }, ov::ParameterVector{ input });
+        f = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertToLeakyRelu>();
@@ -63,7 +63,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest2) {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto prelu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ov::element::f32);
 
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{ prelu }, ov::ParameterVector{ input });
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -77,7 +77,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest3) {
         auto slope = ov::opset1::Constant::create(ov::element::f32, ov::Shape{}, { -2.f });
         auto prelu = std::make_shared<ov::opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{ prelu }, ov::ParameterVector{ input });
+        f = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertToLeakyRelu>();
@@ -88,7 +88,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest3) {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
         auto prelu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ov::element::f32);
 
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{ prelu }, ov::ParameterVector{ input });
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -106,7 +106,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest4) {
             ov::op::TemporaryReplaceOutputType(input, ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(slope, ov::element::f32).get());
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{ relaxed_prelu }, ov::ParameterVector{ input });
+        f = std::make_shared<ov::Model>(ov::OutputVector{relaxed_prelu}, ov::ParameterVector{input});
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ConvertToLeakyRelu>();
@@ -117,7 +117,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest4) {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::Shape{ 1, 3, 16, 16 });
         auto prelu = std::make_shared<ov::intel_cpu::LeakyReluNode>(input, -2.f, ov::element::f32);
 
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{ prelu }, ov::ParameterVector{ input });
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -131,7 +131,7 @@ TEST(TransformationTests, ConvertToLeakyReluTest5) {
         auto slope = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 3 }, { -2.f, -1.f, -2.f });
         auto prelu = std::make_shared<ov::opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{ prelu }, ov::ParameterVector{ input });
+        f = std::make_shared<ov::Model>(ov::OutputVector{prelu}, ov::ParameterVector{input});
         f_ref = f;
 
         ov::pass::Manager m;

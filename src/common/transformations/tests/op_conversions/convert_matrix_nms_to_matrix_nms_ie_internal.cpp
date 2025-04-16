@@ -40,7 +40,7 @@ public:
 
             auto nms = std::make_shared<opset8::MatrixNms>(boxes, scores, opset8::MatrixNms::Attributes());
 
-            model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+            model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
             manager.register_pass<ov::pass::ConvertMatrixNmsToMatrixNmsIE>();
             manager.register_pass<pass::ConstantFolding>();
@@ -54,7 +54,7 @@ public:
                 scores,
                 opset8::MatrixNms::Attributes());
 
-            model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+            model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
         }
         ASSERT_EQ(model->get_output_element_type(0), model_ref->get_output_element_type(0))
             << "Output element type mismatch " << model->get_output_element_type(0).get_type_name() << " vs "
