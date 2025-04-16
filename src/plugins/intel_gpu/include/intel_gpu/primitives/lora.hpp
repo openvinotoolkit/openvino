@@ -21,9 +21,14 @@ struct lora : public primitive_base<lora> {
     /// 4) Scale vector alpha
     /// 5) Low-rank B matrix
     /// In case of fused LoRA additional inputs (like 3-5) are added for each fused LoRA accordingly
+    /// @param transposed_states Defines whether matrices 3 and 5 from the input are transposed or not
     lora(const primitive_id& id,
-         const std::vector<input_info>& inputs)
-        : primitive_base(id, inputs) {}
+         const std::vector<input_info>& inputs,
+         bool transposed_states)
+        : primitive_base(id, inputs),
+          transposed_states(transposed_states) {}
+
+    bool transposed_states;
 
     bool operator==(const primitive& rhs) const override {
         return compare_common_params(rhs);

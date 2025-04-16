@@ -4,11 +4,13 @@
 
 #include "lora_kernel_selector.h"
 #include "lora_kernel_ref.h"
+#include "lora_kernel_opt.h"
 
 namespace kernel_selector {
 
 lora_kernel_selector::lora_kernel_selector() {
     Attach<LoRAKernelRef>();
+    Attach<LoRAKernelOpt>();
 }
 
 KernelsData lora_kernel_selector::GetBestKernels(const Params& params) const {
