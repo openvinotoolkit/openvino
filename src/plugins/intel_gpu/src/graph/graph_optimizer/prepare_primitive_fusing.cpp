@@ -186,7 +186,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
             if (!node->get_dependency(0).is_type<fully_connected>())
                 continue;
             auto swiglu_prim = node->get_kernel_impl_params()->typed_desc<swiglu>();
-            auto& fc_node = node->get_dependency(0).as<fully_connected>();
+            auto& fc_node = node->get_dependency(0);
             if (node->get_dependencies().size() > 1)
                 continue;
             if (!fc_node.get_fused_primitives().empty())
