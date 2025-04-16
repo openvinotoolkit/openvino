@@ -1063,19 +1063,6 @@ void Transformations::PostLpt() {
 }
 
 void Transformations::MainSnippets() {
-// Disable MainSnippets for int8 models on arm platforms due to performance issues
-// Ticket: 163408
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    using namespace ov::pass::low_precision;
-    static const std::set<levels>& supported_fq_levels = {levels::int4,
-                                                          levels::int4_narrow_range,
-                                                          levels::int8,
-                                                          levels::int8_narrow_range};
-    if (LowPrecision::isFunctionQuantized(model, supported_fq_levels)) {
-        return;
-    }
-#endif
-
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
