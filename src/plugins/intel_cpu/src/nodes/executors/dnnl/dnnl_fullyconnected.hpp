@@ -39,14 +39,13 @@ class DnnlExecutor : public Executor {
 public:
     using PrimitivePtr = std::shared_ptr<Primitive>;
     DnnlExecutor(const Attrs& attrs,
-                 const PostOps& postOps,
                  const MemoryArgs& memory,
                  ExecutorContext::CPtr context,
                  const bool cacheWeights,
                  const bool fc3Das2D = false)
         : m_attrs(attrs),
           m_context(std::move(context)),
-          m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, postOps, memory, m_context, cacheWeights)),
+          m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, memory, m_context, cacheWeights)),
           m_primArgs(m_shapeAgnosticData->m_primAttrs.dnnlArgs),
           m_fc3Das2D(fc3Das2D) {}
     bool update(const MemoryArgs& memory) override {
@@ -95,14 +94,14 @@ public:
         m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
 
-        if (m_primArgs.count(DNNL_ARG_WEIGHTS)) {
-            if (!mbind_move(m_primArgs[DNNL_ARG_WEIGHTS], numaNodeID)) {
+        if (auto it = m_primArgs.find(DNNL_ARG_WEIGHTS); it != m_primArgs.end()) {
+            if (!mbind_move(it->second, numaNodeID)) {
                 DEBUG_LOG("[FullyConnected] move DNNL_ARG_WEIGHTS to node ", numaNodeID, " failed");
             }
         }
 
-        if (m_primArgs.count(DNNL_ARG_BIAS)) {
-            if (!mbind_move(m_primArgs[DNNL_ARG_BIAS], numaNodeID)) {
+        if (auto it = m_primArgs.find(DNNL_ARG_BIAS); it != m_primArgs.end()) {
+            if (!mbind_move(it->second, numaNodeID)) {
                 DEBUG_LOG("[FullyConnected] move DNNL_ARG_BIAS to node ", numaNodeID, " failed");
             }
         }
