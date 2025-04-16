@@ -185,6 +185,24 @@ void regclass_graph_Model(py::module m) {
                     :type name: str
                  )");
 
+    model.def(py::init([](const ov::ResultVector& results, const ov::ParameterVector& params, const std::string& name) {
+                  auto model = make_model_with_tensor_names(results, params, name);
+                  return model;
+              }),
+              py::arg("results"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
+                    Create user-defined Model which is a representation of a model.
+
+                    :param results: List of results.
+                    :type results: List[op.Result]
+                    :param parameters: List of parameters.
+                    :type parameters: List[op.Parameter]
+                    :param name: String to set as model's friendly name.
+                    :type name: str
+                )");
+
     model.def(
         py::init([](const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name) {
             return make_model_with_tensor_names(ov::as_output_vector(results), parameters, name);
