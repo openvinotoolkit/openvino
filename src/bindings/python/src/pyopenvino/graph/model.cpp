@@ -185,24 +185,23 @@ void regclass_graph_Model(py::module m) {
                     :type name: str
                  )");
 
-    model.def(py::init([](const std::vector<std::shared_ptr<ov::Node>>& results,
-                          const ov::ParameterVector& parameters,
-                          const std::string& name) {
-                  return make_model_with_tensor_names(results, parameters, name);
-              }),
-              py::arg("results"),
-              py::arg("parameters"),
-              py::arg("name") = "",
-              R"(
-                    Create user-defined Model which is a representation of a model.
+    model.def(
+        py::init([](const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name) {
+            return make_model_with_tensor_names(ov::as_output_vector(results), parameters, name);
+        }),
+        py::arg("results"),
+        py::arg("parameters"),
+        py::arg("name") = "",
+        R"(
+            Create user-defined Model which is a representation of a model.
 
-                    :param results: List of Nodes to be used as results.
-                    :type results: List[openvino.Node]
-                    :param parameters: List of parameters.
-                    :type parameters:  List[op.Parameter]
-                    :param name: String to set as model's friendly name.
-                    :type name: str
-                 )");
+            :param results: List of Nodes to be used as results.
+            :type results: List[openvino.Node]
+            :param parameters: List of parameters.
+            :type parameters:  List[op.Parameter]
+            :param name: String to set as model's friendly name.
+            :type name: str
+           )");
 
     model.def(py::init([](const std::shared_ptr<ov::Node>& result,
                           const ov::ParameterVector& parameters,
