@@ -472,7 +472,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->weights,
                                                                        bias_name,
                                                                        fc.get_output_layout().data_type,
-                                                                       desc->input_size);
+                                                                       desc->input_size,
+                                                                       desc->weights_rank);
 
             if (desc->compressed_weights) {
                 fc_with_bias_prim->compressed_weights = true;

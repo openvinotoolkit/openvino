@@ -118,9 +118,10 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         return reshapeSize;
     };
 
-    int64_t feature = input_pshape[std::min(desc->input_size, static_cast<size_t>(4)) - 1].get_length();
+    size_t feature_idx = supports_immad ? desc->input_size : std::min(desc->input_size, static_cast<size_t>(4));
+    int64_t feature = input_pshape[feature_idx - 1].get_length();
 
-    if (desc->input_size == 3) {
+    if (desc->input_size == 3 && !supports_immad) {
         feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
     }
 
