@@ -63,7 +63,7 @@ jobs:
       build-additional-python-wheels: true
       cmake-options: >-
             -G 'Ninja Multi-Config'
-            -DENABLE_PYTHON=OFF
+            -DENABLE_PYTHON=ON
             -DENABLE_WHEEL=OFF
             -DENABLE_CPPLINT=OFF
             -DENABLE_TESTS=ON
