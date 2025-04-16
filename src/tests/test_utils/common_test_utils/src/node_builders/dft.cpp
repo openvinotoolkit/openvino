@@ -32,27 +32,26 @@ std::shared_ptr<ov::Node> make_dft(ov::ParameterVector& parameters,
                                    utils::InputLayerType axes_in_type,
                                    utils::InputLayerType size_in_type) {
     std::shared_ptr<ov::Node> signal_size_node;
-    std::shared_ptr<ov::Node> axesNode;
+    std::shared_ptr<ov::Node> axes_node;
 
     if (axes_in_type == utils::InputLayerType::PARAMETER) {
-        parameters.emplace_back(std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{axes.size()}));
-        axesNode = parameters[1];
+        axes_node = parameters.emplace_back(std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{axes.size()}));
     } else {
-        axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{axes.size()}, axes);
+        axes_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{axes.size()}, axes);
     }
 
     if (!signal_size.empty()) {
         if (size_in_type == utils::InputLayerType::PARAMETER) {
-            parameters.emplace_back(std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{signal_size.size()}));
-            signal_size_node = parameters.back();
+            signal_size_node = parameters.emplace_back(
+                std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{signal_size.size()}));
         } else {
             signal_size_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64,
                                                                       ov::Shape{signal_size.size()},
                                                                       signal_size);
         }
-        return CallDftCtorWithArgs(op_type, parameters[0], axesNode, signal_size_node);
+        return CallDftCtorWithArgs(op_type, parameters[0], axes_node, signal_size_node);
     }
-    return CallDftCtorWithArgs(op_type, parameters[0], axesNode);
+    return CallDftCtorWithArgs(op_type, parameters[0], axes_node);
 }
 }  // namespace utils
 }  // namespace test

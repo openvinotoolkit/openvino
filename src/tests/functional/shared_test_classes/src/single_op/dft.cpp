@@ -52,7 +52,6 @@ void DFTLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStat
                                                                          inGenData.seed);
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
 
-    const bool parameters_only = axes_in_type == utils::InputLayerType::PARAMETER;
     if (axes_in_type == utils::InputLayerType::PARAMETER) {
         auto tensor_axes = ov::Tensor(ov::element::i64, ov::Shape({axes.size()}));
         std::memcpy(tensor_axes.data(), &axes[0], axes.size() * sizeof(int64_t));

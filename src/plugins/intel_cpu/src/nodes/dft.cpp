@@ -568,7 +568,7 @@ std::vector<int32_t> DFT::getAxes() const {
     if (in_shape_rank > 0) {
         for (auto& axis : axes_tmp) {
             if (axis < 0) {
-                axis += inputShape.getRank() - 1;
+                axis += in_shape_rank - 1;
             }
         }
     }
