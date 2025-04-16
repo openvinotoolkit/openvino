@@ -21,6 +21,29 @@
 #include "snippets/utils/utils.hpp"
 #include "snippets/op/convert_saturation.hpp"
 
+static bool has_zero_shifts_and_scales(const std::vector<float>& cl,
+                                       const std::vector<float>& ish,
+                                       const std::vector<float>& osc,
+                                       const std::vector<float>& osh) {
+    return std::all_of(cl.cbegin(),
+                       cl.cend(),
+                       [](float val) {
+                           return val == 0.0f;
+                       }) &&
+           std::all_of(ish.cbegin(),
+                       ish.cend(),
+                       [](float val) {
+                           return val == 0.0f;
+                       }) &&
+           std::all_of(osc.cbegin(),
+                       osc.cend(),
+                       [](float val) {
+                           return val == 1.0f;
+                       }) &&
+           std::all_of(osh.cbegin(), osh.cend(), [](float val) {
+               return val == 0.0f;
+           });
+}
 
 ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     MATCHER_SCOPE(FakeQuantizeDecomposition);
@@ -59,24 +82,18 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         if (status) {
             out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         }
-        const bool do_dequantize = !(status && ((std::all_of(osc.cbegin(),
-                                                             osc.cend(),
-                                                             [](float val) {
-                                                                 return val == 1.f;
-                                                             }) &&
-                                                 std::all_of(osh.cbegin(),
-                                                             osh.cend(),
-                                                             [](float val) {
-                                                                 return val == 0.f;
-                                                             })) ||
-                                                out_scales.size() != 0));
+        const bool do_dequantize = !(status && has_zero_shifts_and_scales(cl, ish, osc, osh));
         const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32 ||
                                  fake_quantize_node->get_output_element_type(0) == ov::element::f16;
-
         ov::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
             input_type = input_low.get_element_type();
+            // TODO: switch to ConvertSaturation when it will be supported on ARM
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            data = std::make_shared<ov::op::v0::Convert>(data, input_type);
+#else
             data = std::make_shared<ov::snippets::op::ConvertSaturation>(data, input_type);
+#endif
             decomp_ops.push_back(data.get_node_shared_ptr());
         }
 
@@ -97,8 +114,11 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
                                                                        scale_shape.get_shape(),
                                                                        out_scales);
             decomp_ops.push_back(scales);
-
-            result = std::make_shared<ov::op::v1::Multiply>(min, scales);
+        
+            auto shifted = std::make_shared<ov::op::v1::Subtract>(min, input_low);
+            decomp_ops.push_back(shifted);
+        
+            result = std::make_shared<ov::op::v1::Multiply>(shifted, scales);
             decomp_ops.push_back(result);
         } else {
             // (levels-1)
@@ -153,7 +173,12 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         }
 
         if (result->get_output_element_type(0) != fake_quantize_node->get_output_element_type(0)) {
+            // TODO: switch to ConvertSaturation when it will be supported on ARM
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+            result = std::make_shared<ov::op::v0::Convert>(result, fake_quantize_node->get_output_element_type(0));
+#else
             result = std::make_shared<snippets::op::ConvertSaturation>(result, fake_quantize_node->get_output_element_type(0));
+#endif
             decomp_ops.push_back(result);
         }
 
@@ -299,25 +324,7 @@ std::vector<float> ov::snippets::pass::FakeQuantizeDecomposition::calculateScale
                                                                                   const std::vector<float>& osc,
                                                                                   const std::vector<float>& osh) {
     std::vector<float> out_scales;
-    if (out_type == ov::element::u8 &&
-        std::all_of(cl.cbegin(),
-                    cl.cend(),
-                    [](float val) {
-                        return val == 0.0f;
-                    }) &&
-        std::all_of(ish.cbegin(),
-                    ish.cend(),
-                    [](float val) {
-                        return val == 0.0f;
-                    }) &&
-        std::all_of(osc.cbegin(),
-                    osc.cend(),
-                    [](float val) {
-                        return val == 1.0f;
-                    }) &&
-        std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-            return val == 0.0f;
-        })) {
+    if (out_type == ov::element::u8 && has_zero_shifts_and_scales(cl, ish, osc, osh)) {
         out_scales = isc;
     }
 
