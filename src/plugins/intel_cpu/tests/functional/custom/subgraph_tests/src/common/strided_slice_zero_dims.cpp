@@ -51,7 +51,7 @@ public:
                                                                         std::vector<int64_t>{},
                                                                         std::vector<int64_t>{},
                                                                         std::vector<int64_t>{});
-        NodeVector results{strided_slice};
+        OutputVector results{strided_slice};
         function = std::make_shared<ov::Model>(results, inputParams, "StridedSliceStaticShape");
     }
 };

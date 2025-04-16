@@ -30,7 +30,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_1) {
         auto mul_1 = make_shared<Multiply>(reduce_sum_1, factor_const_decompressed);
         auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
 
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+        model = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
@@ -52,7 +52,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_1) {
         auto convert_to_f16_1 = make_shared<Convert>(mul_1, element::f32);
         auto matmul_1 = make_shared<MatMul>(convert_to_f16_1, input_2);
 
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+        model_ref = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 }
 
@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_2) {
         auto mul_1 = make_shared<Multiply>(reduce_sum_1, factor_const_decompressed);
         auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
 
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+        model = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
@@ -98,7 +98,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_2) {
         auto convert_to_f16_1 = make_shared<Convert>(mul_1, element::f32);
         auto matmul_1 = make_shared<MatMul>(convert_to_f16_1, input_2);
 
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+        model_ref = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 }
 
@@ -118,7 +118,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_3) {
         auto mul_1 = make_shared<Multiply>(add_1, factor_const_decompressed);
         auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
 
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+        model = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
@@ -143,7 +143,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_3) {
         auto convert_to_f16_1 = make_shared<Convert>(mul_1, element::f32);
         auto matmul_1 = make_shared<MatMul>(convert_to_f16_1, input_2);
 
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+        model_ref = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 }
 
@@ -167,7 +167,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_with_rand_uniform) {
         auto mul_1 = make_shared<Multiply>(reduce_sum_1, rand_uniform_add_factor);
         auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
 
-        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+        model = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
 
         pass::Manager manager;
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
@@ -197,6 +197,6 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_with_rand_uniform) {
         auto convert_to_f16_1 = make_shared<Convert>(mul_1, element::f32);
         auto matmul_1 = make_shared<MatMul>(convert_to_f16_1, input_2);
 
-        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+        model_ref = make_shared<Model>(OutputVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 }

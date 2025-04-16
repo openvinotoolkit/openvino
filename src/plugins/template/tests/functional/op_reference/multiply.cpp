@@ -67,7 +67,7 @@ private:
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto multiply = std::make_shared<op::v1::Multiply>(in1, in2);
 
-        return std::make_shared<Model>(NodeVector{multiply}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{multiply}, ParameterVector{in1, in2});
     }
 };
 

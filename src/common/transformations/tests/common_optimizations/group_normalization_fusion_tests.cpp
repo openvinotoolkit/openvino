@@ -176,7 +176,7 @@ protected:
                                                                         num_groups,
                                                                         epsilon);
 
-        return std::make_shared<Model>(NodeVector{group_norm}, ParameterVector{input});
+        return std::make_shared<Model>(OutputVector{group_norm}, ParameterVector{input});
     }
 };
 
