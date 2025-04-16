@@ -120,25 +120,22 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
 void ZeroInferRequest::create_pipeline() {
     for (size_t inputIndex = 0; inputIndex < _metadata.inputs.size(); ++inputIndex) {
-        if (is_batched_input(inputIndex)) {
-            if (_graph->get_batch_size().has_value()) {
-                if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-                    _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",
+        if (is_batched_input(inputIndex) && _graph->get_batch_size().has_value()) {
+            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+                _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",
+                              _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
+            } else {
+                for (size_t i = 0; i < get_user_inputs(inputIndex).size(); i++) {
+                    get_level_zero_inputs(inputIndex).resize(get_user_inputs(inputIndex).size());
+
+                    _logger.debug("ZeroInferRequest::create_pipeline - allocate new input tensor for batched input: %s",
                                   _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
-                    continue;
-                } else {
-                    for (size_t i = 0; i < get_user_inputs(inputIndex).size(); i++) {
-                        get_level_zero_inputs(inputIndex).resize(get_user_inputs(inputIndex).size());
 
-                        _logger.debug(
-                            "ZeroInferRequest::create_pipeline - allocate new input tensor for batched input: %s",
-                            _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
-
-                        get_level_zero_input(inputIndex, i) =
-                            allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, true, *_inputAllocator);
-                    }
+                    get_level_zero_input(inputIndex, i) =
+                        allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, true, *_inputAllocator);
                 }
             }
+            continue;
         }
 
         if (get_level_zero_input(inputIndex)) {
