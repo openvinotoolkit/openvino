@@ -5,6 +5,9 @@
 const assert = require('assert');
 const { addon: ov } = require('../..');
 const { describe, it, before } = require('node:test');
+const {
+  getReluModel,
+} = require('../utils.js');
 
 describe('Tests for AsyncInferQueue.', () => {
   const jobs = 8;
@@ -14,8 +17,7 @@ describe('Tests for AsyncInferQueue.', () => {
 
   before(async () => {
     core = new ov.Core();
-    // simple relu
-    const model = await core.readModel('model.xml'); // TODO change this model
+    const model = await core.readModel(getReluModel());
     compiledModel = core.compileModelSync(model, 'CPU');
   }
   );
@@ -38,7 +40,6 @@ describe('Tests for AsyncInferQueue.', () => {
 
   it('Test main event loop non-blocking inference', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
-
     const jobsDone = Array.from({ length: jobs }, () => ({ finished: false }));
 
     function callback(request, jobId, err) {
@@ -64,12 +65,7 @@ describe('Tests for AsyncInferQueue.', () => {
   });
 
   it('test Promise.all() ~ infer_queue.wait_all()', async () => {
-
-    const core = new ov.Core();
-    const model = await core.readModel('model.xml');
-    const compiledModel = core.compileModelSync(model, 'CPU');
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
-
     const jobsDone = Array.from({ length: jobs }, () => ({ finished: false }));
 
     function callback(request, jobId, err) {
@@ -79,10 +75,11 @@ describe('Tests for AsyncInferQueue.', () => {
         console.log(`Job ${jobId} finished`);
         jobsDone[jobId].finished = true;
         const inferenceResult = request.getOutputTensor().data;
-        // TODO add test for catching errors from callback e.g. using here i instead of jobId
-        const inputAt0 = jobId * (jobId % 2 === 0 ? 1 : -1); // even positive, odd negative
+        // TODO add test for catching errors from callback
+        // e.g. using here i instead of jobId
+        const inputAt0 = jobId * (jobId % 2 === 0 ? 1 : -1);
         const resultAt0 = inputAt0 > 0 ? inputAt0 : 0; // relu function
-        assert.strictEqual(inferenceResult[0], resultAt0)
+        assert.strictEqual(inferenceResult[0], resultAt0);
         const input = request.getInputTensor().data;
         assert.strictEqual(input[0], inputAt0);
       }
