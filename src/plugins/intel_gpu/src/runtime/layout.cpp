@@ -345,7 +345,11 @@ size_t layout::get_linear_offset(tensor element) const {
     const auto& l_padd = tensor(default_fmt, lower_sizes, 0);
     const auto& u_padd = tensor(default_fmt, upper_sizes, 0);
 
-    const auto& t = get_tensor();
+    auto t = get_tensor();
+    for (auto& d : t.raw) {
+        if (d == 0)
+            d = 1;
+    }
 
     if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
         (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||

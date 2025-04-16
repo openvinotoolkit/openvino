@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
@@ -16,6 +17,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -91,7 +93,7 @@ SDPAFusion::SDPAFusion() {
                q_pshape[q_head_size_idx].get_length() == k_pshape[k_head_size_idx].get_length();
     };
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;

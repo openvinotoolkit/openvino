@@ -19,12 +19,19 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest {
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
+        {
+            auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+            if (std::find(capabilities.cbegin(), capabilities.cend(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.cend())
+                GTEST_SKIP();
+        }
         auto inType = ov::element::f16;
         ov::Shape inputShape{3, 4, 8, 16};
         auto constant1 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});
@@ -195,7 +202,7 @@ protected:
     }
 };
 
-TEST_F(SDPA, Inference) {
+TEST_F(SDPA, smoke_Inference) {
     run();
 }
 
