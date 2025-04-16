@@ -47,19 +47,22 @@ public:
         auto build = [&](const EltwiseExecutorDesc* desc) {
             auto executor = desc->builder->makeExecutor(context);
             if (executor->init(eltwiseAttrs, srcDescs, dstDescs, postOps)) {
+                std::cout << "[ makeExecutor ] build success\n";
                 return executor;
             }
 
             EltwiseExecutorPtr ptr = nullptr;
+            std::cout << "[ makeExecutor ] build failed\n";
             return ptr;
         };
 
         if (chosenDesc) {
+            std::cout << "[ makeExecutor ] chosenDesc\n";
             if (auto executor = build(chosenDesc)) {
                 return executor;
             }
         }
-
+        std::cout << "[ makeExecutor ]" << supportedDescs.size() << "\n";
         for (const auto& sd : supportedDescs) {
             if (auto executor = build(&sd)) {
                 chosenDesc = &sd;

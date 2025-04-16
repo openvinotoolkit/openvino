@@ -1406,6 +1406,7 @@ void Eltwise::getSupportedDescriptors() {
 }
 
 void Eltwise::initSupportedPrimitiveDescriptors() {
+    std::cout << "initSupportedPrimitiveDescriptors\n";
     const auto isBitwise = [](const Algorithm& algorithm) {
         return one_of(algorithm,
                       Algorithm::EltwiseBitwiseAnd,
@@ -1861,6 +1862,7 @@ void Eltwise::createPrimitive() {
 }
 
 void Eltwise::prepareParams() {
+    std::cout << "canUseEltwiseExecPtr----- " << canUseEltwiseExecPtr << "\n";
     if (canUseEltwiseExecPtr) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -1870,6 +1872,7 @@ void Eltwise::prepareParams() {
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
         auto selectedPD = getSelectedPrimitiveDescriptor();
+        std::cout << "Eltwise::prepareParams\n";
         eltwiseExecPtr = selectedPD->getExecutorFactoryAs<EltwiseExecutorFactory>()->makeExecutor(eltwiseAttrs,
                                                                                                   srcMemoryDescs,
                                                                                                   dstMemoryDescs,
