@@ -9,19 +9,6 @@
 
 #include "openvino/runtime/shared_buffer.hpp"
 
-namespace {
-
-class stringbuf_helper : public std::stringbuf {
-public:
-    stringbuf_helper(const std::shared_ptr<ov::AlignedBuffer>& blob) : std::stringbuf(std::ios::in), _blob(blob) {
-        setg(_blob->get_ptr<char>(), _blob->get_ptr<char>(), _blob->get_ptr<char>() + _blob->size());
-    }
-private:
-    std::shared_ptr<ov::AlignedBuffer> _blob;
-};
-
-}  // anonymous-namespace
-
 namespace intel_npu {
 
 class BlobContainer {
@@ -40,8 +27,6 @@ public:
      * @brief Returns true if the blob can be deallocated from memory, false otherwise.
      */
     virtual bool release_from_memory() = 0;
-
-    virtual bool swap_stringbuf (std::ostream& stream) = 0;
 
     virtual ~BlobContainer() = default;
 };
@@ -64,10 +49,6 @@ public:
         return true;
     }
 
-    bool swap_stringbuf(std::ostream& stream) override {
-        return false;
-    }
-
 private:
     std::vector<uint8_t> _blob;
 };
@@ -88,24 +69,6 @@ public:
     }
 
     bool release_from_memory() override {
-        return false;
-    }
-
-    bool swap_stringbuf(std::ostream& stream) override {
-        if (auto* sstream = dynamic_cast<std::stringstream*>(&stream);
-            sstream != nullptr) {
-            std::stringbuf* sbh = new stringbuf_helper(_blobSO);
-            sstream->rdbuf()->swap(*sbh);
-            int index = std::ostream::xalloc();
-            stream.pword(index) = sbh;
-            stream.register_callback([](std::ios_base::event evt, std::ios_base& stream, int idx) {
-                if (evt == std::ios_base::event::erase_event) {
-                    stringbuf_helper* sbh = static_cast<stringbuf_helper*>(stream.pword(idx));
-                    delete sbh;
-                }
-            }, index);
-            return true;
-        }
         return false;
     }
 

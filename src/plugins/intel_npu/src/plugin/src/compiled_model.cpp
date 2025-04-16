@@ -90,11 +90,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
     size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
 
-    // if blob container is of aligned buffer type, it already contains the metadata
-    if (blobSizeBeforeVersioning) {
-        auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, CURRENT_OPENVINO_VERSION);
-        meta.write(stream);
-    }
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, CURRENT_OPENVINO_VERSION);
+    meta.write(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

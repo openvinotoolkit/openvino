@@ -526,6 +526,30 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
+    ov::AnyMap npu_plugin_properties = properties;
+    std::shared_ptr<ov::AlignedBuffer> modelBuffer;
+    // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
+        blob_it != npu_plugin_properties.end()) {
+        auto compiled_blob = blob_it->second.as<ov::Tensor>();
+        modelBuffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
+                                                                     compiled_blob.get_byte_size(),
+                                                                     compiled_blob);
+        npu_plugin_properties.erase(blob_it);
+
+        std::streambuf* ossbuf = new ov::OwningSharedStreamBuffer(modelBuffer);
+        stream.rdbuf(ossbuf);
+        int index = std::ostream::xalloc();
+        stream.pword(index) = ossbuf;
+        stream.register_callback([](std::ios_base::event evt, std::ios_base& stream, int idx) {
+            if (evt == std::ios_base::event::erase_event) {
+                ov::OwningSharedStreamBuffer* ossbuf = static_cast<ov::OwningSharedStreamBuffer*>(stream.pword(idx));
+                delete ossbuf;
+            }
+        }, index);
+    }
+
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
     ov::npuw::s11n::IndicatorType serialization_indicator;
@@ -538,23 +562,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
     // Drop NPUW properties if there are any
-    ov::AnyMap npu_plugin_properties;
     for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW") == it->first.npos) {
-            npu_plugin_properties.insert(*it);
+        if (it->first.find("NPUW") != it->first.npos) {
+            npu_plugin_properties.erase(it);
         }
-    }
-
-    std::shared_ptr<ov::AlignedBuffer> modelBuffer;
-    // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
-    if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
-        blob_it != npu_plugin_properties.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        modelBuffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                     compiled_blob.get_byte_size(),
-                                                                     compiled_blob);
-        npu_plugin_properties.erase(blob_it);
     }
 
     CompilerAdapterFactory compilerAdapterFactory;

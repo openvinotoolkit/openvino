@@ -24,6 +24,7 @@ ov_add_target(ADD_CPPLINT
               TYPE EXECUTABLE
               NAME ${TARGET_NAME}
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+              EXCLUDED_SOURCE_PATHS avoid_copy_to_stringstream_import_model.cpp
               LINK_LIBRARIES
                   PRIVATE
                       openvino::runtime
@@ -34,6 +35,23 @@ ov_add_target(ADD_CPPLINT
 set_target_properties(${TARGET_NAME} PROPERTIES
                           FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
                           CXX_STANDARD 17)
+
+ov_add_target(ADD_CPPLINT
+                TYPE EXECUTABLE
+                NAME avoid_copy_to_stringstream_import_model
+                ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+                EXCLUDED_SOURCE_PATHS main.cpp
+                LINK_LIBRARIES
+                    PRIVATE
+                        openvino::runtime
+                        openvino::runtime::dev
+                        openvino::util
+                        openvino::core::dev
+                        openvino::npu_al)
+
+set_target_properties(avoid_copy_to_stringstream_import_model PROPERTIES
+                            FOLDER ${CMAKE_CURRENT_SOURCE_DIR}
+                            CXX_STANDARD 17)
 
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)

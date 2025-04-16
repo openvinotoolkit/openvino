@@ -30,30 +30,27 @@ PluginGraph::PluginGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
 }
 
 size_t PluginGraph::export_blob(std::ostream& stream) const {
-    if (!_blobPtr->swap_stringbuf(stream)) {
-        stream.write(reinterpret_cast<const char*>(_blobPtr->get_ptr()), _blobPtr->size());
+    stream.write(reinterpret_cast<const char*>(_blobPtr->get_ptr()), _blobPtr->size());
 
-        if (!stream) {
-            _logger.error("Write blob to stream failed. Blob is broken!");
-            return 0;
-        }
-
-        if (_logger.level() >= ov::log::Level::INFO) {
-            std::uint32_t result = 1171117u;
-            for (const uint8_t* it = reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr());
-                it != reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()) + _blobPtr->size();
-                ++it) {
-                result = ((result << 7) + result) + static_cast<uint32_t>(*it);
-            }
-
-            std::stringstream str;
-            str << "Blob size: " << _blobPtr->size() << ", hash: " << std::hex << result;
-            _logger.info(str.str().c_str());
-        }
-        _logger.info("Write blob to stream successfully.");
-        return _blobPtr->size();
+    if (!stream) {
+        _logger.error("Write blob to stream failed. Blob is broken!");
+        return 0;
     }
-    return 0;
+
+    if (_logger.level() >= ov::log::Level::INFO) {
+        std::uint32_t result = 1171117u;
+        for (const uint8_t* it = reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr());
+            it != reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()) + _blobPtr->size();
+            ++it) {
+            result = ((result << 7) + result) + static_cast<uint32_t>(*it);
+        }
+
+        std::stringstream str;
+        str << "Blob size: " << _blobPtr->size() << ", hash: " << std::hex << result;
+        _logger.info(str.str().c_str());
+    }
+    _logger.info("Write blob to stream successfully.");
+    return _blobPtr->size();
 }
 
 std::vector<ov::ProfilingInfo> PluginGraph::process_profiling_output(const std::vector<uint8_t>& profData,
