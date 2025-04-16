@@ -98,6 +98,7 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
             yum install -y fedora-repos
         else
             yum install -y centos-release-scl
+            # CentOS 7 is EOL and throws an error for centos-sclo-sclo
             yum-config-manager --save --setopt=centos-sclo-sclo.skip_if_unavailable=true
             yum install -y epel-release
         fi
