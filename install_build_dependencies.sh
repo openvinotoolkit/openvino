@@ -98,8 +98,8 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
             yum install -y fedora-repos
         else
             yum install -y centos-release-scl
-            yum install -y epel-release
             yum-config-manager --save --setopt=centos-sclo-sclo.skip_if_unavailable=true
+            yum install -y epel-release
         fi
         yum install -y \
             `# to build and check pip packages` \
