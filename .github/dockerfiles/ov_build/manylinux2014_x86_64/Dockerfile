@@ -4,10 +4,6 @@ FROM openvinogithubactions.azurecr.io/quayio/pypa/manylinux2014_x86_64
 USER root
 
 # Install build dependencies
-RUN cat /etc/os-release
-
-RUN yum repolist all
-
 ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && bash -e /install_build_dependencies.sh
 
