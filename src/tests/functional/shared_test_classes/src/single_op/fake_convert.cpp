@@ -75,7 +75,7 @@ void FakeConvertLayerTest::SetUp() {
 
     const auto fake_convert = default_shift ? std::make_shared<opset13::FakeConvert>(data, scale, dst_prec)
                                             : std::make_shared<opset13::FakeConvert>(data, scale, shift, dst_prec);
-    function = std::make_shared<ov::Model>(NodeVector{fake_convert}, ParameterVector{data});
+    function = std::make_shared<ov::Model>(OutputVector{fake_convert}, ParameterVector{data});
 }
 }  // namespace test
 }  // namespace ov
