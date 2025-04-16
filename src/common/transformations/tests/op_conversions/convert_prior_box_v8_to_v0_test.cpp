@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
 
         auto prior_box = std::make_shared<opset8::PriorBox>(input, image, attrs);
 
-        model = std::make_shared<Model>(NodeVector{prior_box}, ParameterVector{input, image});
+        model = std::make_shared<Model>(OutputVector{prior_box}, ParameterVector{input, image});
         manager.register_pass<ov::pass::ConvertPriorBox8To0>();
     }
 
@@ -52,7 +52,7 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0) {
 
         auto prior_box = std::make_shared<opset1::PriorBox>(input, image, attrs);
 
-        model_ref = std::make_shared<Model>(NodeVector{prior_box}, ParameterVector{input, image});
+        model_ref = std::make_shared<Model>(OutputVector{prior_box}, ParameterVector{input, image});
     }
 }
 
@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, ConvertPriorBox8To0_min_max_aspect_ratios_order) {
 
         auto prior_box = std::make_shared<opset8::PriorBox>(input, image, attrs);
 
-        model = std::make_shared<Model>(NodeVector{prior_box}, ParameterVector{input, image});
+        model = std::make_shared<Model>(OutputVector{prior_box}, ParameterVector{input, image});
         manager.register_pass<ov::pass::ConvertPriorBox8To0>();
     }
 }

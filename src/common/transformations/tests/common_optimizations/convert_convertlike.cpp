@@ -27,7 +27,7 @@ TEST(TransformationTests, ConvertConvertLike) {
         auto like = opset8::Constant::create(element::i32, Shape{1}, {1});
         auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
 
-        f = std::make_shared<ov::Model>(NodeVector{cvtlike}, ParameterVector{data});
+        f = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -40,7 +40,7 @@ TEST(TransformationTests, ConvertConvertLike) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
         auto cvt = std::make_shared<opset8::Convert>(data, element::i32);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{cvt}, ParameterVector{data});
+        f_ref = std::make_shared<ov::Model>(OutputVector{cvt}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -56,7 +56,7 @@ TEST(TransformationTests, ConvertConvertLike2) {
         auto like = std::make_shared<opset8::Add>(data2, constant);
         auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
 
-        f = std::make_shared<ov::Model>(NodeVector{cvtlike}, ParameterVector{data, data2});
+        f = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data, data2});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -69,7 +69,7 @@ TEST(TransformationTests, ConvertConvertLike2) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{3, 1, 2});
         auto cvt = std::make_shared<opset8::Convert>(data, element::i8);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{cvt}, ParameterVector{data});
+        f_ref = std::make_shared<ov::Model>(OutputVector{cvt}, ParameterVector{data});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -83,7 +83,7 @@ TEST(TransformationTests, ConvertConvertLike_Negative) {
         auto like = std::make_shared<opset8::Parameter>(element::dynamic, Shape{1});
         auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
 
-        f = std::make_shared<ov::Model>(NodeVector{cvtlike}, ParameterVector{data, like});
+        f = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data, like});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -97,7 +97,7 @@ TEST(TransformationTests, ConvertConvertLike_Negative) {
         auto like = std::make_shared<opset8::Parameter>(element::dynamic, Shape{1});
         auto cvtlike = std::make_shared<opset8::ConvertLike>(data, like);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{cvtlike}, ParameterVector{data, like});
+        f_ref = std::make_shared<ov::Model>(OutputVector{cvtlike}, ParameterVector{data, like});
     }
 
     auto res = compare_functions(f, f_ref);

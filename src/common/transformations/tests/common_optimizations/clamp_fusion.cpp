@@ -28,7 +28,7 @@ TEST_F(TransformationTestsF, ClampFusion) {
         auto max_const = opset5::Constant::create(element::f32, Shape{1}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_const);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
-        model = std::make_shared<Model>(NodeVector{min}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{min}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ClampFusion>();
     }
@@ -36,7 +36,7 @@ TEST_F(TransformationTestsF, ClampFusion) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
-        model_ref = std::make_shared<Model>(NodeVector{clamp}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{clamp}, ParameterVector{data});
     }
 }
 
@@ -47,7 +47,7 @@ TEST_F(TransformationTestsF, ClampFusionScalars) {
         auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_const);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
-        model = std::make_shared<Model>(NodeVector{min}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{min}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ClampFusion>();
     }
@@ -55,7 +55,7 @@ TEST_F(TransformationTestsF, ClampFusionScalars) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
-        model_ref = std::make_shared<Model>(NodeVector{clamp}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{clamp}, ParameterVector{data});
     }
 }
 
@@ -66,7 +66,7 @@ TEST_F(TransformationTestsF, ClampFusionNonConstMin) {
         auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_val);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
-        model = std::make_shared<Model>(NodeVector{min}, ParameterVector{data, min_val});
+        model = std::make_shared<Model>(OutputVector{min}, ParameterVector{data, min_val});
 
         manager.register_pass<ov::pass::ClampFusion>();
     }
@@ -77,7 +77,7 @@ TEST_F(TransformationTestsF, ClampFusionNonConstMin) {
         auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
         auto max = std::make_shared<opset5::Maximum>(data, min_val);
         auto min = std::make_shared<opset5::Minimum>(max, max_const);
-        model_ref = std::make_shared<Model>(NodeVector{min}, ParameterVector{data, min_val});
+        model_ref = std::make_shared<Model>(OutputVector{min}, ParameterVector{data, min_val});
     }
 }
 
@@ -89,7 +89,7 @@ TEST_F(TransformationTestsF, ClampFusionMinMax) {
         auto min = std::make_shared<opset5::Minimum>(data, max_const);
         auto max = std::make_shared<opset5::Maximum>(min, min_const);
 
-        model = std::make_shared<Model>(NodeVector{max}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{max}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ClampFusion>();
     }
@@ -97,7 +97,7 @@ TEST_F(TransformationTestsF, ClampFusionMinMax) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
-        model_ref = std::make_shared<Model>(NodeVector{clamp}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{clamp}, ParameterVector{data});
     }
 }
 
@@ -108,7 +108,7 @@ TEST_F(TransformationTestsF, ClampFusionMinMaxScalars) {
         auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
         auto min = std::make_shared<opset5::Minimum>(data, max_const);
         auto max = std::make_shared<opset5::Maximum>(min, min_const);
-        model = std::make_shared<Model>(NodeVector{max}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{max}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ClampFusion>();
     }
@@ -116,7 +116,7 @@ TEST_F(TransformationTestsF, ClampFusionMinMaxScalars) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
         auto clamp = std::make_shared<opset5::Clamp>(data, 0.1, 5);
-        model_ref = std::make_shared<Model>(NodeVector{clamp}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{clamp}, ParameterVector{data});
     }
 }
 
@@ -127,7 +127,7 @@ TEST_F(TransformationTestsF, ClampFusionMinMaxNonConstMax) {
         auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
         auto min = std::make_shared<opset5::Minimum>(data, max_const);
         auto max = std::make_shared<opset5::Maximum>(min, max_val);
-        model = std::make_shared<Model>(NodeVector{max}, ParameterVector{data, max_val});
+        model = std::make_shared<Model>(OutputVector{max}, ParameterVector{data, max_val});
 
         manager.register_pass<ov::pass::ClampFusion>();
     }
@@ -138,6 +138,6 @@ TEST_F(TransformationTestsF, ClampFusionMinMaxNonConstMax) {
         auto max_const = opset5::Constant::create(element::f32, Shape{}, {5});
         auto min = std::make_shared<opset5::Minimum>(data, max_const);
         auto max = std::make_shared<opset5::Maximum>(min, min_val);
-        model_ref = std::make_shared<Model>(NodeVector{max}, ParameterVector{data, min_val});
+        model_ref = std::make_shared<Model>(OutputVector{max}, ParameterVector{data, min_val});
     }
 }
