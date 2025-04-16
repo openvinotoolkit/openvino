@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include <vector>
-
-#include "cpu_memory.h"
 #include "executor_config.hpp"
+#include "post_ops.hpp"
 
 namespace ov::intel_cpu {
 
@@ -22,6 +20,8 @@ struct FCAttrs {
     bool nonConstantWeights = false;
 
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
+
+    PostOps postOps;
 };
 
 using FCConfig = executor::Config<FCAttrs>;

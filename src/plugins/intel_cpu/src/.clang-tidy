@@ -36,7 +36,6 @@
 # -misc-include-cleaner,
 # -misc-non-private-member-variables-in-classes,
 # -misc-use-anonymous-namespace,
-# -readability-implicit-bool-conversion,
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
@@ -54,6 +53,7 @@ Checks: >
   cppcoreguidelines-pro-type-cstyle-cast,
   readability-container-size-empty,
   readability-else-after-return,
+  readability-implicit-bool-conversion,
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,
@@ -77,7 +77,6 @@ Checks: >
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
   -readability-identifier-length,
-  -readability-implicit-bool-conversion,
   -readability-magic-numbers,
   -cppcoreguidelines-avoid-magic-numbers,
   -readability-uppercase-literal-suffix,
@@ -103,6 +102,10 @@ CheckOptions:
   - key: modernize-use-auto.MinTypeNameLength
     value: "3"
   - key: modernize-use-override.AllowOverrideAndFinal
+    value: true
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: true
+  - key: readability-implicit-bool-conversion.AllowPointerConditions
     value: true
  # Unifies the usage of the statements
   - key: readability-braces-around-statements.ShortStatementLines
