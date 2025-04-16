@@ -3334,6 +3334,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             ASSERT_EQ(out_l.feature(), 3);
             ASSERT_EQ(out_l.spatial(0), 2);
             ASSERT_EQ(out_l.spatial(1), 1);
+            ASSERT_EQ(out_l.spatial(2), 1);
+            ASSERT_EQ(out_l.spatial(3), 2);
         } else {
             ASSERT_EQ(output_prim_mem->get_layout().batch(), 6);
             ASSERT_EQ(out_l.batch(), 6);

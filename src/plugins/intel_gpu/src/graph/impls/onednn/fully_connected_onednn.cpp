@@ -268,15 +268,18 @@ public:
         auto prim = impl_params->typed_desc<fully_connected>();
         auto weights_layout = impl_params->get_input_layout(1);
         bool is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
+        auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
+        int per_oc = PER_OC << shift_size;
+        int grouped = GROUPED << shift_size;
 
         bool has_decompression_scale = !prim->decompression_scale.empty();
         if (has_decompression_scale) {
             ib >> _ds_group_size;
             ib >> make_data(&_ds_data_type, sizeof(dnnl::memory::data_type));
             if (!is_four_bit_weight)
-                _attrs->set_scales(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, _ds_data_type);
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
             else
-                _attrs->set_scales(DNNL_ARG_WEIGHTS, GROUPED, {_ds_group_size, 1}, _ds_data_type);
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
         }
 
         bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value();
@@ -293,9 +296,9 @@ public:
             } else {
                 auto ngroups = dzp_layout.get_dim(1);
                 if (ngroups == 1) {
-                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, _dzp_data_type);
+                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, GROUPED, {_ds_group_size, 1}, _dzp_data_type);
+                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type);
                 }
             }
         }
@@ -310,9 +313,9 @@ public:
             int src_group_size = innermost_len / src_scale_ngroups;
 
             auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(src_scale_idx).data_type);
-            _attrs->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
+            _attrs->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
             if (dynamic_quantized_activation_zp)
-                _attrs->set_zero_points(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                _attrs->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
         }
 
         auto prim_desc = get_matmul_primitive_descriptor(*impl_params, ib.get_engine(), input_size, weights_rank, has_bias, *_attrs);
@@ -349,6 +352,9 @@ public:
             auto weights_layout = impl_params.get_input_layout(1);
             is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
+            int per_oc = PER_OC << shift_size;
+            int grouped = GROUPED << shift_size;
+
             if (!prim->decompression_scale.empty()) {
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
@@ -358,10 +364,10 @@ public:
                 group_size = ifm / ngroups;
                 if (!is_four_bit_weight) {
                     // 8-bit quantized weight
-                    attr->set_scales(DNNL_ARG_WEIGHTS, (PER_OC << shift_size), dnnl::memory::dims{}, ds_data_type);
+                    attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
                 } else {
                     // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
-                    attr->set_scales(DNNL_ARG_WEIGHTS, (GROUPED << shift_size), {group_size, 1}, ds_data_type);
+                    attr->set_scales(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, ds_data_type);
                 }
             }
 
@@ -375,9 +381,9 @@ public:
                 } else {
                     auto ngroups = dzp_layout.get_dim(1);
                     if (ngroups == 1) {
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, (PER_OC << shift_size), dnnl::memory::dims{}, dzp_data_type);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, (GROUPED << shift_size), {group_size, 1}, dzp_data_type);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type);
                     }
                 }
             }
@@ -391,10 +397,10 @@ public:
                 int src_group_size = innermost_len / src_scale_ngroups;
 
                 auto act_scale_data_type = convert_data_type(impl_params.input_layouts[src_scale_idx].data_type);
-                attr->set_scales(DNNL_ARG_SRC, (GROUPED << shift_size), dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
+                attr->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
 
                 if (prim->activation_zero_point.is_valid())
-                    attr->set_zero_points(DNNL_ARG_SRC, (GROUPED << shift_size), dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                    attr->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
             }
 
 

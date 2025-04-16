@@ -66,7 +66,7 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
     }
 
     if (input_layout.data_type == data_types::f32 &&
-        (input_layout.format == format::bfyx || input_layout.format == format::bfzyx || input_layout.format == format::bfwzyx) &&
+        one_of<cldnn::format>(input_layout.format, {format::bfyx, format::bfzyx, format::bfwzyx}) &&
         no_spatial_padding &&
         input_layout.batch() != 8)
         return input_layout.format;
