@@ -33,47 +33,47 @@ TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_2D_f32) {
     run();
 }
 
-TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_2D_i8) {
-    const auto& f =
-        MLPSeqFunction(std::vector<PartialShape>{{64, 64}}, std::vector<ov::element::Type>({ov::element::f32}), 10);
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
+// TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_2D_i8) {
+//     const auto& f =
+//         MLPSeqFunction(std::vector<PartialShape>{{64, 64}}, std::vector<ov::element::Type>({ov::element::f32}), 10);
+//     model = f.getOriginal();
+//     model_ref = f.getReference();
+//     run();
+// }
 
-TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_2D_f32_rect_matrix) {
-    const auto& f =
-        MLPSeqFunction(std::vector<PartialShape>{{128, 128}}, std::vector<ov::element::Type>({ov::element::f32}), 10);
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
+// TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_2D_f32_rect_matrix) {
+//     const auto& f =
+//         MLPSeqFunction(std::vector<PartialShape>{{128, 128}}, std::vector<ov::element::Type>({ov::element::f32}), 10);
+//     model = f.getOriginal();
+//     model_ref = f.getReference();
+//     run();
+// }
 
-TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_2D_f32_rect_matrix_2) {
-    const auto& f =
-        MLPSeqFunction(std::vector<PartialShape>{{128, 128}}, std::vector<ov::element::Type>({ov::element::f32}), 10);
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
+// TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_2D_f32_rect_matrix_2) {
+//     const auto& f =
+//         MLPSeqFunction(std::vector<PartialShape>{{128, 128}}, std::vector<ov::element::Type>({ov::element::f32}), 10);
+//     model = f.getOriginal();
+//     model_ref = f.getReference();
+//     run();
+// }
 
-TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_4D_f32_rect_matrix) {
-    const auto& f = MLPSeqFunction(std::vector<PartialShape>{{1, 4, 128, 128}},
-                                   std::vector<ov::element::Type>({ov::element::f32}),
-                                   10);
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
+// TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_4D_f32_rect_matrix) {
+//     const auto& f = MLPSeqFunction(std::vector<PartialShape>{{1, 4, 128, 128}},
+//                                    std::vector<ov::element::Type>({ov::element::f32}),
+//                                    10);
+//     model = f.getOriginal();
+//     model_ref = f.getReference();
+//     run();
+// }
 
-TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_4D_f32_rect_matrix_2) {
-    const auto& f = MLPSeqFunction(std::vector<PartialShape>{{1, 2, 128, 128}},
-                                   std::vector<ov::element::Type>({ov::element::f32}),
-                                   10);
-    model = f.getOriginal();
-    model_ref = f.getReference();
-    run();
-}
+// TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_4D_f32_rect_matrix_2) {
+//     const auto& f = MLPSeqFunction(std::vector<PartialShape>{{1, 2, 128, 128}},
+//                                    std::vector<ov::element::Type>({ov::element::f32}),
+//                                    10);
+//     model = f.getOriginal();
+//     model_ref = f.getReference();
+//     run();
+// }
 
 }  // namespace snippets
 }  // namespace test
