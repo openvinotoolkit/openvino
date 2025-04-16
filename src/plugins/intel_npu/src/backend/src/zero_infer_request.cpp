@@ -122,9 +122,22 @@ void ZeroInferRequest::create_pipeline() {
     for (size_t inputIndex = 0; inputIndex < _metadata.inputs.size(); ++inputIndex) {
         if (is_batched_input(inputIndex)) {
             if (_graph->get_batch_size().has_value()) {
-                _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",
-                              _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
-                continue;
+                if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
+                    _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",
+                                  _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
+                    continue;
+                } else {
+                    for (size_t i = 0; i < get_user_inputs(inputIndex).size(); i++) {
+                        get_level_zero_inputs(inputIndex).resize(get_user_inputs(inputIndex).size());
+
+                        _logger.debug(
+                            "ZeroInferRequest::create_pipeline - allocate new input tensor for batched input: %s",
+                            _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
+
+                        get_level_zero_input(inputIndex, i) =
+                            allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, true, *_inputAllocator);
+                    }
+                }
             }
         }
 
@@ -327,14 +340,13 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     get_user_inputs(foundPort.idx).resize(tensors.size());
     get_user_inputs(foundPort.idx) = tensors;
 
-    void* data = nullptr;
-
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         if (_graph->get_batch_size().has_value()) {
             for (size_t i = 0; i < tensors.size(); i++) {
                 auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensors[i]._ptr);
 
                 get_level_zero_inputs(foundPort.idx).resize(tensors.size());
+                void* data = nullptr;
 
                 if (remoteTensor == nullptr) {
                     bool tensorHasSameL0Context = false;
