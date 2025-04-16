@@ -95,33 +95,6 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     return std::make_shared<ov::Model>(results, parameters);
 }
 
-/**
- * @brief Setting batching mode
- * @details  In the case of older drivers, we force batching to compiler mode since it is not
- * supported. Othwersie set it tu AUTO if this wasn't set by the user
- * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
- * @param config A configuration map.
- */
-void set_batch_config(bool isBatchingSupported, FilteredConfig& config) {
-    if (!isBatchingSupported) {
-        if (config.has<BATCH_MODE>()) {
-            if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
-                OPENVINO_THROW("Batching on plugin is not supported with this driver version");
-            }
-        }
-
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::COMPILER;
-        config.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    }
-
-    if (!config.has<BATCH_MODE>()) {
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::AUTO;
-        config.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    }
-}
-
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
@@ -460,7 +433,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    set_batch_config(_backend == nullptr ? false : _backend->isBatchingSupported(), localConfig);
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) &&
+        !localConfig.has(ov::intel_npu::batch_mode.name())) {
+        std::stringstream strStream;
+        strStream << ov::intel_npu::BatchMode::AUTO;
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    }
 
     if (!model->get_variables().empty()) {
         if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
@@ -594,8 +572,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
-
-    set_batch_config(_backend == nullptr ? false : _backend->isBatchingSupported(), localConfig);
 
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {
