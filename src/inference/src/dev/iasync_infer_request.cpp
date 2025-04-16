@@ -53,7 +53,6 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
         m_sync_pipeline = {{std::make_shared<ImmediateStreamsExecutor>(std::move(streams_executor)), [this] {
                                 m_sync_request->infer();
                             }}};
-        m_is_single_thread = (streams_executor->get_streams_num() == 1 && streams_executor->get_threads_num() == 1);
     }
 }
 
@@ -256,15 +255,11 @@ void ov::IAsyncInferRequest::stop_and_wait() {
 }
 
 void ov::IAsyncInferRequest::infer() {
-    if (m_is_single_thread) {
-        m_sync_request->infer();
-    } else {
-        DisableCallbackGuard disableCallbackGuard{this};
-        infer_impl([this] {
-            infer_thread_unsafe();
-        });
-        wait();
-    }
+    DisableCallbackGuard disableCallbackGuard{this};
+    infer_impl([this] {
+        infer_thread_unsafe();
+    });
+    wait();
 }
 
 void ov::IAsyncInferRequest::check_tensors() const {

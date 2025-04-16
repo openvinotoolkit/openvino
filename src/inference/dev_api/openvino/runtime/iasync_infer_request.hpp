@@ -277,7 +277,6 @@ private:
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
     std::function<void(std::exception_ptr)> m_callback;
-    bool m_is_single_thread = false; // Mark whether it is a single thread inference
 
 };
 

@@ -12,6 +12,7 @@ ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : ov::IAsyncInferRequest(request, task_executor, callback_executor) {
     static_cast<SyncInferRequest*>(request.get())->set_async_request(this);
+    m_internal_request = request;
 }
 
 ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
@@ -28,4 +29,12 @@ void ov::intel_cpu::AsyncInferRequest::throw_if_canceled() const {
 void ov::intel_cpu::AsyncInferRequest::setSubInferRequest(
     const std::vector<std::shared_ptr<IAsyncInferRequest>>& requests) {
     m_sub_infer_requests = requests;
+}
+
+void ov::intel_cpu::AsyncInferRequest::infer() {
+    if (m_is_single_thread) {
+        m_internal_request->infer();
+    } else {
+        ov::IAsyncInferRequest::infer();
+    }
 }
