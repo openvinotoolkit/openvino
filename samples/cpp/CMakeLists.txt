@@ -2,6 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(WIN32)
+    cmake_minimum_required (VERSION 3.15)
+    if(POLICY CMP0091)
+        cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
+    endif()
+else()
+    cmake_minimum_required (VERSION 3.10)
+endif()
+
+# Enable CMAKE_<LANG>_COMPILER_ID AppleClang
+if(POLICY CMP0025)
+    cmake_policy(SET CMP0025 NEW)
+endif()
+
+project(Samples
+        DESCRIPTION "OpenVINO Samples"
+        HOMEPAGE_URL "https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples.html"
+        LANGUAGES C CXX)
+
 if(NOT DEFINED OPENVINO_STD_FS_LIB)
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
         "#include <experimental/filesystem>\nint main(int argc, char ** argv) {\n  std::experimental::filesystem::path p(argv[0]);\n  return p.string().length();\n}")
@@ -31,25 +50,6 @@ if(NOT DEFINED OPENVINO_STD_FS_LIB)
         message(WARNING "Unknown C++ build setup - No explicit filesystem linker setting set")
     endif()
 endif()
-
-if(WIN32)
-    cmake_minimum_required (VERSION 3.15)
-    if(POLICY CMP0091)
-        cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
-    endif()
-else()
-    cmake_minimum_required (VERSION 3.10)
-endif()
-
-# Enable CMAKE_<LANG>_COMPILER_ID AppleClang
-if(POLICY CMP0025)
-    cmake_policy(SET CMP0025 NEW)
-endif()
-
-project(Samples
-        DESCRIPTION "OpenVINO Samples"
-        HOMEPAGE_URL "https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples.html"
-        LANGUAGES C CXX)
 
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
