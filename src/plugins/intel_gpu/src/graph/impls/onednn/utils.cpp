@@ -235,7 +235,7 @@ int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     auto f_padding = l.data_padding._lower_size[1];
     if (b_padding != 0) {
         auto input_pitches = l.get_pitches();
-        offset = b_padding * input_pitches[0];
+        offset = static_cast<int64_t>(b_padding) * input_pitches[0];
     } else if (f_padding != 0) {
         offset = f_padding;
         for (size_t i = 0; i < l.get_spatial_rank(); ++i) {

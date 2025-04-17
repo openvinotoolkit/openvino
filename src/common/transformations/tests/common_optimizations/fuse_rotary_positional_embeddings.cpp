@@ -113,7 +113,7 @@ static std::shared_ptr<ov::Model> buildROPE_Llama2(const size_t batch,
     auto mul_Multiply_463 = makeOP<ov::opset1::Multiply>({cat_Concat, cos_sin[1]}, {{"auto_broadcast", "numpy"}});
     auto add_Add = makeOP<ov::opset1::Add>({mul_Multiply, mul_Multiply_463}, {{"auto_broadcast", "numpy"}});
 
-    return std::make_shared<ov::Model>(ov::NodeVector{add_Add}, parameters);
+    return std::make_shared<ov::Model>(ov::OutputVector{add_Add}, parameters);
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_LLama2_no_gather) {
@@ -146,7 +146,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_no_gather) {
                                                        {"config.rotary_ndims", static_cast<int>(ndims)},
                                                        {"config.gather_position_arg_id", 0}});
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{add_Add},
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{add_Add},
                                                 ov::ParameterVector{hidden_states, param_cos, param_sin});
     }
 }
@@ -183,7 +183,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_with_gather) {
                                                        {"config.rotary_ndims", static_cast<int>(ndims)},
                                                        {"config.gather_position_arg_id", 3}});
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{add_Add},
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{add_Add},
                                                 ov::ParameterVector{hidden_states, seq_len, gather_id});
     }
 }
@@ -288,7 +288,7 @@ static std::shared_ptr<ov::Model> buildROPE_GPTNEOX(const int batch,
                                           {"ellipsis_mask", {}}});
     auto cat_Concat_458 = makeOP<ov::opset1::Concat>({add_Add, slice_Slice_357}, {{"axis", -1}});
 
-    return std::make_shared<ov::Model>(ov::NodeVector{cat_Concat_458}, parameters);
+    return std::make_shared<ov::Model>(ov::OutputVector{cat_Concat_458}, parameters);
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
@@ -322,7 +322,8 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
                                                     {"config.head_size", 0},
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.gather_position_arg_id", 0}});
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
+        model_ref =
+            std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, param_cos, param_sin});
     }
 }
 
@@ -359,7 +360,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.gather_position_arg_id", 3}});
         model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, gather_idx, batch_limit});
+            std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, gather_idx, batch_limit});
     }
 }
 
@@ -454,7 +455,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
                                               {"ellipsis_mask", {}}});
         auto cat_Concat_826 = makeOP<ov::opset1::Concat>({add_Add_819, slice_Slice_582}, {{"axis", -1}});
         auto permute_Transpose_828 = makeOP<ov::opset1::Transpose>({cat_Concat_826, {0, 2, 1, 3}});
-        model = std::make_shared<ov::Model>(ov::NodeVector{permute_Transpose_828},
+        model = std::make_shared<ov::Model>(ov::OutputVector{permute_Transpose_828},
                                             ov::ParameterVector{input, gather_sin_cos});
     }
     manager.register_pass<ov::pass::RoPEFusion>();
@@ -475,7 +476,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
                                                     {"config.head_size", 0},
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.gather_position_arg_id", 0}});
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, cos_sin});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, cos_sin});
     }
 }
 
@@ -562,7 +563,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
                                               {"ellipsis_mask", {}}});
         auto aten_cat_Concat_425 =
             makeOP<ov::opset1::Concat>({aten_flatten_Reshape_421, aten_slice_Slice_363}, {{"axis", -1}});
-        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat_425},
+        model = std::make_shared<ov::Model>(ov::OutputVector{aten_cat_Concat_425},
                                             ov::ParameterVector{input, seq_length, cos_sin_cache});
     }
     manager.register_pass<ov::pass::RoPEFusion>();
@@ -586,7 +587,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
         model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, seq_length, cos_sin_cache});
+            std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, seq_length, cos_sin_cache});
     }
 }
 
@@ -641,7 +642,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_Slice) {
             makeOP<opset1::Reshape>({stack, {0, 0, num_heads, rotary_ndims}}, {{"special_zero", true}});
         auto cat_Concat = makeOP<opset1::Concat>({flatten_Reshape, VariadicSplit_20795->output(1)}, {{"axis", -1}});
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{cat_Concat},
+        model = std::make_shared<ov::Model>(ov::OutputVector{cat_Concat},
                                             ov::ParameterVector{input, seq_length, cos_sin_cache});
     }
     manager.register_pass<ov::pass::RoPEFusion>();
@@ -665,7 +666,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_Slice) {
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
         model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, seq_length, cos_sin_cache});
+            std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, seq_length, cos_sin_cache});
     }
 }
 
@@ -726,8 +727,8 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
         auto cat_Concat = makeOP<opset1::Concat>({add_Add, VariadicSplit_39740->output(1)}, {{"axis", -1}});
         auto permute_Transpose = makeOP<opset1::Transpose>({cat_Concat, {0, 2, 1, 3}});
 
-        model =
-            std::make_shared<ov::Model>(ov::NodeVector{permute_Transpose}, ov::ParameterVector{input, gather_sin_cos});
+        model = std::make_shared<ov::Model>(ov::OutputVector{permute_Transpose},
+                                            ov::ParameterVector{input, gather_sin_cos});
     }
     manager.register_pass<ov::pass::RoPEFusion>();
     {
@@ -747,7 +748,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
                                                     {"config.head_size", 0},
                                                     {"config.rotary_ndims", rotary_ndims},
                                                     {"config.gather_position_arg_id", 0}});
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, cos_sin});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, cos_sin});
     }
 }
 
@@ -840,7 +841,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
              {"shrink_axis_mask", {}},
              {"ellipsis_mask", {}}});
         auto cat_Concat_425 = makeOP<ov::opset1::Concat>({flatten_Reshape_421, slice_Slice_363}, {{"axis", -1}});
-        model = std::make_shared<ov::Model>(ov::NodeVector{cat_Concat_425},
+        model = std::make_shared<ov::Model>(ov::OutputVector{cat_Concat_425},
                                             ov::ParameterVector{input, cos_sin_cache, position_ids});
     }
     manager.register_pass<ov::pass::RoPEFusion>(true);
@@ -863,8 +864,8 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
                                                     {"config.head_cnt", num_heads},
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
-        model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, cos_sin_cache, position_ids});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope},
+                                                ov::ParameterVector{input, cos_sin_cache, position_ids});
     }
 }
 
@@ -949,7 +950,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_nano_2d_rope) {
         auto stack_401 = makeOP<ov::opset1::Concat>({Unsqueeze_62716, Unsqueeze_62717}, {{"axis", -1}});
         auto flatten_Reshape_421 =
             makeOP<ov::opset1::Reshape>({stack_401, {0, num_heads, 0, rotary_ndims}}, {{"special_zero", true}});
-        model = std::make_shared<ov::Model>(ov::NodeVector{flatten_Reshape_421},
+        model = std::make_shared<ov::Model>(ov::OutputVector{flatten_Reshape_421},
                                             ov::ParameterVector{input, cos_sin_cache, position_ids});
     }
     manager.register_pass<ov::pass::RoPEFusion>(true);
@@ -972,8 +973,8 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_nano_2d_rope) {
                                                     {"config.head_cnt", num_heads},
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
-        model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, cos_sin_cache, position_ids});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope},
+                                                ov::ParameterVector{input, cos_sin_cache, position_ids});
     }
 }
 
@@ -1006,7 +1007,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul) {
         auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
         auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+        model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
@@ -1020,7 +1021,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul) {
         config.head_cnt = num_heads;
         config.head_size = ndims;
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
     }
     comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
@@ -1060,7 +1061,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_squeeze_mul_unsqueeze) {
         auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
         auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+        model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
@@ -1074,7 +1075,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_squeeze_mul_unsqueeze) {
         config.head_cnt = num_heads;
         config.head_size = ndims;
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
     }
     comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
@@ -1114,7 +1115,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze) {
         auto y2 = std::make_shared<ov::op::v1::Multiply>(x3, t_sin);
         auto y = std::make_shared<ov::op::v1::Add>(y1, y2);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+        model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x, t_cos, t_sin});
     }
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
@@ -1128,7 +1129,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze) {
         config.head_cnt = num_heads;
         config.head_size = ndims;
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
     }
     comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
@@ -1192,7 +1193,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM3_PagedAttention) {
         auto aten_cat_Concat_55 =
             makeOP<opset1::Concat>({aten_flatten_Reshape_55, VariadicSplit_29663->output(1)}, {{"axis", -1}});
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat_55}, ov::ParameterVector{input, cos_sin});
+        model = std::make_shared<ov::Model>(ov::OutputVector{aten_cat_Concat_55}, ov::ParameterVector{input, cos_sin});
     }
     manager.register_pass<ov::pass::RoPEFusion>(false);
     {
@@ -1214,7 +1215,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM3_PagedAttention) {
                                                     {"config.head_cnt", num_heads},
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, gather_cos_sin});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, gather_cos_sin});
     }
 }
 
@@ -1269,7 +1270,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Qwen_PagedAttention) {
         auto cat_Concat_2 = makeOP<opset1::Concat>({ListUnpack_Squeeze_0_1, ListUnpack_Squeeze_1}, {{"axis", -1}});
         auto mul_Multiply_3 = makeOP<opset1::Multiply>({cat_Concat_2, Reshape_27408}, {{"auto_broadcast", "numpy"}});
         auto add_Add_1 = makeOP<opset1::Add>({mul_Multiply_2, mul_Multiply_3}, {{"auto_broadcast", "numpy"}});
-        model = std::make_shared<ov::Model>(ov::NodeVector{add_Add_1}, ov::ParameterVector{position_ids, qkv});
+        model = std::make_shared<ov::Model>(ov::OutputVector{add_Add_1}, ov::ParameterVector{position_ids, qkv});
     }
 
     manager.register_pass<ov::pass::RoPEFusion>(false);
@@ -1294,7 +1295,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Qwen_PagedAttention) {
                                                     {"config.head_cnt", 32},
                                                     {"config.head_size", 128},
                                                     {"config.gather_position_arg_id", 3}});
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, position_ids});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, position_ids});
     }
 }
 
@@ -1354,7 +1355,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_PagedAttention) {
             makeOP<opset1::Add>({aten_mul_Multiply, aten_mul_Multiply_1}, {{"auto_broadcast", "numpy"}});
         auto aten_cat_Concat_1 = makeOP<opset1::Concat>({aten_add_Add, VariadicSplit_32371->output(1)}, {{"axis", -1}});
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat_1},
+        model = std::make_shared<ov::Model>(ov::OutputVector{aten_cat_Concat_1},
                                             ov::ParameterVector{input, aten_gather_GatherElements});
     }
     manager.register_pass<ov::pass::RoPEFusion>(false);
@@ -1377,7 +1378,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_PagedAttention) {
                                                     {"config.head_size", 0},
                                                     {"config.gather_position_arg_id", 0}});
         model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, aten_gather_GatherElements});
+            std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, aten_gather_GatherElements});
     }
 }
 
@@ -1429,7 +1430,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention) {
         auto aten_cat_Concat =
             makeOP<ov::opset1::Concat>({aten_flatten_Reshape, VariadicSplit_41226->output(1)}, {{"axis", -1}});
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat}, ov::ParameterVector{input, input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{aten_cat_Concat}, ov::ParameterVector{input, input1});
     }
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
@@ -1450,7 +1451,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention) {
                                                     {"config.head_size", 128},
                                                     {"config.gather_position_arg_id", 0}});
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, input1});
     }
 }
 
@@ -1514,7 +1515,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention_GPU) {
                                           {"ellipsis_mask", {}}});
         auto aten_cat_Concat = makeOP<opset1::Concat>({aten_flatten_Reshape, aten_slice_Slice_3}, {{"axis", -1}});
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{aten_cat_Concat}, ov::ParameterVector{input0, input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{aten_cat_Concat}, ov::ParameterVector{input0, input1});
     }
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
@@ -1535,6 +1536,6 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention_GPU) {
                                                     {"config.head_size", 128},
                                                     {"config.gather_position_arg_id", 0}});
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{rope}, ov::ParameterVector{input, input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, input1});
     }
 }
