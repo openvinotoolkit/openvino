@@ -197,6 +197,12 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
 void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
 
+    if (!info[0].IsArray()) {
+        Napi::TypeError::New(env, "The argument to setShape() must be an array.")
+            .ThrowAsJavaScriptException();
+        return;
+    }
+
     ov::Shape shape;
     try {
         shape = js_to_cpp<ov::Shape>(info, 0);
