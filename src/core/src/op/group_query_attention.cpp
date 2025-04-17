@@ -40,15 +40,10 @@ void GroupQueryAttention::validate_and_infer_types() {
     const auto& head_size = q_shape[3];
     const auto& past_sequence_len = get_input_partial_shape(3)[2];
 
-    ov::Dimension output_kv_len;
-    if (past_sequence_len.is_static() && sequence_len.is_static()) {
-        // For static shapes, the output length is equal to the past sequence length.
-        // This is typically used in NPU cases.
-        output_kv_len = past_sequence_len;
-    } else {
+    auto output_kv_len = past_sequence_len;
+    if (past_sequence_len.is_dynamic() || sequence_len.is_dynamic()) {
         // For dynamic shapes, concatenate the past and current sequence lengths.
-        // This is commonly used in CPU and GPU cases.
-        output_kv_len = past_sequence_len + sequence_len;   
+        output_kv_len += sequence_len;   
     }
 
     const auto& element_type = get_input_element_type(0);
