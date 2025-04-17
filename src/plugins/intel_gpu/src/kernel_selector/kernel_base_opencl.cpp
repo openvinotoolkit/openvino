@@ -177,7 +177,7 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
                 kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
         }
 
-        if (engine_info.supports_work_group)
+        if (engine_info.supports_work_group_collective_functions)
             kernel_string->options += " -cl-std=CL3.0";
         else
             kernel_string->options += " -cl-std=CL2.0";

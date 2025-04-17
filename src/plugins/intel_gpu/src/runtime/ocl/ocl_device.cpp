@@ -256,11 +256,11 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 #if CL_HPP_TARGET_OPENCL_VERSION >= 300
     // refer: https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_C.html#optional-functionality
     // These flags are supported from OPENCL_300: CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT, CL_DEVICE_OPENCL_C_FEATURES
-    // work_group_[any] APIs are included in OpenCL C2.0 but it changed to optional in OpenCL C3.0.
-    // It should be checked 'work group collective functions' are supported in OpenCL C 3.0.
-    info.supports_work_group = device.getInfo<CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT>();
-#else
-    info.supports_work_group = true;
+    // OpenCL C3.0: work_group_<ops> are optional. It should be checked 'work group collective functions' are supported in OpenCL C 3.0.
+    info.supports_work_group_collective_functions = device.getInfo<CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT>();
+#elif CL_HPP_TARGET_OPENCL_VERSION >= 200
+    // OpenCL C2.0: work_group_<ops> are mandetory.
+    info.supports_work_group_collective_functions = true;
 #endif
 
     if (info.supports_intel_required_subgroup_size) {
