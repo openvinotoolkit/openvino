@@ -1335,7 +1335,13 @@ KERNEL(sdpa_opt)(
 
             for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
                 qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
+#if IS_CAUSAL
+                if (seq_len + i <= target_seq_idx + sglid) {
+                    exp_sum_new += qk_acc[i];
+                }
+# else
                 exp_sum_new += qk_acc[i];
+#endif
             }
 
             {
@@ -1661,20 +1667,6 @@ KERNEL(sdpa_opt)(
             }
 #endif /*!IS_FLASHATTEN_V2*/
         } /* end of QK*V calculation */
-
-        // debug
-        // if (seq_idx_end == 13 && b0_idx == 0 & b1_idx == 0 && sglid == 0 && sgid == 0) // the last block
-        // {
-        //     printf("OPT[%d %d] start_partition_idx=%d, m=%f, l=%f, O=%f, Q*K=%f, softmax=%f\n", sgid, sglid,
-        //         start_partition_idx/SEQ_LEN_PARTITION_SIZE, slm_max_val_prev[seq_idx_end-1], slm_exp_sum_prev[seq_idx_end-1],
-        //         output_acc[seq_idx_end-1], slm_qk_vals[(seq_idx_end-1)][0], slm_qk_vals[(seq_idx_end-1)][0]/slm_exp_sum_prev[seq_idx_end-1]);
-        //     for (uint j = 0; j < TARGET_SEQ_LEN_BLOCK_SIZE; j++) {
-        //         for (uint i = 0; i < SEQ_LEN_PARTITION_SIZE; i++)
-        //             printf("%f,", slm_qk_vals[j][i]);
-        //         printf("\n");
-        //     }
-        //     printf("\n\n");
-        // }
     } /* end of iter over source sequence length */
 
     // Combine results from multiple SGs and store to output buffer
