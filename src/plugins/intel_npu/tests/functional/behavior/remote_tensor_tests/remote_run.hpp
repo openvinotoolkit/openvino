@@ -753,7 +753,6 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateTensorsWithRemoteTensors) {
     auto model = createModelWithStates(element::f32, original_shape);
 
     auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
-    ;
 
     compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
@@ -851,7 +850,6 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTens
     auto model = createModelWithStates(element::f32, original_shape);
 
     auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
-    ;
 
     compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
@@ -940,7 +938,6 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTens
     auto model = createModelWithStates(element::f32, original_shape);
 
     auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
-    ;
 
     compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
@@ -1016,6 +1013,42 @@ TEST_P(RemoteRunTests, checkResultsAfterChangingStateDataWithRemoteAndRandomTens
     for (size_t i = 0; i < tensor_size; ++i) {
         EXPECT_NEAR(0.0, state_data[i], 1e-5);
     }
+}
+
+TEST_P(RemoteRunTests, CheckContextFromDifferentOvCores) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core core0;
+    ov::Core core1;
+
+    auto context0 = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    auto context1 = core0.get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    auto context2 = core1.get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+
+    EXPECT_EQ(context0.get(), context1.get());
+    EXPECT_EQ(context1.get(), context2.get());
+}
+
+TEST_P(RemoteRunTests, CheckContextFromDifferentDestroyedOvCores) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    ov::RemoteContext context1, context2;
+    auto context0 = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+
+    {
+        ov::Core internal_core;
+        context1 = internal_core.get_default_context(target_device);
+    }
+
+    {
+        ov::Core internal_core;
+        context2 = internal_core.get_default_context(target_device);
+    }
+
+    EXPECT_EQ(context0.get(), context1.get_params().at(ov::intel_npu::l0_context.name()).as<void*>());
+    EXPECT_EQ(context1.get_params().at(ov::intel_npu::l0_context.name()).as<void*>(),
+              context2.get_params().at(ov::intel_npu::l0_context.name()).as<void*>());
 }
 
 }  // namespace behavior

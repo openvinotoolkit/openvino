@@ -14,7 +14,7 @@ namespace intel_npu {
 ZeroEngineBackend::ZeroEngineBackend() : _logger("ZeroEngineBackend", Logger::global().level()) {
     _logger.debug("ZeroEngineBackend - initialize started");
 
-    _initStruct = std::make_shared<ZeroInitStructsHolder>();
+    _initStruct = ZeroInitStructsHolder::getInstance();
 
     auto device = std::make_shared<ZeroDevice>(_initStruct);
     _devices.emplace(std::make_pair(device->getName(), device));
