@@ -17,8 +17,8 @@ import numpy as np
 import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
-from openvino.runtime import opset8 as opset
-import openvino.runtime as ov
+from openvino import opset8 as opset
+import openvino as ov
 
 def get_executable(sample_language):
     executable = 'benchmark_app'

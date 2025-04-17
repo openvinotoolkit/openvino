@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, MulAddMulAddFusion) {
         auto mul2 = std::make_shared<opset3::Multiply>(add1, mul2_const);
         auto add2 = std::make_shared<opset3::Add>(mul2, add2_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{add2}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{add2}, ParameterVector{input});
         manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 
@@ -50,7 +50,7 @@ TEST_F(TransformationTestsF, MulAddMulAddFusion) {
         auto mul1 = std::make_shared<opset3::Multiply>(input, mul1_const);
         auto add1 = std::make_shared<opset3::Add>(mul1, add1_const);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{add1}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{add1}, ParameterVector{input});
     }
 }
 
@@ -65,7 +65,7 @@ TEST_F(TransformationTestsF, MulMulMulFusion) {
         auto mul2 = std::make_shared<opset3::Multiply>(mul1, mul2_const);
         auto mul3 = std::make_shared<opset3::Multiply>(mul2, mul3_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul2}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul2}, ParameterVector{input});
         manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 
@@ -75,7 +75,7 @@ TEST_F(TransformationTestsF, MulMulMulFusion) {
 
         auto mul1 = std::make_shared<opset3::Multiply>(input, mul1_const);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul1}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul1}, ParameterVector{input});
     }
 }
 
@@ -90,7 +90,7 @@ TEST_F(TransformationTestsF, MulMulMulFusion_f64) {
         auto mul2 = std::make_shared<opset3::Multiply>(mul1, mul2_const);
         auto mul3 = std::make_shared<opset3::Multiply>(mul2, mul3_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul2}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul2}, ParameterVector{input});
         manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 
@@ -100,7 +100,7 @@ TEST_F(TransformationTestsF, MulMulMulFusion_f64) {
 
         auto mul1 = std::make_shared<opset3::Multiply>(input, mul1_const);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul1}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul1}, ParameterVector{input});
     }
 }
 
@@ -116,7 +116,7 @@ TEST_F(TransformationTestsF, MulMulMulFusion_not_supported_type) {
         auto mul2 = std::make_shared<opset3::Multiply>(mul1, mul2_const);
         auto mul3 = std::make_shared<opset3::Multiply>(mul2, mul3_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul2}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul2}, ParameterVector{input});
         manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 }
@@ -132,7 +132,7 @@ TEST_F(TransformationTestsF, AddAddAddFusion) {
         auto add2 = std::make_shared<opset3::Add>(add1, add2_const);
         auto add3 = std::make_shared<opset3::Add>(add2, add3_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{add3}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{add3}, ParameterVector{input});
         manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 
@@ -142,7 +142,7 @@ TEST_F(TransformationTestsF, AddAddAddFusion) {
 
         auto add1 = std::make_shared<opset3::Add>(input, add1_const);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{add1}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{add1}, ParameterVector{input});
     }
 }
 
@@ -159,7 +159,7 @@ TEST_F(TransformationTestsF, MulAddAddMulFusion) {
         auto add2 = std::make_shared<opset3::Add>(add1, add2_const);
         auto mul2 = std::make_shared<opset3::Multiply>(add2, mul2_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul2}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul2}, ParameterVector{input});
         manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 
@@ -171,7 +171,7 @@ TEST_F(TransformationTestsF, MulAddAddMulFusion) {
         auto mul1 = std::make_shared<opset3::Multiply>(input, mul1_const);
         auto add1 = std::make_shared<opset3::Add>(mul1, add1_const);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{add1}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{add1}, ParameterVector{input});
     }
 }
 
@@ -186,7 +186,7 @@ TEST_F(TransformationTestsF, AddAddAddFusionF64) {
         auto add2 = std::make_shared<opset3::Add>(add1, add2_const);
         auto add3 = std::make_shared<opset3::Add>(add2, add3_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{add3}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{add3}, ParameterVector{input});
         manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
     {
@@ -201,7 +201,7 @@ TEST_F(TransformationTestsF, AddAddAddFusionF64) {
 
         auto add3 = std::make_shared<opset3::Add>(add2, add3_const);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{add3}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{add3}, ParameterVector{input});
     }
 }
 
@@ -213,7 +213,7 @@ TEST_F(TransformationTestsF, MulAddAddMulFusionF64) {
         auto mul1_const = opset3::Constant::create(element::f64, Shape{128, 1}, {2});
         auto mul1 = std::make_shared<opset3::Multiply>(add1, mul1_const);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul1}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul1}, ParameterVector{input});
         manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 
@@ -225,6 +225,6 @@ TEST_F(TransformationTestsF, MulAddAddMulFusionF64) {
         auto mul1 = std::make_shared<opset3::Multiply>(input, mul1_const);
         auto add1 = std::make_shared<opset3::Add>(mul1, add1_const);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{add1}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{add1}, ParameterVector{input});
     }
 }
