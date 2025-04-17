@@ -18,7 +18,8 @@
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/binary_convolution.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 

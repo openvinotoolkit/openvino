@@ -5,14 +5,19 @@
 #include "convert_to_interaction.hpp"
 
 #include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "simplify_fakequantize.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"

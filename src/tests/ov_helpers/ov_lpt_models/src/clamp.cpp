@@ -5,12 +5,12 @@
 #include <memory>
 #include <vector>
 
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/clamp.hpp"
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/clamp.hpp"
 
 namespace ov {
 namespace builder {

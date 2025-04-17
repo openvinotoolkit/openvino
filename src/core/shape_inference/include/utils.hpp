@@ -9,7 +9,9 @@
 
 #include "element_visitor.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "shape_infer_type_utils.hpp"
 #include "tensor_data_accessor.hpp"
 

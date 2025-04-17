@@ -16,7 +16,7 @@
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "nodes/common/blocked_desc_creator.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils/bfloat16.hpp"
 
 using namespace dnnl::impl;

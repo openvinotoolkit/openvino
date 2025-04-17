@@ -4,10 +4,11 @@
 
 #include "experimental_detectron_priorgridgenerator.h"
 
-#include <openvino/opsets/opset6.hpp>
 #include <string>
 
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 
 namespace ov::intel_cpu::node {
 

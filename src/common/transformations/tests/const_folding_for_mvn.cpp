@@ -6,7 +6,9 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"

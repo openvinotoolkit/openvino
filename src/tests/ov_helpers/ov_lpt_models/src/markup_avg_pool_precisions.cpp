@@ -1,8 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include <ov_ops/type_relaxed.hpp>
 
 #include "low_precision/network_helper.hpp"
@@ -10,6 +9,9 @@
 
 #include "ov_lpt_models/markup_avg_pool_precisions.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/max_pool.hpp"
 
 namespace ov {
 namespace builder {

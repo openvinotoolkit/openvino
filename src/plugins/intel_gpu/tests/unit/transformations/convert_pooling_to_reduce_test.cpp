@@ -8,9 +8,9 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/manager.hpp>
 #include "plugin/transformations/convert_pooling_to_reduce.hpp"
+#include "openvino/op/avg_pool.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;

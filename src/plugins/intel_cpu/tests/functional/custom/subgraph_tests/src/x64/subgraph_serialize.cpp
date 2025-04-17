@@ -6,7 +6,7 @@
 
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/core.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"

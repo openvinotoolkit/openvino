@@ -9,6 +9,8 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"

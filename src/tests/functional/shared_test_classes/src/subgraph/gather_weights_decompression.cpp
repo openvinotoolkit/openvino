@@ -6,6 +6,7 @@
 
 #include "ov_ops/gather_compressed.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace ov {
 namespace test {

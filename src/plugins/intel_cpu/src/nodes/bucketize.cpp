@@ -10,7 +10,8 @@
 #include <vector>
 
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/bucketize.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 
 namespace ov::intel_cpu::node {
 

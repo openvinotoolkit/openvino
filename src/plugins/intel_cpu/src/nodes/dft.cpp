@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <memory>
-#include <openvino/opsets/opset7.hpp>
 #include <string>
 #include <vector>
 
@@ -14,6 +13,9 @@
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/dft.hpp"
+#include "openvino/op/idft.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 

@@ -5,9 +5,9 @@
 #include "shared_test_classes/single_op/fake_convert.hpp"
 
 #include <random>
-
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/op/fake_convert.hpp"
 
 namespace ov {
 namespace test {

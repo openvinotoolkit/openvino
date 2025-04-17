@@ -10,6 +10,7 @@
 #include "openvino/core/node.hpp"
 #include "itt.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
 using namespace ov;
 

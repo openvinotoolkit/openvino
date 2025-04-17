@@ -22,7 +22,7 @@
 #include "nodes/scaled_attn.h"
 #include "nodes/transpose.h"
 #include "onednn/dnnl.h"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -46,6 +46,9 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "itt.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 using namespace dnnl;
 using namespace ov::intel_cpu::node;

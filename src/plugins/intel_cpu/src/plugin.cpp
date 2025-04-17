@@ -31,6 +31,8 @@
 #endif
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 
 using namespace ov::threading;
 

@@ -11,7 +11,16 @@
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"

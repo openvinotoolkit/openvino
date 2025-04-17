@@ -8,13 +8,23 @@
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 
 #include "openvino/core/rt_info.hpp"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov::intel_gpu {
 

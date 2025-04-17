@@ -22,8 +22,8 @@
 #include "fake_quantize.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "utils/bfloat16.hpp"
 
 using namespace dnnl;

@@ -5,18 +5,21 @@
 #include "low_precision/move_fake_quantize.hpp"
 
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 #include <memory>
 #include "openvino/core/node.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 
 #include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/split.hpp"
 
 namespace ov {
 namespace pass {

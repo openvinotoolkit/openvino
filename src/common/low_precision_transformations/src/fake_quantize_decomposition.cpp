@@ -5,7 +5,7 @@
 #include "low_precision/fake_quantize_decomposition.hpp"
 
 #include <memory>
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "itt.hpp"

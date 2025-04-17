@@ -5,9 +5,10 @@
 #include "log_softmax.h"
 
 #include <cmath>
-#include <openvino/opsets/opset5.hpp>
 
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/log_softmax.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 
 namespace ov::intel_cpu::node {
 

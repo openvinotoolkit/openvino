@@ -8,6 +8,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/depth_to_space.hpp"
 
 using namespace ov::pass::low_precision;
 

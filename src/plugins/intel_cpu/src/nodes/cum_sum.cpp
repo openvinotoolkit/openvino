@@ -9,8 +9,9 @@
 
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/cum_sum.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "utils/bfloat16.hpp"
 
 namespace ov::intel_cpu::node {

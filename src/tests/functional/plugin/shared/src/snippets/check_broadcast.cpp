@@ -7,6 +7,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "subgraph_converts.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace test {

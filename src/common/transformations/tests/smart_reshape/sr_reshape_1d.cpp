@@ -6,7 +6,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 
 using namespace ov;
 

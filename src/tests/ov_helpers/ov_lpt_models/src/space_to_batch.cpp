@@ -3,9 +3,10 @@
 //
 
 #include "ov_lpt_models/space_to_batch.hpp"
-
-#include "openvino/opsets/opset2.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 namespace ov {
 namespace builder {

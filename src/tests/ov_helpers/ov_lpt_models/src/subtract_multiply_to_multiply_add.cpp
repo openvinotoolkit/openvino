@@ -3,8 +3,7 @@
 //
 
 #include "ov_lpt_models/subtract_multiply_to_multiply_add.hpp"
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
 using namespace ov::pass::low_precision;

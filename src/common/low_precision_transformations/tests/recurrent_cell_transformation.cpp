@@ -23,7 +23,6 @@
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/recurrent_cell.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "openvino/opsets/opset5.hpp"
 
 using namespace testing;
 using namespace ov;

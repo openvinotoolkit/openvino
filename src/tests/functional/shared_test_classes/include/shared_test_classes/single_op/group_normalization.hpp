@@ -3,6 +3,7 @@
 //
 #pragma once
 #include "common_test_utils/common_utils.hpp"
+#include "openvino/op/group_normalization.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {

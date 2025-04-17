@@ -5,6 +5,7 @@
 #pragma once
 
 #include "matchers/subgraph/subgraph.hpp"
+#include "openvino/core/model.hpp"
 
 namespace ov {
 namespace tools {

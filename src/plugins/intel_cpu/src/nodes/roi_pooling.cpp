@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <openvino/opsets/opset2.hpp>
 #include <string>
 #include <vector>
 
@@ -17,6 +16,7 @@
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
 

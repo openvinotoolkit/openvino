@@ -18,6 +18,7 @@
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/divide.hpp"
 
 namespace ov {
 namespace pass {

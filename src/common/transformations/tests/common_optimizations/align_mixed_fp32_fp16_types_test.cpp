@@ -8,7 +8,15 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/random_uniform.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 

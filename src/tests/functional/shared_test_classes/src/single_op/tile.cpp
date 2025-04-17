@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/tile.hpp"
+#include "openvino/op/tile.hpp"
 
 namespace ov {
 namespace test {

@@ -9,7 +9,12 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/reduce_reshape_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"

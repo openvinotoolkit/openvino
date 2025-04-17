@@ -5,7 +5,7 @@
 #include <pad_shape_inference.hpp>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "utils.hpp"
 
 using namespace ov;

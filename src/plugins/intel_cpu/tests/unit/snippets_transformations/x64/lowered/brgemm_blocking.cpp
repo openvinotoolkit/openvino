@@ -8,7 +8,7 @@
 #endif
 
 #include "lir_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"

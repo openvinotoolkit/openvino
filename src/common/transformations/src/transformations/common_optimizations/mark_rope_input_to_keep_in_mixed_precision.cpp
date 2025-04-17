@@ -8,6 +8,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"

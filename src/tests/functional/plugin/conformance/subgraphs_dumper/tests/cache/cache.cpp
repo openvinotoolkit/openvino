@@ -4,7 +4,6 @@
 
 #include <memory>
 
-#include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/openvino.hpp"
 
@@ -17,6 +16,7 @@
 #include "utils/cache.hpp"
 
 #include "base_test.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace {
 

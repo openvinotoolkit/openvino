@@ -11,6 +11,9 @@
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/matmul.hpp"
 
 using namespace ov;
 using namespace ov::pass;

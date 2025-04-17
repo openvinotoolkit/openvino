@@ -10,7 +10,12 @@
 #include "common/cpu_memcpy.h"
 #include "input.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/slice_scatter.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/opsets/opset15_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
 #include "slice_shape_inference_utils.hpp"
 

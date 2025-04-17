@@ -11,7 +11,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"

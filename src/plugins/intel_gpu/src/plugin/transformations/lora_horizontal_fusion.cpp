@@ -5,11 +5,22 @@
 #include "lora_horizontal_fusion.hpp"
 
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov::intel_gpu {
 

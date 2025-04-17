@@ -9,7 +9,19 @@
 #include <queue>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 
 using namespace std;
 using namespace ov;

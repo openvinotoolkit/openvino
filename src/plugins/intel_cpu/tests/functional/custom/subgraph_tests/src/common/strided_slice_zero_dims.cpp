@@ -4,6 +4,9 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace ov {
 namespace test {

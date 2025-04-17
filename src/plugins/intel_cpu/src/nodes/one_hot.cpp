@@ -11,7 +11,9 @@
 #include "dnnl_types.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/one_hot.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "selective_build.h"
 #include "shape_inference/custom/one_hot.hpp"
 

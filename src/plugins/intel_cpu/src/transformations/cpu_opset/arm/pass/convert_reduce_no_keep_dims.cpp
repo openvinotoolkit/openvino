@@ -5,7 +5,11 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 
 template <class T>
 ov::matcher_pass_callback ov::intel_cpu::ConvertReduceNoKeepDimsBase::convert_reduce() {

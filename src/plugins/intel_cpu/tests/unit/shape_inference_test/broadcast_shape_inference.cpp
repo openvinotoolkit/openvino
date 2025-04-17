@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 
 #include "utils.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

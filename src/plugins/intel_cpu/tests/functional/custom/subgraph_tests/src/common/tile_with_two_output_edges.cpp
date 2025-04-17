@@ -6,6 +6,7 @@
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/tile.hpp"
 
 namespace ov {
 namespace test {

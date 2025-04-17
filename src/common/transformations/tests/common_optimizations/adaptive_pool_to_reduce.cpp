@@ -7,7 +7,11 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/adaptive_avg_pool.hpp"
+#include "openvino/op/adaptive_max_pool.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 
 using namespace testing;
 using namespace ov;

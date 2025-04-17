@@ -17,6 +17,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/relu.hpp"
 
 using namespace testing;
 using namespace ov;

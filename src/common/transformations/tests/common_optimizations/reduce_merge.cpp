@@ -8,7 +8,17 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/reduce_l1.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace ov;

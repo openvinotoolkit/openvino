@@ -10,6 +10,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/transpose.hpp"

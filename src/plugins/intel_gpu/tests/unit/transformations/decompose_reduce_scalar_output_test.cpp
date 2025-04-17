@@ -7,13 +7,16 @@
 #include <memory>
 #include <openvino/core/model.hpp>
 #include <openvino/core/node_output.hpp>
-#include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/manager.hpp>
 #include <plugin/transformations/decompose_reduce_scalar_output.hpp>
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "intel_gpu/primitives/reduce.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;

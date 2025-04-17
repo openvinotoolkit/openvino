@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/log_softmax.hpp"
+#include "openvino/op/log_softmax.hpp"
 
 namespace ov {
 namespace test {

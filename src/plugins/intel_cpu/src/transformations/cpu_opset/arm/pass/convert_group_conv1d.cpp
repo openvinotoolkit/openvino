@@ -4,11 +4,16 @@
 #include "convert_group_conv1d.hpp"
 
 #include <numeric>
-#include <openvino/opsets/opset8.hpp>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 template <class Conv>

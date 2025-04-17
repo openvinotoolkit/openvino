@@ -5,7 +5,6 @@
 #include "adaptive_pooling.h"
 
 #include <cmath>
-#include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
 #include <vector>
@@ -14,6 +13,9 @@
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/adaptive_avg_pool.hpp"
+#include "openvino/op/adaptive_max_pool.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "selective_build.h"
 #include "shape_inference/custom/adaptive_pooling.hpp"
 #include "utils/general_utils.h"

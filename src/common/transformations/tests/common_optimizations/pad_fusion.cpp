@@ -12,8 +12,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/op/pad.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "openvino/opsets/opset12_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/init_node_info.hpp"

@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "concat_sdp.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace CPUTestUtils;
 

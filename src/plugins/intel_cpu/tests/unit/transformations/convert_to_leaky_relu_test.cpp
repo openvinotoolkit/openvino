@@ -8,7 +8,7 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
 #include <transformations/cpu_opset/common/pass/convert_to_leaky_relu.hpp>
 #include <transformations/cpu_opset/common/op/leaky_relu.hpp>
 #include <transformations/init_node_info.hpp>
@@ -16,6 +16,7 @@
 #include <ov_ops/type_relaxed.hpp>
 #include <openvino/pass/manager.hpp>
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/prelu.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;

@@ -6,6 +6,8 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/segment_max.hpp"
 
 using namespace ov::intel_cpu;
 using ov::op::v0::Constant, ov::op::v0::Parameter;
