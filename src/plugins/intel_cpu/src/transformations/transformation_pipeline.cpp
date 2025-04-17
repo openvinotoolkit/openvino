@@ -517,7 +517,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
-    manager.register_pass<ov::pass::PrintModel>("path/to/file");
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
 
     if (useLpt) {
