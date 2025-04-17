@@ -429,21 +429,44 @@ std::vector<EinsumParams> generateParams() {
                      {ET, {2, 2}, std::vector<T>{1, 2, 3, 4}}})
             .equation(",ab,...->a")
             .expectedResult({ET, {2}, std::vector<T>{20, 40}})
-            .testcaseName("einsum_scalar1"),
+            .testcaseName("einsum_scalar_l"),
         Builder{}
             .inputs({{ET, {2, 1}, std::vector<T>{1, 2}},
                      {ET, {}, std::vector<T>{2}},
                      {ET, {2, 2}, std::vector<T>{1, 2, 3, 4}}})
             .equation("ab,,...->a")
             .expectedResult({ET, {2}, std::vector<T>{20, 40}})
-            .testcaseName("einsum_scalar2"),
+            .testcaseName("einsum_scalar_c"),
         Builder{}
             .inputs({{ET, {2, 2}, std::vector<T>{1, 2, 3, 4}},
                      {ET, {2, 1}, std::vector<T>{1, 2}},
                      {ET, {}, std::vector<T>{2}}})
-            .equation("...,ab, ->a")
+            .equation("...,ab,->a")
             .expectedResult({ET, {2}, std::vector<T>{20, 40}})
-            .testcaseName("einsum_scalar3")};
+            .testcaseName("einsum_scalar_r"),
+        Builder{}
+            .inputs(
+                {{ET, {}, std::vector<T>{2}}, {ET, {2, 2}, std::vector<T>{1, 2, 3, 4}}, {ET, {}, std::vector<T>{2}}})
+            .equation(",...,->...")
+            .expectedResult({ET, {2, 2}, std::vector<T>{4, 8, 12, 16}})
+            .testcaseName("einsum_scalar_lr"),
+        Builder{}
+            .inputs(
+                {{ET, {}, std::vector<T>{2}}, {ET, {}, std::vector<T>{2}}, {ET, {2, 2}, std::vector<T>{1, 2, 3, 4}}})
+            .equation(",,...->...")
+            .expectedResult({ET, {2, 2}, std::vector<T>{4, 8, 12, 16}})
+            .testcaseName("einsum_scalar_lc"),
+        Builder{}
+            .inputs(
+                {{ET, {2, 2}, std::vector<T>{1, 2, 3, 4}}, {ET, {}, std::vector<T>{2}}, {ET, {}, std::vector<T>{2}}})
+            .equation("...,,->...")
+            .expectedResult({ET, {2, 2}, std::vector<T>{4, 8, 12, 16}})
+            .testcaseName("einsum_scalar_cr"),
+        Builder{}
+            .inputs({{ET, {}, std::vector<T>{2}}, {ET, {}, std::vector<T>{2}}, {ET, {}, std::vector<T>{2}}})
+            .equation(",,->")
+            .expectedResult({ET, {}, std::vector<T>{8}})
+            .testcaseName("einsum_scalar_lcr")};
     return params;
 }
 
