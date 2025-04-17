@@ -4,7 +4,6 @@
 
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
-#include "gemm_inst.h"
 #include "program_node.h"
 #include "pass_manager.h"
 #include "convolution_inst.h"
