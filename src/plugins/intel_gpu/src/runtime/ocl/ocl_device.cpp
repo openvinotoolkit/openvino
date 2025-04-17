@@ -261,6 +261,8 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 #elif CL_HPP_TARGET_OPENCL_VERSION >= 200
     // OpenCL C2.0: work_group_<ops> are mandetory.
     info.supports_work_group_collective_functions = true;
+#else
+    info.supports_work_group_collective_functions = false;
 #endif
 
     if (info.supports_intel_required_subgroup_size) {
