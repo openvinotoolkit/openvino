@@ -7,39 +7,10 @@ set(TARGET_NAME "benchmark_app")
 file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
-    "#include <experimental/filesystem>\nint main(int argc, char ** argv) {\n  std::experimental::filesystem::path p(argv[0]);\n  return p.string().length();\n}")
-
-try_compile(STD_FS_NO_LIB_NEEDED ${CMAKE_CURRENT_BINARY_DIR}
-            SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
-            COMPILE_DEFINITIONS -std=c++11)
-try_compile(STD_FS_NEEDS_STDCXXFS ${CMAKE_CURRENT_BINARY_DIR}
-            SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
-            COMPILE_DEFINITIONS -std=c++11
-            LINK_LIBRARIES stdc++fs)
-try_compile(STD_FS_NEEDS_CXXFS ${CMAKE_CURRENT_BINARY_DIR}
-            SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
-            COMPILE_DEFINITIONS -std=c++11
-            LINK_LIBRARIES c++fs)
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  message(STATUS "MSVC - No explicit filesystem linker setting required.")
-elseif(STD_FS_NEEDS_STDCXXFS)
-  message(STATUS "STD_FS_NEEDS_STDCXXFS - Add explicit filesystem linker setting: 'stdc++fs'.")
-  set(STD_FS_LIB stdc++fs)
-elseif(STD_FS_NEEDS_CXXFS)
-  message(STATUS "STD_FS_NEEDS_CXXFS - Add explicit filesystem linker setting: 'c++fs'.")
-  set(STD_FS_LIB c++fs)
-elseif(STD_FS_NO_LIB_NEEDED)
-  message(STATUS "STD_FS_NO_LIB_NEEDED - No explicit filesystem linker setting required.")
-else()
-  message(WARNING "Unknown C++ build setup - No explicit filesystem linker setting set")
-endif()
-
 ov_add_sample(NAME ${TARGET_NAME}
               SOURCES ${SRC}
               HEADERS ${HDR}
-              DEPENDENCIES ${GFLAGS_TARGET} format_reader ie_samples_utils ${STD_FS_LIB})
+              DEPENDENCIES ${GFLAGS_TARGET} format_reader ie_samples_utils ${OPENVINO_STD_FS_LIB})
 
 # Required nlohmann_json dependency
 

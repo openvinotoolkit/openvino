@@ -231,3 +231,4 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
 endif()
 
 check_cxx_compiler_flag("-Wunused-but-set-variable" UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+ov_detect_std_filesystem_lib()
