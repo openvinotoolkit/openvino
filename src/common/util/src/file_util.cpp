@@ -291,10 +291,6 @@ void ov::util::create_directory_recursive(const std::wstring& path) {
 }
 #endif
 
-void ov::util::create_directory_recursive(const std::string& path) {
-    create_directory_recursive(std::filesystem::path{path});
-}
-
 void ov::util::create_directory_recursive(const std::filesystem::path& path) {
     namespace fs = std::filesystem;
     auto dir_path = fs::weakly_canonical(path);
