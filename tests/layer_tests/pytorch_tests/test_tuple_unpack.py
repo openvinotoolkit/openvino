@@ -21,8 +21,8 @@ class TestTupleUnpack(PytorchLayerTest):
                 self.dims = (1, 2, 3, 4)
 
             def forward(self, input_data):
-                N, C, H, W = self.dims
-                return input_data * N * C * H * W
+                N, _, H, W = self.dims
+                return input_data * N * H * W
 
         return TupleArgument(), None, "prim::TupleUnpack"
 
