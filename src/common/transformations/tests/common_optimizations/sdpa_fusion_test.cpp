@@ -155,7 +155,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest4) {
                                                                                    mask_const,
                                                                                    scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -266,7 +266,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest8) {
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(mask_add, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv}, ParameterVector{query, key, value, mask});
+        model = std::make_shared<ov::Model>(OutputVector{qkv}, ParameterVector{query, key, value, mask});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
@@ -281,7 +281,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest8) {
                                                                                    scale_const,
                                                                                    casual);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value, mask});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -335,14 +335,14 @@ TEST_F(TransformationTestsF, SDPAFusionTest9) {
             ov::op::v0::Constant::create(element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
         const auto qkv_result = std::make_shared<ov::op::v1::Reshape>(qkv, reshape_result, true);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv_result}, ParameterVector{query, key, value, mask});
+        model = std::make_shared<ov::Model>(OutputVector{qkv_result}, ParameterVector{query, key, value, mask});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
     {
         const auto sdpa =
             std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value, mask});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -390,7 +390,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest10) {
             ov::op::v0::Constant::create(element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
         const auto qkv_result = std::make_shared<ov::op::v1::Reshape>(qkv, reshape_result, true);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv_result}, ParameterVector{query, key, value});
+        model = std::make_shared<ov::Model>(OutputVector{qkv_result}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
@@ -402,7 +402,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest10) {
                                                                                    mask_const,
                                                                                    scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -456,14 +456,14 @@ TEST_F(TransformationTestsF, SDPAFusionTest11) {
             ov::op::v0::Constant::create(element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
         const auto qkv_result = std::make_shared<ov::op::v1::Reshape>(qkv, reshape_result, true);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv_result}, ParameterVector{query, key, value, mask});
+        model = std::make_shared<ov::Model>(OutputVector{qkv_result}, ParameterVector{query, key, value, mask});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
     {
         const auto sdpa =
             std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value, mask});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -531,7 +531,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
             ov::op::v0::Constant::create(element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
         const auto qkv_result = std::make_shared<ov::op::v1::Reshape>(qkv, reshape_result, true);
 
-        model = std::make_shared<ov::Model>(NodeVector{qkv_result}, ParameterVector{query, key, value, mask});
+        model = std::make_shared<ov::Model>(OutputVector{qkv_result}, ParameterVector{query, key, value, mask});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
 
@@ -545,7 +545,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
                                                                                    mask,
                                                                                    scale_const,
                                                                                    casual);
-        model_ref = std::make_shared<ov::Model>(NodeVector{sdpa}, ParameterVector{query, key, value, mask});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
