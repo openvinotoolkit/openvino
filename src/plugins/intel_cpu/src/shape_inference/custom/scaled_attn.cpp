@@ -21,12 +21,21 @@ public:
         const auto& query_dims = input_shapes.front().get();
         VectorDims present_v_dims = input_shapes.back().get();
         const auto& beam_idx_dims = input_shapes.end()[-3].get();
+        const auto& attn_mask_dims = input_shapes.end()[-4].get();
         const auto& permute_axes = m_config.permute_axes;
-
         if (permute_axes.empty()) {
             // [B, H, L, S]
             present_v_dims[0] = beam_idx_dims[0];
             present_v_dims[2] += query_dims[2];
+            if (!m_config.is_causal) {
+                if ((query_dims[2] != attn_mask_dims[2] && attn_mask_dims[2] != 1)
+                    || (present_v_dims[2] != attn_mask_dims[3] && attn_mask_dims[3] != 1)) {
+                    OPENVINO_THROW("attention_mask do not match q and k,",
+                                   " query_dims:", ov::intel_cpu::vec2str(query_dims),
+                                   " present_v_dims:", ov::intel_cpu::vec2str(present_v_dims),
+                                   " attn_mask_dims:", ov::intel_cpu::vec2str(attn_mask_dims));
+                }
+            }
             // normal and fast path
             if (present_v_dims[3] == query_dims[3]) {
                 return {{query_dims, present_v_dims, present_v_dims}, ShapeInferStatus::success};
@@ -52,6 +61,16 @@ public:
             output_dims[i] = query_dims[permute_axes[i]];
         }
 
+        if (!m_config.is_causal) {
+            if ((query_dims[2] != attn_mask_dims[2] && attn_mask_dims[2] != 1)
+                || (present_v_dims[2] != attn_mask_dims[3] && attn_mask_dims[3] != 1)) {
+                OPENVINO_THROW("attention_mask do not match q and k,",
+                               " query_dims:", ov::intel_cpu::vec2str(query_dims),
+                               " present_v_dims:", ov::intel_cpu::vec2str(present_v_dims),
+                               " attn_mask_dims:", ov::intel_cpu::vec2str(attn_mask_dims));
+            }
+        }
+
         // normal and fast path
         if (present_v_dims[3] == query_dims[3]) {
             return {{output_dims, present_v_dims, present_v_dims}, ShapeInferStatus::success};
@@ -61,6 +80,7 @@ public:
         output_dims[3] = present_v_dims[3];
         auto present_k_dims = present_v_dims;
         present_k_dims[3] = query_dims[3];
+
         return {{output_dims, present_k_dims, present_v_dims}, ShapeInferStatus::success};
     }
 
