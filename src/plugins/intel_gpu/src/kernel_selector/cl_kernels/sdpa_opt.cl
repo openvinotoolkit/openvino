@@ -1571,11 +1571,19 @@ KERNEL(sdpa_opt)(
 #endif
 #endif
                     unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#ifdef BEAM_TABLE_TYPE
+                        #ifdef HEAD_SIZE_LEFTOVER
+                            #ifdef BEAM_TABLE_TYPE
+                        const INPUT2_TYPE value_packed = (sgid < SUBGROUPS_PER_WG - 1) ? VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i)) : head_size_idx < HEAD_SIZE ? value_input[sub_group_broadcast(value_offset, i)] : INPUT2_VAL_ZERO;
+                            #else
+                        const INPUT2_TYPE value_packed = (sgid < SUBGROUPS_PER_WG - 1) ? VALUE_BLOCK_READ(value_input, value_offset) : head_size_idx < HEAD_SIZE ? value_input[value_offset] : INPUT2_VAL_ZERO;
+                            #endif
+                        #else // !defined(HEAD_SIZE_LEFTOVER)
+                            #ifdef BEAM_TABLE_TYPE
                         const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
-#else
+                            #else
                         const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
-#endif
+                            #endif
+                        #endif
 
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
@@ -1594,7 +1602,7 @@ KERNEL(sdpa_opt)(
 #endif
                     }
                 }
-            } else {
+            } else { // partition_seq_len is less than SEQ_LEN_PARTITION_SIZE
                 const uint seq_len_start = (sgid / (SUBGROUPS_PER_WG / SG_SCALE_FACTOR)) * (SEQ_LEN_PARTITION_SIZE / SG_SCALE_FACTOR);
                 uint seq_len_end = 0;
                 if (seq_len_start < partition_seq_len)
@@ -1639,11 +1647,19 @@ KERNEL(sdpa_opt)(
                     }
 
                     unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
-#ifdef BEAM_TABLE_TYPE
+                        #ifdef HEAD_SIZE_LEFTOVER
+                            #ifdef BEAM_TABLE_TYPE
+                        const INPUT2_TYPE value_packed = (sgid < SUBGROUPS_PER_WG - 1) ? VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i)) : head_size_idx < HEAD_SIZE ? value_input[sub_group_broadcast(value_offset, i)] : INPUT2_VAL_ZERO;
+                            #else
+                        const INPUT2_TYPE value_packed = (sgid < SUBGROUPS_PER_WG - 1) ? VALUE_BLOCK_READ(value_input, value_offset) : head_size_idx < HEAD_SIZE ? value_input[value_offset] : INPUT2_VAL_ZERO;
+                            #endif
+                        #else // !defined(HEAD_SIZE_LEFTOVER)
+                            #ifdef BEAM_TABLE_TYPE
                         const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, sub_group_broadcast(value_offset, i));
-#else
+                            #else
                         const INPUT2_TYPE value_packed = VALUE_BLOCK_READ(value_input, value_offset);
-#endif
+                            #endif
+                        #endif
 
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
@@ -1821,13 +1837,17 @@ KERNEL(sdpa_opt)(
         if (TARGET_SEQ_LEN_BLOCK_SIZE > seq_idx_end) {
             if (sgid < SUBGROUPS_PER_WG - 1) {
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
+#if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
+#endif
                     OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
                     output_offset += output_pitch;
                 }
             } else if (sglid < HEAD_SIZE_LEFTOVER) {
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
+#if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
+#endif
                     output[output_offset + sglid] = output_acc[seq_idx];
                     output_offset += output_pitch;
                 }
@@ -1835,19 +1855,23 @@ KERNEL(sdpa_opt)(
         } else {
             if (sgid < SUBGROUPS_PER_WG - 1) {
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+#if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
+#endif
                     OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
                     output_offset += output_pitch;
                 }
             } else if (sglid < HEAD_SIZE_LEFTOVER) {
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
+#if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
+#endif
                     output[output_offset + sglid] = output_acc[seq_idx];
                     output_offset += output_pitch;
                 }
             }
         }
-        #else
+        #else // !defined(HEAD_SIZE_LEFTOVER)
         if (TARGET_SEQ_LEN_BLOCK_SIZE > seq_idx_end) {
             for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
 #if IS_FLASHATTEN_V2
@@ -1857,25 +1881,6 @@ KERNEL(sdpa_opt)(
                 output_offset += output_pitch;
             }
         } else {
-            #ifdef HEAD_SIZE_REMAINDER
-                if (sgid < SUBGROUPS_PER_WG - 1) {
-                    unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-#if IS_FLASHATTEN_V2
-                        output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
-#endif
-                        OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
-                        output_offset += output_pitch;
-                    }
-                } else if (sglid < HEAD_SIZE_REMAINDER) {
-                    unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-#if IS_FLASHATTEN_V2
-                        output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
-#endif
-                        output[output_offset + sglid] = output_acc[seq_idx];
-                        output_offset += output_pitch;
-                    }
-                }
-            #else // HEAD_SIZE_REMAINDER
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
@@ -1883,9 +1888,8 @@ KERNEL(sdpa_opt)(
                     OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
                     output_offset += output_pitch;
                 }
-            #endif // HEAD_SIZE_REMAINDER
         }
-        #endif
+        #endif // HEAD_SIZE_LEFTOVER
     }
 }
 
