@@ -61,6 +61,7 @@ typename std::enable_if<std::is_integral<T>::value, ::testing::AssertionResult>:
     ::testing::AssertionResult ar_fail = ::testing::AssertionFailure();
     for (size_t i = 0; i < size; ++i) {
         T abs_diff = (a[i] > b[i]) ? (a[i] - b[i]) : (b[i] - a[i]);
+        bool is_overflow{};
 
         if constexpr (std::is_signed_v<T> && std::is_integral_v<T>) {
             auto check_sub_overflow = [](T a, T b) {
@@ -71,19 +72,13 @@ typename std::enable_if<std::is_integral<T>::value, ::testing::AssertionResult>:
                 return false;
             };
 
-            bool is_overflow = (a[i] > b[i]) ? check_sub_overflow(a[i], b[i]) : check_sub_overflow(b[i], a[i]);
-
-            if (is_overflow) {
-                // use unary + operator to force integral values to be displayed as numbers
-                ar_fail << "Overvlow detected. " << +a[i] << " is not close to " << +b[i] << " at index " << i
-                        << std::endl;
-                rc = false;
-            }
+            is_overflow = (a[i] > b[i]) ? check_sub_overflow(a[i], b[i]) : check_sub_overflow(b[i], a[i]);
         }
 
-        if (abs_diff > atol + rtol * b[i]) {
+        if (is_overflow || abs_diff > atol + rtol * b[i]) {
             // use unary + operator to force integral values to be displayed as numbers
-            ar_fail << +a[i] << " is not close to " << +b[i] << " at index " << i << std::endl;
+            ar_fail << (is_overflow ? "Overvlow detected. " : "") << +a[i] << " is not close to " << +b[i]
+                    << " at index " << i << std::endl;
             rc = false;
         }
     }
