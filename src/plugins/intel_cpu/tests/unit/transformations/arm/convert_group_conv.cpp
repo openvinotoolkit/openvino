@@ -8,9 +8,9 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset7.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 #include <transformations/cpu_opset/arm/pass/convert_group_conv.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
