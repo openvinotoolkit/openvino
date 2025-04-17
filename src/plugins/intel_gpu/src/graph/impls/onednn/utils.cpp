@@ -334,7 +334,8 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
             strides.push_back(padded_dims[0]);
             strides.push_back(padded_dims[0] * padded_dims[1]);
         } else {
-            OPENVINO_ASSERT(false, "Not support other cases for padded layout yet.");
+            auto pitches = l.get_pitches();
+            strides.assign(pitches.begin(), pitches.end());
         }
         dnnl::memory::desc res(dims, dt, strides);
         return res;
