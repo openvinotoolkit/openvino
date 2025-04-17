@@ -280,7 +280,8 @@ TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>&
 
 TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
 
-TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output);
+TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output,
+                                             const std::unordered_set<std::type_index>& break_node_types = {});
 
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
 

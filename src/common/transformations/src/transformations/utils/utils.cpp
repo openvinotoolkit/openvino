@@ -489,13 +489,22 @@ bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int6
     return false;
 }
 
-bool is_on_constant_path(const ov::Output<ov::Node>& output) {
+bool is_on_constant_path(const ov::Output<ov::Node>& output,
+                         const std::unordered_set<std::type_index>& break_node_types) {
     auto status = true;
     std::deque<ov::Node*> nodes_to_calculate = {output.get_node()};
 
     while (status && !nodes_to_calculate.empty()) {
         auto current_node = nodes_to_calculate.front();
         nodes_to_calculate.pop_front();
+
+        // Check if the current node matches any type in break_node_types
+        if (!break_node_types.empty()) {
+            std::type_index current_type(typeid(*current_node));
+            if (break_node_types.find(current_type) != break_node_types.end()) {
+                return false;
+            }
+        }
 
         if (current_node->get_input_size() == 0 && !ov::is_type<ov::op::v0::Constant>(current_node)) {
             status = false;
