@@ -119,27 +119,28 @@ protected:
                                                                                              const dnnl::primitive_attr& attr,
                                                                                              ov::op::RecurrentSequenceDirection direction) {
         auto prim = impl_params.typed_desc<gru_seq>();
+        auto num_dir = static_cast<size_t>(prim->num_directions());
         assert(prim->linear_before_reset);
-        std::cout << "get gru" << std::endl;
+        std::cout << "get gru" << num_dir << std::endl;
         const auto& src_shape = impl_params.get_input_layout(0).get_shape();
         auto mod_src_shape = src_shape;
         std::swap(mod_src_shape[0], mod_src_shape[1]);
         auto input_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(0).clone_with_other_shape(mod_src_shape), dnnl::memory::format_tag::abc);
         auto initial_hidden_shape_mod = impl_params.get_input_layout(1).get_shape();
-        initial_hidden_shape_mod = { 1, 1, initial_hidden_shape_mod[0], initial_hidden_shape_mod[2] };
+        initial_hidden_shape_mod = { 1, num_dir, initial_hidden_shape_mod[0], initial_hidden_shape_mod[2] };
         auto initial_hidden =  onednn::layout_to_memory_desc(impl_params.get_input_layout(1).clone_with_other_shape(initial_hidden_shape_mod));
         auto W_shape_mod = impl_params.get_input_layout(2).get_shape();
-        W_shape_mod = {1, 1, W_shape_mod[2], 3, W_shape_mod[1]/3};
+        W_shape_mod = {1, num_dir, W_shape_mod[2], 3, W_shape_mod[1]/3};
         auto w_layout = impl_params.get_input_layout(2).clone_with_other_shape(W_shape_mod);
         w_layout.format = cldnn::format::bfzyx;
         auto W_md = onednn::layout_to_memory_desc(w_layout);
         auto R_shape_mod = impl_params.get_input_layout(3).get_shape();
-        R_shape_mod = {1, 1, R_shape_mod[2], 3, R_shape_mod[1]/3};
+        R_shape_mod = {1, num_dir, R_shape_mod[2], 3, R_shape_mod[1]/3};
         auto r_layout = impl_params.get_input_layout(3).clone_with_other_shape(R_shape_mod);
         r_layout.format = cldnn::format::bfzyx;
         auto R_md = onednn::layout_to_memory_desc(r_layout);
         auto B_shape_mod = impl_params.get_input_layout(4).get_shape();
-        B_shape_mod = {1, 1, 4, B_shape_mod[1]/4};
+        B_shape_mod = {1, num_dir, 4, B_shape_mod[1]/4};
         auto b_layout = impl_params.get_input_layout(4).clone_with_other_shape(B_shape_mod);
         b_layout.format = cldnn::format::bfyx;
         auto B_md = onednn::layout_to_memory_desc(b_layout);
@@ -153,12 +154,19 @@ protected:
                         "[GPU] The format kind of the output memory descriptor of onednn gru_seq cannot be 'any'.");
 
         dnnl::memory::desc emptyMemDescriptor;
-
+        dnnl::rnn_direction gru_desc_dir;
+        if (direction == ov::op::RecurrentSequenceDirection::FORWARD) {
+            gru_desc_dir = dnnl::rnn_direction::unidirectional_left2right;
+        } else if (direction == ov::op::RecurrentSequenceDirection::REVERSE) {
+            gru_desc_dir = dnnl::rnn_direction::unidirectional_right2left;
+        } else {
+            gru_desc_dir = dnnl::rnn_direction::bidirectional_concat;
+        }
         auto eng = engine.get_onednn_engine();
         return std::make_shared<dnnl::lbr_gru_forward::primitive_desc>(
             eng,
             dnnl::prop_kind::forward_inference,
-            dnnl::rnn_direction::unidirectional_right2left,
+            gru_desc_dir,
             input_md,
             initial_hidden,
             W_md,

@@ -548,6 +548,23 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::BidirectionalGRUSequenceDecomposition>();
             manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
         }
+        pass_config->set_callback<ov::pass::BidirectionalGRUSequenceDecomposition>(
+            [&](const_node_ptr &node) -> bool {
+                const auto& data = node->input(0);
+                const auto& data_pshape = data.get_partial_shape();
+                auto max_seq_len = data_pshape[1];
+                if (data_pshape.rank().is_static() && data_pshape.rank().get_length() > 1 && !data_pshape[1].is_static())
+                    return false;
+                if (const auto &gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
+                    return gru_seq->get_clip() == 0.0f &&
+                        gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
+                        max_seq_len != 1 &&
+                        !ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
+                                                           gru_seq->get_input_node_shared_ptr(2)) &&
+                        gru_seq->get_linear_before_reset() == true;
+                }
+                return true;
+            });
 
         // Disable Bidirectional LSTM decomposition if node is supported by XeTLA
         pass_config->set_callback<ov::pass::BidirectionalLSTMSequenceDecomposition>(

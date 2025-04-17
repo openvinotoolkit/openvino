@@ -272,7 +272,6 @@ public:
                              const ExecutionConfig& config,
                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                              bool is_internal);
-
     static void init_primitives();
     kernels_cache& get_kernels_cache() const;
 
