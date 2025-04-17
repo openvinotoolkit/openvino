@@ -30,7 +30,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF16) {
         auto div_constant = opset7::Constant::create(element::f16, Shape{}, {6.0});
         auto div = std::make_shared<opset7::Divide>(min, div_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidFusion>();
     }
@@ -39,7 +39,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF16) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<opset7::HSigmoid>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hsigmoid}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hsigmoid}, ParameterVector{input});
     }
 }
 
@@ -54,7 +54,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF32) {
         auto div_constant = opset7::Constant::create(element::f32, Shape{}, {6.0});
         auto div = std::make_shared<opset7::Divide>(min, div_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidFusion>();
     }
@@ -63,7 +63,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF32) {
         auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{});
         auto hsigmoid = std::make_shared<opset7::HSigmoid>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hsigmoid}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hsigmoid}, ParameterVector{input});
     }
 }
 
@@ -78,7 +78,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluMul) {
         auto mul_constant = opset7::Constant::create(element::f16, Shape{}, {0.1666666716});
         auto mul_second = std::make_shared<opset7::Multiply>(min, mul_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul_second}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul_second}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidFusion>();
     }
@@ -87,7 +87,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluMul) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<opset7::HSigmoid>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hsigmoid}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hsigmoid}, ParameterVector{input});
     }
 }
 
@@ -103,7 +103,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithoutRelu) {
         auto div_constant = opset7::Constant::create(element::f16, Shape{}, {6.0});
         auto div = std::make_shared<opset7::Divide>(min, div_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidFusion>();
     }
@@ -112,7 +112,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithoutRelu) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<opset7::HSigmoid>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hsigmoid}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hsigmoid}, ParameterVector{input});
     }
 }
 
@@ -125,7 +125,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampMul) {
         auto mul_constant = opset7::Constant::create(element::f16, Shape{}, {1.0 / 6.0});
         auto mul_first = std::make_shared<opset7::Multiply>(clamp, mul_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul_first}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul_first}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidFusion>();
     }
@@ -134,7 +134,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampMul) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<opset7::HSigmoid>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hsigmoid}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hsigmoid}, ParameterVector{input});
     }
 }
 
@@ -147,7 +147,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampDiv) {
         auto div_constant = ov::op::v0::Constant::create(element::f16, Shape{}, {6.0});
         auto div = std::make_shared<ov::op::v1::Divide>(clamp, div_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidFusion>();
     }
@@ -156,7 +156,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampDiv) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<opset7::HSigmoid>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hsigmoid}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hsigmoid}, ParameterVector{input});
     }
 }
 
@@ -171,7 +171,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluMulWrongConstValue) {
         auto mul_constant = opset7::Constant::create(element::f16, Shape{}, {0.167});
         auto mul_second = std::make_shared<opset7::Multiply>(min, mul_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul_second}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul_second}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidFusion>();
     }
@@ -186,7 +186,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluMulWrongConstValue) {
         auto mul_constant = opset7::Constant::create(element::f16, Shape{}, {0.167});
         auto mul_second = std::make_shared<opset7::Multiply>(min, mul_constant);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul_second}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul_second}, ParameterVector{input});
     }
 }
 
@@ -201,7 +201,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivWrongConstValue) {
         auto div_constant = opset7::Constant::create(element::f16, Shape{}, {0.0});
         auto div = std::make_shared<opset7::Divide>(min, div_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidFusion>();
     }
@@ -216,7 +216,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivWrongConstValue) {
         auto div_constant = opset7::Constant::create(element::f16, Shape{}, {0.0});
         auto div = std::make_shared<opset7::Divide>(min, div_constant);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
     }
 }
 
@@ -232,7 +232,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithoutReluWrongConstValue) {
         auto div_constant = opset7::Constant::create(element::f16, Shape{}, {6.002});
         auto div = std::make_shared<opset7::Divide>(min, div_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidFusion>();
     }
@@ -248,7 +248,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithoutReluWrongConstValue) {
         auto div_constant = opset7::Constant::create(element::f16, Shape{}, {6.002});
         auto div = std::make_shared<opset7::Divide>(min, div_constant);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
     }
 }
 
@@ -261,7 +261,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampWrongConstValue) {
         auto mul_constant = opset7::Constant::create(element::f16, Shape{}, {0.98 / 6.15});
         auto mul_first = std::make_shared<opset7::Multiply>(clamp, mul_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul_first}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul_first}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSigmoidFusion>();
     }
@@ -274,6 +274,6 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampWrongConstValue) {
         auto mul_constant = opset7::Constant::create(element::f16, Shape{}, {0.98 / 6.15});
         auto mul_first = std::make_shared<opset7::Multiply>(clamp, mul_constant);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul_first}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul_first}, ParameterVector{input});
     }
 }

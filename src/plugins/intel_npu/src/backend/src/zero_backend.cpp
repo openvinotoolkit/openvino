@@ -30,7 +30,7 @@ uint32_t ZeroEngineBackend::getGraphExtVersion() const {
 }
 
 bool ZeroEngineBackend::isBatchingSupported() const {
-    return _initStruct->isExtensionSupported("ZE_extension_graph_1_6", ZE_MAKE_VERSION(1, 6));
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {
