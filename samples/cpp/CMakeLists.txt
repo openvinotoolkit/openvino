@@ -1,7 +1,36 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-include(${OpenVINO_SOURCE_DIR}/cmake/developer_package/compile_flags/functions.cmake)
+
+if(NOT DEFINED OPENVINO_STD_FS_LIB)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
+        "#include <experimental/filesystem>\nint main(int argc, char ** argv) {\n  std::experimental::filesystem::path p(argv[0]);\n  return p.string().length();\n}")
+    try_compile(STD_FS_NO_LIB_NEEDED ${CMAKE_CURRENT_BINARY_DIR}
+                SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
+                COMPILE_DEFINITIONS -std=c++11)
+    try_compile(STD_FS_NEEDS_STDCXXFS ${CMAKE_CURRENT_BINARY_DIR}
+                SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
+                COMPILE_DEFINITIONS -std=c++11
+                LINK_LIBRARIES stdc++fs)
+    try_compile(STD_FS_NEEDS_CXXFS ${CMAKE_CURRENT_BINARY_DIR}
+                SOURCES ${CMAKE_CURRENT_BINARY_DIR}/main.cpp
+                COMPILE_DEFINITIONS -std=c++11
+                LINK_LIBRARIES c++fs)
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        message(STATUS "MSVC - No explicit filesystem linker setting required.")
+    elseif(STD_FS_NEEDS_STDCXXFS)
+        message(STATUS "STD_FS_NEEDS_STDCXXFS - Add explicit filesystem linker setting: 'stdc++fs'.")
+        set(OPENVINO_STD_FS_LIB stdc++fs CACHE INTERNAL "Library name for filesystem")
+    elseif(STD_FS_NEEDS_CXXFS)
+        message(STATUS "STD_FS_NEEDS_CXXFS - Add explicit filesystem linker setting: 'c++fs'.")
+        set(OPENVINO_STD_FS_LIB stdc++fs CACHE INTERNAL "Library name for filesystem")
+    elseif(STD_FS_NO_LIB_NEEDED)
+        message(STATUS "STD_FS_NO_LIB_NEEDED - No explicit filesystem linker setting required.")
+    else()
+        message(WARNING "Unknown C++ build setup - No explicit filesystem linker setting set")
+    endif()
+endif()
 
 if(WIN32)
     cmake_minimum_required (VERSION 3.15)
@@ -103,7 +132,6 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 ####################################
-ov_detect_std_filesystem_lib()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     # gflags is used only in C++ samples
