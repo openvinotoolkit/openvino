@@ -24,7 +24,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_No_Variance) {
         auto axes_const = opset6::Constant::create(element::i64, Shape{2}, {2, 3});
         auto mvn = std::make_shared<opset6::MVN>(data, axes_const, false, 1e-5f, op::MVNEpsMode::INSIDE_SQRT);
 
-        model = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
 
         manager.register_pass<ov::pass::MVN6Decomposition>();
     }
@@ -35,7 +35,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_No_Variance) {
         auto mean = std::make_shared<opset6::ReduceMean>(input0, axes_const, true);
         auto mean_normalization = std::make_shared<opset6::Subtract>(input0, mean);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mean_normalization}, ParameterVector{input0});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mean_normalization}, ParameterVector{input0});
     }
 }
 
@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_Inside_Sqrt) {
         auto axes_const = opset6::Constant::create(element::i64, Shape{2}, {2, 3});
         auto mvn = std::make_shared<opset6::MVN>(data, axes_const, true, 1e-5f, op::MVNEpsMode::INSIDE_SQRT);
 
-        model = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
 
         manager.register_pass<ov::pass::MVN6Decomposition>();
     }
@@ -66,7 +66,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_Inside_Sqrt) {
         auto sqrt = std::make_shared<opset6::Sqrt>(eps_add);
         auto div = std::make_shared<opset6::Divide>(mean_normalization, sqrt);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input0});
+        model_ref = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input0});
     }
 }
 
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, MVN6Decomposition_Outside_Sqrt) {
         auto axes_const = opset6::Constant::create(element::i64, Shape{2}, {2, 3});
         auto mvn = std::make_shared<opset6::MVN>(data, axes_const, true, 1e-5f, op::MVNEpsMode::OUTSIDE_SQRT);
 
-        model = std::make_shared<ov::Model>(NodeVector{mvn}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{data});
 
         manager.register_pass<ov::pass::MVN6Decomposition>();
     }
@@ -97,6 +97,6 @@ TEST_F(TransformationTestsF, MVN6Decomposition_Outside_Sqrt) {
         auto eps_add = std::make_shared<opset6::Add>(sqrt, eps_node);
         auto div = std::make_shared<opset6::Divide>(mean_normalization, eps_add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input0});
+        model_ref = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input0});
     }
 }

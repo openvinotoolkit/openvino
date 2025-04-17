@@ -102,7 +102,7 @@ private:
         const auto LS = std::make_shared<op::v0::Constant>(params.layerShapeData);
         const auto IS = std::make_shared<op::v0::Constant>(params.imageShapeData);
         const auto PriorBox = std::make_shared<op::v0::PriorBox>(LS, IS, params.attrs);
-        return std::make_shared<ov::Model>(NodeVector{PriorBox}, ParameterVector{});
+        return std::make_shared<ov::Model>(OutputVector{PriorBox}, ParameterVector{});
     }
 };
 
@@ -129,7 +129,7 @@ private:
         const auto LS = std::make_shared<op::v0::Constant>(params.layerShapeData);
         const auto IS = std::make_shared<op::v0::Constant>(params.imageShapeData);
         const auto PriorBoxV8 = std::make_shared<op::v8::PriorBox>(LS, IS, params.attrs);
-        return std::make_shared<ov::Model>(NodeVector{PriorBoxV8}, ParameterVector{});
+        return std::make_shared<ov::Model>(OutputVector{PriorBoxV8}, ParameterVector{});
     }
 };
 

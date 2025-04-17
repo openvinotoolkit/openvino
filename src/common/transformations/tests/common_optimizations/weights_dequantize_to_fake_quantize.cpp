@@ -71,7 +71,7 @@ public:
             auto scale =
                 std::make_shared<opset6::Constant>(float_element_type, Shape{}, std::vector<float>{test_case.scale});
 
-            NodeVector output;
+            OutputVector output;
             if (zp == 0)
                 output.push_back(std::make_shared<opset6::Multiply>(f_weights, scale));
             else
@@ -98,7 +98,7 @@ public:
 
             auto fq = std::make_shared<opset6::FakeQuantize>(f_weights, i_low, i_high, o_low, o_high, test_case.levels);
 
-            f_ref = std::make_shared<ov::Model>(NodeVector{fq}, ParameterVector{});
+            f_ref = std::make_shared<ov::Model>(OutputVector{fq}, ParameterVector{});
         }
     }
 };
