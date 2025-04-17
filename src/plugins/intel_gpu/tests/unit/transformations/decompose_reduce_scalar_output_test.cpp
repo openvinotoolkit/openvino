@@ -29,28 +29,25 @@ std::shared_ptr<ov::Model> build_model(const ov::PartialShape& input_shape,
         in->get_default_output(),
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reduction_axes.size()}, reduction_axes),
         keep_dim);
-    return std::make_shared<ov::Model>(ov::NodeVector{reduce}, ov::ParameterVector{in});
+    return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{in});
 }
 
-#define decompose_reduce_static_shape(reduce_type)                                                                     \
-    const ov::PartialShape in_shape = {1, 256, 1024, 10};                                                              \
-    const ov::element::Type in_type = ov::element::Type_t::f16;                                                        \
-    const std::vector<size_t> reduction_axes = {0, 1, 2, 3};                                                           \
-    disable_rt_info_check();                                                                                           \
-    {                                                                                                                  \
-        model = build_model<reduce_type>(in_shape, in_type, reduction_axes, false);                                    \
-        manager.register_pass<ov::intel_gpu::DecomposeReduceForScalarOutput>();                                        \
-    }                                                                                                                  \
-    {                                                                                                                  \
-        const auto in = std::make_shared<ov::op::v0::Parameter>(in_type, in_shape);                                    \
-        auto reduce = std::make_shared<reduce_type>(in->get_default_output(),                                          \
-                                                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}), \
-                                                    true);                                                             \
-        reduce = std::make_shared<reduce_type>(                                                                        \
-            reduce->get_default_output(),                                                                              \
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reduction_axes.size()}, reduction_axes),          \
-            false);                                                                                                    \
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{reduce}, ov::ParameterVector{in});                      \
+#define decompose_reduce_static_shape(reduce_type)                                                                                                      \
+    const ov::PartialShape in_shape = {1, 256, 1024, 10};                                                                                               \
+    const ov::element::Type in_type = ov::element::Type_t::f16;                                                                                         \
+    const std::vector<size_t> reduction_axes = {0, 1, 2, 3};                                                                                            \
+    disable_rt_info_check();                                                                                                                            \
+    {                                                                                                                                                   \
+        model = build_model<reduce_type>(in_shape, in_type, reduction_axes, false);                                                                     \
+        manager.register_pass<ov::intel_gpu::DecomposeReduceForScalarOutput>();                                                                         \
+    }                                                                                                                                                   \
+    {                                                                                                                                                   \
+        const auto in = std::make_shared<ov::op::v0::Parameter>(in_type, in_shape);                                                                     \
+        auto reduce = std::make_shared<reduce_type>(in->get_default_output(), ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}), true); \
+        reduce = std::make_shared<reduce_type>(reduce->get_default_output(),                                                                            \
+                                               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reduction_axes.size()}, reduction_axes),        \
+                                               false);                                                                                                  \
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{in});                                                     \
     }
 
 // Static shape reduce to scalar output, decompose reduce.
@@ -88,31 +85,24 @@ TEST_F(TransformationTestsF, DecomposeReduceMaxTest_static_shape_skip) {
 }
 
 // Dynamic shape reduce to scalar output, decompose reduce.
-#define decompose_reduce_dynamic_shape(reduce_type)                                                                    \
-    const ov::PartialShape in_shape = {4, -1, -1, 10};                                                                 \
-    const ov::element::Type in_type = ov::element::Type_t::f16;                                                        \
-    const std::vector<size_t> reduction_axes = {0, 1, 2, 3};                                                           \
-    disable_rt_info_check();                                                                                           \
-    {                                                                                                                  \
-        model = build_model<reduce_type>(in_shape, in_type, reduction_axes, false);                                    \
-        manager.register_pass<ov::intel_gpu::DecomposeReduceForScalarOutput>();                                        \
-    }                                                                                                                  \
-    {                                                                                                                  \
-        const auto in = std::make_shared<ov::op::v0::Parameter>(in_type, in_shape);                                    \
-        auto reduce = std::make_shared<reduce_type>(in->get_default_output(),                                          \
-                                                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}), \
-                                                    true);                                                             \
-        reduce = std::make_shared<reduce_type>(reduce->get_default_output(),                                           \
-                                               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}),      \
-                                               true);                                                                  \
-        reduce = std::make_shared<reduce_type>(reduce->get_default_output(),                                           \
-                                               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),      \
-                                               true);                                                                  \
-        reduce = std::make_shared<reduce_type>(                                                                        \
-            reduce->get_default_output(),                                                                              \
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reduction_axes.size()}, reduction_axes),          \
-            false);                                                                                                    \
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{reduce}, ov::ParameterVector{in});                      \
+#define decompose_reduce_dynamic_shape(reduce_type)                                                                                                     \
+    const ov::PartialShape in_shape = {4, -1, -1, 10};                                                                                                  \
+    const ov::element::Type in_type = ov::element::Type_t::f16;                                                                                         \
+    const std::vector<size_t> reduction_axes = {0, 1, 2, 3};                                                                                            \
+    disable_rt_info_check();                                                                                                                            \
+    {                                                                                                                                                   \
+        model = build_model<reduce_type>(in_shape, in_type, reduction_axes, false);                                                                     \
+        manager.register_pass<ov::intel_gpu::DecomposeReduceForScalarOutput>();                                                                         \
+    }                                                                                                                                                   \
+    {                                                                                                                                                   \
+        const auto in = std::make_shared<ov::op::v0::Parameter>(in_type, in_shape);                                                                     \
+        auto reduce = std::make_shared<reduce_type>(in->get_default_output(), ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}), true); \
+        reduce = std::make_shared<reduce_type>(reduce->get_default_output(), ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}), true);  \
+        reduce = std::make_shared<reduce_type>(reduce->get_default_output(), ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}), true);  \
+        reduce = std::make_shared<reduce_type>(reduce->get_default_output(),                                                                            \
+                                               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reduction_axes.size()}, reduction_axes),        \
+                                               false);                                                                                                  \
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{in});                                                     \
     }
 
 TEST_F(TransformationTestsF,
