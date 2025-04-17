@@ -130,9 +130,9 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     }
 
     if (supports_immad) {
-        ov::PartialShape out_pshape = {input_layout.batch(), weights_layout.batch()};
+        ov::PartialShape out_pshape = {input_layout.batch(), weights_layout.batch(), 1, 1};
         if (desc->input_size == 3) {
-            out_pshape = {input_layout.batch(), input_layout.feature(), weights_layout.batch()};
+            out_pshape = {input_layout.batch(), input_layout.feature(), weights_layout.batch(), 1};
         } else if (desc->input_size == 4) {
             out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(1), weights_layout.batch()};
         } else if (desc->input_size == 5) {

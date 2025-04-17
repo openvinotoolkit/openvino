@@ -157,6 +157,14 @@ protected:
             weights_fmt = dnnl::memory::format_tag::ba;
         }
 
+        if (prim_input_size < 4) {
+            auto output_pshape = output_layout.get_partial_shape();
+            if (output_pshape.size() > prim_input_size) {
+                output_pshape.resize(prim_input_size);
+                output_layout.set_partial_shape(output_pshape);
+            }
+        }
+
         // Transform weights_layout according to input layout
         {
             ov::PartialShape new_weights_pshape;
