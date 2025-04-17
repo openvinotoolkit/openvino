@@ -91,10 +91,17 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     fi
 elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/os-release ; then
     yum update
-    # RHEL 8 / CentOS 7
+    # RHEL 8 / CentOS 7 / Fedora 29
     if [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
-        yum install -y centos-release-scl
-        yum install -y epel-release
+        source /etc/os-release
+        if [[ "$ID" == "fedora" ]]; then
+            yum install -y fedora-repos
+        else
+            yum install -y centos-release-scl
+            # CentOS 7 is EOL and throws an error for centos-sclo-sclo
+            yum-config-manager --save --setopt=centos-sclo-sclo.skip_if_unavailable=true
+            yum install -y epel-release
+        fi
         yum install -y \
             `# to build and check pip packages` \
             patchelf \
@@ -131,7 +138,9 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
         opencl-headers \
         `# python API` \
         python3-pip \
-        python3-devel
+        python3-devel \
+        `# rpmlint dependency` \
+        rpm-python
 elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
     zypper refresh
     zypper install -y \
