@@ -1,4 +1,4 @@
-// Copyright (C) 2024 FUJITSU LIMITED
+// Copyright (C) 2025 FUJITSU LIMITED
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,16 +9,16 @@
 #include <kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h>
 #include <kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon.h>
 
-#include <cfloat>
+#include <limits>
 #include <openvino/core/type/element_type.hpp>
 
 namespace ov::intel_cpu {
 
-class KleidiKernel {
+class KleidiGemm {
 public:
-    KleidiKernel(size_t M, size_t N, size_t K, size_t lda, size_t ldb, size_t ldc);
-    void executeGemm(void* a, void* b, void* c);
-    void packB(float16_t* inp, float16_t* packed_out, float16_t* bias);
+    KleidiGemm(size_t M, size_t N, size_t K, size_t lda, size_t ldb, size_t ldc);
+    void executeGemm(const void* a, const void* b, void* c);
+    void packB(const float16_t* inp, const float16_t* bias, float16_t* packed_out);
     const size_t get_packed_rhs_size() const;
 
 private:
@@ -39,7 +39,7 @@ private:
     size_t packedRHSsize;
 };
 
-KleidiKernel::KleidiKernel(size_t _M, size_t _N, size_t _K, size_t _lda, size_t _ldb, size_t _ldc)
+KleidiGemm::KleidiGemm(size_t _M, size_t _N, size_t _K, size_t _lda, size_t _ldb, size_t _ldc)
     : M(_M),
       N(_N),
       K(_K),
@@ -51,11 +51,11 @@ KleidiKernel::KleidiKernel(size_t _M, size_t _N, size_t _K, size_t _lda, size_t 
       sr(ukernel.get_sr()),
       packedRHSsize(kai_get_rhs_packed_size_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon(_N, _K)){};
 
-const size_t KleidiKernel::get_packed_rhs_size() const {
+const size_t KleidiGemm::get_packed_rhs_size() const {
     return packedRHSsize;
 }
 
-void KleidiKernel::packB(float16_t* inp, float16_t* packed_out, float16_t* bias) {
+void KleidiGemm::packB(const float16_t* inp, const float16_t* bias, float16_t* packed_out) {
     // Packing only needs to be performed once if the contents of the bias and RHS matrices are expected to be constant.
     kai_run_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon(1,
                                                       N,
@@ -72,15 +72,16 @@ void KleidiKernel::packB(float16_t* inp, float16_t* packed_out, float16_t* bias)
                                                       NULL);
 }
 
-void KleidiKernel::executeGemm(void* a, void* b, void* c) {
+void KleidiGemm::executeGemm(const void* a, const void* b, void* c) {
     const size_t m_step = ukernel.get_m_step();
     const size_t n_step = ukernel.get_n_step();
     for (size_t i_m_step = 0; i_m_step < M; i_m_step += m_step) {
         for (size_t i_n_step = 0; i_n_step < N; i_n_step += n_step) {
             const uint8_t* lhs_ptr =
-                (const uint8_t*)a + (ukernel.get_lhs_packed_offset(i_m_step, lda * sizeof(uint16_t)));
-            const uint8_t* rhs_ptr = (const uint8_t*)b + (ukernel.get_rhs_packed_offset(i_n_step, K));
-            uint8_t* dst_ptr = (uint8_t*)c + (ukernel.get_dst_offset(i_m_step, i_n_step, ldc * sizeof(uint16_t)));
+                static_cast<const uint8_t*>(a) + (ukernel.get_lhs_packed_offset(i_m_step, lda * sizeof(float16_t)));
+            const uint8_t* rhs_ptr = static_cast<const uint8_t*>(b) + (ukernel.get_rhs_packed_offset(i_n_step, K));
+            uint8_t* dst_ptr =
+                static_cast<uint8_t*>(c) + (ukernel.get_dst_offset(i_m_step, i_n_step, ldc * sizeof(float16_t)));
             const size_t actual_m = std::min(M - i_m_step, m_step);
             const size_t actual_n = std::min(N - i_n_step, n_step);
 
@@ -93,8 +94,8 @@ void KleidiKernel::executeGemm(void* a, void* b, void* c) {
                                dst_ptr,                  // DST
                                ldc * sizeof(float16_t),  // DST stride (row)
                                sizeof(float16_t),        // DST stride (col)
-                               -FLT_MAX,
-                               FLT_MAX  // Min and max for the clamp operation
+                               -std::numeric_limits<float>::max(),
+                               std::numeric_limits<float>::max()  // Min and max for the clamp operation
             );
         }
     }

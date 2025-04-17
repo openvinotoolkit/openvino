@@ -5,6 +5,8 @@
 
 #include "openvino/core/type/float16.hpp"
 
+namespace ov::intel_cpu::sve_utils {
+
 template <typename T, typename... Args>
 constexpr bool one_of(T val, Args... args) {
     return ((val == args) || ...);
@@ -51,3 +53,4 @@ size_t sve_vlen() {
         return svcntd();
     }
 }
+}  // namespace ov::intel_cpu::sve_utils
