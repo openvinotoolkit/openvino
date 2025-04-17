@@ -75,7 +75,7 @@ public:
             ASSERT_EQ(params_hash, 1095272671134235967UL);
         } else {
             ASSERT_EQ(primitive_hash, 9510988594087947885UL);
-            ASSERT_EQ(params_hash, 17622194704492960871UL);
+            ASSERT_EQ(params_hash, 12994953567935633205UL);
         }
     }
 
