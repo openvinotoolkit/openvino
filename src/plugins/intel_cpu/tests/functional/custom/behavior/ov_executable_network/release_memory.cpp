@@ -4,11 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/runtime/core.hpp"
-#include "openvino/runtime/compiled_model.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/core.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace ov::test;
 

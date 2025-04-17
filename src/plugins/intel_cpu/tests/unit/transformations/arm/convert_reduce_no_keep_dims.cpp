@@ -3,8 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
 #include <transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp>
 #include "common_test_utils/ov_test_utils.hpp"
 

@@ -3,17 +3,33 @@
 //
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <string>
 #include <tuple>
 
 #include "common_test_utils/common_utils.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/utils/gen_pattern.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::gen_pattern;

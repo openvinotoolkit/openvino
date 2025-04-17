@@ -3,6 +3,12 @@
 //
 #include "concat_sdp.hpp"
 
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+
 using namespace CPUTestUtils;
 
 namespace ov {

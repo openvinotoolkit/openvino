@@ -1,13 +1,15 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/opsets/opset13.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
-
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/pass/manager.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
