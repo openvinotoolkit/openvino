@@ -5,6 +5,10 @@
 #include "openvino/reference/convert_color_nv12.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/op/i420_to_bgr.hpp"
+#include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
 
 template <ov::element::Type_t ET>
 inline bool evaluate(const std::shared_ptr<ov::op::v8::NV12toRGB>& op,

@@ -8,6 +8,7 @@
 
 #include "itt.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -57,7 +58,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
     auto matmul_m = wrap_type<ov::op::v0::MatMul>({activation_m, weights_m});
     auto scaled_op_m = std::make_shared<Or>(OutputVector{convolution_m, matmul_m});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         OPENVINO_ASSERT(pattern_map.count(convolution_m) || pattern_map.count(matmul_m),
@@ -188,7 +189,7 @@ ov::pass::activations_scaling::EliminateScalarMul::EliminateScalarMul() {
     auto shape_of_m = wrap_type<ov::op::v3::ShapeOf>({mul_m});
     auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -244,7 +245,7 @@ ov::pass::activations_scaling::MulShareTransformation::MulShareTransformation() 
     auto shape_of_m = wrap_type<ov::op::v3::ShapeOf>({any_input()});
     auto norm_m = std::make_shared<Or>(OutputVector{mvn_m, rms_m, group_norm_m, shape_of_m});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {
@@ -318,7 +319,7 @@ ov::pass::activations_scaling::MoveDownScalarMul::MoveDownScalarMul() {
     auto activation_a_m = any_input(is_non_const_node);
     auto mul_a_m = wrap_type<ov::op::v1::Multiply>({activation_a_m, mul_b_m});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {

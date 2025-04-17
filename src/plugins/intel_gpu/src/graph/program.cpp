@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
@@ -747,7 +748,7 @@ void program::prepare_memory_dependencies() {
     if (!_config.get_enable_memory_pool())
         return;
     for (auto& node : get_processing_order()) {
-        node->add_memory_dependency(node->get_unique_id());
+        node->add_memory_dependency(*node);
     }
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
@@ -765,7 +766,7 @@ std::string program::get_memory_dependencies_string() const {
                          .append("(unique_id:")
                          .append(std::to_string(node->get_unique_id()))
                          .append(") restricted list: ");
-        for (auto it : node->get_memory_dependencies())
+        for (const auto& it : node->get_memory_dependencies())
             mem_dep = mem_dep.append(std::to_string(it)).append(",");
         mem_dep = mem_dep.append("\n");
     }
@@ -823,6 +824,8 @@ bool program::contains_state(const std::string& variable_id) {
 }
 
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
+    OPENVINO_ASSERT(prim != nullptr, "Null ptr primitive is added");
+
     auto itr = nodes_map.lower_bound(prim->id);
     if (itr != nodes_map.end() && itr->first == prim->id)
         return *itr->second;
@@ -1144,9 +1147,10 @@ void program::fuse_nodes(program_node &fused_node,
     }
 
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
-    auto fusedPadding = fused_node.get_output_layout().data_padding;
+    auto fused_layout = fused_node.get_output_layout();
+    auto fused_padding = fused_layout.data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
-                                                 fusedPadding);
+                                                 fused_padding);
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
@@ -1157,8 +1161,13 @@ void program::fuse_nodes(program_node &fused_node,
     // Add new dependencies to the fused_node
     size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
-        auto& dep = peer_node.get_dependency(i);
-        if (dep.id() == fused_node.id()) {
+        auto [dep, port] = peer_node.get_dependency_with_port(i);
+        if (dep->id() == fused_node.id()) {
+            if (fused_node.has_fused_primitives()) {
+                local_desc.inputs.emplace_back(FusedInputType::INTERNAL, fused_node.get_fused_primitives().size() - 1, fused_layout.data_type);
+            } else {
+                local_desc.inputs.emplace_back(FusedInputType::ORIGINAL, 0, fused_layout.data_type);
+            }
             deps_idx++;
             continue;
         }
@@ -1187,10 +1196,11 @@ void program::fuse_nodes(program_node &fused_node,
             }
         }
 
-        auto port_idx = fused_node.get_port_from_deps(dep.id());
-        fused_node.dependencies.push_back({&dep, port_idx});
-        local_desc.deps.emplace_back(dep.id(), deps_idx++);
-        dep.users.push_back(&fused_node);
+        auto port_idx = fused_node.get_port_from_deps(dep->id());
+        fused_node.dependencies.push_back({dep, port_idx});
+        local_desc.inputs.emplace_back(FusedInputType::EXTERNAL, fused_node.dependencies.size() - 1, dep->get_output_layout(port).data_type);
+        local_desc.deps.emplace_back(dep->id(), deps_idx++);
+        dep->users.push_back(&fused_node);
     }
     if (local_desc.deps.size()) {
         local_desc.outer_dep_start_idx = orig_fused_node_num_deps;
@@ -1707,7 +1717,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
                                                                       pool,
                                                                       *node,
                                                                       *node->get_kernel_impl_params(),
-                                                                      node->get_memory_dependencies(),
+                                                                      memory_restricter<uint32_t>(&node->get_memory_dependencies()),
                                                                       0,
                                                                       false,
                                                                       0,

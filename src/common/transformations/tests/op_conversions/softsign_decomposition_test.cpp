@@ -21,7 +21,7 @@ TEST_F(TransformationTestsF, SoftSignDecomposition) {
         auto data = std::make_shared<opset9::Parameter>(element::f32, Shape{3, 1, 2});
         auto softsign = std::make_shared<opset9::SoftSign>(data);
 
-        model = std::make_shared<ov::Model>(NodeVector{softsign}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{softsign}, ParameterVector{data});
 
         manager.register_pass<ov::pass::SoftSignDecomposition>();
     }
@@ -32,7 +32,7 @@ TEST_F(TransformationTestsF, SoftSignDecomposition) {
         auto add = std::make_shared<opset9::Add>(abs, opset9::Constant::create(element::f32, Shape{1}, {1}));
         auto div = std::make_shared<opset9::Divide>(input, add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
     }
 }
 
@@ -41,7 +41,7 @@ TEST_F(TransformationTestsF, SoftSignDecompositionFP16) {
         auto data = std::make_shared<opset9::Parameter>(element::f16, Shape{3, 1, 2});
         auto softsign = std::make_shared<opset9::SoftSign>(data);
 
-        model = std::make_shared<ov::Model>(NodeVector{softsign}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{softsign}, ParameterVector{data});
 
         manager.register_pass<ov::pass::SoftSignDecomposition>();
     }
@@ -52,6 +52,6 @@ TEST_F(TransformationTestsF, SoftSignDecompositionFP16) {
         auto add = std::make_shared<opset9::Add>(abs, opset9::Constant::create(element::f16, Shape{1}, {1}));
         auto div = std::make_shared<opset9::Divide>(input, add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
     }
 }

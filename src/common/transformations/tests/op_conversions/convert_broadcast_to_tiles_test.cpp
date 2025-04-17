@@ -27,7 +27,7 @@ TEST(TransformationTests, ConvertBroadcastToTilesDynamic) {
         auto broadcast = std::make_shared<opset1::Broadcast>(input1, target_shape);
         broadcast->set_friendly_name("broadcast");
 
-        auto f = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input1});
+        auto f = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();

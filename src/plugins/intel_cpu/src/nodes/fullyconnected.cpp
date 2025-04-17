@@ -245,7 +245,10 @@ void FullyConnected::prepareParams() {
     needPrepareParamsForTensorParallel();
 
     executor->update(memory);
-    // @todo avoid updating implementation type in scope of every prepareParams call
+    // @todo avoid updating implementation type in scope of every prepareParams call.
+    // Currently the tests are implemented in such way that the actual used implementation type is changed
+    // based on a shape and the expected implementation type is determined by the last shape.
+    // I.e. for convolution it is different. The dymmy shape determines the expected implementation type.
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 }
 
@@ -359,7 +362,7 @@ void FullyConnected::execTensorParallelSync() {
     }
 }
 
-void FullyConnected::execute(const dnnl::stream& strm) {
+void FullyConnected::execute([[maybe_unused]] const dnnl::stream& strm) {
     initTensorParallelSync();
 
     executor->execute(memory);
@@ -416,6 +419,7 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
         impl_desc_type::shl,
         impl_desc_type::brgemm_sparse_avx512_amx,
         impl_desc_type::brgemm_avx512_amx,
+        impl_desc_type::brgconv_avx512_1x1,
         impl_desc_type::brgemm_avx512,
         impl_desc_type::brgemm_avx2,
         impl_desc_type::gemm_blas,
@@ -516,7 +520,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
 
-    postOps = getPostOps(fusedWith);
+    attrs.postOps = getPostOps(fusedWith);
 
     const auto& srcTypes = getOriginalInputPrecisions();
     auto dstTypes = getOriginalOutputPrecisions();
@@ -550,15 +554,15 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     };
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
-    factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, postOps, executionContext, descs);
-    const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
+    factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, executionContext, descs);
+    const std::vector<MemoryDescArgs> nodeDescriptorsList = factory->getProperMemoryDescriptors(descs);
+    const MemoryDescArgs& nodeDescriptors = nodeDescriptorsList.front();
 
     NodeConfig nodeConfig;
     nodeConfig.inConfs.resize(srcDescs.size());
-
     for (const auto& desc : nodeDescriptors) {
-        if (m_atoi.count(desc.first)) {
-            nodeConfig.inConfs[m_atoi[desc.first]] = desc.second;
+        if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
+            nodeConfig.inConfs[it->second] = desc.second;
         }
     }
 
@@ -601,24 +605,21 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_DST] = getDstMemoryAtPort(0);
         tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
-        if (memory.count(ARG_DST | ARG_ATTR_SCALES)) {
-            memory[ARG_DST | ARG_ATTR_SCALES] = split_horizontal(context->getEngine(),
-                                                                 memory[ARG_DST | ARG_ATTR_SCALES],
-                                                                 0,
-                                                                 tp_cfg.w_rank,
-                                                                 tp_cfg.w_size);
+        if (auto it = memory.find(ARG_DST | ARG_ATTR_SCALES); it != memory.end()) {
+            memory[ARG_DST | ARG_ATTR_SCALES] =
+                split_horizontal(context->getEngine(), it->second, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
-        if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
-            auto scale_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_SCALES]);
+        if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
+            auto scale_mem = std::const_pointer_cast<IMemory>(it->second);
             memory[ARG_WEI | ARG_ATTR_SCALES] =
                 attrs.weightsNonTransposed
                     ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
                     : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
-        if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
-            auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_ZERO_POINTS]);
+        if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
+            auto zeropoint_mem = std::const_pointer_cast<IMemory>(it->second);
             auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
             if (element_num == 1) {
                 tp_cfg.cached_zeropoint = zeropoint_mem;

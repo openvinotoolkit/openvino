@@ -32,7 +32,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDepthFirst) {
         auto permute = std::make_shared<opset3::Transpose>(reshape_before, permutation);
         auto reshape_after = std::make_shared<opset3::Reshape>(permute, shape_reshape_after, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input0});
+        model = std::make_shared<ov::Model>(OutputVector{reshape_after}, ParameterVector{input0});
 
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
             return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
@@ -48,7 +48,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDepthFirst) {
         auto input0 = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 128, 720, 480});
         auto depth_to_space =
             std::make_shared<opset3::DepthToSpace>(input0, opset3::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
-        model_ref = std::make_shared<ov::Model>(NodeVector{depth_to_space}, ParameterVector{input0});
+        model_ref = std::make_shared<ov::Model>(OutputVector{depth_to_space}, ParameterVector{input0});
     }
 }
 
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDepthFirstDynamicBatch) {
         auto permute = std::make_shared<opset3::Transpose>(reshape_before, permutation);
         auto reshape_after = std::make_shared<opset3::Reshape>(permute, shape_reshape_after, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{reshape_after}, ParameterVector{input});
 
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
             return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
@@ -81,7 +81,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDepthFirstDynamicBatch) {
         auto input = std::make_shared<opset3::Parameter>(element::f32, input_pshape);
         auto depth_to_space =
             std::make_shared<opset3::DepthToSpace>(input, opset3::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
-        model_ref = std::make_shared<ov::Model>(NodeVector{depth_to_space}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{depth_to_space}, ParameterVector{input});
     }
 }
 
@@ -96,7 +96,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionBlockFirst) {
         auto permute = std::make_shared<opset3::Transpose>(reshape_before, permutation);
         auto reshape_after = std::make_shared<opset3::Reshape>(permute, shape_reshape_after, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input0});
+        model = std::make_shared<ov::Model>(OutputVector{reshape_after}, ParameterVector{input0});
 
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
             return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
@@ -112,7 +112,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionBlockFirst) {
         auto input0 = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 128, 720, 480});
         auto depth_to_space =
             std::make_shared<opset3::DepthToSpace>(input0, opset3::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
-        model_ref = std::make_shared<ov::Model>(NodeVector{depth_to_space}, ParameterVector{input0});
+        model_ref = std::make_shared<ov::Model>(OutputVector{depth_to_space}, ParameterVector{input0});
     }
 }
 
@@ -128,7 +128,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionBlockFirstDynamicBatch) {
         auto permute = std::make_shared<opset3::Transpose>(reshape_before, permutation);
         auto reshape_after = std::make_shared<opset3::Reshape>(permute, shape_reshape_after, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{reshape_after}, ParameterVector{input});
 
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
             return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
@@ -145,7 +145,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionBlockFirstDynamicBatch) {
         auto input = std::make_shared<opset3::Parameter>(element::f32, input_pshape);
         auto depth_to_space =
             std::make_shared<opset3::DepthToSpace>(input, opset3::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
-        model_ref = std::make_shared<ov::Model>(NodeVector{depth_to_space}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{depth_to_space}, ParameterVector{input});
     }
 }
 
@@ -160,7 +160,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDynamicShape) {
         auto permute = std::make_shared<opset3::Transpose>(reshape_before, permutation);
         auto reshape_after = std::make_shared<opset3::Reshape>(permute, shape_reshape_after, false);
 
-        model = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input0, shape_reshape_before});
+        model = std::make_shared<ov::Model>(OutputVector{reshape_after}, ParameterVector{input0, shape_reshape_before});
 
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
             return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
@@ -183,7 +183,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionDynamicShape) {
         auto reshape_after = std::make_shared<opset3::Reshape>(permute, shape_reshape_after, false);
 
         model_ref =
-            std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input0, shape_reshape_before});
+            std::make_shared<ov::Model>(OutputVector{reshape_after}, ParameterVector{input0, shape_reshape_before});
     }
 }
 
@@ -202,7 +202,7 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionSeveralConsumers) {
         // additional consumer
         auto additional_consumer = std::make_shared<opset3::Result>(reshape_before);
 
-        model = std::make_shared<ov::Model>(NodeVector{result, additional_consumer}, ParameterVector{input0});
+        model = std::make_shared<ov::Model>(OutputVector{result, additional_consumer}, ParameterVector{input0});
         auto callback = [](const std::shared_ptr<const Node>& node) -> bool {
             return ov::as_type_ptr<const opset3::DepthToSpace>(node) != nullptr;
         };
@@ -227,6 +227,6 @@ TEST_F(TransformationTestsF, DepthToSpaceFusionSeveralConsumers) {
         // additional consumer
         auto additional_consumer = std::make_shared<opset3::Result>(reshape_before);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{result, additional_consumer}, ParameterVector{input0});
+        model_ref = std::make_shared<ov::Model>(OutputVector{result, additional_consumer}, ParameterVector{input0});
     }
 }

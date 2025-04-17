@@ -75,7 +75,7 @@ public:
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
 
         auto fully_connected = std::make_shared<op::FullyConnected>(data, weights_path, no_bias);
-        return std::make_shared<ov::Model>(ov::NodeVector{fully_connected}, ov::ParameterVector{data});
+        return std::make_shared<ov::Model>(ov::OutputVector{fully_connected}, ov::ParameterVector{data});
     }
 
 protected:

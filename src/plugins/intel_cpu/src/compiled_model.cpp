@@ -160,14 +160,22 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
     int streamId = 0;
     int socketId = 0;
-    auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
-    if (nullptr != streamsExecutor) {
-        streamId = streamsExecutor->get_stream_id();
-        socketId = std::max(0, streamsExecutor->get_socket_id());
+
+    size_t graph_idx = 0;
+    if (m_graphs.size() > 1) {
+        auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
+        if (nullptr != streamsExecutor) {
+            streamId = streamsExecutor->get_stream_id();
+            socketId = std::max(0, streamsExecutor->get_socket_id());
+        }
+        graph_idx = streamId % m_graphs.size();
     }
-    auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
+
+    auto graphLock = GraphGuard::Lock(m_graphs[graph_idx]);
+
     if (!graphLock._graph.IsReady()) {
         std::exception_ptr exception;
+        auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
         auto makeGraph = [&] {
             try {
                 GraphContext::Ptr ctx;
