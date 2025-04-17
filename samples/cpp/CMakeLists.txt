@@ -102,6 +102,7 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 ####################################
+ov_detect_std_filesystem_lib()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     # gflags is used only in C++ samples
