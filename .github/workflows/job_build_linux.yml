@@ -72,7 +72,6 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: "/home/openvino"
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
