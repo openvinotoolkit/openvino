@@ -54,6 +54,7 @@ RUN apt-get update && \
         default-jdk \
         # OpenVINO JS API
         libgtk-3-0 \
+        libgbm-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
