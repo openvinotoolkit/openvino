@@ -81,7 +81,6 @@ protected:
     void complete_subrequest(std::size_t idx) override;
     void cancel_subrequest(std::size_t idx) override;
     bool supports_async_pipeline() const override;
-    void update_subrequest_links(std::size_t idx) override;
 
     TensorPtr alloc_global_out(std::size_t out_idx) override;
 
@@ -97,9 +96,9 @@ protected:
 
     void function_prologue(std::size_t idx);
 
-    void unsafe_during(std::size_t real_idx, const std::function<void()>& f);
-    void unsafe_infer(std::size_t real_idx);
-    void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
+    void unsafe_during(std::size_t idx, const std::function<void()>& f, bool& accuracy_failover);
+    void unsafe_infer(std::size_t idx, bool& accuracy_failover);
+    void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared, bool& accuracy_failover);
 
     void connect_subrequests();
     void recreate_subrequests(std::size_t idx);
