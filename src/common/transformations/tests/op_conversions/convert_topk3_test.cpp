@@ -109,6 +109,6 @@ TEST_F(TransformationTestsF, ConvertTopK3I64Output1) {
         auto convert = std::make_shared<opset2::Convert>(topk->output(1), element::i64);
 
         // due to the 'compare_functions' limitation we will check only one output
-        model_ref = std::make_shared<ov::Model>(NodeVector{convert}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{convert}, ParameterVector{input});
     }
 }

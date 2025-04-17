@@ -1,12 +1,12 @@
 # type: ignore
-"""
-Helper functions for validating user input.
-"""
 from __future__ import annotations
 from openvino.exceptions import UserInputError
 from typing import Any
 import logging as logging
 import numpy as np
+"""
+Helper functions for validating user input.
+"""
 __all__ = ['Any', 'UserInputError', 'assert_list_of_ints', 'check_valid_attribute', 'check_valid_attributes', 'is_non_negative_value', 'is_positive_value', 'log', 'logging', 'np']
 def _check_value(op_name, attr_key, value, val_type, cond = None):
     """

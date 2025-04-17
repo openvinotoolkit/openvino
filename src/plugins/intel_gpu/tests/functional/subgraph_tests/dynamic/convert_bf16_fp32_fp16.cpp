@@ -62,21 +62,21 @@ protected:
         auto r = std::make_shared<ov::op::v0::Convert>(weights_right, ov::element::f32);
         r->set_friendly_name("conversion_bf16_to_f32");
         auto matmul_res = std::make_shared<ov::op::v0::MatMul>(weights_left, r);
-        return std::make_shared<ov::Model>(ov::NodeVector{matmul_res}, ov::ParameterVector{}, "BF16WeightsDecompression");
+        return std::make_shared<ov::Model>(ov::OutputVector{matmul_res}, ov::ParameterVector{}, "BF16WeightsDecompression");
     }
 
     std::shared_ptr<ov::Model> init_subgraph_without_convert(float right_val) {
         const auto weights_left = init_compressed_weights_subgraph(ov::element::bf16, 2);
         const auto weights_right = init_compressed_weights_subgraph(ov::element::bf16, right_val);
         auto matmul_res = std::make_shared<ov::op::v0::MatMul>(weights_left, weights_right);
-        return std::make_shared<ov::Model>(ov::NodeVector{matmul_res}, ov::ParameterVector{}, "BF16WeightsDecompression");
+        return std::make_shared<ov::Model>(ov::OutputVector{matmul_res}, ov::ParameterVector{}, "BF16WeightsDecompression");
     }
 
     std::shared_ptr<ov::Model> init_subgraph_without_convert_add() {
         const auto weights_left = init_compressed_weights_subgraph(ov::element::bf16, 2);
         const auto weights_right = init_compressed_weights_subgraph(ov::element::bf16, 3);
         auto matmul_res = std::make_shared<ov::op::v1::Add>(weights_left, weights_right);
-        return std::make_shared<ov::Model>(ov::NodeVector{matmul_res}, ov::ParameterVector{}, "BF16WeightsDecompression");
+        return std::make_shared<ov::Model>(ov::OutputVector{matmul_res}, ov::ParameterVector{}, "BF16WeightsDecompression");
     }
 };
 

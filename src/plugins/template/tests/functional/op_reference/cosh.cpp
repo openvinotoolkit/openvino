@@ -43,7 +43,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const Shape& shape, const element::Type& type) {
         const auto in = std::make_shared<op::v0::Parameter>(type, shape);
         const auto Cosh = std::make_shared<op::v0::Cosh>(in);
-        return std::make_shared<ov::Model>(NodeVector{Cosh}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{Cosh}, ParameterVector{in});
     }
 };
 
