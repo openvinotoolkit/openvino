@@ -98,7 +98,7 @@ class CustomOpWithAttribute(Op):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
 
     def clone_with_new_inputs(self, new_inputs):
-        return CustomOpWithAttribute(new_inputs)
+        return CustomOpWithAttribute(new_inputs, self._attrs)
 
     def get_type_info(self):
         return CustomOpWithAttribute.class_type_info
@@ -127,7 +127,7 @@ def prepared_paths(request, tmp_path):
     ({"axis": 0}, does_not_raise(), ""),
     ({"value_str": "test_attribute"}, does_not_raise(), ""),
     ({"value_float": 0.25}, does_not_raise(), ""),
-#    ({"value_bool": True}, does_not_raise(), ""),
+    ({"value_bool": True}, does_not_raise(), ""),
     ({"list_str": ["one", "two"]}, does_not_raise(), ""),
     ({"list_int": [1, 2]}, does_not_raise(), ""),
     ({"list_float": np.array([1.5, 2.5], dtype="float32")}, does_not_raise(), ""),
