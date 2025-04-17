@@ -257,6 +257,7 @@ struct onednn_linear {
               dnnl::memory weight, // external weight
               dnnl::memory scale,
               dnnl::memory zp) {
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::create()"));
         auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t);
         onednn_linear linear;
         linear.mm = mm;
@@ -306,6 +307,7 @@ struct onednn_linear {
     }
 
     void forward(dnnl::stream& stream, int m, dnnl::memory src_mem, dnnl::memory dst_mem, dnnl::memory bin_mem/*void* a, void* c, void* bin_input*/) {
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::forward()"));
         dnnl::memory::dim M = m;
 
         OPENVINO_ASSERT(m_batch == 0 || m_batch == M, "m_batch=", m_batch, " M=", M);
@@ -413,6 +415,7 @@ protected:
 };
 
 dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& dim, dnnl::memory::format_tag tag, int offset = 0) {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("convert2dnnl"));
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
 }
 
@@ -512,6 +515,7 @@ public:
 
     cldnn::event::ptr execute_stage(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, Stage& stage, std::vector<memory::ptr> inputs,
         std::vector<memory::ptr> outputs, const std::vector<size_t>& global, const std::vector<size_t>& local) const {
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MoeExpertOptImpl::execute_stage"));
         cldnn::stream& stream = instance.get_network().get_stream();
         bool needs_completion_event = false; // instance.needs_completion_event();
         cldnn::kernel_arguments_data args;
@@ -542,6 +546,7 @@ public:
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
+        OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MoeExpertOptImpl::execute"));
         auto& instance = reinterpret_cast<typed_primitive_inst<moe_expert>&>(ins);
         int max_topk = static_cast<int>(instance.get_config().topk);
         auto& cur_net = instance.get_network();
