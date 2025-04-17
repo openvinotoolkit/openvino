@@ -30,7 +30,6 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
             return false;
         OutputVector outputs;
         auto input_node = tuple_unpack->get_input_node_shared_ptr(0);
-        auto tuple_construct = cast_fw_node(input_node, "prim::TupleConstruct");
         if (cast_fw_node(input_node, "prim::TupleConstruct")) {
             for (const auto& input : input_node->inputs()) {
                 const auto& out = input.get_source_output();
