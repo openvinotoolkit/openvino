@@ -153,7 +153,7 @@ TEST_F(EyeTransformationTests, shift_is_not_const) {
         auto k = std::make_shared<ov::opset9::Parameter>(ov::element::i64, ov::Shape{1});
         auto node = make_test_eye<ov::opset9::Eye>(k);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data, k});
+        model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{data, k});
 
         manager.register_pass<ov::pass::EyeDecomposition>();
     }
@@ -166,7 +166,7 @@ TEST_F(EyeTransformationTests, batch_is_not_const) {
         auto batch = std::make_shared<ov::opset9::Parameter>(ov::element::i64, ov::Shape{2});
         auto node = make_test_eye_batch<ov::opset9::Eye>(batch);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data, batch});
+        model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{data, batch});
 
         manager.register_pass<ov::pass::EyeDecomposition>();
     }
@@ -178,7 +178,7 @@ TEST_F(EyeTransformationTests, use_fake_eye) {
         auto data = std::make_shared<ov::opset9::Parameter>(dtype, ov::Shape{h, w});
         auto node = make_test_eye<FakeEye>();
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
+        model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{data});
 
         manager.register_pass<ov::pass::EyeDecomposition>();
     }
@@ -241,7 +241,7 @@ TEST_P(EyeTransformationTestsP, eye_decompose) {
         auto data = std::make_shared<ov::opset9::Parameter>(dtype, ov::Shape{h, w});
         auto node = make_test_eye<ov::opset9::Eye>();
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
+        model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{data});
 
         manager.register_pass<ov::pass::EyeDecomposition>();
     }
@@ -253,7 +253,7 @@ TEST_P(EyeTransformationTestsP, eye_decompose) {
         auto k = ov::opset9::Constant::create(ov::element::i64, ov::Shape{1}, {shift});
 
         auto node = eye_decomposition_wrapper.exp_eye(height, width, k, dtype);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{data});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -279,7 +279,7 @@ TEST_P(BatchEyeTransformationTests, eye_decompose) {
         auto batch = ov::opset9::Constant::create(ov::element::i64, ov::Shape{GetParam().size()}, GetParam());
         auto node = make_test_eye_batch<ov::opset9::Eye>(batch);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
+        model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{data});
 
         manager.register_pass<ov::pass::EyeDecomposition>();
     }
@@ -292,7 +292,7 @@ TEST_P(BatchEyeTransformationTests, eye_decompose) {
         auto batch = ov::opset9::Constant::create(ov::element::i64, ov::Shape{GetParam().size()}, GetParam());
 
         auto node = eye_decomposition_wrapper.exp_eye(height, width, k, batch, dtype);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{node}, ov::ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{data});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
