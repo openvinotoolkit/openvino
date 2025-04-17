@@ -538,16 +538,99 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                                                                      compiled_blob);
         npu_plugin_properties.erase(blob_it);
 
-        std::streambuf* ossbuf = new ov::OwningSharedStreamBuffer(modelBuffer);
-        stream.rdbuf(ossbuf);
-        int index = std::ostream::xalloc();
-        stream.pword(index) = ossbuf;
-        stream.register_callback([](std::ios_base::event evt, std::ios_base& stream, int idx) {
-            if (evt == std::ios_base::event::erase_event) {
-                ov::OwningSharedStreamBuffer* ossbuf = static_cast<ov::OwningSharedStreamBuffer*>(stream.pword(idx));
-                delete ossbuf;
+        struct no_whitespaces : std::ctype<std::remove_pointer_t<decltype(stream.rdbuf())>::char_type> {
+            static const mask* make_table() {
+                // make a copy of the "C" locale table
+                static std::vector<mask> v(classic_table(), classic_table() + table_size);
+                for (size_t i = 0; i < table_size; ++i) {
+                    v[i] &= ~space;
+                }
+                return &v[0];
             }
-        }, index);
+
+            no_whitespaces(std::size_t refs = 0) : ctype(make_table(), false, refs) {}
+        };
+
+        class mem_stringbuf : public std::stringbuf {  // taken from openvino/src/bindings/c/src/common.h
+        public:
+            mem_stringbuf(const char* buffer,
+                          size_t sz,
+                          bool isAlsoOutputStream = false,
+                          const std::shared_ptr<void>& so = nullptr)
+                : _bptr(const_cast<char*>(buffer)),
+                  _size(sz),
+                  _so(so) {
+                setg(_bptr, _bptr, _bptr + _size);
+                if (isAlsoOutputStream) {
+                    setp(_bptr, _bptr + _size, _bptr + _size);
+                } else {
+                    std::stringbuf(in);
+                }
+            }
+
+            pos_type seekoff(off_type off,
+                             std::ios_base::seekdir dir,
+                             std::ios_base::openmode which = std::ios_base::in) override {
+                // TODO: check if also a switch for which is needed (when seekp is called?)
+                char_type* _egptr = _bptr + _size;
+                if (eback() != _bptr) {  // stream was reallocated, we can go with internal egptr() now
+                    _egptr = egptr();
+                }
+                switch (dir) {
+                case std::ios_base::beg:
+                    setg(eback(), eback() + off, /* egptr() is broken for large blobs (> 2GB) */ _egptr);
+                    break;
+                case std::ios_base::end:
+                    setg(eback(), egptr() + off, /* egptr() is broken for large blobs (> 2GB) */ _egptr);
+                    break;
+                case std::ios_base::cur:
+                    setg(eback(), gptr() + off, /* egptr() is broken for large blobs (> 2GB) */ _egptr);
+                    break;
+                default:
+                    return pos_type(off_type(-1));
+                }
+                return (gptr() < eback() || gptr() > /* egptr() is broken for large blobs (> 2GB) */ _egptr)
+                           ? pos_type(off_type(-1))
+                           : pos_type(gptr() - eback());
+            }
+
+            pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+                return seekoff(pos, std::ios_base::beg, which);
+            }
+
+        private:
+            char* _bptr;
+            size_t _size;
+            std::shared_ptr<void> _so;  // can ommit this shared object, but then application must make sure that
+                                        // returned compiled model won't get destroyed
+        };
+
+        std::streambuf* ossbuf =
+            new mem_stringbuf(modelBuffer->get_ptr<char>(),
+                              modelBuffer->size(),
+                              /* isAlsoOutputStream = */ (dynamic_cast<std::iostream*>(&stream) != nullptr),
+                              modelBuffer);
+        auto swapbuf = std::make_unique<mem_stringbuf>(
+            modelBuffer->get_ptr<char>(),
+            modelBuffer->size(),
+            /* isAlsoOutputStream = */ (dynamic_cast<std::iostream*>(&stream) != nullptr));
+        if (dynamic_cast<std::stringstream*>(&stream) != nullptr) {
+            dynamic_cast<std::stringstream*>(&stream)->rdbuf()->swap(*swapbuf);
+        } else if (dynamic_cast<std::istringstream*>(&stream) != nullptr) {
+            dynamic_cast<std::istringstream*>(&stream)->rdbuf()->swap(*swapbuf);
+        }
+        stream.rdbuf(ossbuf);
+        stream.imbue(std::locale(stream.getloc(), new no_whitespaces()));
+        int index = std::istream::xalloc();
+        stream.pword(index) = ossbuf;
+        stream.register_callback(
+            [](std::ios_base::event evt, std::ios_base& stream, int idx) {
+                if (evt == std::ios_base::event::erase_event) {
+                    mem_stringbuf* ossbuf = static_cast<mem_stringbuf*>(stream.pword(idx));
+                    delete ossbuf;
+                }
+            },
+            index);
     }
 
     // If was exported via NPUW

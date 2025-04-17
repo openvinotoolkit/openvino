@@ -194,6 +194,42 @@ int main(int argc, char* argv[]) {
             sstream,
             "NPU",
             ov::AnyMap{ov::hint::compiled_blob(tensor) /*, ov::intel_npu::disable_version_check(true) */});
+
+        // Test #1, operator>> is used
+        std::string str;
+        // the below statement will malfunction on Windows due to:
+        /*
+            C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.41.34120\include\xstring#L3400-3401
+            } else if (_Ctype_fac.is(_Ctype::space, _Traits::to_char_type(_Meta))) {
+                break; // whitespace, quit
+
+        */
+        // potential fix, custom locale for stringstream: https://en.cppreference.com/w/cpp/locale/ctype_char
+        sstream >> str;
+        // because whitespaces were eliminated, operator>> will set sstream state to 1 (eof), need to clear this flag
+        sstream.clear(sstream.rdstate() & ~std::ios::eofbit);
+        sstream.seekg(0, std::ios::beg);
+        size_t size = str.size();
+        str = {};
+
+        // Test #2 sstream.read() is used
+        str = std::string(size, '\0');
+        sstream.read(str.data(), str.size());
+        sstream.seekg(0, std::ios::beg);
+
+        // Test #3 sstream.str() is used
+        str = sstream.str();  // current seekg won't be changed
+        std::cout << sstream.tellg() << std::endl;
+
+        // Test #4 write to stringstream works
+        char c = 'Y';
+        sstream.write(&c, 1);
+        // sstream.seekg(0, std::ios::beg);
+        // sstream.seekp(0, std::ios::end);
+        std::cout << sstream.tellp() << std::endl;
+        std::cout << sstream.tellg() << std::endl;
+
+        // TODO: // Test #... check the tests above for istringstream
     }
 
     return 0;
