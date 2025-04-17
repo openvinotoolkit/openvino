@@ -937,7 +937,7 @@ public:
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         // FlashAttn v1 or v2?
-        config.set_property(ov::intel_gpu::disable_flashattnv2_optimization(p.disable_flashattn_v2));
+        config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.disable_flashattn_v2));
 
         network::ptr network = get_network(get_test_engine(), topology, config, get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);
@@ -1029,38 +1029,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{10, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
     paged_attention_test_params{ {{36, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
     paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
     paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 10}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 10}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
     /* without scores output, dynamic input query paddings */
     paged_attention_test_params{ {{10, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores, per_block rotation */
     paged_attention_test_params{ {{10, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 1st token
     paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
     paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 10}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 10}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores, per_token rotation */
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, ENABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, ENABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
     /* without scores output, dynamic input query paddings, KV-cache compression */
-    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
     paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
     paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores, per_block rotation, KV-cache compression */
-    paged_attention_test_params{ {{1, 34}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 34}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token
     /* with scores, per_token rotation, KV-cache compression */
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, ENABLE_FA_V2 }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, ENABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
 }));

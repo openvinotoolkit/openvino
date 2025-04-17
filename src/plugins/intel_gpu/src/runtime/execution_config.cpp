@@ -184,10 +184,9 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     }
 
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
-    if (!is_set_by_user(ov::intel_gpu::disable_flashattnv2_optimization) && !is_LLM) {
-        m_disable_flashattnv2_optimization = true;
+    if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
+        m_could_use_flashattn_v2 = false;
     }
-
     m_optimize_data = true;
 }
 
