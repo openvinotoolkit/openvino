@@ -23,7 +23,7 @@ TEST_F(TransformationTestsF, SoftPlusDecompositionFP32) {
         auto data = std::make_shared<opset4::Parameter>(element::f32, Shape{3, 1, 2});
         auto softplus = std::make_shared<opset4::SoftPlus>(data);
 
-        model = std::make_shared<ov::Model>(NodeVector{softplus}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{softplus}, ParameterVector{data});
 
         manager.register_pass<ov::pass::SoftPlusDecomposition>();
     }
@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, SoftPlusDecompositionFP32) {
         auto add = std::make_shared<opset4::Add>(exp, opset4::Constant::create(element::f32, Shape{1}, {1.0}));
         auto log = std::make_shared<opset4::Log>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{log}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{log}, ParameterVector{input});
     }
 }
 
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, SoftPlusDecompositionFP16) {
         auto data = std::make_shared<opset4::Parameter>(element::f16, Shape{3, 1, 2});
         auto softplus = std::make_shared<opset4::SoftPlus>(data);
 
-        model = std::make_shared<ov::Model>(NodeVector{softplus}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{softplus}, ParameterVector{data});
 
         manager.register_pass<ov::pass::SoftPlusDecomposition>();
     }
@@ -54,6 +54,6 @@ TEST_F(TransformationTestsF, SoftPlusDecompositionFP16) {
         auto add = std::make_shared<opset4::Add>(exp, opset4::Constant::create(element::f16, Shape{1}, {1.0}));
         auto log = std::make_shared<opset4::Log>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{log}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{log}, ParameterVector{input});
     }
 }

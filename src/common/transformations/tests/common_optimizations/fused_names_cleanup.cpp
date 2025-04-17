@@ -27,7 +27,7 @@ TEST(TransformationTests, FusedNamesCleanup) {
         auto add2_const = opset9::Constant::create(element::f32, Shape{1}, {2.0});
         auto add1 = std::make_shared<opset9::Add>(add1_const, add2_const);
         auto add2 = std::make_shared<opset9::Add>(data, add1);
-        model = std::make_shared<Model>(NodeVector{add2}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{add2}, ParameterVector{data});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -44,7 +44,7 @@ TEST(TransformationTests, FusedNamesCleanup) {
 
         auto add_const = opset9::Constant::create(element::f32, Shape{1}, {3.0});
         auto add = std::make_shared<opset9::Add>(data, add_const);
-        model_ref = std::make_shared<Model>(NodeVector{add}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{add}, ParameterVector{data});
     }
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
