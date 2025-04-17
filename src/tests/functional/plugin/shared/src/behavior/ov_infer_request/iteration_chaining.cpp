@@ -50,7 +50,7 @@ std::shared_ptr<ov::Model> OVIterationChaining::getIterativeFunction() {
     eltwise->get_output_tensor(0).set_names({"result_tensor_1"});
     eltwise->set_friendly_name("result_1");
 
-    return std::make_shared<ov::Model>(ov::NodeVector{concat, eltwise}, ov::ParameterVector{params});
+    return std::make_shared<ov::Model>(ov::OutputVector{concat, eltwise}, ov::ParameterVector{params});
 }
 
 void OVIterationChaining::SetUp() {
