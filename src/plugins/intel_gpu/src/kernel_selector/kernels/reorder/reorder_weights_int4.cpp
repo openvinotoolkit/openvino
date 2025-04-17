@@ -50,7 +50,7 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
         dispatchData.gws = { Align(output.OFM().v, 64) / 2, output.IFM().v, 1 };
     } else if (output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
         dispatchData.gws = { Align(output.OFM().v, 64), output.IFM().v / 2, 1 };
-    } else if (output.GetLayout() == WeightsLayout::oiyx && output.HasPadding()) {
+    } else if (output.GetLayout() == WeightsLayout::oiyx && output.HasInnerMostPadding()) {
         dispatchData.gws = { CeilDiv(output.PhysicalSize(), 2), 1, 1 };
     } else {
         dispatchData.gws = { CeilDiv(output.LogicalSize(), 2), 1, 1 };
@@ -65,9 +65,11 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     const auto& input = p.input;
     const auto& output = p.output;
 
+    auto has_only_inner_most_padding = output.HasInnerMostPadding();
+
     if (input.GetLayout() != WeightsLayout::oiyx
             || output.GetLayout() != WeightsLayout::oiyx
-            || !output.HasPadding()) {
+            || !has_only_inner_most_padding) {
         OPENVINO_ASSERT((input.LogicalSize() == input.OFM().v * input.IFM().v
                         && output.LogicalSize() == output.OFM().v * output.IFM().v),
                         "Reorder weight i4 only supports 2D input/output, except when adding padding for the same shape(WeightsLayout::oiyx).");
@@ -79,7 +81,7 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv64;
     supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2;
     supported_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::oiyx;
-    supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx && output.HasPadding();
+    supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx && has_only_inner_most_padding;
     supported_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
     return supported_case;
 }
