@@ -17,6 +17,7 @@ class TRANSFORMATIONS_API LinOpSequenceFusion;
 class TRANSFORMATIONS_API AddMultiplyFusion;
 class TRANSFORMATIONS_API AddAddFusion;
 class TRANSFORMATIONS_API MultiplyMultiplyFusion;
+class TRANSFORMATIONS_API EliminateAddZero;
 
 }  // namespace pass
 }  // namespace ov
@@ -39,6 +40,12 @@ public:
     MultiplyMultiplyFusion();
 };
 
+class ov::pass::EliminateAddZero : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("EliminateAddZero");
+    EliminateAddZero();
+};
+
 /**
  * @ingroup ov_transformation_common_api
  * @brief LinOpSequenceFusion transformation fuses linear operation sequence.
@@ -50,5 +57,6 @@ public:
         add_matcher<ov::pass::AddMultiplyFusion>();
         add_matcher<ov::pass::AddAddFusion>();
         add_matcher<ov::pass::MultiplyMultiplyFusion>();
+        add_matcher<ov::pass::EliminateAddZero>();
     }
 };
