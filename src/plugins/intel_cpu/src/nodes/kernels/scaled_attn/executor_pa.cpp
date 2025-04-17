@@ -32,6 +32,7 @@
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
 #    include "nodes/kernels/aarch64/sve_utils.hpp"
 #    include "nodes/kernels/kai/kleidi_kernel.hpp"
+using namespace ov::intel_cpu::sve_utils;
 #endif
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -2259,7 +2260,7 @@ struct MHAHelper {
         _d_scale = d_scale;
 
 #    if defined(OPENVINO_ARCH_ARM64)
-        AarchF16 = one_of(precision_of<DATA_TYPE>::value, ov::element::f16) ? true : false;
+        AarchF16 = one_of(precision_of<DATA_TYPE>::value, ov::element::f16);
 #    endif
         auto prev_score_stride = _new_score_stride;
         auto want_score_stride = rnd_up(kv_len, _block_size);
@@ -2554,6 +2555,11 @@ struct MHAHelper {
         constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         auto _score_stride = _weight.stride_bytes(2) / 2;
+        PlainTensor bias_wv, bias_qk;
+        bias_wv.resize<float16_t>({SV});
+        bias_qk.resize<float16_t>({_block_size});
+        memset(bias_wv.ptr<float16_t>(0), 0, sizeof(DATA_TYPE) * SV);
+        memset(bias_qk.ptr<float16_t>(0), 0, sizeof(DATA_TYPE) * _block_size);
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
             float* c_ptr = _weight.ptr<float>(ithr, h - hq_beg, 0, 0);
@@ -2570,15 +2576,12 @@ struct MHAHelper {
                     (precision_of<DATA_TYPE>::value == ov::element::Type_t::f32 ? _block_size : _block_size / 2) *
                         k_blk;
 
-                KleidiKernel qkKernel(q_cnt, _block_size, S, H * S, _block_size, _score_stride);
-                PlainTensor bias_k;
-                bias_k.resize<float16_t>({_block_size});
-                memset(bias_k.ptr<float16_t>(0), 0, sizeof(DATA_TYPE) * _block_size);
+                KleidiGemm qkKernel(q_cnt, _block_size, S, H * S, _block_size, _score_stride);
                 PlainTensor packedB_k;
                 packedB_k.resize<float16_t>({qkKernel.get_packed_rhs_size()});
                 qkKernel.packB(reinterpret_cast<float16_t*>(k_ptr),
-                               packedB_k.ptr<float16_t>(0),
-                               bias_k.ptr<float16_t>(0));
+                               bias_qk.ptr<float16_t>(0),
+                               packedB_k.ptr<float16_t>(0));
                 qkKernel.executeGemm(q_ptr, packedB_k.ptr<float16_t>(0), qk_out_ptr);
             }
 
@@ -2649,13 +2652,10 @@ struct MHAHelper {
             DATA_TYPE* out_ptr = output_emb.ptr<DATA_TYPE>(q_start, h * SV);
             DATA_TYPE* v_ptr;
             v_ptr = wv_scratch_b.ptr<DATA_TYPE>(hk, 0);
-            PlainTensor bias;
-            bias.resize<float16_t>({SV});
-            memset(bias.ptr<float16_t>(0), 0, sizeof(DATA_TYPE) * SV);
             PlainTensor packedB;
-            KleidiKernel wvKernel(q_cnt, SV, _block_size * cur_kv_len_blocks, _score_stride, SV, H * SV);
+            KleidiGemm wvKernel(q_cnt, SV, _block_size * cur_kv_len_blocks, _score_stride, SV, H * SV);
             packedB.resize<float16_t>({wvKernel.get_packed_rhs_size()});
-            wvKernel.packB(reinterpret_cast<float16_t*>(v_ptr), packedB.ptr<float16_t>(0), bias.ptr<float16_t>(0));
+            wvKernel.packB(reinterpret_cast<float16_t*>(v_ptr), bias_wv.ptr<float16_t>(0), packedB.ptr<float16_t>(0));
             wvKernel.executeGemm(reinterpret_cast<float16_t*>(w_ptr), packedB.ptr<float16_t>(0), out_ptr);
         }
     }
