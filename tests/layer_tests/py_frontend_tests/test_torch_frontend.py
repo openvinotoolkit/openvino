@@ -256,7 +256,7 @@ def test_so_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        'Parameter', 'Elu', 'Constant', 'ConvertLike', 'Multiply', 'Result']
+        "Parameter", "Elu", "Constant", "ConvertLike", "Multiply", "Result"]
 
     fe.add_extension(get_builtin_extensions_path())
     converted_model = fe.convert(input_model)
@@ -462,6 +462,85 @@ def test_multiple_module_extension():
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Sin", "Tan", "Add", "Result"]
+
+
+def test_inlined_extension():
+    import openvino as ov
+    import numpy as np
+
+    rng = np.random.default_rng(42)
+
+    @ov.inlined_extension
+    def numpy_cos(x):
+        # numpy is not captured by tracing, so we use a custom extension
+        return torch.from_numpy(np.cos(x.numpy(force=True)))
+
+    class ModelWithModule(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.relu_module = torch.nn.ReLU()
+
+        def forward(self, x):
+            x = x.to(torch.float32)
+            return numpy_cos(x) + self.relu_module(x)
+
+    model = ModelWithModule()
+
+    example = torch.from_numpy(rng.random([100], dtype=np.float32))
+    converted_model = ov.convert_model(model, example_input=(example,))
+    assert converted_model
+    expected_ops = ["Parameter", "InlinedCustomOp", "Relu", "Add", "Result"]
+    actual_ops = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert actual_ops == expected_ops, f"Expected {expected_ops}, but got {actual_ops}."
+    cm = ov.compile_model(converted_model, "CPU")
+    assert cm
+    test_input = rng.random([100], dtype=np.float32)
+    res = cm((test_input,))
+    ref = model(torch.from_numpy(test_input))
+    np.testing.assert_allclose(res[0], ref.numpy())
+
+
+def test_multiple_inlined_extension():
+    import openvino as ov
+    import numpy as np
+
+    rng = np.random.default_rng(42)
+
+    @ov.inlined_extension
+    def numpy_roll(x):
+        # numpy is not captured by tracing, so we use a custom extension
+        return torch.from_numpy(np.roll(x.numpy(force=True), 10, 0))
+
+    @ov.inlined_extension
+    def numpy_cos(x):
+        # numpy is not captured by tracing, so we use a custom extension
+        return torch.from_numpy(np.cos(x.numpy(force=True)))
+
+    class ModelWithModule(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.relu_module = torch.nn.ReLU()
+
+        def forward(self, x):
+            x = x.to(torch.float32)
+            x = numpy_roll(x) + self.relu_module(x)
+            x = numpy_cos(x) + self.relu_module(x)
+            return numpy_roll(x) + self.relu_module(x)
+
+    model = ModelWithModule()
+
+    example = torch.from_numpy(rng.random([100], dtype=np.float32))
+    converted_model = ov.convert_model(model, example_input=(example,))
+    assert converted_model
+    expected_ops = ["Parameter", "InlinedCustomOp", "Relu", "Add", "InlinedCustomOp", "Relu", "Add", "InlinedCustomOp", "Relu", "Add", "Result"]
+    actual_ops = [n.get_type_name() for n in converted_model.get_ordered_ops()]
+    assert actual_ops == expected_ops, f"Expected {expected_ops}, but got {actual_ops}."
+    cm = ov.compile_model(converted_model, "CPU")
+    assert cm
+    test_input = rng.random([100], dtype=np.float32)
+    res = cm((test_input,))
+    ref = model(torch.from_numpy(test_input))
+    np.testing.assert_allclose(res[0], ref.numpy())
 
 
 def test_pytorch_telemetry():

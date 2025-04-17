@@ -31,9 +31,11 @@ from openvino.frontend.pytorch.patch_functions import FunctionsPatcher
 
 log = logging.getLogger(__name__)
 
+
 # A marker for a special type of conversion extension that is inlined in Trampoline class
 class InlineConversionExtension:
     pass
+
 
 class TorchScriptPythonDecoder(Decoder):
     def __init__(
