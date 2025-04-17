@@ -235,6 +235,7 @@ void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
             .ThrowAsJavaScriptException();
         return;
     }
+
 }
 
 
