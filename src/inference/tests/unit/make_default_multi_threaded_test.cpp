@@ -46,106 +46,106 @@ MakeDefaultMultiThreadsTestCase _1sockets_streams_1 = {
     // param[in]: proc_type_table, {total processors, number of physical processors, number of Efficient processors,
     // number of hyper threading processors}
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     1,  // param[in]: the number of streams
     // param[out]: streams info table
     {
-        {1, 0, 12, 0, 0},
-        {0, 1, 6, 0, 0},
-        {0, 3, 6, 0, 0},
+        {1, ALL_PROC, 12, 0, 0},
+        {0, MAIN_CORE_PROC, 6, 0, 0},
+        {0, HYPER_THREADING_PROC, 6, 0, 0},
     },
 };
 
 MakeDefaultMultiThreadsTestCase _1sockets_streams_2 = {
     {
-        {12, 6, 0, 6, 0, 0},
+        {12, 6, 0, 0, 6, 0, 0},
     },
     2,
     {
-        {1, 1, 6, 0, 0},
-        {1, 3, 6, 0, 0},
+        {1, MAIN_CORE_PROC, 6, 0, 0},
+        {1, HYPER_THREADING_PROC, 6, 0, 0},
     },
 };
 
 MakeDefaultMultiThreadsTestCase _2sockets_streams_1 = {
     {
-        {72, 36, 0, 36, -1, -1},
-        {36, 18, 0, 18, 0, 0},
-        {36, 18, 0, 18, 1, 1},
+        {72, 36, 0, 0, 36, -1, -1},
+        {36, 18, 0, 0, 18, 0, 0},
+        {36, 18, 0, 0, 18, 1, 1},
     },
     1,
     {
-        {1, 0, 72, -1, -1},
-        {0, 1, 18, 0, 0},
-        {0, 1, 18, 1, 1},
-        {0, 3, 18, 0, 0},
-        {0, 3, 18, 1, 1},
+        {1, ALL_PROC, 72, -1, -1},
+        {0, MAIN_CORE_PROC, 18, 0, 0},
+        {0, MAIN_CORE_PROC, 18, 1, 1},
+        {0, HYPER_THREADING_PROC, 18, 0, 0},
+        {0, HYPER_THREADING_PROC, 18, 1, 1},
     },
 };
 
 MakeDefaultMultiThreadsTestCase _2sockets_streams_4 = {
     {
-        {72, 36, 0, 36, -1, -1},
-        {36, 18, 0, 18, 0, 0},
-        {36, 18, 0, 18, 1, 1},
+        {72, 36, 0, 0, 36, -1, -1},
+        {36, 18, 0, 0, 18, 0, 0},
+        {36, 18, 0, 0, 18, 1, 1},
     },
     4,
     {
-        {1, 1, 18, 0, 0},
-        {1, 1, 18, 1, 1},
-        {1, 3, 18, 0, 0},
-        {1, 3, 18, 1, 1},
+        {1, MAIN_CORE_PROC, 18, 0, 0},
+        {1, MAIN_CORE_PROC, 18, 1, 1},
+        {1, HYPER_THREADING_PROC, 18, 0, 0},
+        {1, HYPER_THREADING_PROC, 18, 1, 1},
     },
 };
 
 MakeDefaultMultiThreadsTestCase _pecore24_streams_1 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     1,
     {
-        {1, 0, 24, 0, 0},
-        {0, 1, 8, 0, 0},
-        {0, 2, 8, 0, 0},
-        {0, 3, 8, 0, 0},
+        {1, ALL_PROC, 24, 0, 0},
+        {0, MAIN_CORE_PROC, 8, 0, 0},
+        {0, EFFICIENT_CORE_PROC, 8, 0, 0},
+        {0, HYPER_THREADING_PROC, 8, 0, 0},
     },
 };
 
 MakeDefaultMultiThreadsTestCase _pecore24_streams_3 = {
     {
-        {24, 8, 8, 8, 0, 0},
+        {24, 8, 8, 0, 8, 0, 0},
     },
     3,
     {
-        {1, 1, 8, 0, 0},
-        {1, 2, 8, 0, 0},
-        {1, 3, 8, 0, 0},
+        {1, MAIN_CORE_PROC, 8, 0, 0},
+        {1, EFFICIENT_CORE_PROC, 8, 0, 0},
+        {1, HYPER_THREADING_PROC, 8, 0, 0},
     },
 };
 
 MakeDefaultMultiThreadsTestCase _pecore32_streams_1 = {
     {
-        {32, 8, 16, 8, 0, 0},
+        {32, 8, 16, 0, 8, 0, 0},
     },
     1,
     {
-        {1, 0, 32, 0, 0},
-        {0, 1, 8, 0, 0},
-        {0, 2, 16, 0, 0},
-        {0, 3, 8, 0, 0},
+        {1, ALL_PROC, 32, 0, 0},
+        {0, MAIN_CORE_PROC, 8, 0, 0},
+        {0, EFFICIENT_CORE_PROC, 16, 0, 0},
+        {0, HYPER_THREADING_PROC, 8, 0, 0},
     },
 };
 
 MakeDefaultMultiThreadsTestCase _pecore32_streams_5 = {
     {
-        {32, 8, 16, 8, 0, 0},
+        {32, 8, 16, 0, 8, 0, 0},
     },
     5,
     {
-        {1, 1, 5, 0, 0},
-        {3, 2, 5, 0, 0},
-        {1, 3, 5, 0, 0},
+        {1, MAIN_CORE_PROC, 5, 0, 0},
+        {3, EFFICIENT_CORE_PROC, 5, 0, 0},
+        {1, HYPER_THREADING_PROC, 5, 0, 0},
     },
 };
 

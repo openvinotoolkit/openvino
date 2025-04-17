@@ -37,7 +37,7 @@ TEST_P(AlignEltwiseInputRanksTestP, FusionTest) {
         auto low = op::v0::Constant::create(element::f32, const_shape, {0});
         auto high = op::v0::Constant::create(element::f32, const_shape, {20});
         auto fq = std::make_shared<opset8::FakeQuantize>(add, low, high, low, high, 256);
-        model = std::make_shared<Model>(NodeVector{less, logical_or, fq}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{less, logical_or, fq}, ParameterVector{data});
 
         manager.register_pass<ov::pass::AlignEltwiseInputRanks>();
     }
@@ -58,7 +58,7 @@ TEST_P(AlignEltwiseInputRanksTestP, FusionTest) {
         auto low = op::v0::Constant::create(element::f32, expected_const_shape, {0});
         auto high = op::v0::Constant::create(element::f32, expected_const_shape, {20});
         auto fq = std::make_shared<opset8::FakeQuantize>(add, low, high, low, high, 256);
-        model_ref = std::make_shared<Model>(NodeVector{less, logical_or, fq}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{less, logical_or, fq}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

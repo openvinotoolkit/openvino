@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -119,6 +120,7 @@ void write_any(std::ostream& stream, const ov::Any& var);
 void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
 void write(std::ostream& stream, const ov::CacheMode& var);
 void write(std::ostream& stream, const ov::element::Type& var);
+void write(std::ostream& stream, const std::map<std::string, Any>& var);
 
 void read(std::istream& stream, std::streampos& var);
 void read(std::istream& stream, std::string& var);
@@ -133,6 +135,7 @@ void read_any(std::istream& stream, ov::Any& var);
 void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
 void read(std::istream& stream, ov::CacheMode& var);
 void read(std::istream& stream, ov::element::Type& var);
+void read(std::istream& stream, std::map<std::string, Any>& var);
 
 // Weightless utils
 void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const WeightsContext& ctx);

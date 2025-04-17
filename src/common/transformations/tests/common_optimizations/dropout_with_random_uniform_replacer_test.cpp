@@ -28,7 +28,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerCase1) {
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
 
         manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
@@ -42,7 +42,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerCase1) {
         auto add = std::make_shared<opset8::Add>(broadcast, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
     }
 }
 
@@ -56,7 +56,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerCase2) {
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
 
         manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
@@ -70,7 +70,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerCase2) {
         auto add = std::make_shared<opset8::Add>(broadcast, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
     }
 }
 
@@ -85,7 +85,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerWithConvert) {
         auto add = std::make_shared<opset8::Add>(convert, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
 
         manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
@@ -100,7 +100,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerWithConvert) {
         auto add = std::make_shared<opset8::Add>(convert, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
     }
 }
 
@@ -114,7 +114,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerAddConstNegative) {
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
 
         manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
@@ -128,7 +128,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerAddConstNegative) {
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
     }
 }
 
@@ -142,7 +142,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerNonFloatRUNegative)
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
 
         manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
@@ -156,7 +156,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerNonFloatRUNegative)
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
     }
 }
 
@@ -170,7 +170,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMinNegative)
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
 
         manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
@@ -184,7 +184,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMinNegative)
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
     }
 }
 
@@ -198,7 +198,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMaxNegative)
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
 
         manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
@@ -212,7 +212,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMaxNegative)
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
     }
 }
 
@@ -226,7 +226,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidAddConstRank
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
 
         manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
@@ -240,6 +240,6 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidAddConstRank
         auto add = std::make_shared<opset8::Add>(ru, add_const);
         auto floor = std::make_shared<opset8::Floor>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{floor}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{floor}, ParameterVector{input});
     }
 }

@@ -411,7 +411,7 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     }
 
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::CompileTime;
     }
 
     static ov::intel_npu::BatchMode parse(std::string_view val) {
@@ -639,7 +639,15 @@ struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
     }
 
     static OptionMode mode() {
-        return OptionMode::CompileTime;
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 };
 
@@ -1014,7 +1022,7 @@ struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
 };
 
 //
-// SELECTED_TILES
+// TILES
 //
 
 struct TILES final : OptionBase<TILES, int64_t> {
@@ -1036,6 +1044,10 @@ struct TILES final : OptionBase<TILES, int64_t> {
 
     static bool isPublic() {
         return true;
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(5, 4);
     }
 
     static ov::PropertyMutability mutability() {
@@ -1301,7 +1313,7 @@ struct QDQ_OPTIMIZATION final : OptionBase<QDQ_OPTIMIZATION, bool> {
     }
 
     static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 5);
+        return ONEAPI_MAKE_VERSION(7, 20);
     }
 };
 
@@ -1364,7 +1376,7 @@ struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<const ov::Model>>
     }
 
     static constexpr std::string_view getTypeName() {
-        return "std::shared_ptr<ov::Model>";
+        return "std::shared_ptr<const ov::Model>";
     }
 
     static std::shared_ptr<const ov::Model> defaultValue() {
@@ -1380,6 +1392,14 @@ struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<const ov::Model>>
 
     static OptionMode mode() {
         return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
     }
 };
 

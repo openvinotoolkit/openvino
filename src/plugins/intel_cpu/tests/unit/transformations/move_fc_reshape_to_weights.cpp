@@ -121,7 +121,7 @@ public:
             weights_path,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        return std::make_shared<ov::Model>(ov::NodeVector{fully_connected}, ov::ParameterVector{data});
+        return std::make_shared<ov::Model>(ov::OutputVector{fully_connected}, ov::ParameterVector{data});
     }
 
 protected:

@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -66,7 +67,7 @@ inline std::shared_ptr<Model> get_model() {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
     auto divide_constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
     auto divide = std::make_shared<ov::op::v1::Divide>(data, divide_constant);
-    return std::make_shared<ov::Model>(ov::NodeVector{divide}, ov::ParameterVector{data});
+    return std::make_shared<ov::Model>(ov::OutputVector{divide}, ov::ParameterVector{data});
 }
 
 inline ov::pass::param_callback get_callback() {
@@ -172,7 +173,7 @@ static std::shared_ptr<Model> get_derived_model() {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
     auto divide_constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.5});
     auto divide = std::make_shared<PrivateDivide>(data, divide_constant);
-    return std::make_shared<ov::Model>(ov::NodeVector{divide}, ov::ParameterVector{data});
+    return std::make_shared<ov::Model>(ov::OutputVector{divide}, ov::ParameterVector{data});
 }
 
 TEST(GraphRewriteTest, MatcherPassCallbackDerived) {
