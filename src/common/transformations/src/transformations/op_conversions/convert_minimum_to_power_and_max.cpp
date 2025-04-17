@@ -10,13 +10,10 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/equal.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/select.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 ov::pass::ConvertMinimum::ConvertMinimum() {
@@ -48,21 +45,8 @@ ov::pass::ConvertMinimum::ConvertMinimum() {
             max,
             ov::op::v0::Constant::create(max->get_element_type(), Shape{}, {-1}));
 
-        if (minimum->get_input_element_type(0).is_signed() && minimum->get_input_element_type(0).is_integral_number() &&
-            minimum->get_input_element_type(1).is_signed() && minimum->get_input_element_type(1).is_integral_number()) {
-            const auto min_values = ov::util::make_tensor_of_min_value(max->get_input_element_type(0));
-            const auto min_constant = std::make_shared<ov::op::v0::Constant>(min_values);
-
-            const auto is_min_0 = std::make_shared<op::v1::Equal>(minimum->input(0).get_source_output(), min_constant);
-            const auto is_min_1 = std::make_shared<op::v1::Equal>(minimum->input(1).get_source_output(), min_constant);
-            const auto select_0 = std::make_shared<op::v1::Select>(is_min_0, min_constant, neg_2);
-            const auto select_1 = std::make_shared<op::v1::Select>(is_min_1, min_constant, select_0);
-
-            select_1->set_friendly_name(minimum->get_friendly_name());
-            ov::copy_runtime_info(minimum, {neg_0, neg_1, max, neg_2, is_min_0, is_min_1, select_0, select_1});
-            ov::replace_node(minimum, select_1);
-        }
-
+        neg_2->set_friendly_name(minimum->get_friendly_name());
+        ov::copy_runtime_info(minimum, {neg_0, neg_1, max, neg_2});
         ov::replace_node(minimum, neg_2);
         return true;
     };
