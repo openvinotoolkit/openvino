@@ -213,7 +213,7 @@ jobs:
         run: |
           for py_version in "3.9" "3.10" "3.11" "3.12" "3.13"
           do
-            export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
+            export PY_BUILD_DIR=/home/openvino/py$py_version
             mkdir -p $PY_BUILD_DIR
           
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
