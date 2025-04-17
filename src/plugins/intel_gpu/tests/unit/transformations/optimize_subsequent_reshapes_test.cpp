@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes1) {
         auto second_reshape = std::make_shared<ov::op::v1::Reshape>(first_reshape, second_reshape_pattern, true);
         auto result = std::make_shared<ov::op::v0::Result>(second_reshape);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
         manager.register_pass<OptimizeSubsequentReshapes>();
     }
     {
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes1) {
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, false);
         auto result = std::make_shared<ov::op::v0::Result>(reshape);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
@@ -58,7 +58,7 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes2) {
         auto second_reshape = std::make_shared<ov::op::v1::Reshape>(first_reshape, second_reshape_pattern, true);
         auto result = std::make_shared<ov::op::v0::Result>(second_reshape);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
         manager.register_pass<OptimizeSubsequentReshapes>();
     }
     {
@@ -67,7 +67,7 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes2) {
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, false);
         auto result = std::make_shared<ov::op::v0::Result>(reshape);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
@@ -82,7 +82,7 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes3) {
         auto second_reshape = std::make_shared<ov::op::v1::Reshape>(first_reshape, second_reshape_pattern, true);
         auto result = std::make_shared<ov::op::v0::Result>(second_reshape);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
         manager.register_pass<OptimizeSubsequentReshapes>();
     }
     {
@@ -91,7 +91,7 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes3) {
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, false);
         auto result = std::make_shared<ov::op::v0::Result>(reshape);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
@@ -106,7 +106,7 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes4) {
         auto second_reshape = std::make_shared<ov::op::v1::Reshape>(first_reshape, second_reshape_pattern, false);
         auto result = std::make_shared<ov::op::v0::Result>(second_reshape);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
         manager.register_pass<OptimizeSubsequentReshapes>();
     }
     {
@@ -115,7 +115,7 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes4) {
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, false);
         auto result = std::make_shared<ov::op::v0::Result>(reshape);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
@@ -130,7 +130,7 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes5) {
         auto second_reshape = std::make_shared<ov::op::v1::Reshape>(first_reshape, second_reshape_pattern, true);
         auto result = std::make_shared<ov::op::v0::Result>(second_reshape);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
         manager.register_pass<OptimizeSubsequentReshapes>();
     }
     {
@@ -139,7 +139,7 @@ TEST_F(TransformationTestsF, OptimizeSubsequentReshapes5) {
         auto reshape = std::make_shared<ov::op::v1::Reshape>(input, reshape_pattern, false);
         auto result = std::make_shared<ov::op::v0::Result>(reshape);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ result }, ov::ParameterVector{ input });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }

@@ -45,9 +45,9 @@ The functionality is equivalent to following python code:
 */
 template <typename T>
 struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPreprocess::Executor {
-    void execute(const dnnl::stream& strm,
+    void execute([[maybe_unused]] const dnnl::stream& strm,
                  intel_cpu::Node* pnode,
-                 const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
+                 [[maybe_unused]] const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
         ov::intel_cpu::PlainTensor t_attention_mask(pnode->getSrcMemoryAtPort(0));
         ov::intel_cpu::PlainTensor t_batch_size(pnode->getSrcMemoryAtPort(1));
         ov::intel_cpu::PlainTensor t_cache_positions(pnode->getSrcMemoryAtPort(2));
@@ -86,7 +86,8 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
                 bool cmask_eq0 = (j <= row);
                 bool amask_eq0 = (pamask[j] == 0);
                 bool padding_mask = (cmask_eq0 && amask_eq0);
-                pdst[j] = (padding_mask | (!cmask_eq0)) ? min_dtype : static_cast<T>(0);
+                pdst[j] =
+                    (static_cast<int>(padding_mask) | static_cast<int>(!cmask_eq0)) ? min_dtype : static_cast<T>(0);
             }
             for (; j < kvLen; j++) {
                 bool cmask_eq0 = (j <= row);

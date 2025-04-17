@@ -1084,6 +1084,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
                       dataEltwise->getName(),
                       " is optimized as zeropoint of Conv ##",
                       conv->getName());
+            conv->setOriginalInputPrecisionAtPort(0, dataEltwise->getOriginalInputPrecisionAtPort(0));
             graph.RemoveEdge(p_edge);
             graph.DropNode(dataEltwise);
             initializeOutputCompensation(conv);
@@ -1314,7 +1315,12 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
             OPENVINO_THROW("Cannot get convolution node ", parentNode->getName());
         }
 
-        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
+            return false;
+        }
+        // there is no optimized implementation for avx512, so two avx512 convolutions
+        // are expected to be faster than single fused avx2 convolution
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
             return false;
         }
 
@@ -1577,7 +1583,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
 
     auto& graphNodes = graph.GetNodes();
 
-    auto isFusingSupported = [&](const NodePtr& conv, const NodePtr& child) {
+    auto isFusingSupported = [&]([[maybe_unused]] const NodePtr& conv, const NodePtr& child) {
         return child->getType() == Type::Eltwise && DnnlExtensionUtils::isUnarySupportedAsPostOp(child->getAlgorithm());
     };
 
@@ -1771,8 +1777,8 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
 
         lastNode->fuseInto(mergedConv);
 
-        if (mergedConv->fusedWith.size() > 0 && (mergedConv->fusedWith[0]->getType() == Type::Convolution ||
-                                                 mergedConv->fusedWith[0]->getType() == Type::BinaryConvolution)) {
+        if (!mergedConv->fusedWith.empty() && (mergedConv->fusedWith[0]->getType() == Type::Convolution ||
+                                               mergedConv->fusedWith[0]->getType() == Type::BinaryConvolution)) {
             // Merged with DW_conv. Shape may change
             mergedConv->inputShapes.push_back(mergedConv->fusedWith[0]->getOutputShapeAtPort(0));
         } else {
@@ -2485,7 +2491,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
 
         const auto isSubnormal = [](const float value) {
             const auto* u32data = reinterpret_cast<const uint32_t*>(&value);
-            return (*u32data) && (((*u32data) & (0xFF << 23)) == 0);
+            return ((*u32data) != 0u) && (((*u32data) & (0xFF << 23)) == 0);
         };
 
         for (size_t i = 0; i < newInputScale.size(); i++) {

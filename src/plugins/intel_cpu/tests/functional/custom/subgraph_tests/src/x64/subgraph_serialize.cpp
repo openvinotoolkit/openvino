@@ -31,9 +31,10 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraph) {
         auto ininput0 = std::make_shared<Parameter>(ov::element::f32, shape);
         auto ininput1 = std::make_shared<Parameter>(ov::element::f32, shape);
         auto add = std::make_shared<Add>(ininput0, ininput1);
-        auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{ininput0, ininput1});
+        auto subgraph_body =
+            std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{ininput0, ininput1});
         auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{input0, input1}, subgraph_body.get()->clone());
-        return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input0, input1});
+        return std::make_shared<ov::Model>(ov::OutputVector{subgraph}, ov::ParameterVector{input0, input1});
     })();
     ov::Core core;
     ov::CompiledModel compiled_model = core.compile_model(model, "CPU");
@@ -79,9 +80,10 @@ TEST_F(SubgraphSnippetSerializationTest, smoke_SerializeSubgraphWithScalarConst)
         auto internal_constant = std::make_shared<Constant>(ov::element::f32, shape, 2);
         auto add = std::make_shared<Add>(input, constant);
         auto internal_add = std::make_shared<Add>(internal_input, internal_constant);
-        auto subgraph_body = std::make_shared<ov::Model>(ov::NodeVector{internal_add}, ov::ParameterVector{internal_input});
+        auto subgraph_body =
+            std::make_shared<ov::Model>(ov::OutputVector{internal_add}, ov::ParameterVector{internal_input});
         auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{add}, subgraph_body.get()->clone());
-        return std::make_shared<ov::Model>(ov::NodeVector{subgraph}, ov::ParameterVector{input});
+        return std::make_shared<ov::Model>(ov::OutputVector{subgraph}, ov::ParameterVector{input});
     })();
     ov::Core core;
     ov::CompiledModel compiled_model = core.compile_model(model, "CPU");

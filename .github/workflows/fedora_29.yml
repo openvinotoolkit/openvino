@@ -85,6 +85,7 @@ jobs:
       build-debian-packages: false
       build-js: false
       build-rpm-packages: true
+      build-additional-python-packages: true
       cmake-options: >-
         -G 'Ninja'
         -DENABLE_CPPLINT=OFF 
@@ -112,7 +113,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO RPM packages
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: openvino_rpm_packages
           path: ${{ env.RPM_PACKAGES_DIR }}
