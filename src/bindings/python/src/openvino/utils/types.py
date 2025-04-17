@@ -5,7 +5,7 @@
 """Functions related to converting between Python and numpy types and openvino types."""
 
 import logging
-from typing import List, Union, Optional
+from typing import List, Union, Optional, cast
 
 import numpy as np
 
@@ -19,7 +19,7 @@ TensorShape = List[int]
 NumericData = Union[int, float, np.ndarray]
 NumericType = Union[type, np.dtype]
 ScalarData = Union[int, float]
-NodeInput = Union[Node, NumericData]
+NodeInput = Union[Node, Output, NumericData]
 
 openvino_to_numpy_types_map = [
     (Type.boolean, bool),
@@ -73,12 +73,10 @@ def get_element_type(data_type: NumericType) -> Type:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return Type.f32
 
-    ov_type = next(
-        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_map if np_type == data_type),
-        None,
-    )
-    if ov_type:
-        return ov_type
+    # Sostituita implementazione con next() per evitare None
+    for ov_type, np_type in openvino_to_numpy_types_map:
+        if np_type == data_type:
+            return ov_type
 
     raise OVTypeError("Unidentified data type %s", data_type)
 
@@ -93,38 +91,30 @@ def get_element_type_str(data_type: NumericType) -> str:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return "f32"
 
-    ov_type = next(
-        (ov_type for (ov_type, np_type) in openvino_to_numpy_types_str_map if np_type == data_type),
-        None,
-    )
-    if ov_type:
-        return ov_type
+    # Sostituita implementazione con next() per evitare None
+    for ov_type, np_type in openvino_to_numpy_types_str_map:
+        if np_type == data_type:
+            return ov_type
 
     raise OVTypeError("Unidentified data type %s", data_type)
 
 
 def get_dtype(openvino_type: Type) -> np.dtype:
     """Return a numpy.dtype for an openvino element type."""
-    np_type = next(
-        (np_type for (ov_type, np_type) in openvino_to_numpy_types_map if ov_type == openvino_type),
-        None,
-    )
-
-    if np_type:
-        return np.dtype(np_type)
+    # Sostituita implementazione con next() per evitare None
+    for ov_type, np_type in openvino_to_numpy_types_map:
+        if ov_type == openvino_type:
+            return np.dtype(np_type)
 
     raise OVTypeError("Unidentified data type %s", openvino_type)
 
 
 def get_numpy_ctype(openvino_type: Type) -> type:
     """Return numpy ctype for an openvino element type."""
-    np_type = next(
-        (np_type for (ov_type, np_type) in openvino_to_numpy_types_map if ov_type == openvino_type),
-        None,
-    )
-
-    if np_type:
-        return np_type
+    # Sostituita implementazione con next() per evitare None
+    for ov_type, np_type in openvino_to_numpy_types_map:
+        if ov_type == openvino_type:
+            return np_type
 
     raise OVTypeError("Unidentified data type %s", openvino_type)
 
@@ -132,20 +122,20 @@ def get_numpy_ctype(openvino_type: Type) -> type:
 def get_ndarray(data: NumericData) -> np.ndarray:
     """Wrap data into a numpy ndarray."""
     if isinstance(data, np.ndarray):
-        return data  # type: ignore
+        return data
     return np.array(data)
 
 
 def get_shape(data: NumericData) -> TensorShape:
     """Return a shape of NumericData."""
     if isinstance(data, np.ndarray):
-        return data.shape  # type: ignore
+        return data.shape
     if isinstance(data, list):
-        return [len(data)]  # type: ignore
+        return [len(data)]
     return []
 
 
-def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = None, *, name: Optional[str] = None) -> Constant:
+def make_constant_node(value: NumericData, dtype: Optional[Union[NumericType, Type]] = None, *, name: Optional[str] = None) -> Constant:
     """Return an openvino Constant node with the specified value."""
     ndarray = get_ndarray(value)
     if dtype is not None:
@@ -163,13 +153,12 @@ def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = Non
 
 def as_node(input_value: NodeInput, name: Optional[str] = None) -> Union[Node, Output]:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
-    if issubclass(type(input_value), Node):
+    if isinstance(input_value, (Node, Output)):
         return input_value
-    if issubclass(type(input_value), Output):
-        return input_value
-    return make_constant_node(input_value, name=name)
+    # A questo punto input_value è NumericData
+    return cast(Node, make_constant_node(input_value, name=name))
 
 
 def as_nodes(*input_values: NodeInput, name: Optional[str] = None) -> List[Node]:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
-    return [as_node(input_value, name=name) for input_value in input_values]
+    return cast(List[Node], [as_node(input_value, name=name) for input_value in input_values])
