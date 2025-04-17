@@ -58,7 +58,7 @@ TEST(TransformationTests, DISABLED_if_constant_folding) {
         auto param_add = make_shared<op::v0::Parameter>(element::f32, Shape{1});
         auto add = make_shared<op::v1::Add>(constant_folding_if, param_add);
         auto add_res = make_shared<op::v0::Result>(add);
-        f_ref = std::make_shared<ov::Model>(NodeVector{add_res}, ParameterVector{param_add});
+        f_ref = std::make_shared<ov::Model>(OutputVector{add_res}, ParameterVector{param_add});
     }
 
     auto res = compare_functions(fun, f_ref);

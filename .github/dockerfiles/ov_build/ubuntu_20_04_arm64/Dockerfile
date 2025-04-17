@@ -26,12 +26,19 @@ RUN apt-get update && \
         # parallel gzip
         pigz \
         # Pythons
-        python3.8-dev \
-        python3.8-venv \
-        python3.8-distutils \
+        python3.9-dev \
+        python3.9-venv \
+        python3.9-distutils \
+        python3.10-dev \
+        python3.10-venv \
+        python3.10-distutils \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
+        python3.12-dev \
+        python3.12-venv \
+        python3.13-dev \
+        python3.13-venv \
         libhdf5-dev \
         # For Java API
         default-jdk \
@@ -64,8 +71,12 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.8 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+    python3 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
 # Use Python 3.11 as default instead of Python 3.8

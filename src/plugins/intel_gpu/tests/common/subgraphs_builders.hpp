@@ -366,7 +366,7 @@ inline std::shared_ptr<ov::Model> makeLSTMSequence(ov::element::Type_t model_typ
     Ho->set_friendly_name("Ho");
     Co->set_friendly_name("Co");
 
-    auto fn_ptr = std::make_shared<ov::Model>(ov::NodeVector{Y_out, Ho, Co}, ov::ParameterVector{X, Y, Z});
+    auto fn_ptr = std::make_shared<ov::Model>(ov::OutputVector{Y_out, Ho, Co}, ov::ParameterVector{X, Y, Z});
     fn_ptr->set_friendly_name("LSTMSequence");
     return fn_ptr;
 }
