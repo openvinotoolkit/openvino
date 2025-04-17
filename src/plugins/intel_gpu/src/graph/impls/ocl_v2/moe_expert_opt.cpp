@@ -587,6 +587,17 @@ public:
             auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
             return std::make_tuple(mem, layout);
         };
+
+        auto get_best_lws = [](size_t hidden_size) {
+            const size_t candidate[] = {128, 64, 32, 16, 8};
+            for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {
+                if (hidden_size % candidate[i] == 0) {
+                    return candidate[i];
+                }
+            }
+            OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
+        };
+
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto final_hidden_states_layout = instance.get_output_layout(0);
         auto [expert_mask_mem_ptr, expert_mask_layout] = input_info(1);
@@ -596,6 +607,7 @@ public:
         const auto& moe_mlp_params = moe->_mlp_params;
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[1]);
         auto hidden_size = static_cast<int>(hidden_states_layout.get_shape()[2]);
+        auto lws_size = get_best_lws(hidden_size);
         auto intermediate_size = static_cast<int>(moe_mlp_params[0].param[0].weight->get_layout().get_shape()[0]);
         if (!cur_net.has_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key)) {
             cur_net.set_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key, {});
@@ -636,7 +648,7 @@ public:
                               {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem->batch, expert_mask_mem->topk},
                               {x, scratch.routing_weights},
                               {static_cast<size_t>(n_token), static_cast<size_t>(hidden_size)},
-                              {1, 16});
+                              {1, lws_size});
             }
             {
                 // up
@@ -727,7 +739,7 @@ public:
                               {scratch.y, expert_mask_mem->batch},
                               {final_hidden_states_mem_ptr},
                               {static_cast<size_t>(n_token), static_cast<size_t>(hidden_size)},
-                              {1, 16});
+                              {1, lws_size});
             }
         }
         cldnn::event::ptr result_event;

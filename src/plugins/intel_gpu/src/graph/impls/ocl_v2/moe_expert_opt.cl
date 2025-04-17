@@ -7,7 +7,6 @@
 
 
 #if GATHER_ENABLE
-__attribute__((intel_reqd_sub_group_size(16)))
 KERNEL (gather_2d_ref)(
     const __global TYPE* src_tok,
     const __global TYPE* src_rweight,
@@ -41,7 +40,6 @@ KERNEL (gather_2d_ref)(
 
 #elif SCATTER_ENABLE
 
-__attribute__((intel_reqd_sub_group_size(16)))
 KERNEL (index_add_)(const __global TYPE* src_tok,
     __global int * tok_index,
     __global TYPE* dst_tok) {
@@ -53,7 +51,19 @@ KERNEL (index_add_)(const __global TYPE* src_tok,
     src_tok += k * HIDDEN_SIZE;
     dst_tok += tok_idx * HIDDEN_SIZE;
 
-    dst_tok[off] += src_tok[off];
+    #if TYPE_SIZE == 2
+        half src_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(src_tok + off)));
+        half dst_value = as_half(intel_sub_group_block_read_us((const __global ushort *)(dst_tok + off)));
+        half value = dst_value + src_value;
+        intel_sub_group_block_write_us((__global ushort *)(dst_tok + off), as_ushort(value));
+    #elif TYPE_SIZE == 4
+        float src_value = as_float(intel_sub_group_block_read((const __global uint *)(src_tok + off)));
+        float dst_value = as_float(intel_sub_group_block_read_us((const __global uint *)(dst_tok + off)));
+        float value = dst_value + src_value;
+        intel_sub_group_block_write_us((__global ushort *)(dst_tok + off), as_uint(value));
+    #else
+        dst_tok[off] += src_tok[off];
+    #endif
 }
 #endif
 
