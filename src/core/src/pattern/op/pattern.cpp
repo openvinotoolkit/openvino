@@ -396,6 +396,8 @@ op::Predicate shape_matches(const std::string& shape_notation) {
             PatternSymbolMap local_m;
             GroupDetails group;
             for (const auto& [this_dim_idx, name] : idx_to_name) {
+                if (!group.name.empty() && this_dim_idx < group.end)
+                    group.end = this_dim_idx;
                 if (name == "?" || name == "...")
                     continue;
                 if (ends_with(name, "...")) {  // named group detected
@@ -403,8 +405,6 @@ op::Predicate shape_matches(const std::string& shape_notation) {
                     group.begin = this_dim_idx;
                     continue;
                 }
-                if (!group.name.empty() && this_dim_idx < group.end)
-                    group.end = this_dim_idx;
                 const auto& this_dim = shape[this_dim_idx];
                 const auto& [conversion_failed, converted_int] = str2int(name);
                 if (conversion_failed) {  // failed the conversion -- this is a name
