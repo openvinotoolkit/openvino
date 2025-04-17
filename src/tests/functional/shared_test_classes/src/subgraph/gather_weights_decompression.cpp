@@ -98,7 +98,7 @@ std::shared_ptr<ov::Model> GatherWeightsDecompression::init_subgraph(const ov::S
 
     auto gather = std::make_shared<ov::op::v8::Gather>(data_subgraph, params[0], axis_const, batch_dims);
     gather->set_friendly_name("gather_node");
-    return std::make_shared<ov::Model>(ov::NodeVector{gather}, params, "GatherDataDecompression");
+    return std::make_shared<ov::Model>(ov::OutputVector{gather}, params, "GatherDataDecompression");
 }
 
 void GatherWeightsDecompression::check_results() {
@@ -185,7 +185,9 @@ std::shared_ptr<ov::Model> GatherWeightsDecompressionWithoutScale::init_subgraph
     auto gather = std::make_shared<ov::op::v8::Gather>(convert, params[0], axis_const, batch_dims);
     gather->set_friendly_name("gather_node");
     auto convert_to_output_precision = std::make_shared<ov::op::v0::Convert>(gather, output_precision);
-    return std::make_shared<ov::Model>(ov::NodeVector{convert_to_output_precision}, params, "GatherDataDecompression");
+    return std::make_shared<ov::Model>(ov::OutputVector{convert_to_output_precision},
+                                       params,
+                                       "GatherDataDecompression");
 }
 
 void GatherWeightsDecompressionWithoutScale::SetUp() {

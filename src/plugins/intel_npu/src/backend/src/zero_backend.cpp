@@ -6,12 +6,12 @@
 
 #include <vector>
 
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "zero_device.hpp"
 
 namespace intel_npu {
 
-ZeroEngineBackend::ZeroEngineBackend(const Config& config) : _logger("ZeroEngineBackend", Logger::global().level()) {
+ZeroEngineBackend::ZeroEngineBackend() : _logger("ZeroEngineBackend", Logger::global().level()) {
     _logger.debug("ZeroEngineBackend - initialize started");
 
     _initStruct = std::make_shared<ZeroInitStructsHolder>();
@@ -30,7 +30,7 @@ uint32_t ZeroEngineBackend::getGraphExtVersion() const {
 }
 
 bool ZeroEngineBackend::isBatchingSupported() const {
-    return _initStruct->isExtensionSupported("ZE_extension_graph_1_6", ZE_MAKE_VERSION(1, 6));
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {

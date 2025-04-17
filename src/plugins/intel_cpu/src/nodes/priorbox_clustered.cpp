@@ -93,7 +93,7 @@ void PriorBoxClustered::createPrimitive() {
     }
 }
 
-void PriorBoxClustered::execute(const dnnl::stream& strm) {
+void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];

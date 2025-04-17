@@ -742,7 +742,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, is_weightless);
 
     if (!encryption_required) {
-        LLMSerializeContext ctx(false, nullptr);
+        EncryptContext ctx(false, nullptr, nullptr);
         return serialize(stream, ctx);
     }
 
@@ -750,18 +750,18 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     std::stringstream non_encrypted_stream;
     if (is_weightless) {
         non_encrypted_stream.copyfmt(stream);
-        LLMSerializeContext ctx(false, nullptr);
+        EncryptContext ctx(false, nullptr, nullptr);
         serialize(non_encrypted_stream, ctx);
         std::string encrypted = enc_callbacks.encrypt(non_encrypted_stream.str());
         write(stream, encrypted);
     } else {
         // In case of blob with weights only encrypt XML part of the model
-        LLMSerializeContext ctx(true, enc_callbacks.encrypt);
+        EncryptContext ctx(true, enc_callbacks.encrypt, nullptr);
         serialize(stream, ctx);
     }
 }
 
-void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::LLMSerializeContext& ctx) const {
+void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::EncryptContext& ctx) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
 
@@ -899,7 +899,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     };
 
     if (!encrypted) {
-        LLMDeserializeContext ctx(false, nullptr);
+        EncryptContext ctx(false, nullptr, nullptr);
         auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_banks(stream, compiled_model);
@@ -922,10 +922,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
         std::string encrypted_str;
         read(stream, encrypted_str);
         std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
-        LLMDeserializeContext ctx(false, nullptr);
+        EncryptContext ctx(false, nullptr, nullptr);
         compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
     } else {
-        LLMDeserializeContext ctx(true, enc_callbacks.decrypt);
+        EncryptContext ctx(true, nullptr, enc_callbacks.decrypt);
         compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
     }
 
@@ -941,7 +941,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties,
-    const ov::npuw::s11n::LLMDeserializeContext& ctx) {
+    const ov::npuw::s11n::EncryptContext& ctx) {
     using namespace ov::npuw::s11n;
 
     auto read_model_meta = [&](std::istream& model_stream) {
@@ -957,7 +957,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, parameters);
         read(model_stream, results);
 
-        auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+        auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
 
         auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
 

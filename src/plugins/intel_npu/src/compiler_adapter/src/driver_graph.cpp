@@ -4,8 +4,7 @@
 
 #include "driver_graph.hpp"
 
-#include "intel_npu/config/common.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 
 namespace intel_npu {
@@ -126,9 +125,7 @@ void DriverGraph::initialize(const Config& config) {
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
 
-    if (config.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER) {
-        _batch_size = get_batch_size(_metadata);
-    }
+    _batch_size = get_batch_size(_metadata);
 
     if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;

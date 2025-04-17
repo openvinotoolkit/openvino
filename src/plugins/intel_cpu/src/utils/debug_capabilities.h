@@ -22,6 +22,7 @@
 #    include "onednn/dnnl.h"
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/core/model.hpp"
+#    include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -167,7 +168,7 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 #    define DEBUG_LOG_EXT(name, ostream, prefix, ...)                                                              \
         do {                                                                                                       \
-            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, __func__, __LINE__, name);                          \
+            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, OV_CPU_FUNCTION_NAME, __LINE__, name);              \
             if (DEBUG_ENABLE_NAME) {                                                                               \
                 ::std::stringstream ss___;                                                                         \
                 ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
@@ -294,7 +295,3 @@ bool getEnvBool(const char* name);
 #    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #endif  // CPU_DEBUG_CAPS
-
-// To avoid "unused variable" warnings `when debug caps
-// need more information than non-debug caps version
-#define CPU_DEBUG_CAPS_MAYBE_UNUSED(x) (void)x
