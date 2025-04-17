@@ -28,7 +28,7 @@ std::shared_ptr<ov::Model> ovGetFunction1() {
     auto relu2 = std::make_shared<ov::op::v0::Relu>(add->output(0));
     relu2->get_output_tensor(0).set_names({"relu2"});
 
-    ov::NodeVector results{relu1, relu2};
+    ov::OutputVector results{relu1, relu2};
     return std::make_shared<ov::Model>(results, params, "AddTwoOutputEdges");
 }
 

@@ -26,7 +26,7 @@ TEST(TransformationTests, TestModelTensorsConsistencyUseShapesTrue) {
     auto add2 = std::make_shared<opset12::Add>(add1, const2);
     auto add3 = std::make_shared<opset12::Add>(add2, const3);
 
-    auto model = std::make_shared<Model>(NodeVector{add3}, ParameterVector{input});
+    auto model = std::make_shared<Model>(OutputVector{add3}, ParameterVector{input});
     ov::pass::Manager m;
     m.register_pass<ov::pass::MOCTransformations>(true);
     m.run_passes(model);
@@ -47,7 +47,7 @@ TEST(TransformationTests, MOCConvertElimination) {
     auto convert_fp32 = std::make_shared<opset12::Convert>(const_val, element::f32);
     auto mul = std::make_shared<opset12::MatMul>(add1, convert_fp32);
 
-    auto model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input});
+    auto model = std::make_shared<Model>(OutputVector{mul}, ParameterVector{input});
     ov::pass::Manager m;
     m.register_pass<ov::pass::MOCTransformations>(false);
     m.run_passes(model);
@@ -64,7 +64,7 @@ TEST(TransformationTests, TestModelTensorsConsistencyUseShapesFalse) {
     auto add2 = std::make_shared<opset12::Add>(add1, const2);
     auto add3 = std::make_shared<opset12::Add>(add2, const3);
 
-    auto model = std::make_shared<Model>(NodeVector{add3}, ParameterVector{input});
+    auto model = std::make_shared<Model>(OutputVector{add3}, ParameterVector{input});
     ov::pass::Manager m;
     m.register_pass<ov::pass::MOCTransformations>(false);
     m.run_passes(model);
