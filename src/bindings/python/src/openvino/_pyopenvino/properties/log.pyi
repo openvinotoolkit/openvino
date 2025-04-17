@@ -1,10 +1,10 @@
 # type: ignore
-"""
-openvino.properties.log submodule that simulates ov::log
-"""
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+"""
+openvino.properties.log submodule that simulates ov::log
+"""
 __all__ = ['Level', 'level']
 class Level:
     """

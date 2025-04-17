@@ -24,7 +24,7 @@ TEST(TransformationTests, ConstFoldingMVN) {
         auto mvn = make_shared<opset10::MVN>(mvn_in, axes, false, 1e-9f, op::MVNEpsMode::OUTSIDE_SQRT);
         auto add = make_shared<opset10::Add>(in, mvn);
 
-        fun = make_shared<ov::Model>(NodeVector{add}, ParameterVector{in});
+        fun = make_shared<ov::Model>(OutputVector{add}, ParameterVector{in});
 
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -36,7 +36,7 @@ TEST(TransformationTests, ConstFoldingMVN) {
         const auto mvn_const = make_shared<opset10::Constant>(element::f32, Shape{6}, vector<float>(6, 0.0f));
         auto add = make_shared<opset10::Add>(in, mvn_const);
 
-        f_ref = make_shared<ov::Model>(NodeVector{add}, ParameterVector{in});
+        f_ref = make_shared<ov::Model>(OutputVector{add}, ParameterVector{in});
     }
 
     auto res = compare_functions(fun, f_ref);

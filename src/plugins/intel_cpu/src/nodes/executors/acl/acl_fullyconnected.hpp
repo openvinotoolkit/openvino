@@ -12,10 +12,7 @@ namespace ov::intel_cpu {
 
 class ACLFullyConnectedExecutor : public ACLCommonExecutor {
 public:
-    ACLFullyConnectedExecutor(const FCAttrs& attrs,
-                              const PostOps& postOps,
-                              const MemoryArgs& memory,
-                              const ExecutorContext::CPtr& context);
+    ACLFullyConnectedExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
     static bool supports(const FCConfig& config);
 

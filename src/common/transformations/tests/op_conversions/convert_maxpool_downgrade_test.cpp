@@ -159,7 +159,7 @@ TEST_F(TransformationTestsF, ConvertMaxPool8ToMaxPool1) {
         ov::Shape pads_begin{0}, pads_end{0}, kernel{1};
         auto maxpool_8 = std::make_shared<ov::op::v8::MaxPool>(data, strides, dilations, pads_begin, pads_end, kernel);
         auto result = std::make_shared<ov::op::v0::Result>(maxpool_8->output(0));
-        model = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data});
+        model = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data});
         manager.register_pass<ov::pass::ConvertMaxPool8ToMaxPool1>();
     }
 
@@ -169,7 +169,7 @@ TEST_F(TransformationTestsF, ConvertMaxPool8ToMaxPool1) {
         ov::Shape pads_begin{0}, pads_end{0}, kernel{1};
         auto maxpool_1 = std::make_shared<ov::op::v1::MaxPool>(data, strides, pads_begin, pads_end, kernel);
         auto result = std::make_shared<ov::op::v0::Result>(maxpool_1->output(0));
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data});
     }
 }
 
