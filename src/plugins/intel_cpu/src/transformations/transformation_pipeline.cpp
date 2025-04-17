@@ -62,7 +62,6 @@
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
-#include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
 #include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
@@ -518,6 +517,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
+    manager.register_pass<ov::pass::PrintModel>("path/to/file");
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
 
     if (useLpt) {
@@ -731,7 +731,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SimplifyCTCGreedyDecoderSeqLen);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGather7ToGather1);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGather8ToGather7);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertMinimum);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBroadcastToTiles);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertReduceMeanToPooling);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertReduceMaxToPooling);
