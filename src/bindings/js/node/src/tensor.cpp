@@ -201,7 +201,8 @@ void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
     try {
         shape = js_to_cpp<ov::Shape>(info, 0);
     } catch (const std::exception& e) {
-        Napi::TypeError::New(env, std::string("Invalid shape parameter: ") + e.what()).ThrowAsJavaScriptException();
+        Napi::TypeError::New(env, std::string("Invalid shape parameter: ") + e.what())
+            .ThrowAsJavaScriptException();
         return;
     }
 
@@ -210,9 +211,13 @@ void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
 
     if (new_size != current_capacity) {
         if (new_size > current_capacity) {
-            Napi::Error::New(env, "Shape mismatch: the new shape must not exceed the tensor capacity.").ThrowAsJavaScriptException();
+            Napi::Error::New(env, "Shape mismatch: the new shape must not exceed the tensor capacity.")
+                .ThrowAsJavaScriptException();
         } else {
-            Napi::Error::New(env, "Shape mismatch: the new shape must have the same number of elements as the original shape.").ThrowAsJavaScriptException();
+            Napi::Error::New(
+                env,
+                "Shape mismatch: the new shape must have the same number of elements as the original shape.")
+                .ThrowAsJavaScriptException();
         }
         return;
     }
@@ -220,7 +225,8 @@ void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
     try {
         _tensor.set_shape(shape);
     } catch (const std::exception& e) {
-        Napi::Error::New(env, std::string("Failed to set shape: ") + e.what()).ThrowAsJavaScriptException();
+        Napi::Error::New(env, std::string("Failed to set shape: ") + e.what())
+            .ThrowAsJavaScriptException();
         return;
     }
 }
