@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+include(${OpenVINO_SOURCE_DIR}/cmake/developer_package/compile_flags/functions.cmake)
 
 if(WIN32)
     cmake_minimum_required (VERSION 3.15)
