@@ -466,7 +466,12 @@ std::vector<EinsumParams> generateParams() {
             .inputs({{ET, {}, std::vector<T>{2}}, {ET, {}, std::vector<T>{2}}, {ET, {}, std::vector<T>{2}}})
             .equation(",,->")
             .expectedResult({ET, {}, std::vector<T>{8}})
-            .testcaseName("einsum_scalar_lcr")};
+            .testcaseName("einsum_scalar_lcr"),
+        Builder{}
+            .inputs({{ET, {}, std::vector<T>{2}}})
+            .equation("->")
+            .expectedResult({ET, {}, std::vector<T>{2}})
+            .testcaseName("einsum_scalar")};
     return params;
 }
 
