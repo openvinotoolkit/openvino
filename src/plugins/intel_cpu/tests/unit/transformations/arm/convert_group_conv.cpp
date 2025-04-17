@@ -32,7 +32,7 @@ static std::shared_ptr<ov::Model> createInitGraph(std::shared_ptr<ov::opset1::Pa
                                         ov::CoordinateDiff{0},
                                         ov::Strides{1});
 
-        return std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{param});
 }
 
 TEST(TransformationTests, CheckConvertGroupConvIsApplied) {
@@ -68,7 +68,7 @@ TEST(TransformationTests, CheckConvertGroupConvIsApplied) {
             concat_inputs.push_back(conv);
         }
         auto concat = std::make_shared<ov::op::v0::Concat>(concat_inputs, 1);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ concat }, ov::ParameterVector{ param });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{param});
     }
     auto res = compare_functions(model, model_ref);
     ASSERT_TRUE(res.first) << res.second;

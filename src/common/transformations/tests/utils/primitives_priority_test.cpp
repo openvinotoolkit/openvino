@@ -35,7 +35,7 @@ TEST(TransformationTests, ConvBiasFusion) {
         auto add = std::make_shared<opset1::Add>(conv, bias);
         add->set_friendly_name("add");
 
-        f = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input1});
+        f = std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{input1});
     }
 
     std::unordered_map<std::string, std::string> pp;

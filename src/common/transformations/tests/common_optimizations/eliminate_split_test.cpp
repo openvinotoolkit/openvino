@@ -22,7 +22,7 @@ TEST_F(TransformationTestsF, EliminateSplit) {
         auto axis_const = opset8::Constant::create(element::i64, Shape{}, {2});
         auto split = std::make_shared<opset8::Split>(mul, axis_const, 1);
         auto res = std::make_shared<opset8::Result>(split);
-        model = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{input});
 
         manager.register_pass<ov::pass::EliminateSplit>();
     }
@@ -31,7 +31,7 @@ TEST_F(TransformationTestsF, EliminateSplit) {
         auto mul_constant = opset8::Constant::create(element::f32, Shape{1}, {89.2});
         auto mul = std::make_shared<opset8::Multiply>(input, mul_constant);
         auto res = std::make_shared<opset8::Result>(mul);
-        model_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{input});
     }
 }
 
@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, EliminateSplitNegative) {
         auto res1 = std::make_shared<opset8::Result>(split->output(0));
         auto res2 = std::make_shared<opset8::Result>(split->output(1));
         auto res3 = std::make_shared<opset8::Result>(split->output(2));
-        model = std::make_shared<ov::Model>(NodeVector{res1, res2, res3}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{res1, res2, res3}, ParameterVector{input});
 
         manager.register_pass<ov::pass::EliminateSplit>();
     }
@@ -65,7 +65,7 @@ TEST_F(TransformationTestsF, EliminateSequenceOfSplits) {
         auto res1 = std::make_shared<opset8::Result>(true_split->output(0));
         auto res2 = std::make_shared<opset8::Result>(true_split->output(1));
         auto res3 = std::make_shared<opset8::Result>(true_split->output(2));
-        model = std::make_shared<ov::Model>(NodeVector{res1, res2, res3}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{res1, res2, res3}, ParameterVector{input});
 
         manager.register_pass<ov::pass::EliminateSplit>();
     }
@@ -77,6 +77,6 @@ TEST_F(TransformationTestsF, EliminateSequenceOfSplits) {
         auto res1 = std::make_shared<opset8::Result>(split->output(0));
         auto res2 = std::make_shared<opset8::Result>(split->output(1));
         auto res3 = std::make_shared<opset8::Result>(split->output(2));
-        model_ref = std::make_shared<ov::Model>(NodeVector{res1, res2, res3}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{res1, res2, res3}, ParameterVector{input});
     }
 }

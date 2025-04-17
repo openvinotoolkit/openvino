@@ -36,7 +36,7 @@ protected:
 
         auto relu3 = std::make_shared<ov::op::v0::Relu>(varSplit->output(2));
 
-        ov::NodeVector results{relu1, relu2, relu3};
+        ov::OutputVector results{relu1, relu2, relu3};
         function = std::make_shared<ov::Model>(results, inputParams, "StaticZeroDims");
     }
 

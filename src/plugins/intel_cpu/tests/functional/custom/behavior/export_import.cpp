@@ -28,7 +28,7 @@ std::shared_ptr<ov::Model> MakeMatMulModel() {
     auto add = ov::test::utils::make_eltwise(matmul, add_const, ov::test::utils::EltwiseTypes::ADD);
     auto softmax = std::make_shared<ov::opset9::Softmax>(add);
 
-    ov::NodeVector results{softmax};
+    ov::OutputVector results{softmax};
     return std::make_shared<ov::Model>(results, params, "MatMulModel");
 }
 

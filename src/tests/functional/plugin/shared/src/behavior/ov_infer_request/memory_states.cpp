@@ -71,7 +71,7 @@ std::shared_ptr<ov::Model> OVInferRequestVariableStateTest::get_network() {
     mem_w2->add_control_dependency(mem_r2);
     sigm->add_control_dependency(mem_w2);
 
-    auto function = std::make_shared<ov::Model>(ov::NodeVector{sigm}, ov::ParameterVector{input}, "add_output");
+    auto function = std::make_shared<ov::Model>(ov::OutputVector{sigm}, ov::ParameterVector{input}, "add_output");
     return function;
 }
 

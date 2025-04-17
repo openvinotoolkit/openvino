@@ -60,7 +60,7 @@ protected:
             ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, std::vector<int64_t>{axis})->output(0);
         auto cumSum = std::make_shared<ov::op::v0::CumSum>(params[0], axisNode, exclusive, reverse);
 
-        function = std::make_shared<ov::Model>(ov::NodeVector{cumSum}, params, "CumSumLayerCPUTest");
+        function = std::make_shared<ov::Model>(ov::OutputVector{cumSum}, params, "CumSumLayerCPUTest");
         functionRefs = function->clone();
     }
 };

@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
 
         auto nms = std::make_shared<opset9::MulticlassNms>(boxes, scores, opset9::MulticlassNms::Attributes());
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -42,6 +42,6 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
                                                                                scores,
                                                                                opset9::MulticlassNms::Attributes());
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }

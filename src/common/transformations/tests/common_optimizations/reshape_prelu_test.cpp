@@ -28,7 +28,7 @@ TEST(TransformationTests, ReshapePReluTest1) {
         auto slope = opset1::Constant::create(element::f32, Shape{3}, {-2.f, -1.f, -2.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
@@ -40,7 +40,7 @@ TEST(TransformationTests, ReshapePReluTest1) {
         auto slope = opset1::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-2.f, -1.f, -2.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f_ref = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -55,7 +55,7 @@ TEST(TransformationTests, ReshapePReluTest2) {
         auto slope = opset1::Constant::create(element::f32, Shape{3}, {-2.f, -1.f, -2.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
@@ -68,7 +68,7 @@ TEST(TransformationTests, ReshapePReluTest2) {
         auto slope = opset1::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-2.f, -1.f, -2.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f_ref = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -82,7 +82,7 @@ TEST(TransformationTests, ReshapePReluTest3) {
         auto slope = opset1::Constant::create(element::f32, Shape{3}, {-2.f, -1.f, -2.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
@@ -94,7 +94,7 @@ TEST(TransformationTests, ReshapePReluTest3) {
         auto slope = opset1::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-2.f, -1.f, -2.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f_ref = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -108,7 +108,7 @@ TEST(TransformationTests, ReshapePReluTest4) {
         auto slope = opset1::Constant::create(element::f32, Shape{}, {-2.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
         f_ref = f;
 
         pass::Manager m;
@@ -128,7 +128,7 @@ TEST(TransformationTests, ReshapePReluTest5) {
         auto slope = opset1::Constant::create(element::f32, Shape{3}, {-2.f, -1.f, -2.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
         f_ref = f;
 
         pass::Manager m;
@@ -148,7 +148,7 @@ TEST(TransformationTests, ReshapePReluTest6) {
         auto slope = opset1::Constant::create(element::f32, Shape{4}, {-2.f, -1.f, -2.f, -1.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
         f_ref = f;
 
         pass::Manager m;
@@ -172,7 +172,7 @@ TEST(TransformationTests, ReshapePReluTest7) {
             ov::op::TemporaryReplaceOutputType(input, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(slope, element::f32).get());
 
-        f = std::make_shared<ov::Model>(NodeVector{relaxed_prelu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{relaxed_prelu}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
@@ -188,7 +188,7 @@ TEST(TransformationTests, ReshapePReluTest7) {
             ov::op::TemporaryReplaceOutputType(input, element::f32).get(),
             ov::op::TemporaryReplaceOutputType(slope, element::f32).get());
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{relaxed_prelu}, ParameterVector{input});
+        f_ref = std::make_shared<ov::Model>(OutputVector{relaxed_prelu}, ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -202,7 +202,7 @@ TEST(TransformationTests, ReshapePReluTest8) {
         auto slope = opset1::Constant::create(element::f32, Shape{3}, {-2.f, -1.f, -2.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
@@ -214,7 +214,7 @@ TEST(TransformationTests, ReshapePReluTest8) {
         auto slope = opset1::Constant::create(element::f32, Shape{1, 3}, {-2.f, -1.f, -2.f});
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input});
+        f_ref = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -228,7 +228,7 @@ TEST(TransformationTests, ReshapePReluTest9) {
         auto slope = std::make_shared<opset1::Parameter>(element::f32, PartialShape::dynamic(1));
         auto prelu = std::make_shared<opset1::PRelu>(input, slope);
 
-        f = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input, slope});
+        f = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input, slope});
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ReshapePRelu>();
@@ -244,7 +244,7 @@ TEST(TransformationTests, ReshapePReluTest9) {
         auto reshape = std::make_shared<opset1::Reshape>(slope, reshape_const, true);
         auto prelu = std::make_shared<opset1::PRelu>(input, reshape);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{prelu}, ParameterVector{input, slope});
+        f_ref = std::make_shared<ov::Model>(OutputVector{prelu}, ParameterVector{input, slope});
     }
 
     auto res = compare_functions(f, f_ref);

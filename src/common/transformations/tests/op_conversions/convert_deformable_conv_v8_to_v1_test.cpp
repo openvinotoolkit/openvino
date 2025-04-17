@@ -41,7 +41,7 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1) {
                                                                                padding,
                                                                                dilations);
 
-        model = std::make_shared<Model>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
+        model = std::make_shared<Model>(OutputVector{deformable_conv}, ParameterVector{data, filter, offsets});
         manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
     }
 
@@ -66,7 +66,7 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1) {
                                                                                padding,
                                                                                dilations);
 
-        model_ref = std::make_shared<Model>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
+        model_ref = std::make_shared<Model>(OutputVector{deformable_conv}, ParameterVector{data, filter, offsets});
     }
 }
 
@@ -95,7 +95,7 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1_mask) {
                                                                                padding,
                                                                                dilations);
 
-        model = std::make_shared<Model>(NodeVector{deformable_conv}, ParameterVector{data, filter, mask, offsets});
+        model = std::make_shared<Model>(OutputVector{deformable_conv}, ParameterVector{data, filter, mask, offsets});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::ConvertDeformableConv8To1>();
@@ -128,7 +128,7 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1_bilinear_interpolation_pa
                                                                                1,
                                                                                true);
 
-        model = std::make_shared<Model>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
+        model = std::make_shared<Model>(OutputVector{deformable_conv}, ParameterVector{data, filter, offsets});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::ConvertDeformableConv8To1>();

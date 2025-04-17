@@ -33,7 +33,7 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
         auto xor_op =
             std::make_shared<opset1::Xor>(input1, input2, ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
-        model = std::make_shared<ov::Model>(NodeVector{xor_op}, ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(OutputVector{xor_op}, ParameterVector{input1, input2});
         manager.register_pass<ov::pass::ConvertXorToLogicalXor>();
     }
 
@@ -52,6 +52,6 @@ TEST_F(TransformationTestsF, ConvertXorToLogicalXor) {
                                                   input2,
                                                   ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY));
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{logical_xor}, ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(OutputVector{logical_xor}, ParameterVector{input1, input2});
     }
 }

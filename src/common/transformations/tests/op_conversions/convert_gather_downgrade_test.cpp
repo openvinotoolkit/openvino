@@ -27,7 +27,7 @@ TEST_F(TransformationTestsF, ConvertGather7toGather1) {
 
         auto gather_v7 = std::make_shared<opset7::Gather>(data, indices, axis, 0);
 
-        model = std::make_shared<ov::Model>(NodeVector{gather_v7}, ParameterVector{data, indices});
+        model = std::make_shared<ov::Model>(OutputVector{gather_v7}, ParameterVector{data, indices});
         manager.register_pass<ov::pass::ConvertGather7ToGather1>();
     }
 
@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, ConvertGather7toGather1) {
 
         auto gather_v1 = std::make_shared<opset1::Gather>(data, indices, axis);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{gather_v1}, ParameterVector{data, indices});
+        model_ref = std::make_shared<ov::Model>(OutputVector{gather_v1}, ParameterVector{data, indices});
     }
 }
 
@@ -50,7 +50,7 @@ TEST_F(TransformationTestsF, ConvertGather7toGather1_nonzero_batch_dims) {
 
         auto gather_v7 = std::make_shared<opset7::Gather>(data, indices, axis, -1);
 
-        model = std::make_shared<ov::Model>(NodeVector{gather_v7}, ParameterVector{data, indices});
+        model = std::make_shared<ov::Model>(OutputVector{gather_v7}, ParameterVector{data, indices});
         manager.register_pass<ov::pass::ConvertGather7ToGather1>();
     }
 }
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, ConvertGather8toGather7_param_indices) {
 
         auto gather_v8 = std::make_shared<opset8::Gather>(data, indices, axis, batch_dims);
 
-        model = std::make_shared<ov::Model>(NodeVector{gather_v8}, ParameterVector{data, indices});
+        model = std::make_shared<ov::Model>(OutputVector{gather_v8}, ParameterVector{data, indices});
 
         manager.register_pass<ov::pass::ConvertGather8ToGather7>();
     }
@@ -79,7 +79,7 @@ TEST_F(TransformationTestsF, ConvertGather8toGather7_const_indices) {
 
         auto gather_v8 = std::make_shared<opset8::Gather>(data, indices, axis, batch_dims);
 
-        model = std::make_shared<ov::Model>(NodeVector{gather_v8}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{gather_v8}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertGather8ToGather7>();
     }
@@ -92,7 +92,7 @@ TEST_F(TransformationTestsF, ConvertGather8toGather7_const_indices) {
 
         auto gather_v7 = std::make_shared<opset7::Gather>(data, indices, axis, batch_dims);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{gather_v7}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{gather_v7}, ParameterVector{data});
     }
 }
 
@@ -105,7 +105,7 @@ TEST_F(TransformationTestsF, ConvertGather8toGather7_negative_indices) {
 
         auto gather_v8 = std::make_shared<opset8::Gather>(data, indices, axis, batch_dims);
 
-        model = std::make_shared<ov::Model>(NodeVector{gather_v8}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{gather_v8}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertGather8ToGather7>();
         comparator.enable(FunctionsComparator::CONST_VALUES);
@@ -119,7 +119,7 @@ TEST_F(TransformationTestsF, ConvertGather8toGather7_negative_indices) {
 
         auto gather_v7 = std::make_shared<opset7::Gather>(data, indices, axis, batch_dims);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{gather_v7}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{gather_v7}, ParameterVector{data});
     }
 }
 
@@ -132,7 +132,7 @@ TEST_F(TransformationTestsF, ConvertGather8toGather7_out_of_bound_indices) {
 
         auto gather_v8 = std::make_shared<opset8::Gather>(data, indices, axis, batch_dims);
 
-        model = std::make_shared<ov::Model>(NodeVector{gather_v8}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{gather_v8}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertGather8ToGather7>();
     }
@@ -147,7 +147,7 @@ TEST_F(TransformationTestsF, ConvertGather8toGather7_negative_axis) {
 
         auto gather_v8 = std::make_shared<opset8::Gather>(data, indices, axis, batch_dims);
 
-        model = std::make_shared<ov::Model>(NodeVector{gather_v8}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{gather_v8}, ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertGather8ToGather7>();
     }
@@ -160,6 +160,6 @@ TEST_F(TransformationTestsF, ConvertGather8toGather7_negative_axis) {
 
         auto gather_v7 = std::make_shared<opset7::Gather>(data, indices, axis, batch_dims);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{gather_v7}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{gather_v7}, ParameterVector{data});
     }
 }

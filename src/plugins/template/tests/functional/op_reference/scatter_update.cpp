@@ -74,7 +74,7 @@ private:
         const auto updates = std::make_shared<ov::op::v0::Parameter>(numeric_type, updates_shape);
         const auto axis = std::make_shared<ov::op::v0::Parameter>(axis_type, axis_shape);
         const auto scatter_update = std::make_shared<ov::op::v3::ScatterUpdate>(data, indices, updates, axis);
-        return std::make_shared<ov::Model>(ov::NodeVector{scatter_update},
+        return std::make_shared<ov::Model>(ov::OutputVector{scatter_update},
                                            ov::ParameterVector{data, indices, updates, axis});
     }
 };

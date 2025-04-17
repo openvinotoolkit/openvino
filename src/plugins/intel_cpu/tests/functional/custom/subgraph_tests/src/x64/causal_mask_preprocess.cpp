@@ -144,7 +144,7 @@ static std::shared_ptr<ov::Model> buildCausalMaskPreprocess(const int max_seq_le
                                                    {{"batch_dims", 0}});  //  tensor_array<f32[?,1,?,..8192]>
     auto result = index_Gather;
 
-    return std::make_shared<ov::Model>(ov::NodeVector{result},
+    return std::make_shared<ov::Model>(ov::OutputVector{result},
                                        ov::ParameterVector{attention_mask, batch_size, cache_positions, kvLen});
 }
 

@@ -136,7 +136,7 @@ private:
                                                                            step_param,
                                                                            axes_param);
         return std::make_shared<Model>(
-            NodeVector{slice_scatter},
+            OutputVector{slice_scatter},
             ParameterVector{data_param, updates_param, start_param, stop_param, step_param, axes_param});
     }
 
@@ -154,7 +154,7 @@ private:
 
         const auto slice_scatter =
             std::make_shared<op::v15::SliceScatter>(data_param, updates_param, start_param, stop_param, step_param);
-        return std::make_shared<Model>(NodeVector{slice_scatter},
+        return std::make_shared<Model>(OutputVector{slice_scatter},
                                        ParameterVector{data_param, updates_param, start_param, stop_param, step_param});
     }
 };

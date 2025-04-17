@@ -153,11 +153,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode) noexcept {
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
-    // for x86 platform, by-channel quantization is disabled by default until further accuracy data collect
-    bool byChannel = false;
-    if (mode == Config::CacheQuantMode::BY_CHANNEL) {
-        byChannel = true;
-    } else if (mode == Config::CacheQuantMode::BY_HIDDEN) {
+    bool byChannel = true;
+    if (mode == Config::CacheQuantMode::BY_HIDDEN) {
         byChannel = false;
     }
 #if defined(OPENVINO_ARCH_ARM64)

@@ -49,7 +49,7 @@ namespace {
         auto nms = std::make_shared<ov::op::internal::NonMaxSuppressionIEInternal>(boxes, scores, max_output_boxes_per_class,
                 iou_threshold, score_threshold, 0, true, element::i32);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
-        auto func = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        auto func = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
         return func;
     }
 
@@ -61,7 +61,7 @@ namespace {
         attr.output_type = element::i32;
         auto nms = std::make_shared<ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>>(boxes, scores, attr);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
-        auto func = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        auto func = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
         return func;
     }
 
@@ -72,7 +72,7 @@ namespace {
         attr.output_type = element::i32;
         auto nms = std::make_shared<ov::op::internal::MulticlassNmsIEInternal>(boxes, scores, attr);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
-        auto func = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        auto func = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
         return func;
     }
 

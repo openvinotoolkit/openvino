@@ -94,7 +94,7 @@ TEST(TransformationTests, LowLatency2_LSTM) {
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -180,7 +180,7 @@ TEST(TransformationTests, LowLatency2_GRU) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
-        f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -261,7 +261,7 @@ TEST(TransformationTests, LowLatency2_RNN) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
-        f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -333,7 +333,7 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
 
         // Reshape
         // change the number of iteration of TI. 2 -> 1
@@ -424,7 +424,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -503,7 +503,7 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -612,7 +612,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         // Reshape
         // change the number of iteration of Loop. 10 -> 1
@@ -699,7 +699,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();

@@ -56,7 +56,7 @@ private:
                                                  const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto floor = std::make_shared<op::v0::Floor>(in);
-        return std::make_shared<Model>(NodeVector{floor}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{floor}, ParameterVector{in});
     }
 };
 

@@ -74,14 +74,14 @@ private:
                                                                  params.axisTensor.data.data());
             const auto axisI64 = std::make_shared<op::v0::Convert>(axis, element::i64);
             const auto transpose = std::make_shared<op::v1::Transpose>(data, axisI64);
-            function = std::make_shared<ov::Model>(NodeVector{transpose}, ParameterVector{data});
+            function = std::make_shared<ov::Model>(OutputVector{transpose}, ParameterVector{data});
         } else {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, PartialShape::dynamic());
             const auto axis =
                 std::make_shared<op::v0::Parameter>(params.axisTensor.type, PartialShape{Dimension::dynamic()});
             const auto axisI64 = std::make_shared<op::v0::Convert>(axis, element::i64);
             const auto transpose = std::make_shared<op::v1::Transpose>(data, axisI64);
-            function = std::make_shared<ov::Model>(NodeVector{transpose}, ParameterVector{data, axis});
+            function = std::make_shared<ov::Model>(OutputVector{transpose}, ParameterVector{data, axis});
         }
         return function;
     }

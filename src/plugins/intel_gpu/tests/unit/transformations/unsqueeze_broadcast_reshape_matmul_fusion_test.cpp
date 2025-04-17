@@ -57,7 +57,7 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion1) {
                                                               order_c,
                                                               ov::element::dynamic);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, new_token_param, beam_idx });
+        model = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, new_token_param, beam_idx});
         manager.register_pass<UnsqueezeBroadcastReshapeMatmulFusion>();
     }
     {
@@ -76,7 +76,7 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion1) {
                                                               order_c,
                                                               ov::element::dynamic);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, new_token_param, beam_idx });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, new_token_param, beam_idx});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -110,7 +110,7 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion2) {
                                                               order_c,
                                                               ov::element::dynamic);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, new_token_param, beam_idx, abs_param });
+        model = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, new_token_param, beam_idx, abs_param});
         manager.register_pass<UnsqueezeBroadcastReshapeMatmulFusion>();
     }
     {
@@ -129,7 +129,7 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion2) {
                                                               order_c,
                                                               ov::element::dynamic);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, new_token_param, beam_idx });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, new_token_param, beam_idx});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -157,7 +157,7 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion3) {
                                                               order_c,
                                                               ov::element::dynamic);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, input_b });
+        model = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, input_b});
         manager.register_pass<UnsqueezeBroadcastReshapeMatmulFusion>();
     }
     {
@@ -189,7 +189,7 @@ TEST_F(TransformationTestsF, UnsqueezeBroadReshapeMatmulFusion4) {
                                                               order_c,
                                                               ov::element::dynamic);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ gemm }, ov::ParameterVector{ input_a, input_b });
+        model = std::make_shared<ov::Model>(ov::OutputVector{gemm}, ov::ParameterVector{input_a, input_b});
         manager.register_pass<UnsqueezeBroadcastReshapeMatmulFusion>();
     }
     {

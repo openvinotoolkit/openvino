@@ -38,7 +38,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
     auto bias_m = any_input();
     auto fully_connected_compressed_m = wrap_type<op::FullyConnectedCompressed>({data_m, weights_m, bias_m, any_input(), any_input()}, fc_predicate);
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }

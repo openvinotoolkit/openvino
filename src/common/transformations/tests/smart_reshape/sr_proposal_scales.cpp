@@ -35,7 +35,7 @@ TEST(SmartReshapeTests, Proposal1Scales) {
         attrs.ratio = {0.5, 1.0, 2.0};
         attrs.scale = {0.25, 0.5, 1.0, 2.0};
         auto proposal = std::make_shared<opset1::Proposal>(input_0, input_1, reshape, attrs);
-        f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
+        f = std::make_shared<ov::Model>(OutputVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
@@ -68,7 +68,7 @@ TEST(SmartReshapeTests, Proposal1Scales_WithConvert) {
         attrs.ratio = {0.5, 1.0, 2.0};
         attrs.scale = {0.25, 0.5, 1.0, 2.0};
         auto proposal = std::make_shared<opset1::Proposal>(input_0, input_1, reshape, attrs);
-        f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
+        f = std::make_shared<ov::Model>(OutputVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
@@ -100,7 +100,7 @@ TEST(SmartReshapeTests, Proposal4Scales) {
         attrs.ratio = {0.5, 1.0, 2.0};
         attrs.scale = {0.25, 0.5, 1.0, 2.0};
         auto proposal = std::make_shared<opset5::Proposal>(input_0, input_1, reshape, attrs);
-        f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
+        f = std::make_shared<ov::Model>(OutputVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
@@ -133,7 +133,7 @@ TEST(SmartReshapeTests, Proposal4Scales_WithConvert) {
         attrs.ratio = {0.5, 1.0, 2.0};
         attrs.scale = {0.25, 0.5, 1.0, 2.0};
         auto proposal = std::make_shared<opset5::Proposal>(input_0, input_1, reshape, attrs);
-        f = std::make_shared<ov::Model>(NodeVector{proposal}, ParameterVector{input_0, input_1, input_2});
+        f = std::make_shared<ov::Model>(OutputVector{proposal}, ParameterVector{input_0, input_1, input_2});
     }
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();

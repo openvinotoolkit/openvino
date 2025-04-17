@@ -57,7 +57,7 @@ private:
                                                  const element::Type& input_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto grn = std::make_shared<op::v0::GRN>(in, bias);
-        return std::make_shared<ov::Model>(NodeVector{grn}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{grn}, ParameterVector{in});
     }
 };
 

@@ -284,7 +284,7 @@ protected:
             matmul4->set_friendly_name("gemm1");
             auto matmul5 = std::make_shared<ov::op::v0::MatMul>(matmul4, matmul3_result, true, true);
             matmul5->set_friendly_name("gemm2");
-            return std::make_shared<ov::Model>(ov::NodeVector{matmul5}, params, "FCHorizontalFusion");
+            return std::make_shared<ov::Model>(ov::OutputVector{matmul5}, params, "FCHorizontalFusion");
         } else {
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = -0.5;
@@ -311,7 +311,7 @@ protected:
             matmul4->set_friendly_name("gemm1");
             auto matmul5 = std::make_shared<ov::op::v0::MatMul>(matmul4, bias_add3, true, true);
             matmul5->set_friendly_name("gemm2");
-            return std::make_shared<ov::Model>(ov::NodeVector{matmul5}, params, "FCHorizontalFusion");
+            return std::make_shared<ov::Model>(ov::OutputVector{matmul5}, params, "FCHorizontalFusion");
         }
     }
 

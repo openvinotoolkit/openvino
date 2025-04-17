@@ -31,7 +31,7 @@ TEST_F(TransformationTestsF, MishFusing) {
         auto tanh = std::make_shared<opset4::Tanh>(log);
         auto mul = std::make_shared<opset4::Multiply>(input0, tanh);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input0});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input0});
 
         manager.register_pass<ov::pass::MishFusion>();
     }
@@ -40,7 +40,7 @@ TEST_F(TransformationTestsF, MishFusing) {
         auto data = std::make_shared<opset4::Parameter>(element::f32, Shape{3, 1, 2});
         auto mish = std::make_shared<opset4::Mish>(data);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mish}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mish}, ParameterVector{data});
     }
 }
 
@@ -51,7 +51,7 @@ TEST_F(TransformationTestsF, MishWithSoftPlusFusing) {
         auto tanh = std::make_shared<opset4::Tanh>(softplus);
         auto mul = std::make_shared<opset4::Multiply>(input0, tanh);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input0});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input0});
 
         manager.register_pass<ov::pass::SoftPlusToMishFusion>();
     }
@@ -60,6 +60,6 @@ TEST_F(TransformationTestsF, MishWithSoftPlusFusing) {
         auto data = std::make_shared<opset4::Parameter>(element::f32, Shape{3, 1, 2});
         auto mish = std::make_shared<opset4::Mish>(data);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mish}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mish}, ParameterVector{data});
     }
 }

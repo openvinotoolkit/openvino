@@ -156,8 +156,8 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {ov::op::v10::IsInf::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseIsInf;
              const auto& attributes = ov::as_type_ptr<ov::op::v10::IsInf>(op)->get_attributes();
-             node.alpha = attributes.detect_negative;
-             node.beta = attributes.detect_positive;
+             node.alpha = static_cast<float>(attributes.detect_negative);
+             node.beta = static_cast<float>(attributes.detect_positive);
         }},
         {ov::op::v10::IsNaN::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseIsNaN;

@@ -55,7 +55,6 @@ public:
     static bool useWeightsDecompressionImpl(const ov::element::Type inputType, const ov::element::Type weightsType);
 
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
-                                                            const PostOps& postOps,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
                                                             const bool cacheWeights);

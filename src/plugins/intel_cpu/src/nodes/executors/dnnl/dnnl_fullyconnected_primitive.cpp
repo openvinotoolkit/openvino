@@ -203,7 +203,6 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 }
 
 static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
-                                               const PostOps& postOps,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context,
                                                bool useDynamicQuantization) {
@@ -218,7 +217,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
         one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
-    DnnlPostOpsComposer dnnlpoc(postOps,
+    DnnlPostOpsComposer dnnlpoc(attrs.postOps,
                                 context->getEngine(),
                                 dims,
                                 dims.size() - 1,
@@ -230,22 +229,18 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                 false,
                                 false);
 
-    if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
-        auto dstPrc = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getPrecision();
+    if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
+        auto dstPrc = it->second->getPrecision();
         if (dstPrc != f8e8m0 || useDynamicQuantization) {
             dstPrc = ov::element::f32;
         }
 
-        dnnlpoc.appendDecompressionScalesLegacy(memory.at(ARG_WEI | ARG_ATTR_SCALES),
-                                                !attrs.weightsNonTransposed,
-                                                dstPrc);
+        dnnlpoc.appendDecompressionScalesLegacy(it->second, !attrs.weightsNonTransposed, dstPrc);
     }
 
-    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+    if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
-        dnnlpoc.appendDecompressionZeroPointsLegacy(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS),
-                                                    !attrs.weightsNonTransposed,
-                                                    dstPrc);
+        dnnlpoc.appendDecompressionZeroPointsLegacy(it->second, !attrs.weightsNonTransposed, dstPrc);
     }
 
     if (useDynamicQuantization) {
@@ -386,7 +381,6 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
 }
 
 DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs& attrs,
-                                                                  const PostOps& postOps,
                                                                   const MemoryArgs& memory,
                                                                   const ExecutorContext::CPtr& context,
                                                                   const bool cacheWeights) {
@@ -402,7 +396,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
         useWeightsDecompression &&
         useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc, memory);
 
-    const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
+    const auto postOpData = createPrimitiveAttrs(attrs, memory, context, useDynamicQuantization);
 
     if (!cacheWeights) {
         return std::make_shared<DnnlShapeAgnosticData>(postOpData);

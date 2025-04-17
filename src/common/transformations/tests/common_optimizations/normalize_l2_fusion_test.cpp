@@ -33,7 +33,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMax) {
         auto sqrt = std::make_shared<opset4::Sqrt>(max);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        model = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{input});
         manager.register_pass<ov::pass::NormalizeL2Fusion>();
     }
 
@@ -42,7 +42,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMax) {
         auto axes_const = opset4::Constant::create(element::i64, Shape{2}, {0, 1});
         auto normalize_l2 = std::make_shared<opset4::NormalizeL2>(input, axes_const, eps_value, op::EpsMode::MAX);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{normalize_l2}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{normalize_l2}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -61,7 +61,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxIncorrectExp) {
         auto sqrt = std::make_shared<opset4::Sqrt>(max);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        model = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{input});
 
         manager.register_pass<ov::pass::NormalizeL2Fusion>();
     }
@@ -79,7 +79,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
         auto sqrt = std::make_shared<opset4::Sqrt>(max);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        model = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{input});
 
         manager.register_pass<ov::pass::NormalizeL2Fusion>();
     }
@@ -98,7 +98,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithAdd) {
         auto sqrt = std::make_shared<opset4::Sqrt>(add);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        model = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{input});
 
         manager.register_pass<ov::pass::NormalizeL2Fusion>();
     }
@@ -108,7 +108,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithAdd) {
         auto axes_const = opset4::Constant::create(element::i64, Shape{2}, {0, 1});
         auto normalize_l2 = std::make_shared<opset4::NormalizeL2>(input, axes_const, eps_value, op::EpsMode::ADD);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{normalize_l2}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{normalize_l2}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -127,7 +127,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithAddIncorrectExp) {
         auto sqrt = std::make_shared<opset4::Sqrt>(add);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        model = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{input});
         manager.register_pass<ov::pass::NormalizeL2Fusion>();
     }
 }
@@ -144,7 +144,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithAddIncorrectEpsValueShape) {
         auto sqrt = std::make_shared<opset4::Sqrt>(add);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        model = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{input});
         manager.register_pass<ov::pass::NormalizeL2Fusion>();
     }
 }
@@ -163,7 +163,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxMul) {
         auto unsqrt = std::make_shared<opset8::Power>(max, power_const);
         auto mul = std::make_shared<opset4::Multiply>(input, unsqrt);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
         manager.register_pass<ov::pass::NormalizeL2Fusion>();
     }
 
@@ -172,7 +172,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxMul) {
         auto axes_const = opset4::Constant::create(element::i64, Shape{2}, {0, 1});
         auto normalize_l2 = std::make_shared<opset4::NormalizeL2>(input, axes_const, eps_value, op::EpsMode::MAX);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{normalize_l2}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{normalize_l2}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -192,7 +192,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxMulIncorrectSecondExp) {
         auto unsqrt = std::make_shared<opset8::Power>(max, power_const);
         auto mul = std::make_shared<opset4::Multiply>(input, unsqrt);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         manager.register_pass<ov::pass::NormalizeL2Fusion>();
     }
@@ -214,7 +214,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxSqrtAsPower) {
         auto sqrt = std::make_shared<opset4::Power>(max, sqrt_exp);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        model = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{input});
         manager.register_pass<ov::pass::NormalizeL2Fusion>();
     }
 
@@ -223,7 +223,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxSqrtAsPower) {
         auto axes_const = opset4::Constant::create(element::i64, Shape{2}, {0, 1});
         auto normalize_l2 = std::make_shared<opset4::NormalizeL2>(input, axes_const, eps_value, op::EpsMode::MAX);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{normalize_l2}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{normalize_l2}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -243,7 +243,7 @@ TEST_F(TransformationTestsF, NormalizeL2FusionWithMaxSqrtAsPowerIncorrectPowerEx
         auto sqrt = std::make_shared<opset4::Power>(max, sqrt_exp);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
-        model = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{input});
 
         manager.register_pass<ov::pass::NormalizeL2Fusion>();
     }

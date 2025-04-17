@@ -51,7 +51,7 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
                                               const std::vector<IODescriptor>& outputDescriptors) {
     ov::ParameterVector parameters;
-    ov::NodeVector results;
+    ov::ResultVector results;
 
     for (const IODescriptor& inputDescriptor : inputDescriptors) {
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
@@ -86,40 +86,12 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
                                                           : outputDescriptor.shapeFromCompiler,
             outputDescriptor.outputTensorNames);
 
-        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
+        auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-        results.push_back(std::move(result));
     }
 
     return std::make_shared<ov::Model>(results, parameters);
-}
-
-/**
- * @brief Setting batching mode
- * @details  In the case of older drivers, we force batching to compiler mode since it is not
- * supported. Othwersie set it tu AUTO if this wasn't set by the user
- * @param isBatchingSupported  Newer driver versions support batching mode on the plugin.
- * @param config A configuration map.
- */
-void set_batch_config(bool isBatchingSupported, FilteredConfig& config) {
-    if (!isBatchingSupported) {
-        if (config.has<BATCH_MODE>()) {
-            if (config.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
-                OPENVINO_THROW("Batching on plugin is not supported with this driver version");
-            }
-        }
-
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::COMPILER;
-        config.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    }
-
-    if (!config.has<BATCH_MODE>()) {
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::AUTO;
-        config.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
-    }
 }
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
@@ -460,14 +432,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
-    set_batch_config(_backend == nullptr ? false : _backend->isBatchingSupported(), localConfig);
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) &&
+        !localConfig.has(ov::intel_npu::batch_mode.name())) {
+        std::stringstream strStream;
+        strStream << ov::intel_npu::BatchMode::AUTO;
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    }
 
-    if (!model->get_variables().empty()) {
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) && !model->get_variables().empty()) {
         if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
             OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on the plugin");
         }
-
-        _logger.info("The batching will be handled by the compiler due to states found inside the IR");
 
         std::stringstream strStream;
         strStream << ov::intel_npu::BatchMode::COMPILER;
@@ -594,8 +569,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
-
-    set_batch_config(_backend == nullptr ? false : _backend->isBatchingSupported(), localConfig);
 
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {

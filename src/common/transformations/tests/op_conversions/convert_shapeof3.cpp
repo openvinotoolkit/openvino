@@ -24,7 +24,7 @@ TEST_F(TransformationTestsF, ConvertShapeOf3WithI64) {
         auto shapeof = std::make_shared<opset3::ShapeOf>(input, element::i64);
         shapeof->set_friendly_name("shapeof");
 
-        model = std::make_shared<ov::Model>(NodeVector{shapeof}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{shapeof}, ParameterVector{input});
 
         manager.register_pass<ov::pass::ConvertShapeOf3>();
     }
@@ -33,7 +33,7 @@ TEST_F(TransformationTestsF, ConvertShapeOf3WithI64) {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 3});
         auto shapeof = std::make_shared<opset1::ShapeOf>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{shapeof}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{shapeof}, ParameterVector{input});
     }
 }
 
@@ -42,7 +42,7 @@ TEST_F(TransformationTestsF, ConvertShapeOf3WithI32) {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 2, 3});
         auto shapeof = std::make_shared<opset3::ShapeOf>(input, element::i32);
 
-        model = std::make_shared<ov::Model>(NodeVector{shapeof}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{shapeof}, ParameterVector{input});
 
         manager.register_pass<ov::pass::ConvertShapeOf3>();
     }
@@ -52,6 +52,6 @@ TEST_F(TransformationTestsF, ConvertShapeOf3WithI32) {
         auto shapeof = std::make_shared<opset1::ShapeOf>(input);
         auto convert = std::make_shared<opset1::Convert>(shapeof, element::i32);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{convert}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{convert}, ParameterVector{input});
     }
 }

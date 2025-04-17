@@ -59,7 +59,7 @@ std::shared_ptr<Model> GroupNormalizationFusionTestBase::create_model() {
         std::make_shared<op::v1::Multiply>(post_instance_norm_reshape, group_norm_gamma_const);
     auto group_norm_beta_add = std::make_shared<op::v1::Add>(group_norm_gamma_multiply, group_norm_beta_const);
 
-    return std::make_shared<Model>(NodeVector{group_norm_beta_add}, ParameterVector{input});
+    return std::make_shared<Model>(OutputVector{group_norm_beta_add}, ParameterVector{input});
 }
 
 std::string GroupNormalizationFusionSubgraphTestsF::getTestCaseName(

@@ -96,8 +96,7 @@ public:
             };
 
             auto node = m.get_match_root();
-            if (ov::is_type<ov::op::util::MultiSubGraphOp>(node)) {
-                auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node);
+            if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
                 const auto& models = multi_subgraph_op->get_functions();
 
                 for (size_t body_idx = 0; body_idx < models.size(); ++body_idx) {

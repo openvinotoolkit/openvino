@@ -44,7 +44,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const reference_tests::Tensor& input) {
         const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
         const auto sqrt = std::make_shared<op::v0::Sqrt>(in);
-        return std::make_shared<Model>(NodeVector{sqrt}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{sqrt}, ParameterVector{in});
     }
 };
 

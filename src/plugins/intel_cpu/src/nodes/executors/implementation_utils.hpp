@@ -90,7 +90,7 @@ size_t weiMemSize(const Config& config) {
 
 template <typename Config>
 size_t postOpsNumbers(const Config& config) {
-    return config.postOps.size();
+    return config.attrs.postOps.size();
 }
 
 template <typename Attrs>
@@ -109,20 +109,15 @@ struct SupportsAnyConfig {
 
 template <typename Attrs>
 struct AcceptsAnyShape {
-    bool operator()([[maybe_unused]] const Attrs& attrs,
-                    [[maybe_unused]] const PostOps& postOps,
-                    [[maybe_unused]] const MemoryArgs& memory) const {
+    bool operator()([[maybe_unused]] const Attrs& attrs, [[maybe_unused]] const MemoryArgs& memory) const {
         return true;
     }
 };
 
 template <typename Primitive, typename Attrs>
 struct CreateDefault {
-    ExecutorPtr operator()(const Attrs& attrs,
-                           const PostOps& postOps,
-                           const MemoryArgs& memory,
-                           const ExecutorContext::CPtr& context) const {
-        return std::make_shared<Primitive>(attrs, postOps, memory, context);
+    ExecutorPtr operator()(const Attrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) const {
+        return std::make_shared<Primitive>(attrs, memory, context);
     }
 };
 
@@ -131,12 +126,8 @@ template <typename Primitive,
           typename ShapeAgnosticData = DnnlShapeAgnosticData,
           typename Instantiator = DefaultInstantiator<Primitive, Attrs, ShapeAgnosticData>>
 struct CreateDnnlDefault {
-    ExecutorPtr operator()(const Attrs& attrs,
-                           const PostOps& postOps,
-                           const MemoryArgs& memory,
-                           const ExecutorContext::CPtr& context) const {
+    ExecutorPtr operator()(const Attrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) const {
         return std::make_shared<DnnlExecutor<Primitive, Attrs, DnnlShapeAgnosticData, Instantiator>>(attrs,
-                                                                                                     postOps,
                                                                                                      memory,
                                                                                                      context,
                                                                                                      false);
@@ -213,8 +204,7 @@ std::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Co
 
     const auto optimalDescriptors = createOptimalDescriptors(config.descs, typeConfig, layoutConfig, notation);
 
-    return std::optional<executor::Config<Attrs>>(
-        executor::Config<Attrs>{optimalDescriptors, config.attrs, config.postOps});
+    return std::optional<executor::Config<Attrs>>(executor::Config<Attrs>{optimalDescriptors, config.attrs});
 }
 
 }  // namespace ov::intel_cpu

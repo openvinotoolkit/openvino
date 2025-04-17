@@ -30,15 +30,16 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
         return false;
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_PORTS)) {  // filter by ports configured
-        if (dumpFilters.at(DebugCapsConfig::FILTER::BY_PORTS) != "ALL" &&
-            portsKind != dumpFilters.at(DebugCapsConfig::FILTER::BY_PORTS)) {
+    if (auto it = dumpFilters.find(DebugCapsConfig::FILTER::BY_PORTS);
+        it != dumpFilters.end()) {  // filter by ports configured
+        if (it->second != "ALL" && portsKind != it->second) {
             return false;
         }
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_EXEC_ID)) {  // filter by exec id configured
-        std::stringstream ss(dumpFilters.at(DebugCapsConfig::FILTER::BY_EXEC_ID));
+    if (auto it = dumpFilters.find(DebugCapsConfig::FILTER::BY_EXEC_ID);
+        it != dumpFilters.end()) {  // filter by exec id configured
+        std::stringstream ss(it->second);
         int id;
         bool matched = false;
 
@@ -54,13 +55,14 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
         }
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_TYPE)) {  // filter by type configured
-        std::stringstream ss(dumpFilters.at(DebugCapsConfig::FILTER::BY_TYPE));
+    if (auto it = dumpFilters.find(DebugCapsConfig::FILTER::BY_TYPE);
+        it != dumpFilters.end()) {  // filter by type configured
+        std::stringstream ss(it->second);
         std::string type;
         bool matched = false;
 
         while (ss >> type) {
-            if (NameFromType(node->getType()) == type) {  // type does not match
+            if (NameFromType(node->getType()) == type) {  // type matches
                 matched = true;
                 break;
             }
@@ -71,11 +73,10 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
         }
     }
 
-    if (dumpFilters.count(DebugCapsConfig::FILTER::BY_NAME)) {  // filter by name configured
-        if (dumpFilters.at(DebugCapsConfig::FILTER::BY_NAME) !=
-                "*" &&  // to have 'single char' option for matching all the names
-            !std::regex_match(node->getName(),
-                              std::regex(dumpFilters.at(DebugCapsConfig::FILTER::BY_NAME)))) {  // name does not match
+    if (auto it = dumpFilters.find(DebugCapsConfig::FILTER::BY_NAME);
+        it != dumpFilters.end()) {  // filter by name configured
+        if (it->second != "*" &&    // to have 'single char' option for matching all the names
+            !std::regex_match(node->getName(), std::regex(it->second))) {  // name does not match
             return false;
         }
     }

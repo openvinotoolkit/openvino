@@ -122,7 +122,7 @@ private:
                                                                                            auto_pad,
                                                                                            params.outPadding);
 
-        return std::make_shared<ov::Model>(NodeVector{ConvolutionBackprop}, ParameterVector{in, filter});
+        return std::make_shared<ov::Model>(OutputVector{ConvolutionBackprop}, ParameterVector{in, filter});
     }
 };
 

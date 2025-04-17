@@ -31,7 +31,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest1) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 1, 2, 2 }, { 1 });
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, true, false);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -47,7 +47,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest1) {
 
         auto matmul = std::make_shared<op::FullyConnected>(transpose1, transpose2, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -57,7 +57,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest2) {
         auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 2, 1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, false);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1, input2});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -65,7 +65,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest2) {
         auto input2 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{3, 2, 1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, false);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1, input2});
     }
 }
 
@@ -75,7 +75,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest3) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -84,7 +84,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest3) {
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto matmul = std::make_shared<op::FullyConnected>(input1, input2, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -94,7 +94,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest4) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -103,7 +103,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest4) {
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto matmul = std::make_shared<op::FullyConnected>(input1, input2, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -112,7 +112,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest5) {
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 3, 2, 2 }, { 1 });
     auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-    model = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     manager.register_pass<ConvertMatMulToFullyConnected>();
 }
 
@@ -121,7 +121,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest6) {
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 3, 1, 2 }, { 1 });
     auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-    model = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     manager.register_pass<ConvertMatMulToFullyConnected>();
 }
 
@@ -131,7 +131,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest7) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{3, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -140,7 +140,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest7) {
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto fc = std::make_shared<op::FullyConnected>(input1, input2, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
     }
 }
 
@@ -150,7 +150,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest8) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{3, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -165,7 +165,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest8) {
         auto O = ov::opset1::Constant::create(ov::element::i64, { 1 }, { 3 });
         auto output_shape = std::make_shared<ov::opset1::Concat>(ov::OutputVector{I, O}, 0);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{fc}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input1});
     }
 }
 
@@ -175,7 +175,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest9) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 2}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -184,7 +184,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest9) {
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto matmul = std::make_shared<op::FullyConnected>(input1, input2, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -193,7 +193,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest10) {
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 2, 2 }, { 1 });
     auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-    model = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     manager.register_pass<ConvertMatMulToFullyConnected>();
 }
 
@@ -202,7 +202,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest11) {
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{18, 80, 1}, {1});
     auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     manager.register_pass<ConvertMatMulToFullyConnected>();
 }
 
@@ -211,7 +211,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest12) {
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{2, 80, 1}, {1});
     auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     manager.register_pass<ConvertMatMulToFullyConnected>();
 }
 
@@ -221,7 +221,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest13) {
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 80, 1}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -230,7 +230,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest13) {
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto matmul = std::make_shared<op::FullyConnected>(input1, input2, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -246,7 +246,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest14) {
             false,
             true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -255,7 +255,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest14) {
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto matmul = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::f32);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -271,7 +271,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest15) {
         auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, false, false);
         auto matmul2 = std::make_shared<ov::opset1::MatMul>(input2, convert, false, false);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul1, matmul2}, ov::ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul1, matmul2}, ov::ParameterVector{input1, input2});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -287,7 +287,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest15) {
         auto matmul1 = std::make_shared<op::FullyConnected>(input1, convert, no_bias);
         auto matmul2 = std::make_shared<op::FullyConnected>(input2, convert, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul1, matmul2}, ov::ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul1, matmul2}, ov::ParameterVector{input1, input2});
     }
 }
 
@@ -297,7 +297,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_second_input_rank
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 2, 3}, {1});
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, input2, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -305,7 +305,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_second_input_rank
         auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1, 2, 3}, {1});
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto matmul = std::make_shared<op::FullyConnected>(input1, input2, no_bias);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -315,7 +315,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_second_input_rank
         auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 2, 3 }, { 1 });
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, weights, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -324,7 +324,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_second_input_rank
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto matmul = std::make_shared<op::FullyConnected>(input1, weights, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -334,7 +334,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_second_input_rank
         auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 1, 2, 3 }, { 1 });
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, weights, false, true);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -343,7 +343,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_second_input_rank
         auto weights = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 1, 2, 3 }, { 1 });
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto matmul = std::make_shared<op::FullyConnected>(input1, weights, no_bias);
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -355,7 +355,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_decompress_conver
         ov::mark_as_decompression(convert);
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, convert, false, false);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -369,7 +369,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_decompress_conver
 
         auto matmul = std::make_shared<op::FullyConnected>(input1, convert, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -381,7 +381,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_decompress_conver
         ov::mark_as_decompression(convert);
         auto matmul = std::make_shared<ov::opset1::MatMul>(input1, convert, true, false);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -397,7 +397,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_decompress_conver
 
         auto matmul = std::make_shared<op::FullyConnected>(transpose1, convert, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }
 
@@ -412,7 +412,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_wei
         auto mul = std::make_shared<ov::opset1::Multiply>(sub, mul_const);
         auto matmul = std::make_shared<ov::opset1::MatMul>(data, mul);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -429,7 +429,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_wei
 	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto matmul = std::make_shared<op::FullyConnected>(data, transpose, no_bias);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ data });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
     }
 }
 
@@ -443,7 +443,7 @@ TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_mat
         auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, input_const, mat1_transpose_a, mat1_transpose_b);
         auto matmul2 = std::make_shared<ov::opset1::MatMul>(input_const, input_const, mat2_transpose_a, mat2_transpose_b);
 
-        auto model = std::make_shared<ov::Model>(ov::NodeVector{matmul2, matmul1}, ov::ParameterVector{input1});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul2, matmul1}, ov::ParameterVector{input1});
         return model;
     };
 
@@ -503,7 +503,7 @@ TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_mat
         auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, mat1_transpose_a, mat1_transpose_b);
         auto matmul2 = std::make_shared<ov::opset1::MatMul>(convert, input2, mat2_transpose_a, mat2_transpose_b);
 
-        auto model = std::make_shared<ov::Model>(ov::NodeVector{matmul1, matmul2}, ov::ParameterVector{input1, input2});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul1, matmul2}, ov::ParameterVector{input1, input2});
         return model;
     };
 
@@ -550,7 +550,7 @@ TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_mat
         auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, mat1_transpose_a, mat1_transpose_b);
         auto matmul2 = std::make_shared<ov::opset1::MatMul>(convert, convert, mat2_transpose_a, mat2_transpose_b);
 
-        auto model = std::make_shared<ov::Model>(ov::NodeVector{matmul2, matmul1}, ov::ParameterVector{input1});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul2, matmul1}, ov::ParameterVector{input1});
         return model;
     };
 
@@ -608,7 +608,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedExceptionTest) {
         auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, false, false);
         auto matmul2 = std::make_shared<ov::opset1::MatMul>(convert, convert, true, false);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul1, matmul2}, ov::ParameterVector{input1});
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul1, matmul2}, ov::ParameterVector{input1});
         manager.register_pass<ConvertMatMulToFullyConnected>();
     }
     {
@@ -622,6 +622,6 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedExceptionTest) {
         auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, convert, false, false);
         auto matmul2 = std::make_shared<ov::opset1::MatMul>(convert_2, convert, true, false);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul1, matmul2}, ov::ParameterVector{input1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul1, matmul2}, ov::ParameterVector{input1});
     }
 }

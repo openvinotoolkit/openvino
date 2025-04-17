@@ -44,7 +44,7 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, false);
 
-        model = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model = make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
         manager.register_pass<pass::ReshapeOptimizations>();
     }
     {
@@ -53,7 +53,7 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, true);
 
-        model_ref = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model_ref = make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
     }
 }
 
@@ -77,7 +77,7 @@ TEST_F(TransformationTestsF, LastDimSplitStaticLast) {
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, false);
 
-        model = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model = make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
         manager.register_pass<pass::ReshapeOptimizations>();
     }
     {
@@ -86,7 +86,7 @@ TEST_F(TransformationTestsF, LastDimSplitStaticLast) {
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, true);
 
-        model_ref = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model_ref = make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
     }
 }
 
@@ -110,7 +110,7 @@ TEST_F(TransformationTestsF, LastDimSplitDymanicLast) {
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, false);
 
-        model = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model = make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
         manager.register_pass<pass::ReshapeOptimizations>();
     }
     {
@@ -119,7 +119,7 @@ TEST_F(TransformationTestsF, LastDimSplitDymanicLast) {
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, true);
 
-        model_ref = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model_ref = make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
     }
 }
 
@@ -145,7 +145,7 @@ TEST_F(TransformationTestsF, NegativeTest) {
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, false);
 
-        model = make_shared<Model>(NodeVector{reshape}, ParameterVector{data});
+        model = make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
         manager.register_pass<pass::ReshapeOptimizations>();
     }
 }
@@ -168,7 +168,7 @@ TEST_F(TransformationTestsF, ZeroDimsInOutputShape) {
 
         auto reshape = make_shared<v1::Reshape>(data, pattern, false);
 
-        model = make_shared<Model>(NodeVector{reshape}, ParameterVector{data, b});
+        model = make_shared<Model>(OutputVector{reshape}, ParameterVector{data, b});
         manager.register_pass<pass::ReshapeOptimizations>();
     }
 }

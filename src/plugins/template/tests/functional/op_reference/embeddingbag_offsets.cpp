@@ -96,15 +96,15 @@ private:
                                                                                 default_index,
                                                                                 per_sample_weights,
                                                                                 reduction);
-                return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+                return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
             } else {
                 const auto ess =
                     std::make_shared<op::v15::EmbeddingBagOffsets>(in, indices, offsets, default_index, reduction);
-                return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+                return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
             }
         } else {
             const auto ess = std::make_shared<op::v15::EmbeddingBagOffsets>(in, indices, offsets, reduction);
-            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
         }
     }
 };

@@ -175,7 +175,7 @@ private:
         const auto image_shape_param = std::make_shared<op::v0::Parameter>(params.inType, params.imageShapeShape);
         const auto Proposal =
             std::make_shared<op::v0::Proposal>(class_probs_param, bbox_deltas_param, image_shape_param, params.attrs);
-        return std::make_shared<ov::Model>(NodeVector{Proposal},
+        return std::make_shared<ov::Model>(OutputVector{Proposal},
                                            ParameterVector{class_probs_param, bbox_deltas_param, image_shape_param});
     }
 };

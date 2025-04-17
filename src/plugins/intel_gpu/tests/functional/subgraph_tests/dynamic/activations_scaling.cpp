@@ -151,7 +151,7 @@ protected:
 
         auto add = std::make_shared<ov::op::v1::Add>(concat0, concat1);
 
-        return std::make_shared<ov::Model>(ov::NodeVector{add}, params, "ActivationsScaling");
+        return std::make_shared<ov::Model>(ov::OutputVector{add}, params, "ActivationsScaling");
     }
 
     void SetUp() override {
