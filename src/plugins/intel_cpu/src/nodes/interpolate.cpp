@@ -2492,18 +2492,18 @@ void Interpolate::prepareParams() {
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutorBase> {
         std::shared_ptr<InterpolateExecutorBase> executor;
-        if ((key.nodeAttrs.mode == InterpolateMode::nearest || key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
-             key.nodeAttrs.mode == InterpolateMode::cubic) &&
-            ((key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
-             (mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == ov::element::f32))) {
-            executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
-                                                                key.srcDims,
-                                                                key.dstDims,
-                                                                key.dataScales,
-                                                                key.attr);
-        } else if ((key.nodeAttrs.mode == InterpolateMode::bilinear_pillow ||
-                    key.nodeAttrs.mode == InterpolateMode::bicubic_pillow) &&
-                   (key.nodeAttrs.layout == InterpolateLayoutType::by_channel)) {
+        bool isNearestLinearOrCubic = key.nodeAttrs.mode == InterpolateMode::nearest ||
+                                      key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
+                                      key.nodeAttrs.mode == InterpolateMode::cubic;
+        bool isPlanarLayourAndSse41 = key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41);
+        bool isAvx2AndF32 = mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == ov::element::f32;
+        bool isPillowMode = key.nodeAttrs.mode == InterpolateMode::bilinear_pillow ||
+                            key.nodeAttrs.mode == InterpolateMode::bicubic_pillow;
+        bool isByChannelLayout = key.nodeAttrs.layout == InterpolateLayoutType::by_channel;
+        bool isNearestLinearOrCubicSupported = isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32);
+        bool isPillowModeSupported = isPillowMode && isByChannelLayout;
+
+        if (isNearestLinearOrCubicSupported || isPillowModeSupported) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,
@@ -2624,7 +2624,7 @@ std::vector<float> Interpolate::getScales(const VectorDims& srcDimPad, const Vec
     return fullScales;
 }
 
-void Interpolate::execute(const dnnl::stream& strm) {
+void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
 
@@ -2721,9 +2721,9 @@ void Interpolate::execute(const dnnl::stream& strm) {
             src_data = src_data_origin;
         }
 
-        execPtr->exec(src_data, dst_data, postOpsDataPtrs.data());
+        execPtr->exec(src_data, dst_data, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else if (aclExecPtr) {
-        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, postOpsDataPtrs.data());
+        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else {
         THROW_CPU_NODE_ERR("Primitive wasn't created");
     }
@@ -3043,7 +3043,7 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
         arg.src_ptr[3] = static_cast<int*>(&sequenceOW[0]);
         arg.weight_ptr[0] = xFactor;
         arg.weight_ptr[1] = yFactor;
-        arg.work_amount = static_cast<size_t>(OW * OH);
+        arg.work_amount = static_cast<size_t>(OW) * OH;
         arg.oc_off = static_cast<size_t>(c * sizeof(float));
         arg.post_op_data = post_ops_data_;
         (*interpolateKernel)(&arg);
@@ -3052,7 +3052,7 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
 
 void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_,
                                                           uint8_t* out_ptr_,
-                                                          const void* post_ops_data_,
+                                                          [[maybe_unused]] const void* post_ops_data_,
                                                           int B,
                                                           int C,
                                                           int IH,
@@ -3069,7 +3069,7 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_
         if (xPass && yPass) {
             size_t parallel_num = B;
             // IH * OW * C buf needed
-            auto buffer_size = static_cast<size_t>(OW * IH * C);
+            auto buffer_size = static_cast<size_t>(OW) * IH * C;
             if (parallel_num < m_threads_num) {
                 arg.src_ptr[1] = static_cast<uint8_t*>(&pillow_working_buf[b * buffer_size * srcDataSize]);
             } else {
@@ -3093,7 +3093,7 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_
 void Interpolate::InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPad5d,
                                                       const VectorDims& dstDim5d,
                                                       const std::vector<float>& dataScales,
-                                                      InterpolateLayoutType layout,
+                                                      [[maybe_unused]] InterpolateLayoutType layout,
                                                       InterpolateNearestMode nearestMode) {
     const int dimSize = dataRank;
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
@@ -3519,8 +3519,8 @@ float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
 void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcDimPad5d,
                                                           const VectorDims& dstDim5d,
                                                           const std::vector<float>& dataScales,
-                                                          float cubicCoeff,
-                                                          InterpolateLayoutType layout) {
+                                                          [[maybe_unused]] float cubicCoeff,
+                                                          [[maybe_unused]] InterpolateLayoutType layout) {
     int dimSize = dataRank;
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
@@ -3960,7 +3960,7 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
                         }
                     }
 
-                    if (!wsum) {
+                    if (wsum == 0.0f) {
                         setValue(out_ptr_ncdh, ox * dstDataSize, 0.f, outputPrec);
                     } else {
                         float dst_value = sum / wsum;
@@ -4022,7 +4022,7 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
                     static_cast<const uint8_t*>(&pillow_working_buf[(OW * IH * C * b + OW * IH * c) * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
-                auto buffer_size = static_cast<size_t>(OW * IH);
+                auto buffer_size = static_cast<size_t>(OW) * IH;
                 xpass_out_ptr_nc = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
                 ypass_in_ptr_nc =
                     static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
@@ -4245,7 +4245,9 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* 
     }
 }
 
-void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
+void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
+                                               uint8_t* out_ptr_,
+                                               [[maybe_unused]] const void* post_ops_data_) {
     size_t N = srcDimPad5d[0], C = srcDimPad5d[1], ID = srcDimPad5d[2], IH = srcDimPad5d[3], IW = srcDimPad5d[4];
     size_t OD = dstDim5d[2], OH = dstDim5d[3], OW = dstDim5d[4];
 

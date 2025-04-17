@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
                                                                    op::v1::NonMaxSuppression::BoxEncodingType::CORNER,
                                                                    true);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
@@ -65,7 +65,7 @@ TEST_F(TransformationTestsF, ConvertPreviousNMSToNMSIEInternal) {
                                                                                    element::i32);
         auto convert = std::make_shared<ov::op::v0::Convert>(nms->output(0), element::i64);
 
-        model_ref = std::make_shared<Model>(NodeVector{convert}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{convert}, ParameterVector{boxes, scores});
     }
 }
 
@@ -87,7 +87,7 @@ TEST_F(TransformationTestsF, ConvertNMS9ToNMSIEInternal) {
                                                                true,
                                                                element::i32);
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<pass::ConstantFolding>();
@@ -110,6 +110,6 @@ TEST_F(TransformationTestsF, ConvertNMS9ToNMSIEInternal) {
                                                                                    true,
                                                                                    element::i32);
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }

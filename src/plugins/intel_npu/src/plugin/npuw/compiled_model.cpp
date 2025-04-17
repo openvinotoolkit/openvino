@@ -513,7 +513,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 }
 
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
-                                                           const ov::npuw::s11n::Context& ctx) const {
+                                                           const ov::npuw::s11n::WeightsContext& ctx) const {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Serializing CompiledModelDesc...");
@@ -581,7 +581,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
 }
 
 void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& stream,
-                                                             const ov::npuw::s11n::Weights& weights) {
+                                                             const ov::npuw::s11n::WeightsContext& ctx) {
     using namespace ov::npuw::s11n;
 
     LOG_DEBUG("Deserializing CompiledModelDesc...");
@@ -601,9 +601,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, is_remote);
     read(stream, closure_uid);
 
-    if (weights) {
-        read_weightless(stream, scales, weights);
-        read_weightless(stream, zerops, weights);
+    if (ctx.weights || !ctx.consts_cache.empty()) {
+        read_weightless(stream, scales, ctx);
+        read_weightless(stream, zerops, ctx);
 
         std::size_t closure_size = 0;
         read(stream, closure_size);
@@ -614,7 +614,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
         read(stream, cpu_closure_ids);
 
         std::vector<ov::Tensor> cpu_closures;
-        read_weightless(stream, cpu_closures, weights);
+        read_weightless(stream, cpu_closures, ctx);
         std::size_t tidx = 0;
         for (const auto& idx : cpu_closure_ids) {
             closure[idx] = std::move(cpu_closures[tidx++]);
@@ -633,7 +633,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
         // Also read weights into LazyTensors
         for (std::size_t cidx = 0; cidx < closure.size(); ++cidx) {
             if (closure_uid[cidx] != -1 && lazy_closure[cidx]) {  // previously registered before serialization
-                lazy_closure[cidx].read_weight(weights);
+                lazy_closure[cidx].read_weight(ctx);
             }
         }
     } else {
@@ -680,6 +680,13 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     // FIXME: utilize overload instead
     write(stream, m_non_npuw_props.size());
     for (const auto& p : m_non_npuw_props) {
+        // Skip properties which don't need to/can't be serialized
+        // FIXME: extend the logic
+        if (p.first == ov::cache_encryption_callbacks.name()) {
+            write(stream, false);
+            continue;
+        }
+        write(stream, true);
         write(stream, p.first);
         write_any(stream, p.second);
     }
@@ -693,7 +700,7 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream) const {
     write(stream, is_weightless);
 
     // Create weightless context
-    Context ctx(is_weightless, m_const_to_offset);
+    WeightsContext ctx(is_weightless, m_const_to_offset);
 
     // Serialize compiled submodels
     write(stream, m_compiled_submodels.size());
@@ -739,7 +746,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     read(stream, parameters);
     read(stream, results);
 
-    auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+    auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
 
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(ov_model, plugin, true);
 
@@ -760,6 +767,13 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     std::size_t props_size;
     read(stream, props_size);
     for (std::size_t i = 0; i < props_size; ++i) {
+        bool should_read = true;
+        read(stream, should_read);
+        // Skip properties which don't need to/can't be deserialized
+        // FIXME: extend the logic
+        if (!should_read) {
+            continue;
+        }
         std::string key;
         read(stream, key);
         ov::Any val;
@@ -774,19 +788,49 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
     // Initialize weights stream if weightless flow
     std::string weights_path;
+    std::shared_ptr<const ov::Model> model_ptr;
+    // Cache model's constants
+    WeightsContext::ConstsCache consts_cache;
     if (is_weightless) {
-        NPUW_ASSERT(properties.find(ov::weights_path.name()) != properties.end() &&
-                    "There is no WEIGHTS_PATH set in properties but the blob was exported as weightless!");
-        weights_path = properties.at(ov::weights_path.name()).as<std::string>();
+        if (properties.find(ov::weights_path.name()) != properties.end()) {
+            weights_path = properties.at(ov::weights_path.name()).as<std::string>();
+            NPUW_ASSERT(!weights_path.empty() &&
+                        "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
+        } else if (properties.find(ov::hint::model.name()) != properties.end()) {
+            model_ptr = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+            NPUW_ASSERT(
+                model_ptr &&
+                "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
+            // Fill the cache
+            for (const auto& node : model_ptr->get_ordered_ops()) {
+                if (ov::op::util::is_constant(node)) {
+                    const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
+                    auto rt_info = c->get_rt_info();
+                    auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+                    if (weightless_cache_attr == rt_info.end()) {
+                        continue;
+                    }
+                    std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+                    std::size_t size = c->get_byte_size();
+                    consts_cache[{offset, size}] = node;
+                }
+            }
+        } else {
+            NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
+        }
     }
 
     ov::npuw::s11n::Weights weights = nullptr;
     if (is_weightless) {
-        auto mapped_memory = ov::load_mmap_object(weights_path);
-        weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                                        mapped_memory->size(),
-                                                                                        mapped_memory);
+        if (!weights_path.empty()) {
+            auto mapped_memory = ov::load_mmap_object(weights_path);
+            weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                                            mapped_memory->size(),
+                                                                                            mapped_memory);
+        }
     }
+
+    WeightsContext ctx(weights, consts_cache);
 
     // Deserialize compiled submodels
     std::size_t subm_size = 0;
@@ -808,7 +852,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
         }
         compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-        compiled->m_compiled_submodels[i].deserialize(stream, weights);
+        compiled->m_compiled_submodels[i].deserialize(stream, ctx);
     }
 
     compiled->implement_properties();
@@ -1427,6 +1471,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
+                          BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),

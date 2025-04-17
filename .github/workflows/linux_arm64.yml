@@ -90,16 +90,17 @@ jobs:
       build-contrib: true
       build-debian-packages: false
       build-rpm-packages: false
-      cmake-options: |-
-            -G "Ninja Multi-Config" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCPACK_GENERATOR=TGZ \
-            -DENABLE_WHEEL=ON \
+      build-additional-python-packages: true
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_CPPLINT=OFF
+            -DENABLE_NCC_STYLE=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_SYSTEM_OPENCL=ON
+            -DCMAKE_VERBOSE_MAKEFILE=ON
+            -DCPACK_GENERATOR=TGZ
+            -DENABLE_WHEEL=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   Debian_Packages:
@@ -223,6 +224,7 @@ jobs:
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
       python-version: '3.11'
+      scope: ${{ github.event_name == 'workflow_dispatch' && 'nightly' || 'smoke' }}
 
   TensorFlow_Models_Tests:
     name: TensorFlow Models tests

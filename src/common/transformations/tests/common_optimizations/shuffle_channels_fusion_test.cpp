@@ -52,13 +52,13 @@ public:
             auto reshape_before = std::make_shared<opset6::Reshape>(input0, shape_reshape_before, true);
             auto permute = std::make_shared<opset6::Transpose>(reshape_before, permutation);
             auto reshape_after = std::make_shared<opset6::Reshape>(permute, shape_reshape_after, true);
-            f = std::make_shared<ov::Model>(NodeVector{reshape_after}, ParameterVector{input0});
+            f = std::make_shared<ov::Model>(OutputVector{reshape_after}, ParameterVector{input0});
         }
 
         if (values.fuse_happened == FuseHappened::YES) {
             auto input0 = std::make_shared<opset6::Parameter>(element::f32, values.inputPartialShape);
             auto shuffle_channels = std::make_shared<opset6::ShuffleChannels>(input0, 1, values.reshape_before_val[1]);
-            f_ref = std::make_shared<ov::Model>(NodeVector{shuffle_channels}, ParameterVector{input0});
+            f_ref = std::make_shared<ov::Model>(OutputVector{shuffle_channels}, ParameterVector{input0});
         } else {
             f_ref = f;
         }

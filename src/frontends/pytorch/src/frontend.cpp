@@ -6,6 +6,7 @@
 
 #include "input_model.hpp"
 #include "op_table.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/pytorch/extension/conversion.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
@@ -273,7 +274,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::pass::ConvertConvertLike>();
         manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
-        // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+        // Mark low precision compressed constants to prevent CF for them,
         // so that not extra memory is used for intermediate decompressed constants.
         manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
 

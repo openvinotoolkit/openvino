@@ -4,6 +4,7 @@
 
 #include "u4_block_repack.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"

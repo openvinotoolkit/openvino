@@ -30,11 +30,11 @@ public:
     VariableStateBase(const std::string& name, MemoryDescPtr external_desc);
 
     // ov::IVariableState
-    void set_state(const ov::SoPtr<ov::ITensor>& state) override final;  // NOLINT
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override final;
     ov::SoPtr<ov::ITensor> get_state() const override;
-    void reset() override final;                 // NOLINT
-    bool is_reset_state() const override final;  // NOLINT
-    void commit() override final;                // NOLINT
+    void reset() override final;
+    bool is_reset_state() const override final;
+    void commit() override final;
 
 protected:
     virtual MemoryPtr internal_state_mem() const = 0;

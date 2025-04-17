@@ -12,6 +12,7 @@
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -221,7 +222,7 @@ public:
         _users = _network.get_primitives(users);
     }
 
-    const std::unordered_set<size_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
+    const memory_restricter<uint32_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -306,7 +307,7 @@ public:
                                        memory_pool& pool,
                                        const program_node& _node,
                                        const kernel_impl_params& impl_params,
-                                       const std::unordered_set<size_t>& memory_dependencies,
+                                       const memory_restricter<uint32_t>& memory_dependencies,
                                        uint32_t net_id,
                                        bool is_internal,
                                        size_t idx = 0,
@@ -364,7 +365,7 @@ protected:
     // it should be added to this set
     std::vector<std::pair<primitive_inst*, int32_t>> _deps;
 
-    // List of depandant shape_of primitives for shape_of subgraphs
+    // List of dependant shape_of primitives for shape_of subgraphs
     std::vector<primitive_inst*> dependant_shape_of_insts;
 
     std::vector<primitive_inst*> _users;
@@ -378,7 +379,7 @@ protected:
     std::vector<primitive_inst*> _exec_deps;
 
     // List of primitive ids that this primitive can't share memory buffers with
-    std::unordered_set<size_t> _runtime_memory_dependencies;
+    memory_restricter<uint32_t> _runtime_memory_dependencies;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
@@ -514,7 +515,6 @@ struct typed_primitive_impl : public primitive_impl {
 
     using primitive_impl::primitive_impl;
 
-private:
     event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");

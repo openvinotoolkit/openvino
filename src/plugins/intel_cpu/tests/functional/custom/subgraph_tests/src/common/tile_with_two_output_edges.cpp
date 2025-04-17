@@ -28,7 +28,7 @@ protected:
         const auto add1 = utils::make_eltwise(tile->output(0), const1, utils::EltwiseTypes::ADD);
         const auto add2 = utils::make_eltwise(tile->output(0), const2, utils::EltwiseTypes::ADD);
 
-        NodeVector results{add1, add2};
+        OutputVector results{add1, add2};
         function = std::make_shared<ov::Model>(results, inputParams, "TileWithTwoOutputEdges");
     }
 };

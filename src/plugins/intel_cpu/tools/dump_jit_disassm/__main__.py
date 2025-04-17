@@ -5,8 +5,8 @@ import subprocess
 import sys
 from colorama import Fore
 
-def addr2line(exefile, addrs):
-    proc = subprocess.Popen(["addr2line", "-C", "-e", exefile, "-f", "-s", "-p"],
+def addr2line(exefile, addrs, addr2line_path):
+    proc = subprocess.Popen([addr2line_path, "-C", "-e", exefile, "-f", "-s", "-p"],
                             stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
     line_info = {}
     for i, addr in enumerate(addrs):
@@ -24,6 +24,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=f"jit dump disassmbler")
     parser.add_argument("--filter", type=list, default=["xbyak.h","jit_generator.hpp","primitive.hpp","xbyak_mnemonic.h"])
     parser.add_argument("--maxcnt", type=int, help="Maximum number of entries from call stack to show", default=3)
+    parser.add_argument("--addr2line", type=str, help="path to addr2line tool", default="addr2line")
     parser.add_argument("trace", type=str)
     parser.add_argument("bin", type=str)
 
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     print(f"extract debug info with addr2line...")
     traces={}
     for exefile, addrs in addr2check.items():
-        traces[exefile] = addr2line(exefile, addrs)
+        traces[exefile] = addr2line(exefile, addrs, args.addr2line)
 
     print("objdump...")
     disassemble = subprocess.check_output(f"objdump -D -b binary -mi386:x86-64 -M intel {args.bin}", shell=True, encoding="utf-8")

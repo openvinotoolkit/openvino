@@ -140,6 +140,7 @@ jobs:
             -DENABLE_LTO=ON \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=ON \
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -156,7 +157,7 @@ jobs:
       # Upload build logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         if: always()
         with:
           name: build_logs
