@@ -102,7 +102,10 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
     input_subscripts.clear();
     std::istringstream input;
     input.str(input_subscripts_str);
-    for (std::string input_subscript; std::getline(input, input_subscript, ',');) {
+    std::string input_subscript;
+    constexpr char delimeter = ',';
+    for (auto i = 0; i <= std::count(input_subscripts_str.begin(), input_subscripts_str.end(), delimeter); ++i) {
+        std::getline(input, input_subscript, delimeter);
         bool local_is_ellipsis_met = false;
         // check that input subscript contains only alphabetic letter or ellipsis
         OPENVINO_ASSERT(is_subscript_correct(input_subscript, local_is_ellipsis_met),
