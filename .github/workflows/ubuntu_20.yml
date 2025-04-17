@@ -72,33 +72,11 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_22_04_x64
             ov_build/ubuntu_20_04_x64
             ov_test/ubuntu_20_04_x64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
-
-  Test_Job:
-    name: Test Job
-    needs: [Docker]
-    timeout-minutes: 150
-    runs-on: 'aks-linux-16-cores-32gb'
-    container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        timeout-minutes: 15
-
-      - name: Who am I
-        run: |
-          whoami
-          id
-          ls -la /__w
 
   Test_Job_wo_Docker:
     name: Test Job w/o Docker

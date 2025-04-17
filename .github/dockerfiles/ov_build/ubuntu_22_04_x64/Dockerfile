@@ -32,6 +32,8 @@ RUN apt-get update && \
         gpg-agent \
         tzdata \
         libtbb2 \
+        # ONNX Runtime build
+        language-pack-en \
         # parallel gzip
         pigz \
         # Pythons
@@ -50,6 +52,8 @@ RUN apt-get update && \
         python3.13-venv \
         # For Java API
         default-jdk \
+        # OpenVINO JS API
+        libgtk-3-0 \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -70,6 +74,10 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
+# ONNX Runtime, see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
+RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
