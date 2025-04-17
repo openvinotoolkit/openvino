@@ -7,6 +7,7 @@
 #include <random>
 
 #include "openvino/core/enum_names.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 
 namespace ov {
 namespace test {
