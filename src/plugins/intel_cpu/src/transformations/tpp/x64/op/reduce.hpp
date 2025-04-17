@@ -4,10 +4,17 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
 #include "eltwise.hpp"
 #include "libxsmm_typedefs.h"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/op/reduce.hpp"
-#include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 

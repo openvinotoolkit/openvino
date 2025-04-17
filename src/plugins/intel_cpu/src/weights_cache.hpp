@@ -5,12 +5,15 @@
 #pragma once
 
 #include <atomic>
+#include <cstddef>
 #include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "cpu_memory.h"
 

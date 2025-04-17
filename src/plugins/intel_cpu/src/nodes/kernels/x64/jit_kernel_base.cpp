@@ -4,6 +4,18 @@
 
 #include "jit_kernel_base.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cassert>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+
+#include "nodes/kernels/x64/registers_pool.hpp"
+#include "openvino/core/except.hpp"
+#include "utils/general_utils.h"
+
 using namespace dnnl::impl::cpu;
 
 namespace ov::intel_cpu::kernel {

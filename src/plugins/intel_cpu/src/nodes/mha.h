@@ -5,14 +5,22 @@
 #pragma once
 
 #include <node.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
 
-#include <cpu/x64/amx_tile_configure.hpp>
-#include <cpu/x64/brgemm/brgemm.hpp>
+#include <cassert>
+#include <cpu/x64/brgemm/brgemm_types.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
-#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

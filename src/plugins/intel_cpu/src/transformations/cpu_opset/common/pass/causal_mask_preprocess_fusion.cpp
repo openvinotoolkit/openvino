@@ -4,22 +4,26 @@
 
 #include "causal_mask_preprocess_fusion.hpp"
 
+#include <cfloat>
+#include <cstddef>
 #include <cstdint>
-#include <limits>
+#include <memory>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/core/rt_info.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/type_relaxed.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 #include "transformations/utils/gen_pattern.hpp"
-#include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
 

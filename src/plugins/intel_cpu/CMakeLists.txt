@@ -280,12 +280,22 @@ endif()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
 endif()
+
+# Xbyak configuration
 if(RISCV64)
     # Set `XBYAK_RISCV_V=1` to compile Xbyak-code for RVV-related instructions
     target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1)
     target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
     target_include_directories(${TARGET_NAME} SYSTEM INTERFACE $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
+    add_definitions(-DXBYAK64)
 endif()
+
+if(X86_64 OR ARM OR AARCH64 OR RISCV64)
+    # TODO: XBYAK64 should be used only for x64. Have to enable it for all the architectures for now
+    # since many files includes x64 related headers unconditionally.
+    add_definitions(-DXBYAK64)
+endif()
+
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation

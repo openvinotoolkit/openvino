@@ -4,13 +4,31 @@
 
 #include "eye.h"
 
-#include <utility>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <utils/bfloat16.hpp>
+#include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/eye.hpp"
-#include "shape_inference/shape_inference.hpp"
+#include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 using namespace ov::intel_cpu;

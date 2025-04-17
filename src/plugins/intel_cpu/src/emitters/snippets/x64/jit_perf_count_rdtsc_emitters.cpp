@@ -1,6 +1,18 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    include "jit_perf_count_rdtsc_emitters.hpp"

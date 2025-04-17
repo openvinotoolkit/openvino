@@ -4,10 +4,18 @@
 
 #include "mha.hpp"
 
+#include <cstddef>
 #include <matmul_shape_inference.hpp>
+#include <memory>
 #include <utility>
 #include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "transformations/itt.hpp"
 

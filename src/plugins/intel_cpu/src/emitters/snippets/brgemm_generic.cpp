@@ -4,8 +4,21 @@
 
 #include "brgemm_generic.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <sstream>
+#include <string>
+#include <tuple>
+
 #include "common/utils.hpp"
-#include "dnnl_extension_utils.h"
+#include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
 #define PRINT(X) ss << #X << " = " << (X) << "\n"

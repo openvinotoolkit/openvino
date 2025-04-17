@@ -4,9 +4,22 @@
 
 #pragma once
 
-#include "emitters/plugin/x64/jit_emitter.hpp"
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+#include "cache/multi_cache.h"
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
 #include "jit_binary_call_emitter.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 

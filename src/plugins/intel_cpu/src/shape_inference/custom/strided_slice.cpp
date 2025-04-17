@@ -4,12 +4,27 @@
 
 #include "strided_slice.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/slice_scatter.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "shape_inference/shape_inference.hpp"
-#include "slice_shape_inference.hpp"
-#include "utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
+#include "slice_shape_inference_utils.hpp"
 
 namespace ov::intel_cpu::node {
 

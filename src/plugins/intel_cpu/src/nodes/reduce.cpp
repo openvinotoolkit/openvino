@@ -4,8 +4,25 @@
 
 #include "reduce.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
 #include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <common/c_types_map.hpp>
+#include <common/primitive_attr.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <limits>
+#include <map>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <set>
 #include <string>
 #include <vector>
@@ -15,16 +32,36 @@
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "cpu/x64/jit_uni_eltwise.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "fake_quantize.h"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset4.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
+
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/reduce_list.hpp"
+#endif
 
 using namespace dnnl;
 

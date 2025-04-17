@@ -4,13 +4,48 @@
 
 #include "mathematics.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <functional>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/acos.hpp"
+#include "openvino/op/acosh.hpp"
+#include "openvino/op/asin.hpp"
+#include "openvino/op/asinh.hpp"
+#include "openvino/op/atan.hpp"
+#include "openvino/op/atanh.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/cosh.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/selu.hpp"
+#include "openvino/op/sign.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/sinh.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/tan.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 

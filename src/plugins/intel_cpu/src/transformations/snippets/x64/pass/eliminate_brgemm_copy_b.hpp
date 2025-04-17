@@ -4,8 +4,14 @@
 
 #pragma once
 
-#include "emitters/snippets/cpu_runtime_configurator.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <utility>
+
+#include "emitters/snippets/repacked_input.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov::intel_cpu::pass {
 

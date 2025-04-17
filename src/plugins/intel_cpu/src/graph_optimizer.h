@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include "cpu_types.h"
 #include "graph.h"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -19,6 +21,7 @@ public:
     void ShareReorders(Graph& graph);
 
 private:
+    void extracted();
     void FuseConvMatmulFCDeconvAndDQScales(Graph& graph);
     void FuseConvolutionMatMulDeconvAndBias(Graph& graph);
     void FuseDeconvolutionAndSimpleOperation(Graph& graph);
