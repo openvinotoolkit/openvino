@@ -257,7 +257,7 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
 }
 
 BlobDumper BlobDumper::read(std::istream& stream) {
-    IEB_HEADER header{};
+    IEB_HEADER header;
     stream.read(reinterpret_cast<char*>(&header), sizeof(header));
 
     const auto desc = parse_header(header);

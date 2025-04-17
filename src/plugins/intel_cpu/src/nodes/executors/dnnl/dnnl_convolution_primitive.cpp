@@ -275,8 +275,8 @@ static std::tuple<primitive_desc, size_t> selectPrimitiveDescWithMultipleAttribu
 
     struct PrimitiveDescWithPriority {
         dnnl::primitive_desc prim_desc;
-        size_t attrId{};
-        size_t priority{};
+        size_t attrId;
+        size_t priority;
     };
 
     PrimitiveDescWithPriority prim_desc_w_priority{dnnl::primitive_desc(), 0, implPriorities.size()};

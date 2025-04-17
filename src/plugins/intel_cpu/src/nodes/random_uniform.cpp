@@ -474,7 +474,7 @@ inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res)
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, float min, float range, float* out, size_t el_to_copy) {
-    RandomUniform::OutputType out_val{};
+    RandomUniform::OutputType out_val;
 
     for (size_t i = 0lu; i < el_to_copy; i++) {
         out_val.u32 = 0x3f800000 | (in[i] & 0x7fffffu);
@@ -483,7 +483,7 @@ inline void convertToOutputTypePhilox(const uint32_t* in, float min, float range
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, float16 min, float16 range, float16* out, size_t el_to_copy) {
-    RandomUniform::OutputType out_val{};
+    RandomUniform::OutputType out_val;
 
     for (size_t i = 0lu; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
@@ -497,7 +497,7 @@ inline void convertToOutputTypePhilox(const uint32_t* in,
                                       bfloat16 range,
                                       bfloat16* out,
                                       size_t el_to_copy) {
-    RandomUniform::OutputType out_val{};
+    RandomUniform::OutputType out_val;
 
     for (size_t i = 0lu; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);

@@ -178,7 +178,7 @@ public:
 
     WeightBuffer wbuffer;
 
-    GateUpCombine* jit_gateup = nullptr;
+    GateUpCombine* jit_gateup;
 
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up

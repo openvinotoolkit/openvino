@@ -113,7 +113,7 @@ private:
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_input_external_ptr;
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_output_external_ptr;
 
-    openvino::itt::handle_t m_profiling_task = nullptr;
+    openvino::itt::handle_t m_profiling_task;
     std::vector<MemStatePtr> m_memory_states;
     AsyncInferRequest* m_asyncRequest = nullptr;
     CompiledModelHolder m_compiled_model;

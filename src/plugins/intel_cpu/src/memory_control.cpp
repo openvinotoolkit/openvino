@@ -374,7 +374,7 @@ std::pair<int64_t, int64_t> calculateOptimalMemorySize(std::vector<MemorySolver:
 }
 
 MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerIO& obj) {
-    MemoryStatisticsRecord retVal{};
+    MemoryStatisticsRecord retVal;
     retVal.id = MemoryManagerIO::getClassName();
     retVal.total_regions = obj.m_blocks.size();  // as the number of blocks ie equal to regions
     retVal.total_unique_blocks = obj.m_blocks.size();
@@ -395,7 +395,7 @@ MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerIO& obj) {
 }
 
 MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerStatic& obj) {
-    MemoryStatisticsRecord retVal{};
+    MemoryStatisticsRecord retVal;
     retVal.id = MemoryManagerStatic::getClassName();
     retVal.total_regions = obj.m_boxes.size();
     retVal.total_unique_blocks = 1;  // in fact there is only one unique block
@@ -414,7 +414,7 @@ MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerNonOverlappingSets&
     static_assert(std::is_same_v<MemoryManagerNonOverlappingSets::InternalBlock, IndividualMemoryBlockWithRelease>,
                   "Unexpected block type");
 
-    MemoryStatisticsRecord retVal{};
+    MemoryStatisticsRecord retVal;
     retVal.id = MemoryManagerNonOverlappingSets::getClassName();
     retVal.total_regions = obj.m_boxes.size();
 
