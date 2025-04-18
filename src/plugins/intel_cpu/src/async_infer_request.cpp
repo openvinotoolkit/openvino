@@ -11,7 +11,7 @@ ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
     const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : ov::IAsyncInferRequest(request, task_executor, callback_executor) {
-    static_cast<SyncInferRequest*>(request.get())->set_async_request(this);
+    dynamic_cast<SyncInferRequest*>(request.get())->set_async_request(this);
 }
 
 ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
