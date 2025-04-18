@@ -6,6 +6,7 @@
 #include "common_test_utils/test_enums.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/one_hot.hpp"
 
 using namespace CPUTestUtils;
 

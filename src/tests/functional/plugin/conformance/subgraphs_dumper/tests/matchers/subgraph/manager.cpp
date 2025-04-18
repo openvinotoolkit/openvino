@@ -5,8 +5,10 @@
 #include "matchers/subgraph/manager.hpp"
 #include "matchers/subgraph/subgraph.hpp"
 #include "base_test.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
-#include "openvino/op/ops.hpp"
 
 namespace {
 

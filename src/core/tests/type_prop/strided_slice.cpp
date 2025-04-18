@@ -7,8 +7,10 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "strided_slice_shape_inference.hpp"
 
 using namespace std;

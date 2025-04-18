@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
-import openvino.runtime as ov
+import openvino as ov
 import os
 import sys
 import pytest
@@ -12,7 +12,7 @@ from common import constants
 from common.layer_test_class import CommonLayerTest
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.utils.tf_utils import save_to_pb
-from openvino.runtime import PartialShape, Model, Dimension
+from openvino import PartialShape, Model, Dimension
 from openvino.test_utils import compare_functions
 from pathlib import Path
 
@@ -747,7 +747,7 @@ class TestMoConvertTF(CommonMOConvertTest):
 
     def test_zero_copy(self, ie_device, precision, ir_version, temp_dir):
         from openvino.tools.ovc import convert_model
-        from openvino.runtime import compile_model
+        from openvino import compile_model
         class LayerModel(tf.Module):
             def __init__(self):
                 super(LayerModel, self).__init__()
@@ -794,7 +794,7 @@ class TestMoConvertTF(CommonMOConvertTest):
 
     def test_turn_off_sharing(self, ie_device, precision, ir_version, temp_dir):
         from openvino.tools.ovc import convert_model
-        from openvino.runtime import compile_model
+        from openvino import compile_model
         class LayerModel(tf.Module):
             def __init__(self):
                 super(LayerModel, self).__init__()
@@ -845,7 +845,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         tf.compat.v1.reset_default_graph()
 
         from openvino.tools.ovc import convert_model
-        from openvino.runtime import compile_model
+        from openvino import compile_model
         import gc
 
         with tf.compat.v1.Session() as sess:
@@ -896,7 +896,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         tf.compat.v1.reset_default_graph()
 
         from openvino.tools.ovc import convert_model
-        from openvino.runtime import compile_model
+        from openvino import compile_model
 
         class LayerModel(tf.Module):
             def __init__(self):
@@ -935,7 +935,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         tf.compat.v1.reset_default_graph()
 
         from openvino.tools.ovc import convert_model
-        from openvino.runtime import compile_model
+        from openvino import compile_model
 
         class LayerModel(tf.Module):
             def __init__(self):

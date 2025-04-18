@@ -11,7 +11,16 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/hswish.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
@@ -33,7 +42,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluDivF16) {
         auto div_constant = opset7::Constant::create(element::f16, Shape{}, {6.0});
         auto div = std::make_shared<opset7::Divide>(mul, div_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSwishFusion>();
     }
@@ -42,7 +51,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluDivF16) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hswish = std::make_shared<opset7::HSwish>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hswish}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hswish}, ParameterVector{input});
     }
 }
 
@@ -58,7 +67,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluDivF32) {
         auto div_constant = opset7::Constant::create(element::f32, Shape{}, {6.0});
         auto div = std::make_shared<opset7::Divide>(mul, div_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSwishFusion>();
     }
@@ -67,7 +76,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluDivF32) {
         auto input = std::make_shared<opset7::Parameter>(element::f32, Shape{});
         auto hswish = std::make_shared<opset7::HSwish>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hswish}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hswish}, ParameterVector{input});
     }
 }
 
@@ -83,7 +92,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluMul) {
         auto mul_constant = opset7::Constant::create(element::f16, Shape{}, {0.1666666716});
         auto mul_second = std::make_shared<opset7::Multiply>(mul_first, mul_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul_second}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul_second}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSwishFusion>();
     }
@@ -92,7 +101,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluMul) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hswish = std::make_shared<opset7::HSwish>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hswish}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hswish}, ParameterVector{input});
     }
 }
 
@@ -109,7 +118,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithoutRelu) {
         auto div = std::make_shared<opset7::Divide>(min, div_constant);
         auto mul = std::make_shared<opset7::Multiply>(input, div);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         auto gr = manager.register_pass<pass::GraphRewrite>();
         gr->add_matcher<ov::pass::HSigmoidFusion>();
@@ -120,7 +129,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithoutRelu) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hswish = std::make_shared<opset7::HSwish>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hswish}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hswish}, ParameterVector{input});
     }
 }
 
@@ -134,7 +143,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampMul) {
         auto mul_first = std::make_shared<opset7::Multiply>(clamp, mul_constant);
         auto mul_second = std::make_shared<opset7::Multiply>(input, mul_first);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul_second}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul_second}, ParameterVector{input});
 
         auto gr = manager.register_pass<pass::GraphRewrite>();
         gr->add_matcher<ov::pass::HSigmoidFusion>();
@@ -145,7 +154,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampMul) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hswish = std::make_shared<opset7::HSwish>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hswish}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hswish}, ParameterVector{input});
     }
 }
 
@@ -159,7 +168,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampDiv) {
         auto div = std::make_shared<opset7::Divide>(clamp, div_constant);
         auto mul = std::make_shared<opset7::Multiply>(input, div);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         auto gr = manager.register_pass<pass::GraphRewrite>();
         gr->add_matcher<ov::pass::HSigmoidFusion>();
@@ -170,7 +179,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampDiv) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hswish = std::make_shared<opset7::HSwish>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hswish}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hswish}, ParameterVector{input});
     }
 }
 
@@ -186,7 +195,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluMulWrongConstValue) {
         auto mul_constant = opset7::Constant::create(element::f16, Shape{}, {0.167});
         auto mul_second = std::make_shared<opset7::Multiply>(mul_first, mul_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul_second}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul_second}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSwishFusion>();
     }
@@ -202,7 +211,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluMulWrongConstValue) {
         auto mul_constant = opset7::Constant::create(element::f16, Shape{}, {0.167});
         auto mul_second = std::make_shared<opset7::Multiply>(mul_first, mul_constant);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul_second}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul_second}, ParameterVector{input});
     }
 }
 
@@ -218,7 +227,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluDivWrongConstValue) {
         auto div_constant = opset7::Constant::create(element::f16, Shape{}, {0.1});
         auto div = std::make_shared<opset7::Divide>(mul, div_constant);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSwishFusion>();
     }
@@ -234,7 +243,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluDivWrongConstValue) {
         auto div_constant = opset7::Constant::create(element::f16, Shape{}, {0.0});
         auto div = std::make_shared<opset7::Divide>(mul, div_constant);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
     }
 }
 
@@ -251,7 +260,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithoutReluWrongConstValue) {
         auto div = std::make_shared<opset7::Divide>(min, div_constant);
         auto mul = std::make_shared<opset7::Multiply>(input, div);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         auto gr = manager.register_pass<pass::GraphRewrite>();
         gr->add_matcher<ov::pass::HSigmoidFusion>();
@@ -270,7 +279,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithoutReluWrongConstValue) {
         auto div = std::make_shared<opset7::Divide>(min, div_constant);
         auto mul = std::make_shared<opset7::Multiply>(input, div);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
     }
 }
 
@@ -284,7 +293,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampWrongConstValue) {
         auto mul_first = std::make_shared<opset7::Multiply>(clamp, mul_constant);
         auto mul_second = std::make_shared<opset7::Multiply>(input, mul_first);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul_second}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul_second}, ParameterVector{input});
 
         auto gr = manager.register_pass<pass::GraphRewrite>();
         gr->add_matcher<ov::pass::HSigmoidFusion>();
@@ -300,7 +309,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampWrongConstValue) {
         auto mul_first = std::make_shared<opset7::Multiply>(clamp, mul_constant);
         auto mul_second = std::make_shared<opset7::Multiply>(input, mul_first);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul_second}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul_second}, ParameterVector{input});
     }
 }
 
@@ -310,7 +319,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithHSigmoidMul) {
         auto hsigmoid = std::make_shared<opset7::HSigmoid>(input);
         auto mul = std::make_shared<opset7::Multiply>(input, hsigmoid);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         manager.register_pass<ov::pass::HSwishFusion>();
     }
@@ -319,7 +328,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithHSigmoidMul) {
         auto input = std::make_shared<opset7::Parameter>(element::f16, PartialShape::dynamic(1));
         auto hswish = std::make_shared<opset7::HSwish>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{hswish}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{hswish}, ParameterVector{input});
     }
 }
 
@@ -331,7 +340,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClamp) {
         auto clamp = std::make_shared<opset7::Clamp>(add, 0.0f, 6.0f);
         auto mul = std::make_shared<opset7::Multiply>(input, clamp);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         auto gr = manager.register_pass<pass::GraphRewrite>();
         gr->add_matcher<ov::pass::HSwishFusion>();
@@ -343,7 +352,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClamp) {
         auto mul_const = opset7::Constant::create(element::f16, Shape{}, {6.0});
         auto mul = std::make_shared<opset7::Multiply>(hswish, mul_const);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
     }
 }
 
@@ -355,7 +364,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampWithWrongConstant) {
         auto clamp = std::make_shared<opset7::Clamp>(add, 0.11f, 6.32f);
         auto mul = std::make_shared<opset7::Multiply>(input, clamp);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         auto gr = manager.register_pass<pass::GraphRewrite>();
         gr->add_matcher<ov::pass::HSwishFusion>();
@@ -368,6 +377,6 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampWithWrongConstant) {
         auto clamp = std::make_shared<opset7::Clamp>(add, 0.11f, 6.32f);
         auto mul = std::make_shared<opset7::Multiply>(input, clamp);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
     }
 }

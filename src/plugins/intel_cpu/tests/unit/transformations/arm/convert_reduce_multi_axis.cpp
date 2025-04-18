@@ -4,20 +4,25 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset7.hpp>
+#include <openvino/pass/manager.hpp>
+#include <ov_ops/type_relaxed.hpp>
+#include <string>
 #include <transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <openvino/pass/manager.hpp>
-#include <ov_ops/type_relaxed.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
@@ -29,7 +34,7 @@ template <class T>
 static std::shared_ptr<ov::Model> createInitGraph(std::shared_ptr<ov::opset1::Parameter> param) {
         auto axes = ov::opset1::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
         auto reduce = std::make_shared<T>(param, axes, true);
-        return std::make_shared<ov::Model>(ov::NodeVector{ reduce }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{reduce}, ov::ParameterVector{param});
 }
 
 template <class T>
@@ -42,7 +47,7 @@ static std::shared_ptr<ov::Model> createRefGraph(ov::Shape param_shape) {
             node = std::make_shared<T>(node, reduction_axis, true);
         }
 
-        return std::make_shared<ov::Model>(ov::NodeVector{ node }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{param});
 }
 
 template <class T>

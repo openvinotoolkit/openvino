@@ -3,6 +3,8 @@
 //
 #include "utils/generate_static_shapes.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/op/ops.hpp"
+
 
 namespace ov {
 namespace test {

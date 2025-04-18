@@ -4,6 +4,7 @@
 
 #include "transformations/uninitialized_variable_resolve.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/frontend/tensorflow/hash_table.hpp"
 #include "openvino/frontend/tensorflow/variable.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"

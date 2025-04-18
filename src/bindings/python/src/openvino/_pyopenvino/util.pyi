@@ -1,11 +1,11 @@
 # type: ignore
-"""
-openvino.utils
-"""
 from __future__ import annotations
 import numpy
 import openvino._pyopenvino
 import typing
+"""
+openvino.utils
+"""
 __all__ = ['deprecation_warning', 'numpy_to_c', 'replace_node', 'replace_output_update_name']
 def deprecation_warning(function_name: str, version: str = '', message: str = '', stacklevel: int = 2) -> None:
     """

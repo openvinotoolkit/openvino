@@ -142,7 +142,7 @@ private:
                                                                        params.dialations,
                                                                        auto_pad,
                                                                        params.outPadding);
-            return std::make_shared<ov::Model>(NodeVector{GroupConvolutionBackpropData}, ParameterVector{in, filter});
+            return std::make_shared<ov::Model>(OutputVector{GroupConvolutionBackpropData}, ParameterVector{in, filter});
         } else {
             const auto GroupConvolutionBackpropData =
                 std::make_shared<op::v1::GroupConvolutionBackpropData>(in,
@@ -152,7 +152,7 @@ private:
                                                                        params.padEnd,
                                                                        params.dialations,
                                                                        auto_pad);
-            return std::make_shared<ov::Model>(NodeVector{GroupConvolutionBackpropData}, ParameterVector{in, filter});
+            return std::make_shared<ov::Model>(OutputVector{GroupConvolutionBackpropData}, ParameterVector{in, filter});
         }
     }
 };
@@ -197,7 +197,7 @@ private:
                                                                    params.strides,
                                                                    params.dialations,
                                                                    auto_pad);
-        return std::make_shared<ov::Model>(NodeVector{GroupConvolutionBackpropData}, ParameterVector{in, filter});
+        return std::make_shared<ov::Model>(OutputVector{GroupConvolutionBackpropData}, ParameterVector{in, filter});
     }
 };
 

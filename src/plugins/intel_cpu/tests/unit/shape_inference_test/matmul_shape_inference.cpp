@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include "utils.hpp"
+#include "openvino/op/matmul.hpp"
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;

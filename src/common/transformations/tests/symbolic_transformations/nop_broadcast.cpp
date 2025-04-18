@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, NopBroadcastOpset1) {
         auto broadcast = make_shared<v1::Broadcast>(data, maximum);
         auto relu = make_shared<v0::Relu>(broadcast);
 
-        model = make_shared<Model>(NodeVector{relu}, ParameterVector{data, symbol_input});
+        model = make_shared<Model>(OutputVector{relu}, ParameterVector{data, symbol_input});
         manager.register_pass<pass::NopBroadcast>();
     }
     {
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, NopBroadcastOpset1) {
 
         auto symbol_input = make_shared<v0::Parameter>(element::f32, shape);
 
-        model_ref = make_shared<Model>(NodeVector{relu}, ParameterVector{data, symbol_input});
+        model_ref = make_shared<Model>(OutputVector{relu}, ParameterVector{data, symbol_input});
     }
 }
 
@@ -62,7 +62,7 @@ TEST_F(TransformationTestsF, NopBroadcastOpset3) {
         auto broadcast = make_shared<v3::Broadcast>(data, maximum);
         auto relu = make_shared<v0::Relu>(broadcast);
 
-        model = make_shared<Model>(NodeVector{relu}, ParameterVector{data, symbol_input});
+        model = make_shared<Model>(OutputVector{relu}, ParameterVector{data, symbol_input});
         manager.register_pass<pass::NopBroadcast>();
     }
     {
@@ -71,7 +71,7 @@ TEST_F(TransformationTestsF, NopBroadcastOpset3) {
 
         auto symbol_input = make_shared<v0::Parameter>(element::f32, shape);
 
-        model_ref = make_shared<Model>(NodeVector{relu}, ParameterVector{data, symbol_input});
+        model_ref = make_shared<Model>(OutputVector{relu}, ParameterVector{data, symbol_input});
     }
 }
 
@@ -90,7 +90,7 @@ TEST_F(TransformationTestsF, NopBroadcastNegative) {
         auto broadcast = make_shared<v1::Broadcast>(data, maximum);
         auto relu = make_shared<v0::Relu>(broadcast);
 
-        model = make_shared<Model>(NodeVector{relu}, ParameterVector{data, symbol_input});
+        model = make_shared<Model>(OutputVector{relu}, ParameterVector{data, symbol_input});
         manager.register_pass<pass::NopBroadcast>();
     }
 }

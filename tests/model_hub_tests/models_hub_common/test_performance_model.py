@@ -7,7 +7,7 @@ import traceback
 import time
 from enum import Enum
 import pytest
-from openvino.runtime.utils.types import openvino_to_numpy_types_map
+from openvino.utils.types import openvino_to_numpy_types_map
 import models_hub_common.utils as utils
 import models_hub_common.constants as const
 
@@ -16,7 +16,7 @@ import numpy as np
 import openvino as ov
 import pytest
 from models_hub_common.multiprocessing_utils import multiprocessing_run
-from openvino.runtime.utils.types import openvino_to_numpy_types_map
+from openvino.utils.types import openvino_to_numpy_types_map
 
 # set seed to have deterministic input data generation
 # to avoid sporadic issues in inference results

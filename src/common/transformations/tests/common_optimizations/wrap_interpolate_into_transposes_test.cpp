@@ -11,7 +11,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/init_node_info.hpp"
@@ -41,7 +45,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScales) {
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -59,7 +63,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScales) {
             std::make_shared<opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
         auto last_transpose = std::make_shared<opset8::Transpose>(interpolate, last_transpose_perm);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{last_transpose}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{last_transpose}, ParameterVector{input});
     }
 }
 
@@ -84,7 +88,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizes) {
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -102,7 +106,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizes) {
             std::make_shared<opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
         auto last_transpose = std::make_shared<opset8::Transpose>(interpolate, last_transpose_perm);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{last_transpose}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{last_transpose}, ParameterVector{input});
     }
 }
 
@@ -127,7 +131,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScales) {
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -145,7 +149,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScales) {
             std::make_shared<opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
         auto last_transpose = std::make_shared<opset8::Transpose>(interpolate, last_transpose_perm);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{last_transpose}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{last_transpose}, ParameterVector{input});
     }
 }
 
@@ -170,7 +174,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizes) {
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -188,7 +192,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizes) {
             std::make_shared<opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
         auto last_transpose = std::make_shared<opset8::Transpose>(interpolate, last_transpose_perm);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{last_transpose}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{last_transpose}, ParameterVector{input});
     }
 }
 
@@ -213,7 +217,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesDynamic) {
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -231,7 +235,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesDynamic) {
             std::make_shared<opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
         auto last_transpose = std::make_shared<opset8::Transpose>(interpolate, last_transpose_perm);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{last_transpose}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{last_transpose}, ParameterVector{input});
     }
 }
 
@@ -256,7 +260,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizesDynamic) {
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -274,7 +278,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizesDynamic) {
             std::make_shared<opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
         auto last_transpose = std::make_shared<opset8::Transpose>(interpolate, last_transpose_perm);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{last_transpose}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{last_transpose}, ParameterVector{input});
     }
 }
 
@@ -299,7 +303,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScalesDynamic) {
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -317,7 +321,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScalesDynamic) {
             std::make_shared<opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
         auto last_transpose = std::make_shared<opset8::Transpose>(interpolate, last_transpose_perm);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{last_transpose}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{last_transpose}, ParameterVector{input});
     }
 }
 
@@ -342,7 +346,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizesDynamic) {
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -360,7 +364,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizesDynamic) {
             std::make_shared<opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
         auto last_transpose = std::make_shared<opset8::Transpose>(interpolate, last_transpose_perm);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{last_transpose}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{last_transpose}, ParameterVector{input});
     }
 }
 
@@ -393,7 +397,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesNotApplicable)
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -412,7 +416,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesNotApplicable)
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -445,7 +449,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizesNotApplicable) 
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -464,7 +468,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizesNotApplicable) 
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -497,7 +501,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScalesNotApplicable)
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -516,7 +520,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScalesNotApplicable)
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -549,7 +553,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizesNotApplicable) 
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
-        model = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
@@ -568,6 +572,6 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizesNotApplicable) 
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }

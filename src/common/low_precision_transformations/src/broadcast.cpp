@@ -5,14 +5,14 @@
 #include "low_precision/broadcast.hpp"
 
 #include <memory>
-
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
 
 using namespace ov::pass::low_precision;
 

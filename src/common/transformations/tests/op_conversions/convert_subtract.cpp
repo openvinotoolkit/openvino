@@ -7,7 +7,10 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -22,7 +25,7 @@ TEST_F(TransformationTestsF, ConvertSubtract) {
         auto data2 = std::make_shared<opset8::Parameter>(element::f32, Shape{2});
         auto sub2 = std::make_shared<opset8::Subtract>(data1, data2);
 
-        model = std::make_shared<Model>(NodeVector{sub1, sub2}, ParameterVector{data1, data2});
+        model = std::make_shared<Model>(OutputVector{sub1, sub2}, ParameterVector{data1, data2});
 
         manager.register_pass<pass::ConvertSubtract>();
     }
@@ -35,7 +38,7 @@ TEST_F(TransformationTestsF, ConvertSubtract) {
         auto neg = std::make_shared<opset8::Multiply>(data2, opset8::Constant::create(element::f32, Shape{}, {-1}));
         auto add2 = std::make_shared<opset8::Add>(data1, neg);
 
-        model_ref = std::make_shared<Model>(NodeVector{add1, add2}, ParameterVector{data1, data2});
+        model_ref = std::make_shared<Model>(OutputVector{add1, add2}, ParameterVector{data1, data2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -49,7 +52,7 @@ TEST_F(TransformationTestsF, ConvertSubtractWithConstant) {
         auto data2 = std::make_shared<opset8::Parameter>(element::f32, Shape{2});
         auto sub2 = std::make_shared<opset8::Subtract>(data1, data2);
 
-        model = std::make_shared<Model>(NodeVector{sub1, sub2}, ParameterVector{data1, data2});
+        model = std::make_shared<Model>(OutputVector{sub1, sub2}, ParameterVector{data1, data2});
 
         manager.register_pass<pass::ConvertSubtractWithConstant>();
     }
@@ -61,7 +64,7 @@ TEST_F(TransformationTestsF, ConvertSubtractWithConstant) {
         auto data2 = std::make_shared<opset8::Parameter>(element::f32, Shape{2});
         auto sub = std::make_shared<opset8::Subtract>(data1, data2);
 
-        model_ref = std::make_shared<Model>(NodeVector{add, sub}, ParameterVector{data1, data2});
+        model_ref = std::make_shared<Model>(OutputVector{add, sub}, ParameterVector{data1, data2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);

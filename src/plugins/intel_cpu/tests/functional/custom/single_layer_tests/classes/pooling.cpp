@@ -6,6 +6,8 @@
 #include "pooling.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/max_pool.hpp"
 
 using namespace CPUTestUtils;
 

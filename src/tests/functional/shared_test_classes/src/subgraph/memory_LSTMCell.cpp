@@ -12,6 +12,12 @@
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace ov {
 namespace test {

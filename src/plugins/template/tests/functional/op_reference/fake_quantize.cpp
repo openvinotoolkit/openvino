@@ -103,13 +103,13 @@ private:
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         if (broadcast == op::AutoBroadcastType::NONE) {
             return std::make_shared<Model>(
-                NodeVector{
+                OutputVector{
                     std::make_shared<op::v0::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels)},
                 ParameterVector{in});
 
         } else {
             return std::make_shared<Model>(
-                NodeVector{std::make_shared<
+                OutputVector{std::make_shared<
                     op::v0::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels, broadcast)},
                 ParameterVector{in});
         }

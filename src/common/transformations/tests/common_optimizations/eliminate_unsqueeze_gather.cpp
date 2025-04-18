@@ -48,13 +48,13 @@ protected:
                                                          v0::Constant::create(element::i64, Shape{1}, {0}),
                                                          v0::Constant::create(element::i64, Shape{1}, {axis}));
         const auto relu = std::make_shared<v0::Relu>(gather);
-        return std::make_shared<Model>(NodeVector{relu}, ParameterVector{parameter}, "Actual");
+        return std::make_shared<Model>(OutputVector{relu}, ParameterVector{parameter}, "Actual");
     }
 
     static std::shared_ptr<Model> reference(const TensorShape& inShape, const TensorType& inType) {
         const auto parameter = std::make_shared<v0::Parameter>(inType, inShape);
         const auto relu = std::make_shared<v0::Relu>(parameter);
-        return std::make_shared<Model>(NodeVector{relu}, ParameterVector{parameter}, "Reference");
+        return std::make_shared<Model>(OutputVector{relu}, ParameterVector{parameter}, "Reference");
     }
 };
 

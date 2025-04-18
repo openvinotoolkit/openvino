@@ -11,6 +11,8 @@
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace {
 using ov::test::InputShape;

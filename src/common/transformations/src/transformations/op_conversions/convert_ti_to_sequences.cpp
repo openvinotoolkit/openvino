@@ -1156,7 +1156,7 @@ ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithS
 
     auto loop_label = pattern::wrap_type<ov::op::v5::Loop>();
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto loop = ov::as_type_ptr<ov::op::v5::Loop>(m.get_match_root());
         if (!loop) {
             return false;

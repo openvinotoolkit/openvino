@@ -7,6 +7,12 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/parameter.hpp"
 #include "utils.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/not_equal.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

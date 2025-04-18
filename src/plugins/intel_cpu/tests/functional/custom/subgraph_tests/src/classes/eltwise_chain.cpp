@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include "openvino/op/convert.hpp"
 
 using namespace CPUTestUtils;
 

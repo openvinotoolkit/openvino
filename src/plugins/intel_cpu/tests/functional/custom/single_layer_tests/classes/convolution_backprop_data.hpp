@@ -12,7 +12,6 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/fusing_test_utils.hpp"
-#include <openvino/opsets/opset8.hpp>
 
 using namespace CPUTestUtils;
 namespace ov {

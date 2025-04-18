@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "utils.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

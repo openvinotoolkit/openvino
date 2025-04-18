@@ -8,7 +8,7 @@ import sys
 import tempfile
 
 import numpy as np
-import openvino.runtime.opset12 as ops
+import openvino.opset12 as ops
 import pytest
 import torch
 from openvino import convert_model, Model, PartialShape, Type

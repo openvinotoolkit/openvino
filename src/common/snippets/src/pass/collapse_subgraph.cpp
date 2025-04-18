@@ -232,7 +232,7 @@ TokenizeSnippets::TokenizeSnippets(const SnippetsTokenization::Config& config) {
                     ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v1::Transpose>(n)) &&
                    AppropriateForSubgraph(n);
         });
-    ov::graph_rewrite_callback callback = [=](ov::pass::pattern::Matcher &m) -> bool {
+    ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
         auto node = m.get_match_root();
         if (transformation_callback(node)) {

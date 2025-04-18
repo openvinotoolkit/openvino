@@ -6,6 +6,7 @@
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/tile.hpp"
 
 namespace ov {
 namespace test {
@@ -28,7 +29,7 @@ protected:
         const auto add1 = utils::make_eltwise(tile->output(0), const1, utils::EltwiseTypes::ADD);
         const auto add2 = utils::make_eltwise(tile->output(0), const2, utils::EltwiseTypes::ADD);
 
-        NodeVector results{add1, add2};
+        OutputVector results{add1, add2};
         function = std::make_shared<ov::Model>(results, inputParams, "TileWithTwoOutputEdges");
     }
 };

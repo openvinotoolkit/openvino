@@ -9,9 +9,6 @@
 #include <cstdint>
 #include <limits>
 #include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset13.hpp>
-#include <openvino/opsets/opset6.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
@@ -19,7 +16,18 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"

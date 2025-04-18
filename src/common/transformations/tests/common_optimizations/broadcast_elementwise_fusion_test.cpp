@@ -13,7 +13,11 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -53,7 +57,7 @@ public:
         auto input_shape_node = opset5::Constant::create(element::i64, Shape{broadcast_shape.size()}, broadcast_shape);
         auto broadcast = std::make_shared<opset5::Broadcast>(input2, input_shape_node);
         auto elementwise = std::make_shared<opset5::Multiply>(input1, broadcast);
-        return std::make_shared<ov::Model>(NodeVector{elementwise}, ParameterVector{input1, input2});
+        return std::make_shared<ov::Model>(OutputVector{elementwise}, ParameterVector{input1, input2});
     }
 
     std::shared_ptr<Model> get_reference(const InputShape& input_shape, const InputShape& broadcast_output_shape) {
@@ -61,7 +65,7 @@ public:
         auto ref_input2 = std::make_shared<opset5::Parameter>(element::f32, broadcast_output_shape);
         auto ref_elementwise = std::make_shared<opset5::Multiply>(ref_input1, ref_input2);
 
-        return std::make_shared<ov::Model>(NodeVector{ref_elementwise}, ParameterVector{ref_input1, ref_input2});
+        return std::make_shared<ov::Model>(OutputVector{ref_elementwise}, ParameterVector{ref_input1, ref_input2});
     }
 };
 
@@ -88,7 +92,7 @@ public:
         auto input_shape_node = opset5::Constant::create(element::i64, Shape{broadcast_shape.size()}, broadcast_shape);
         auto broadcast = std::make_shared<opset5::Broadcast>(input2, input_shape_node);
         auto elementwise = std::make_shared<opset5::Multiply>(broadcast, input1);
-        return std::make_shared<ov::Model>(NodeVector{elementwise}, ParameterVector{input1, input2});
+        return std::make_shared<ov::Model>(OutputVector{elementwise}, ParameterVector{input1, input2});
     }
 
     std::shared_ptr<Model> get_reference(const InputShape& input_shape, const InputShape& broadcast_output_shape) {
@@ -96,7 +100,7 @@ public:
         auto ref_input2 = std::make_shared<opset5::Parameter>(element::f32, broadcast_output_shape);
         auto ref_elementwise = std::make_shared<opset5::Multiply>(ref_input2, ref_input1);
 
-        return std::make_shared<ov::Model>(NodeVector{ref_elementwise}, ParameterVector{ref_input1, ref_input2});
+        return std::make_shared<ov::Model>(OutputVector{ref_elementwise}, ParameterVector{ref_input1, ref_input2});
     }
 };
 
@@ -122,7 +126,7 @@ public:
         auto input_shape_node = opset5::Constant::create(element::i64, Shape{broadcast_shape.size()}, broadcast_shape);
         auto broadcast = std::make_shared<opset5::Broadcast>(input2, input_shape_node);
         auto elementwise = std::make_shared<opset5::Multiply>(input1, broadcast);
-        return std::make_shared<ov::Model>(NodeVector{elementwise}, ParameterVector{input1, input2});
+        return std::make_shared<ov::Model>(OutputVector{elementwise}, ParameterVector{input1, input2});
     }
 
     std::shared_ptr<Model> get_reference(const InputShape& input_shape,
@@ -135,7 +139,7 @@ public:
         auto ref_broadcast = std::make_shared<opset5::Broadcast>(ref_input2, ref_input_shape_node);
         auto ref_elementwise = std::make_shared<opset5::Multiply>(ref_input1, ref_broadcast);
 
-        return std::make_shared<ov::Model>(NodeVector{ref_elementwise}, ParameterVector{ref_input1, ref_input2});
+        return std::make_shared<ov::Model>(OutputVector{ref_elementwise}, ParameterVector{ref_input1, ref_input2});
     }
 };
 
@@ -164,7 +168,8 @@ public:
             std::make_shared<opset5::Parameter>(element::i64, Shape{(size_t)(broadcast_shape.rank().get_length())});
         auto broadcast = std::make_shared<opset5::Broadcast>(input2, input_shape_node);
         auto elementwise = std::make_shared<opset5::Multiply>(input1, broadcast);
-        return std::make_shared<ov::Model>(NodeVector{elementwise}, ParameterVector{input1, input2, input_shape_node});
+        return std::make_shared<ov::Model>(OutputVector{elementwise},
+                                           ParameterVector{input1, input2, input_shape_node});
     }
 
     std::shared_ptr<Model> get_reference(const InputShape& input_shape, const InputShape& broadcast_output_shape) {
@@ -172,7 +177,7 @@ public:
         auto ref_input2 = std::make_shared<opset5::Parameter>(element::f32, broadcast_output_shape);
         auto ref_elementwise = std::make_shared<opset5::Multiply>(ref_input1, ref_input2);
 
-        return std::make_shared<ov::Model>(NodeVector{ref_elementwise}, ParameterVector{ref_input1, ref_input2});
+        return std::make_shared<ov::Model>(OutputVector{ref_elementwise}, ParameterVector{ref_input1, ref_input2});
     }
 };
 
@@ -200,7 +205,8 @@ public:
             std::make_shared<opset5::Parameter>(element::i64, Shape{(size_t)(broadcast_shape.rank().get_length())});
         auto broadcast = std::make_shared<opset5::Broadcast>(input2, input_shape_node);
         auto elementwise = std::make_shared<opset5::Multiply>(input1, broadcast);
-        return std::make_shared<ov::Model>(NodeVector{elementwise}, ParameterVector{input1, input2, input_shape_node});
+        return std::make_shared<ov::Model>(OutputVector{elementwise},
+                                           ParameterVector{input1, input2, input_shape_node});
     }
 
     std::shared_ptr<Model> get_reference(const InputShape& input_shape,
@@ -213,7 +219,7 @@ public:
         auto ref_broadcast = std::make_shared<opset5::Broadcast>(ref_input2, ref_input_shape_node);
         auto ref_elementwise = std::make_shared<opset5::Multiply>(ref_input1, ref_broadcast);
 
-        return std::make_shared<ov::Model>(NodeVector{ref_elementwise},
+        return std::make_shared<ov::Model>(OutputVector{ref_elementwise},
                                            ParameterVector{ref_input1, ref_input2, ref_input_shape_node});
     }
 };
@@ -288,7 +294,7 @@ TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOf) {
         auto shape_of = std::make_shared<opset5::ShapeOf>(input);
         auto broadcast = std::make_shared<opset5::Broadcast>(input, shape_of);
         auto elementwise = std::make_shared<opset5::Multiply>(input, broadcast);
-        model = std::make_shared<ov::Model>(NodeVector{elementwise}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{elementwise}, ParameterVector{input});
 
         manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     }
@@ -296,7 +302,7 @@ TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOf) {
     {
         auto input = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3});
         auto elementwise = std::make_shared<opset5::Multiply>(input, input);
-        model_ref = std::make_shared<ov::Model>(NodeVector{elementwise}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{elementwise}, ParameterVector{input});
     }
 }
 
@@ -306,7 +312,7 @@ TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOfNeg) {
         auto shape_of = std::make_shared<opset5::ShapeOf>(input);
         auto broadcast = std::make_shared<opset5::Broadcast>(input, shape_of);
         auto elementwise = std::make_shared<opset5::Multiply>(input, broadcast);
-        model = std::make_shared<ov::Model>(NodeVector{elementwise, broadcast}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{elementwise, broadcast}, ParameterVector{input});
 
         manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     }
@@ -319,7 +325,7 @@ TEST_F(TransformationTestsF, BroadcastElementwiseFusionDynShapesDifferentRanks) 
         auto constant = opset5::Constant::create(ov::element::f32, {}, {1.f});
         auto broadcast = std::make_shared<opset5::Broadcast>(constant, target_shape);
         auto elementwise = std::make_shared<opset5::Add>(input, broadcast);
-        model = std::make_shared<ov::Model>(ov::NodeVector{elementwise}, ov::ParameterVector{input, target_shape});
+        model = std::make_shared<ov::Model>(ov::OutputVector{elementwise}, ov::ParameterVector{input, target_shape});
 
         manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     }

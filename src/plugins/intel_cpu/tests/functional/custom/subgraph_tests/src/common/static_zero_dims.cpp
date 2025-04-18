@@ -5,6 +5,9 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/experimental_detectron_topkrois.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov {
 namespace test {
@@ -36,7 +39,7 @@ protected:
 
         auto relu3 = std::make_shared<ov::op::v0::Relu>(varSplit->output(2));
 
-        ov::NodeVector results{relu1, relu2, relu3};
+        ov::OutputVector results{relu1, relu2, relu3};
         function = std::make_shared<ov::Model>(results, inputParams, "StaticZeroDims");
     }
 

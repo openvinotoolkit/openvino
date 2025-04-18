@@ -68,7 +68,7 @@ private:
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto squared_difference = std::make_shared<op::v0::SquaredDifference>(in1, in2);
 
-        return std::make_shared<Model>(NodeVector{squared_difference}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{squared_difference}, ParameterVector{in1, in2});
     }
 };
 
@@ -102,7 +102,7 @@ private:
         auto squared_difference = std::make_shared<op::v0::SquaredDifference>(in1, in2);
         squared_difference = std::make_shared<op::v0::SquaredDifference>(squared_difference, squared_difference);
 
-        return std::make_shared<Model>(NodeVector{squared_difference}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{squared_difference}, ParameterVector{in1, in2});
     }
 };
 

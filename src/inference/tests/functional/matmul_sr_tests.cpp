@@ -138,7 +138,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulFuse) {
         auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
         auto transpose = std::make_shared<ov::op::v1::Transpose>(data_A, order);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose, data_B, false, false);
-        f = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
 
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -150,7 +150,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulFuse) {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 2});
         auto data_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 5});
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, data_B, true, false);
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -165,7 +165,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulFuse) {
         auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
         auto transpose = std::make_shared<ov::op::v1::Transpose>(data_B, order);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, transpose, false, false);
-        f = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
 
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -177,7 +177,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulFuse) {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
         auto data_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 5, 3});
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, data_B, false, true);
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -192,7 +192,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulWithAttrFuse) {
         auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
         auto transpose = std::make_shared<ov::op::v1::Transpose>(data_A, order);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose, data_B, true, false);
-        f = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
 
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -204,7 +204,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulWithAttrFuse) {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
         auto data_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 5});
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, data_B, false, false);
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -219,7 +219,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulWithAttrFuse) {
         auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
         auto transpose = std::make_shared<ov::op::v1::Transpose>(data_B, order);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, transpose, false, true);
-        f = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
 
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -231,7 +231,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulWithAttrFuse) {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
         auto data_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 5});
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, data_B, false, false);
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -245,7 +245,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulSideAttrFuse) {
         auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
         auto transpose = std::make_shared<ov::op::v1::Transpose>(data_A, order);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose, data_B, true, true);
-        f = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
 
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -257,7 +257,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulSideAttrFuse) {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
         auto data_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 5, 3});
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, data_B, false, true);
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -272,7 +272,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulSideAttrFuse) {
         auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
         auto transpose = std::make_shared<ov::op::v1::Transpose>(data_B, order);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, transpose, true, true);
-        f = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
 
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -284,7 +284,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulSideAttrFuse) {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 2});
         auto data_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 5});
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, data_B, true, false);
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -300,7 +300,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulFuse) {
         auto transpose_A = std::make_shared<ov::op::v1::Transpose>(data_A, order);
         auto transpose_B = std::make_shared<ov::op::v1::Transpose>(data_B, order);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose_A, transpose_B, false, false);
-        f = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
 
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -312,7 +312,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulFuse) {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 2});
         auto data_B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 5, 3});
         auto matmul = std::make_shared<ov::op::v0::MatMul>(data_A, data_B, true, true);
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -335,7 +335,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulWithAttrFuse) {
         auto transpose_A = std::make_shared<ov::op::v1::Transpose>(split_A->output(0), order);
         auto transpose_B = std::make_shared<ov::op::v1::Transpose>(split_B->output(1), order);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose_A, transpose_B, false, true);
-        f = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
 
         ov::pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -355,7 +355,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulWithAttrFuse) {
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1}));
         auto matmul = std::make_shared<ov::op::v0::MatMul>(split_A->output(0), split_B->output(1), true, false);
-        f_ref = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+        f_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -374,7 +374,7 @@ TEST_F(TransformationTestsF, SmartReshapeReshapeAMatMulSeveralConsumers) {
     auto reduce = std::make_shared<ov::op::v1::ReduceMax>(reshape, reduction_axes);
     auto sum = std::make_shared<ov::op::v1::Add>(data_B, reduce);
     auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, sum);
-    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
     manager.register_pass<ov::pass::ReshapeAMatMul>();
 }
 
@@ -386,7 +386,8 @@ TEST_F(TransformationTestsF, SmartReshapeReshapeA_1DOtherInput) {
 
         auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{6});
         auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, other_input);
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+        model =
+            std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
         manager.register_pass<ov::pass::ReshapeAMatMul>();
     }
     {
@@ -403,7 +404,7 @@ TEST_F(TransformationTestsF, SmartReshapeReshapeA_1DOtherInput) {
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, other_input);
         model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+            std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
     }
 }
 
@@ -415,7 +416,8 @@ TEST_F(TransformationTestsF, SmartReshapeReshapeB_1DOtherInput) {
 
         auto other_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3});
         auto matmul = std::make_shared<ov::op::v0::MatMul>(other_input, reshape);
-        model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+        model =
+            std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
         manager.register_pass<ov::pass::ReshapeBMatMul>();
     }
     {
@@ -432,7 +434,7 @@ TEST_F(TransformationTestsF, SmartReshapeReshapeB_1DOtherInput) {
 
         auto matmul = std::make_shared<ov::op::v0::MatMul>(other_input, reshape);
         model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
+            std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input_to_reshape, other_input});
     }
 }
 
@@ -448,7 +450,7 @@ TEST_F(TransformationTestsF, SmartReshapeReshapeBMatMulSeveralConsumers) {
     auto reduce = std::make_shared<ov::op::v1::ReduceMax>(reshape, reduction_axes);
     auto sum = std::make_shared<ov::op::v1::Add>(data_A, reduce);
     auto matmul = std::make_shared<ov::op::v0::MatMul>(sum, reshape);
-    model = std::make_shared<ov::Model>(ov::NodeVector{matmul}, ov::ParameterVector{data_A, data_B});
+    model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data_A, data_B});
     manager.register_pass<ov::pass::ReshapeBMatMul>();
 }
 
@@ -477,7 +479,7 @@ TEST_F(TransformationTestsF, SmartReshape_ReshapeAMatMul_ReshapeInputSeveralCons
         auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, data_matmul);
         auto add = std::make_shared<ov::op::v1::Add>(matmul, reshape_const);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{data_matmul, data_reshape});
+        model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{data_matmul, data_reshape});
         ;
         manager.register_pass<ov::pass::ReshapeAMatMul>();
     }
@@ -496,7 +498,7 @@ TEST_F(TransformationTestsF, SmartReshape_ReshapeAMatMul_ReshapeInputSeveralCons
         auto add = std::make_shared<ov::op::v1::Add>(matmul, const_add_1);
 
         model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{reshape_param, shape_of_param});
+            std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{reshape_param, shape_of_param});
         ov::pass::Manager m;
         m.run_passes(model_ref);
     }

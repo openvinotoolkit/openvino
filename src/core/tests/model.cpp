@@ -11,6 +11,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"

@@ -104,23 +104,23 @@ std::map<ov::Output<ov::Node>, ov::PartialShape> tensor_names_shapes_to_node_sha
     const std::map<std::string, ov::PartialShape>& partial_shapes) {
     std::map<ov::Output<ov::Node>, ov::PartialShape> const_pshape;
     std::unordered_map<ov::Node*, std::string> port_tensor_map;
-    for (const auto& it : partial_shapes) {
-        const auto port = model->input(it.first);
+    for (const auto& [name, shape] : partial_shapes) {
+        const auto port = model->input(name);
         if (port_tensor_map.find(port.get_node()) != port_tensor_map.end()) {
-            OPENVINO_ASSERT(it.second == const_pshape.at(port),
+            OPENVINO_ASSERT(shape == const_pshape.at(port),
                             "Tensor with names {'",
-                            it.first,
+                            name,
                             "', '",
                             port_tensor_map[port.get_node()],
                             "'} has "
                             "conflicting shapes ",
-                            it.second,
+                            shape,
                             " and ",
                             const_pshape.at(port),
                             ", but they define the same tensor");
         }
-        port_tensor_map[port.get_node()] = it.first;
-        const_pshape[port] = it.second;
+        port_tensor_map[port.get_node()] = name;
+        const_pshape[port] = shape;
     }
     return const_pshape;
 }
@@ -128,31 +128,13 @@ std::map<ov::Output<ov::Node>, ov::PartialShape> tensor_names_shapes_to_node_sha
 }  // namespace
 
 ov::Model::Model(const ResultVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : m_name(name),
-      m_unique_name("Model" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ov::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
-      m_results(results),
-      m_parameters(parameters) {
-    prerequirements(true, false);
-}
+    : Model(results, {}, parameters, name) {}
 
 ov::Model::Model(const OutputVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : m_name(name),
-      m_unique_name("Model" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ov::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
-      m_results(as_result_vector(results)),
-      m_parameters(parameters) {
-    prerequirements(true, false);
-}
+    : Model(as_result_vector(results), parameters, name) {}
 
 ov::Model::Model(const NodeVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : m_name(name),
-      m_unique_name("Model" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ov::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
-      m_results(as_result_vector(as_output_vector(results))),
-      m_parameters(parameters) {
-    prerequirements(true, false);
-}
+    : Model(as_output_vector(results), parameters, name) {}
 
 ov::Model::Model(const std::shared_ptr<Node>& result, const ov::ParameterVector& parameters, const std::string& name)
     : Model(verify_node(result)->outputs(), parameters, name) {}
@@ -306,23 +288,24 @@ std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
     lock_guard<mutex> lock(m_model_mutex);
 
     NodeVector nodes;
+    auto node_inserter = std::back_inserter(nodes);
     if (m_shared_rt_info->get_use_topological_cache()) {
         for (const auto& node : m_cached_ordered_ops) {
             if (auto locked_node = node.lock()) {
-                nodes.emplace_back(locked_node);
+                *node_inserter = locked_node;
             }
         }
         return nodes;
     }
 
     for (const auto& r : get_results()) {
-        nodes.emplace_back(r);
+        *node_inserter = r;
     }
     for (auto& r : get_sinks()) {
-        nodes.emplace_back(r);
+        *node_inserter = r;
     }
     for (auto& param : get_parameters()) {
-        nodes.push_back(param);
+        *node_inserter = param;
     }
 
     auto order = m_topological_sorter(nodes);

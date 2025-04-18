@@ -3,14 +3,14 @@
 //
 
 #include "ov_lpt_models/fuse_fake_quantize.hpp"
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "openvino/op/max_pool.hpp"
 
 namespace ov {
 namespace builder {

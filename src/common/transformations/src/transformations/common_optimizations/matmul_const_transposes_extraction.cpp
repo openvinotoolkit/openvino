@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"

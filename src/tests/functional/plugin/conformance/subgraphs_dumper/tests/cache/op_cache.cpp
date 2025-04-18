@@ -9,10 +9,11 @@
 #include "base_test.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
-#include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 #include "utils/cache.hpp"
 #include "utils/node.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace {
 

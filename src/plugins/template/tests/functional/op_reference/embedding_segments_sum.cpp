@@ -96,18 +96,18 @@ private:
                                                                                 num_segments,
                                                                                 default_index,
                                                                                 per_sample_weights);
-                return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+                return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
             } else {
                 const auto ess = std::make_shared<op::v3::EmbeddingSegmentsSum>(in,
                                                                                 indices,
                                                                                 segment_ids,
                                                                                 num_segments,
                                                                                 default_index);
-                return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+                return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
             }
         } else {
             const auto ess = std::make_shared<op::v3::EmbeddingSegmentsSum>(in, indices, segment_ids, num_segments);
-            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
         }
     }
 };

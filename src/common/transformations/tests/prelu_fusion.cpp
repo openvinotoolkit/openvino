@@ -13,8 +13,15 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace testing;
@@ -31,7 +38,7 @@ TEST_F(TransformationTestsF, PReluFusionNegativeAdd) {
         auto mul = std::make_shared<opset8::Multiply>(neg2, mul_const);
         auto add = std::make_shared<opset8::Add>(relu_pos, mul);
 
-        model = std::make_shared<Model>(NodeVector{add}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{add}, ParameterVector{data});
 
         manager.register_pass<ov::pass::PReluFusion>();
     }
@@ -40,7 +47,7 @@ TEST_F(TransformationTestsF, PReluFusionNegativeAdd) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 128});
         auto prelu_const = opset8::Constant::create(element::f32, Shape{1}, {0.001});
         auto prelu = std::make_shared<opset8::PRelu>(data, prelu_const);
-        model_ref = std::make_shared<Model>(NodeVector{prelu}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{prelu}, ParameterVector{data});
     }
 }
 
@@ -54,7 +61,7 @@ TEST_F(TransformationTestsF, PReluFusionNegativeSub) {
         auto mul = std::make_shared<opset8::Multiply>(relu_neg, mul_const);
         auto sub = std::make_shared<opset8::Subtract>(relu_pos, mul);
 
-        model = std::make_shared<Model>(NodeVector{sub}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{sub}, ParameterVector{data});
 
         manager.register_pass<ov::pass::PReluFusion>();
     }
@@ -63,7 +70,7 @@ TEST_F(TransformationTestsF, PReluFusionNegativeSub) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 128});
         auto prelu_const = opset8::Constant::create(element::f32, Shape{1}, {0.001});
         auto prelu = std::make_shared<opset8::PRelu>(data, prelu_const);
-        model_ref = std::make_shared<Model>(NodeVector{prelu}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{prelu}, ParameterVector{data});
     }
 }
 
@@ -78,7 +85,7 @@ TEST_F(TransformationTestsF, PReluFusionMultiplyAdd) {
         auto mul = std::make_shared<opset8::Multiply>(relu_neg, mul_const);
         auto add = std::make_shared<opset8::Add>(relu_pos, mul);
 
-        model = std::make_shared<Model>(NodeVector{add}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{add}, ParameterVector{data});
 
         manager.register_pass<ov::pass::PReluFusion>();
     }
@@ -87,7 +94,7 @@ TEST_F(TransformationTestsF, PReluFusionMultiplyAdd) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 128});
         auto prelu_const = opset8::Constant::create(element::f32, Shape{1}, {0.001});
         auto prelu = std::make_shared<opset8::PRelu>(data, prelu_const);
-        model_ref = std::make_shared<Model>(NodeVector{prelu}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{prelu}, ParameterVector{data});
     }
 }
 
@@ -102,7 +109,7 @@ TEST_F(TransformationTestsF, PReluFusionMultiplySub) {
         auto mul = std::make_shared<opset8::Multiply>(relu_neg, mul_const);
         auto sub = std::make_shared<opset8::Subtract>(relu_pos, mul);
 
-        model = std::make_shared<Model>(NodeVector{sub}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{sub}, ParameterVector{data});
 
         manager.register_pass<ov::pass::PReluFusion>();
     }
@@ -111,7 +118,7 @@ TEST_F(TransformationTestsF, PReluFusionMultiplySub) {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 128});
         auto prelu_const = opset8::Constant::create(element::f32, Shape{1}, {0.001});
         auto prelu = std::make_shared<opset8::PRelu>(data, prelu_const);
-        model_ref = std::make_shared<Model>(NodeVector{prelu}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{prelu}, ParameterVector{data});
     }
 }
 
@@ -126,7 +133,7 @@ TEST_F(TransformationTestsF, PReluFusionFail) {
         auto mul = std::make_shared<opset8::Multiply>(relu_neg, mul_const);
         auto sub = std::make_shared<opset8::Subtract>(relu_pos, mul);
 
-        model = std::make_shared<Model>(NodeVector{sub}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{sub}, ParameterVector{data});
 
         manager.register_pass<ov::pass::PReluFusion>();
     }
@@ -147,7 +154,7 @@ TEST_F(TransformationTestsF, PReluFusionAbsSubMulMulAdd) {
         const auto mul_2_const = Constant::create(element::f32, Shape{1}, {0.5});
         const auto mul_2 = make_shared<Multiply>(mul_1, mul_2_const);
         const auto add = make_shared<Add>(relu, mul_2);
-        model = make_shared<Model>(NodeVector{add}, ParameterVector{data});
+        model = make_shared<Model>(OutputVector{add}, ParameterVector{data});
 
         manager.register_pass<ov::pass::PReluFusion>();
     }
@@ -155,7 +162,7 @@ TEST_F(TransformationTestsF, PReluFusionAbsSubMulMulAdd) {
         const auto data = make_shared<Parameter>(element::f32, Shape{1, 128});
         const auto prelu_const = Constant::create(element::f32, Shape{1}, {0.022});
         const auto prelu = make_shared<PRelu>(data, prelu_const);
-        model_ref = make_shared<Model>(NodeVector{prelu}, ParameterVector{data});
+        model_ref = make_shared<Model>(OutputVector{prelu}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -171,7 +178,7 @@ TEST_F(TransformationTestsF, PReluFusionNegReluMulAdd) {
         const auto mul_const = Constant::create(element::f32, Shape{1}, {0.235});
         const auto mul = make_shared<Multiply>(relu_neg, mul_const);
         const auto add = make_shared<Add>(relu_pos, mul);
-        model = make_shared<Model>(NodeVector{add}, ParameterVector{data});
+        model = make_shared<Model>(OutputVector{add}, ParameterVector{data});
 
         manager.register_pass<ov::pass::PReluFusion>();
     }
@@ -179,7 +186,7 @@ TEST_F(TransformationTestsF, PReluFusionNegReluMulAdd) {
         const auto data = make_shared<Parameter>(element::f32, Shape{2, 12});
         const auto prelu_const = Constant::create(element::f32, Shape{1}, {-0.235});
         const auto prelu = make_shared<PRelu>(data, prelu_const);
-        model_ref = make_shared<Model>(NodeVector{prelu}, ParameterVector{data});
+        model_ref = make_shared<Model>(OutputVector{prelu}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }

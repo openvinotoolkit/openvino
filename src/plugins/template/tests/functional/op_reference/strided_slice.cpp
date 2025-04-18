@@ -151,7 +151,7 @@ private:
                                                                              params.newAxisMask,
                                                                              params.shrinkAxisMask,
                                                                              params.ellipsisMask);
-            function = std::make_shared<ov::Model>(NodeVector{StridedSlice}, ParameterVector{data});
+            function = std::make_shared<ov::Model>(OutputVector{StridedSlice}, ParameterVector{data});
         } else {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, PartialShape::dynamic());
             const auto beginOp = std::make_shared<op::v0::Parameter>(params.beginTensor.type, params.beginTensor.shape);
@@ -167,8 +167,8 @@ private:
                                                                              params.newAxisMask,
                                                                              params.shrinkAxisMask,
                                                                              params.ellipsisMask);
-            function =
-                std::make_shared<ov::Model>(NodeVector{StridedSlice}, ParameterVector{data, beginOp, endOp, stridesOp});
+            function = std::make_shared<ov::Model>(OutputVector{StridedSlice},
+                                                   ParameterVector{data, beginOp, endOp, stridesOp});
         }
         return function;
     }
@@ -227,7 +227,7 @@ private:
                                                                              params.newAxisMask,
                                                                              params.shrinkAxisMask,
                                                                              params.ellipsisMask);
-            function = std::make_shared<ov::Model>(NodeVector{StridedSlice}, ParameterVector{data});
+            function = std::make_shared<ov::Model>(OutputVector{StridedSlice}, ParameterVector{data});
         } else {
             const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, PartialShape::dynamic());
             const auto beginOp = std::make_shared<op::v0::Parameter>(params.beginTensor.type, params.beginTensor.shape);
@@ -240,7 +240,7 @@ private:
                                                                              params.newAxisMask,
                                                                              params.shrinkAxisMask,
                                                                              params.ellipsisMask);
-            function = std::make_shared<ov::Model>(NodeVector{StridedSlice}, ParameterVector{data, beginOp, endOp});
+            function = std::make_shared<ov::Model>(OutputVector{StridedSlice}, ParameterVector{data, beginOp, endOp});
         }
         return function;
     }

@@ -4,11 +4,14 @@
 
 #include "ov_lpt_models/fake_quantize_precision_selection.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include <ov_ops/type_relaxed.hpp>
 #include "ov_lpt_models/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/prelu.hpp"
 
 namespace ov {
 namespace builder {

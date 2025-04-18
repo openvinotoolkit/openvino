@@ -17,11 +17,7 @@ struct typed_program_node<col2im> : public typed_program_node_base<col2im> {
 public:
     using parent::parent;
 
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-    std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
-        return std::make_shared<NodeFuseParams>(col2im::type_id());
-    }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
 };
 
 using col2im_node = typed_program_node<col2im>;
@@ -33,12 +29,12 @@ class typed_primitive_inst<col2im> : public typed_primitive_inst_base<col2im> {
 
 public:
     template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(col2im_node const& node, kernel_impl_params const& impl_param);
+    static std::vector<layout> calc_output_layouts(const col2im_node& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(col2im_node const& node, kernel_impl_params const& impl_param);
 
-    static std::string to_string(col2im_node const& node);
+    static bool validate_num_blocks(kernel_impl_params const& impl_param, size_t candidate_num_blocks);
 
-    typed_primitive_inst(network& network, col2im_node const& desc);
+    static std::string to_string(col2im_node const& node);
 };
 
 using col2im_inst = typed_primitive_inst<col2im>;

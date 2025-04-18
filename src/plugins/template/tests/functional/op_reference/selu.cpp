@@ -77,7 +77,7 @@ private:
         const auto alpha = std::make_shared<op::v0::Parameter>(params.inType, params.alphaShape);
         const auto lambda = std::make_shared<op::v0::Parameter>(params.inType, params.lambdaShape);
         const auto Selu = std::make_shared<op::v0::Selu>(in, alpha, lambda);
-        return std::make_shared<ov::Model>(NodeVector{Selu}, ParameterVector{in, alpha, lambda});
+        return std::make_shared<ov::Model>(OutputVector{Selu}, ParameterVector{in, alpha, lambda});
     }
 };
 

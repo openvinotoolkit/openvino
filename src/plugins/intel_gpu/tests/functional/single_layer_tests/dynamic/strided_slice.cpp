@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace {
 using ov::test::InputShape;

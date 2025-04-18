@@ -37,22 +37,14 @@ class CommonMOConvertTest:
         model_name = kwargs['model_name']
         del kwargs['output_dir']
         del kwargs['model_name']
-        if 'use_legacy_frontend' in kwargs or 'use_convert_model_from_mo' in kwargs:
-            from openvino.tools.mo import convert_model as legacy_convert_model
-            from openvino.runtime import serialize
-            if 'use_convert_model_from_mo' in kwargs:
-                del kwargs['use_convert_model_from_mo']
-            model = legacy_convert_model(**kwargs)
-            serialize(model, str(Path(output_dir, model_name + '.xml')))
-        else:
-            from openvino import convert_model, save_model
-            # ovc.convert_model does not have 'compress_to_fp16' arg, it's moved into save model
-            compress_to_fp16 = True
-            if 'compress_to_fp16' in kwargs:
-                compress_to_fp16 = kwargs['compress_to_fp16']
-                del kwargs['compress_to_fp16']
-            model = convert_model(**kwargs)
-            save_model(model, str(Path(output_dir, model_name + '.xml')), compress_to_fp16)
+        from openvino import convert_model, save_model
+        # ovc.convert_model does not have 'compress_to_fp16' arg, it's moved into save model
+        compress_to_fp16 = True
+        if 'compress_to_fp16' in kwargs:
+            compress_to_fp16 = kwargs['compress_to_fp16']
+            del kwargs['compress_to_fp16']
+        model = convert_model(**kwargs)
+        save_model(model, str(Path(output_dir, model_name + '.xml')), compress_to_fp16)
 
     def _test(self, temp_dir, test_params, ref_params):
         """

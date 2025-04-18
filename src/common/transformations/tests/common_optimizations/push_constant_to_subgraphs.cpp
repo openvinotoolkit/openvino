@@ -4,7 +4,14 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 
 using namespace testing;
@@ -22,7 +29,7 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoop) {
             auto mul = std::make_shared<opset10::Multiply>(X, Y);
             auto add = std::make_shared<opset10::Add>(mul, Z);
             auto cond = opset10::Constant::create(element::boolean, Shape{}, {true});
-            loop_body = std::make_shared<Model>(NodeVector{add, cond}, ParameterVector{X, Y, Z});
+            loop_body = std::make_shared<Model>(OutputVector{add, cond}, ParameterVector{X, Y, Z});
         }
         auto loop = std::make_shared<opset10::Loop>(trip_count, term_cond);
         loop->set_function(loop_body);
@@ -54,7 +61,7 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoop) {
             auto mul = std::make_shared<opset10::Multiply>(X, Y);
             auto add = std::make_shared<opset10::Add>(mul, constant);
             auto cond = opset10::Constant::create(element::boolean, Shape{}, {true});
-            loop_body = std::make_shared<Model>(NodeVector{add, cond}, ParameterVector{X, Y});
+            loop_body = std::make_shared<Model>(OutputVector{add, cond}, ParameterVector{X, Y});
         }
         auto loop = std::make_shared<opset10::Loop>(trip_count, term_cond);
         loop->set_function(loop_body);
@@ -199,7 +206,7 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoopMoreThan32Inputs) {
             }
             auto concat = std::make_shared<opset10::Concat>(concat_inputs, 1);
             auto cond = opset10::Constant::create(element::boolean, Shape{}, {true});
-            loop_body = std::make_shared<Model>(NodeVector{concat, cond}, params);
+            loop_body = std::make_shared<Model>(OutputVector{concat, cond}, params);
         }
         auto loop = std::make_shared<opset10::Loop>(trip_count, term_cond);
         loop->set_function(loop_body);
@@ -237,7 +244,7 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphLoopMoreThan32Inputs) {
             }
             auto concat = std::make_shared<opset10::Concat>(concat_inputs, 1);
             auto cond = opset10::Constant::create(element::boolean, Shape{}, {true});
-            loop_body = std::make_shared<Model>(NodeVector{concat, cond}, ParameterVector{X});
+            loop_body = std::make_shared<Model>(OutputVector{concat, cond}, ParameterVector{X});
         }
         auto loop = std::make_shared<opset10::Loop>(trip_count, term_cond);
         loop->set_function(loop_body);

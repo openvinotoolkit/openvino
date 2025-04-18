@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, FQTransposeTest1) {
         auto fq = std::make_shared<ov::op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
         auto transpose = std::make_shared<ov::op::v1::Transpose>(fq, transpose_order);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{transpose}, ParameterVector{});
+        model = std::make_shared<ov::Model>(ov::OutputVector{transpose}, ParameterVector{});
 
         manager.register_pass<ov::pass::PullTransposeThroughFQUp>();
         manager.register_pass<ov::pass::InjectionPass>([](std::shared_ptr<ov::Model> f) {
@@ -54,7 +54,7 @@ TEST_F(TransformationTestsF, FQTransposeTest1) {
 
         auto fq = std::make_shared<ov::op::v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, 1);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{fq}, ParameterVector{});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fq}, ParameterVector{});
     }
 }
 
@@ -72,7 +72,7 @@ TEST_F(TransformationTestsF, FQTransposeNegativeCase) {
             std::make_shared<ov::op::v0::FakeQuantize>(sigmoid, input_low, input_high, output_low, output_high, 1);
         auto transpose = std::make_shared<ov::op::v1::Transpose>(fq, transpose_order);
 
-        return std::make_shared<ov::Model>(ov::NodeVector{transpose}, ParameterVector{data});
+        return std::make_shared<ov::Model>(ov::OutputVector{transpose}, ParameterVector{data});
     };
     model = create_graph();
 

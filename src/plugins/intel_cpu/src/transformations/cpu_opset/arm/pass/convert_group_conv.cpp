@@ -4,10 +4,18 @@
 #include "convert_group_conv.hpp"
 
 #include <numeric>
-#include <openvino/opsets/opset8.hpp>
 
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 
 ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
     auto gconv = ov::pass::pattern::wrap_type<opset8::GroupConvolution>();

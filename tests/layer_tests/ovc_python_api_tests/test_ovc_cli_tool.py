@@ -9,8 +9,8 @@ import unittest
 from pathlib import Path
 
 import numpy as np
-import openvino.runtime as ov
-from openvino.runtime import PartialShape, Model
+import openvino as ov
+from openvino import PartialShape, Model
 from openvino.test_utils import compare_functions
 from openvino.tools.ovc import ovc
 
@@ -112,7 +112,7 @@ class TestOVCTool(unittest.TestCase):
 
 
     def test_ovc_tool(self):
-        from openvino.runtime import Core
+        from openvino import Core
 
         model_path = self.create_tf_model(self.tmp_dir)
 
@@ -127,7 +127,7 @@ class TestOVCTool(unittest.TestCase):
         assert flag, msg
 
     def test_ovc_tool_output_dir(self):
-        from openvino.runtime import Core
+        from openvino import Core
 
         model_path = self.create_tf_model(self.tmp_dir)
 
@@ -146,7 +146,7 @@ class TestOVCTool(unittest.TestCase):
         'Ticket: 152216'
     )
     def test_ovc_tool_saved_model_dir(self):
-        from openvino.runtime import Core
+        from openvino import Core
         core = Core()
 
         model_dir, ref_model = self.create_tf_saved_model_dir(self.tmp_dir)
@@ -163,7 +163,7 @@ class TestOVCTool(unittest.TestCase):
         'Ticket: 152216'
     )
     def test_ovc_tool_saved_model_dir_with_sep_at_path_end(self):
-        from openvino.runtime import Core
+        from openvino import Core
         core = Core()
 
         model_dir, ref_model = self.create_tf_saved_model_dir(self.tmp_dir)
@@ -180,7 +180,7 @@ class TestOVCTool(unittest.TestCase):
         'Ticket: 152216'
     )
     def test_ovc_tool_non_existng_output_dir(self):
-        from openvino.runtime import Core
+        from openvino import Core
         core = Core()
 
         model_dir, ref_model = self.create_tf_saved_model_dir(self.tmp_dir)
@@ -197,7 +197,7 @@ class TestOVCTool(unittest.TestCase):
         'Ticket: 152216'
     )
     def test_ovc_tool_verbose(self):
-        from openvino.runtime import Core
+        from openvino import Core
         core = Core()
 
         model_dir, ref_model = self.create_tf_saved_model_dir(self.tmp_dir)

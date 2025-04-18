@@ -49,8 +49,12 @@ TSGatherForward::TSGatherForward() {
         }
 
         const auto& order_val = transpose_order->cast_vector<size_t>();
-        auto batch_dims = static_cast<size_t>(gather->get_batch_dims());
-        for (size_t i = 0; i < batch_dims; ++i) {
+        auto batch_dims = gather->get_batch_dims();
+        if (batch_dims < 0) {
+            return false;
+        }
+
+        for (size_t i = 0; i < static_cast<size_t>(batch_dims); ++i) {
             // transpose changes the order of batch dims
             if (order_val[i] != i) {
                 return false;
@@ -163,13 +167,13 @@ TSGatherBackward::TSGatherBackward() {
 
         auto transpose = as_type_ptr<ov::op::v1::Transpose>(pattern_to_output.at(transpose_label));
         auto main_node = as_type_ptr<ov::op::v8::Gather>(pattern_to_output.at(gather_label));
-        if (transformation_callback(main_node) || !main_node) {
+        if (!transpose || !main_node || transformation_callback(main_node)) {
             return false;
         }
 
         auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
         auto gather_axis = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(2));
-        if (!transpose || !transpose_order || !gather_axis) {
+        if (!transpose_order || !gather_axis) {
             return false;
         }
 
@@ -184,8 +188,13 @@ TSGatherBackward::TSGatherBackward() {
         }
 
         auto order_val = transpose_order->cast_vector<size_t>();
-        auto batch_dims = static_cast<size_t>(main_node->get_batch_dims());
-        for (size_t i = 0; i < batch_dims; ++i) {
+
+        auto batch_dims = main_node->get_batch_dims();
+        if (batch_dims < 0) {
+            return false;
+        }
+
+        for (size_t i = 0; i < static_cast<size_t>(batch_dims); ++i) {
             // transpose changes the order of batch dims
             if (order_val[i] != i) {
                 return false;

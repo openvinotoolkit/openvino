@@ -14,6 +14,9 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -128,7 +131,7 @@ protected:
         reshape->set_friendly_name("reshape");
 
         auto conv = init_quantized_convolution_subgraph(reshape);
-        return std::make_shared<ov::Model>(ov::NodeVector{conv}, params, "MatmulWeightsDecompressionQuantizeConvolution");
+        return std::make_shared<ov::Model>(ov::OutputVector{conv}, params, "MatmulWeightsDecompressionQuantizeConvolution");
     }
 
     std::shared_ptr<ov::Node> init_compressed_weights_subgraph(const ov::Shape& weights_shape,

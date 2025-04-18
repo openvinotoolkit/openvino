@@ -10,7 +10,20 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
@@ -94,7 +107,7 @@ TEST(TransformationTests, LowLatency2_LSTM) {
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -180,7 +193,7 @@ TEST(TransformationTests, LowLatency2_GRU) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
-        f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -261,7 +274,7 @@ TEST(TransformationTests, LowLatency2_RNN) {
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
-        f = std::make_shared<Model>(NodeVector{res_ti_1}, ParameterVector{X, Y});
+        f = std::make_shared<Model>(OutputVector{res_ti_1}, ParameterVector{X, Y});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -333,7 +346,7 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
 
         // Reshape
         // change the number of iteration of TI. 2 -> 1
@@ -424,7 +437,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -503,7 +516,7 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
 
         auto res_ti_1 = std::make_shared<Result>(tensor_iterator->output(1));
         auto res_ti_2 = std::make_shared<Result>(tensor_iterator->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H, C});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
@@ -612,7 +625,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         // Reshape
         // change the number of iteration of Loop. 10 -> 1
@@ -699,7 +712,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
 
         auto res_ti_1 = std::make_shared<Result>(loop->output(1));
         auto res_ti_2 = std::make_shared<Result>(loop->output(0));
-        f = std::make_shared<Model>(NodeVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
+        f = std::make_shared<Model>(OutputVector{res_ti_1, res_ti_2}, ParameterVector{X, H_init, C_init});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();

@@ -77,10 +77,10 @@ private:
 
         if (per_sample_weights) {
             const auto ess = std::make_shared<op::v15::EmbeddingBagPacked>(in, indices, per_sample_weights, reduction);
-            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
         } else {
             const auto ess = std::make_shared<op::v15::EmbeddingBagPacked>(in, indices, reduction);
-            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
         }
     }
 };

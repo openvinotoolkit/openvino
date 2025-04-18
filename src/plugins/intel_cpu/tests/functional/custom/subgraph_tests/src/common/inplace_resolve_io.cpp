@@ -6,6 +6,11 @@
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 /*
 The main purpose of the tests is to test cyclic inplace resolution in order to make sure that output edges are referenced whenever possible.

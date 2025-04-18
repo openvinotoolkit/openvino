@@ -141,4 +141,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_EltwiseOptimized, Eltwi
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
-

@@ -19,7 +19,7 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture(scope='session', autouse=True)
 def rename_tf_fe_libs(request):
     try:
-        import openvino.runtime as rt
+        import openvino as rt
         # path below is built considering the use of wheels
         openvino_lib_path = Path(rt.__file__).parent.parent / 'libs'
     except ImportError as err:

@@ -77,7 +77,7 @@ private:
 
         const auto op = std::make_shared<op::v15::SearchSorted>(sorted, values, params.rightMode);
 
-        return std::make_shared<Model>(NodeVector{op}, ParameterVector{sorted, values});
+        return std::make_shared<Model>(OutputVector{op}, ParameterVector{sorted, values});
     }
 };
 

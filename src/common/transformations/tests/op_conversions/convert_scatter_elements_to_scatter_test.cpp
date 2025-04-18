@@ -16,7 +16,12 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
@@ -46,7 +51,7 @@ std::shared_ptr<ov::Model> get_initial_function(const PartialShape& data_shape,
 
     auto scatter = std::make_shared<opset3::ScatterElementsUpdate>(data, broadcast, updates, axis_const);
 
-    return std::make_shared<ov::Model>(NodeVector{scatter},
+    return std::make_shared<ov::Model>(OutputVector{scatter},
                                        ParameterVector{data, indexes, updates, broadcast_shape_param});
 }
 
@@ -77,7 +82,7 @@ std::shared_ptr<ov::Model> get_reference_function(const PartialShape& data_shape
 
     auto scatter = std::make_shared<opset3::ScatterUpdate>(data, index_out, updates, axis_const);
 
-    return std::make_shared<ov::Model>(NodeVector{scatter}, ParameterVector{data, indexes, updates});
+    return std::make_shared<ov::Model>(OutputVector{scatter}, ParameterVector{data, indexes, updates});
 }
 
 void gen_test(std::shared_ptr<ov::Model> f, std::shared_ptr<ov::Model> f_ref) {

@@ -10,8 +10,8 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
 
         auto nms = std::make_shared<opset9::MulticlassNms>(boxes, scores, opset9::MulticlassNms::Attributes());
 
-        model = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -42,6 +42,6 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
                                                                                scores,
                                                                                opset9::MulticlassNms::Attributes());
 
-        model_ref = std::make_shared<Model>(NodeVector{nms}, ParameterVector{boxes, scores});
+        model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
 }

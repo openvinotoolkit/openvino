@@ -11,7 +11,22 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/ctc_greedy_decoder.hpp"
+#include "openvino/op/ctc_greedy_decoder_seq_len.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -27,7 +42,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenTest) {
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        model = std::make_shared<ov::Model>(NodeVector{res_1, res_2}, ParameterVector{data, seq_len});
+        model = std::make_shared<ov::Model>(OutputVector{res_1, res_2}, ParameterVector{data, seq_len});
 
         manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
@@ -95,7 +110,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenTest) {
         auto output_seq_len_i = std::make_shared<opset6::Convert>(output_seq_len->output(0), sl_type);
 
         model_ref =
-            std::make_shared<ov::Model>(NodeVector{output_i, output_seq_len_i}, ParameterVector{data1, seq_len1});
+            std::make_shared<ov::Model>(OutputVector{output_i, output_seq_len_i}, ParameterVector{data1, seq_len1});
     }
 }
 
@@ -109,7 +124,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        model = std::make_shared<ov::Model>(NodeVector{res_1, res_2}, ParameterVector{data, seq_len});
+        model = std::make_shared<ov::Model>(OutputVector{res_1, res_2}, ParameterVector{data, seq_len});
 
         manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
@@ -177,7 +192,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest
         auto output_seq_len_i = std::make_shared<opset6::Convert>(output_seq_len->output(0), sl_type);
 
         model_ref =
-            std::make_shared<ov::Model>(NodeVector{output_i, output_seq_len_i}, ParameterVector{data1, seq_len1});
+            std::make_shared<ov::Model>(OutputVector{output_i, output_seq_len_i}, ParameterVector{data1, seq_len1});
     }
 }
 
@@ -191,7 +206,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        model = std::make_shared<ov::Model>(NodeVector{res_1, res_2}, ParameterVector{data, seq_len});
+        model = std::make_shared<ov::Model>(OutputVector{res_1, res_2}, ParameterVector{data, seq_len});
 
         manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
@@ -259,7 +274,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
         auto output_seq_len_i = std::make_shared<opset6::Convert>(output_seq_len->output(0), sl_type);
 
         model_ref =
-            std::make_shared<ov::Model>(NodeVector{output_i, output_seq_len_i}, ParameterVector{data1, seq_len1});
+            std::make_shared<ov::Model>(OutputVector{output_i, output_seq_len_i}, ParameterVector{data1, seq_len1});
     }
 }
 
@@ -273,7 +288,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        model = std::make_shared<ov::Model>(NodeVector{res_1, res_2}, ParameterVector{data, seq_len});
+        model = std::make_shared<ov::Model>(OutputVector{res_1, res_2}, ParameterVector{data, seq_len});
 
         manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
@@ -341,7 +356,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
         auto output_seq_len_i = std::make_shared<opset6::Convert>(output_seq_len->output(0), sl_type);
 
         model_ref =
-            std::make_shared<ov::Model>(NodeVector{output_i, output_seq_len_i}, ParameterVector{data1, seq_len1});
+            std::make_shared<ov::Model>(OutputVector{output_i, output_seq_len_i}, ParameterVector{data1, seq_len1});
     }
 }
 
@@ -360,7 +375,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenWrongBlankIndexTest) 
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        model = std::make_shared<ov::Model>(NodeVector{res_1, res_2}, ParameterVector{data, seq_len});
+        model = std::make_shared<ov::Model>(OutputVector{res_1, res_2}, ParameterVector{data, seq_len});
 
         manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
@@ -379,7 +394,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenWrongBlankIndexTest) 
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{res_1, res_2}, ParameterVector{data1, seq_len1});
+        model_ref = std::make_shared<ov::Model>(OutputVector{res_1, res_2}, ParameterVector{data1, seq_len1});
     }
 }
 
@@ -398,7 +413,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlan
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        model = std::make_shared<ov::Model>(NodeVector{res_1, res_2}, ParameterVector{data, seq_len});
+        model = std::make_shared<ov::Model>(OutputVector{res_1, res_2}, ParameterVector{data, seq_len});
 
         manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
@@ -466,7 +481,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlan
         auto output_seq_len_i = std::make_shared<opset6::Convert>(output_seq_len->output(0), sl_type);
 
         model_ref =
-            std::make_shared<ov::Model>(NodeVector{output_i, output_seq_len_i}, ParameterVector{data1, seq_len1});
+            std::make_shared<ov::Model>(OutputVector{output_i, output_seq_len_i}, ParameterVector{data1, seq_len1});
     }
 }
 
@@ -485,7 +500,7 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenParamWit
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        model = std::make_shared<ov::Model>(NodeVector{res_1, res_2}, ParameterVector{data, seq_len, blank_index});
+        model = std::make_shared<ov::Model>(OutputVector{res_1, res_2}, ParameterVector{data, seq_len, blank_index});
 
         manager.register_pass<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
     }
@@ -505,6 +520,6 @@ TEST_F(TransformationTestsF, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenParamWit
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
         model_ref =
-            std::make_shared<ov::Model>(NodeVector{res_1, res_2}, ParameterVector{data1, seq_len1, blank_index1});
+            std::make_shared<ov::Model>(OutputVector{res_1, res_2}, ParameterVector{data1, seq_len1, blank_index1});
     }
 }

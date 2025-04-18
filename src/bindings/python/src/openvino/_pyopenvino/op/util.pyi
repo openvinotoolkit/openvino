@@ -1,10 +1,10 @@
 # type: ignore
-"""
-module openvino.op.util
-"""
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+"""
+module openvino.op.util
+"""
 __all__ = ['ArithmeticReduction', 'BinaryElementwiseArithmetic', 'BinaryElementwiseComparison', 'BinaryElementwiseLogical', 'BodyOutputDescription', 'ConcatOutputDescription', 'IndexReduction', 'InputDescription', 'InvariantInputDescription', 'MergedInputDescription', 'OutputDescription', 'SliceInputDescription', 'UnaryElementwiseArithmetic', 'Variable', 'VariableInfo']
 class ArithmeticReduction:
     reduction_axes: openvino._pyopenvino.AxisSet

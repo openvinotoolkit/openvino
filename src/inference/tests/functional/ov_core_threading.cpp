@@ -106,10 +106,11 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
 TEST_F(CoreThreadingTests, RegisterPlugins) {
     ov::Core core;
     std::atomic<unsigned int> index{0};
+    auto file_prefix = ov::test::utils::generateTestFilePrefix();
 
     auto getPluginXml = [&]() -> std::tuple<std::string, std::string> {
         std::string indexStr = std::to_string(index++);
-        std::string pluginsXML = "test_plugins" + indexStr + ".xml";
+        std::string pluginsXML = file_prefix + indexStr + ".xml";
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";

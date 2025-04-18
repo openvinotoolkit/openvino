@@ -10,7 +10,7 @@
 
 #include "common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {

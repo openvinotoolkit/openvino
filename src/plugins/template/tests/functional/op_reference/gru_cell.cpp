@@ -109,7 +109,7 @@ private:
                                                                 clip,
                                                                 params.linearBeforeReset);
 
-        auto function = std::make_shared<Model>(NodeVector{gru_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(OutputVector{gru_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };
@@ -147,7 +147,7 @@ private:
                                                                 clip,
                                                                 params.linearBeforeReset);
 
-        auto function = std::make_shared<Model>(NodeVector{gru_cell}, ParameterVector{X, H_t, W, R, B});
+        auto function = std::make_shared<Model>(OutputVector{gru_cell}, ParameterVector{X, H_t, W, R, B});
         return function;
     }
 };

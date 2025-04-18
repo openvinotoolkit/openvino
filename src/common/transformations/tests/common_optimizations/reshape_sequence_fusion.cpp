@@ -13,7 +13,10 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/visibility.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 
 using namespace testing;
 using namespace ov;

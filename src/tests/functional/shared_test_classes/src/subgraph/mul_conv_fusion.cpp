@@ -8,6 +8,10 @@
 #include "openvino/pass/manager.hpp"
 #include "shared_test_classes/subgraph/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 
 namespace ov {
 namespace test {

@@ -3119,7 +3119,7 @@ TEST_P(conv_fp16_prelu_onednn, basic_activation_eltwise) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = 0.002f;
     execute(p);
 }
 
@@ -3128,8 +3128,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_prelu_onednn, ::testing::ValuesI
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu_multi_batch, conv_fp16_prelu_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_MUL_BATCH_CONV_FP16_1, 4, 4, 4 },
-    convolution_test_params{ CASE_MUL_BATCH_CONV_FP16_2, 4, 4, 4 },
+    convolution_test_params{ CASE_MUL_BATCH_CONV_FP16_1, 2, 2, 4 },
+    convolution_test_params{ CASE_MUL_BATCH_CONV_FP16_2, 2, 2, 4 },
 }));
 
 class conv_int8_eltwise_onednn : public WeightsPrimitiveFusingTestOneDNN {};
@@ -3826,18 +3826,18 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_eltw_any_sum
     convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 5 },
 
     // cases with batch = 16
-    convolution_test_params{ CASE_CONV_U8S8_10, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_10, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_10, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_10, 2, 2, 5 },
 
     // cases with batch = 32
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_14, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_15, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_13, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_14, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_14, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_15, 2, 2, 5 },
 }));
 
 // Input range uses in 2 cases: not per-tensor output range or out_lo > out_hi

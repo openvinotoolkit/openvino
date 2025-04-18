@@ -537,7 +537,7 @@ struct PlainTensor {
                 } else if (m_dt == ov::element::Type_t::u8) {
                     ss << (ptr<uint8_t>())[i] << ",";
                 } else if (m_dt == ov::element::Type_t::boolean) {
-                    ss << static_cast<bool>((ptr<uint8_t>())[i]) << ",";
+                    ss << static_cast<int>(static_cast<bool>((ptr<uint8_t>())[i])) << ",";
                 } else {
                     ss << "?,";
                 }

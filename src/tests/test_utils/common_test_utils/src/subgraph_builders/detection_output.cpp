@@ -64,7 +64,9 @@ std::shared_ptr<ov::Model> make_detection_output(ov::element::Type type) {
     const auto& detection = std::make_shared<ov::op::v0::DetectionOutput>(four_times, four_times, third_input, attr);
     const auto& convert = std::make_shared<ov::op::v0::Convert>(detection, type);
 
-    return std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{data}, "SplitableDetectionOutput");
+    return std::make_shared<ov::Model>(ov::OutputVector{convert},
+                                       ov::ParameterVector{data},
+                                       "SplitableDetectionOutput");
 }
 }  // namespace utils
 }  // namespace test

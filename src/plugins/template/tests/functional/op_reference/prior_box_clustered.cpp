@@ -73,7 +73,7 @@ private:
         auto LS = std::make_shared<op::v0::Constant>(params.layerShapeData);
         auto IS = std::make_shared<op::v0::Constant>(params.imageShapeData);
         const auto PriorBoxClustered = std::make_shared<op::v0::PriorBoxClustered>(LS, IS, params.attrs);
-        return std::make_shared<ov::Model>(NodeVector{PriorBoxClustered}, ParameterVector{});
+        return std::make_shared<ov::Model>(OutputVector{PriorBoxClustered}, ParameterVector{});
     }
 };
 

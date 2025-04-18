@@ -10,7 +10,9 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 using namespace ov;
 using namespace testing;
 
@@ -22,7 +24,7 @@ struct NonZeroHorizontalFusionBuilder {
 
     std::shared_ptr<ov::Model> getOriginal() {
         const auto input = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        ov::NodeVector results;
+        ov::OutputVector results;
         for (size_t i = 0; i < branch_props.size(); ++i) {
             std::shared_ptr<ov::Node> nonzero;
             switch (branch_props[i]) {
@@ -48,7 +50,7 @@ struct NonZeroHorizontalFusionBuilder {
 
         std::shared_ptr<ov::Node> i32_node;
         std::shared_ptr<ov::Node> i64_node;
-        ov::NodeVector results;
+        ov::OutputVector results;
         for (size_t i = 0; i < branch_props.size(); ++i) {
             std::shared_ptr<ov::Node> nonzero;
             if (branch_props[i] == NonZeroType::I32) {

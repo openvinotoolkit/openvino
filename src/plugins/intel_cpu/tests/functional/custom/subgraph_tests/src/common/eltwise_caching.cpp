@@ -47,6 +47,8 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include "openvino/op/concat.hpp"
+#include "openvino/op/reshape.hpp"
 
 using namespace CPUTestUtils;
 

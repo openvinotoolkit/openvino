@@ -7,6 +7,12 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/group_normalization.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace testing;
 
@@ -59,7 +65,7 @@ std::shared_ptr<Model> GroupNormalizationFusionTestBase::create_model() {
         std::make_shared<op::v1::Multiply>(post_instance_norm_reshape, group_norm_gamma_const);
     auto group_norm_beta_add = std::make_shared<op::v1::Add>(group_norm_gamma_multiply, group_norm_beta_const);
 
-    return std::make_shared<Model>(NodeVector{group_norm_beta_add}, ParameterVector{input});
+    return std::make_shared<Model>(OutputVector{group_norm_beta_add}, ParameterVector{input});
 }
 
 std::string GroupNormalizationFusionSubgraphTestsF::getTestCaseName(

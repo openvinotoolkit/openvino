@@ -191,6 +191,7 @@ void strided_slice_inst::on_execute() {
 }
 
 void strided_slice_inst::update_output_memory() {
+    OPENVINO_ASSERT(!_outputs.empty(), "outputs is empty.");
     if (!can_be_optimized())
         return;
 

@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 
+#include "openvino/op/topk.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {

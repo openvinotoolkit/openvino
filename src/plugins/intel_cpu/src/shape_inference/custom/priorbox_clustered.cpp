@@ -4,7 +4,8 @@
 
 #include "priorbox_clustered.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_cpu::node {

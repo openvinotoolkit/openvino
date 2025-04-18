@@ -7,21 +7,27 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/op/softmax.hpp"
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
 
-using SinkReshapeParams = std::tuple<bool,                                    // add eltwise
-                                     bool,                                    // add activation
-                                     bool,                                    // eligible rotation
-                                     bool>;                                   // eligible reshape                                  
+using SinkReshapeParams = std::tuple<bool,   // add eltwise
+                                     bool,   // add activation
+                                     bool,   // eligible rotation
+                                     bool>;  // eligible reshape
 
 class SinkReshapeTests : public TransformationTestsF, public WithParamInterface<SinkReshapeParams> {
 public:
@@ -73,16 +79,16 @@ public:
             auto order = eligible_rotation ? std::vector<int>{0 ,2, 1} : std::vector<int>{2, 1, 0};
             auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {3}, order);
             auto transpose = std::make_shared<ov::opset1::Transpose>(reshape, transpose_const);
-        
+
             auto softmax = std::make_shared<ov::op::v8::Softmax>(transpose);
-            model = std::make_shared<ov::Model>(ov::NodeVector{softmax}, ov::ParameterVector{input});
+            model = std::make_shared<ov::Model>(ov::OutputVector{softmax}, ov::ParameterVector{input});
         } else {
             auto transpose_const = ov::opset1::Constant::create(ov::element::i32, {4}, {0, 2, 3, 1});
             auto transpose = std::make_shared<ov::opset1::Transpose>(reshape_input_node, transpose_const);
             auto reshape_const = ov::opset1::Constant::create(ov::element::i32, {3}, {2, 100, 4});
             auto reshape = std::make_shared<ov::opset1::Reshape>(transpose, reshape_const, true);
             auto softmax = std::make_shared<ov::op::v8::Softmax>(reshape);
-            model = std::make_shared<ov::Model>(ov::NodeVector{softmax}, ov::ParameterVector{input});
+            model = std::make_shared<ov::Model>(ov::OutputVector{softmax}, ov::ParameterVector{input});
         }
         ov::pass::Manager manager;
         manager.register_pass<ConvertConvolutionToInternal>();
@@ -145,12 +151,12 @@ TEST_F(TransformationTestsF, SinkReshapeFalsePattern) {
     auto softmax = std::make_shared<ov::op::v8::Softmax>(transpose);
     auto input2 = ov::opset1::Constant::create(ov::element::f32, ov::Shape{ 2, 100, 4 }, { 1 });
     auto matmul = std::make_shared<ov::opset1::MatMul>(reshape, input2, false, false);
-    model = std::make_shared<ov::Model>(ov::NodeVector{softmax, matmul}, ov::ParameterVector{input});
+    model = std::make_shared<ov::Model>(ov::OutputVector{softmax, matmul}, ov::ParameterVector{input});
     ov::pass::Manager manager;
     manager.register_pass<ConvertConvolutionToInternal>();
     manager.register_pass<SinkReshape>();
     OV_ASSERT_NO_THROW(manager.run_passes(model));
-    model_ref = std::make_shared<ov::Model>(ov::NodeVector{softmax, matmul}, ov::ParameterVector{input});
+    model_ref = std::make_shared<ov::Model>(ov::OutputVector{softmax, matmul}, ov::ParameterVector{input});
     ov::pass::Manager manager_ref;
     manager_ref.register_pass<ConvertConvolutionToInternal>();
     manager.run_passes(model_ref);

@@ -9,8 +9,20 @@
 #include <queue>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "ov_ops/augru_cell.hpp"
 
 using namespace std;
@@ -128,3 +140,87 @@ static const std::vector<AUGRUFusionParams> params = {
 
 INSTANTIATE_TEST_SUITE_P(AUGRUFusionTest, AUGRUFusionTest, ValuesIn(params));
 INSTANTIATE_TEST_SUITE_P(AUGRUFusionTestDyn, AUGRUFusionTestDyn, ValuesIn(params));
+
+TEST_F(TransformationTestsF, AUGRUFusionDiffParamShapes) {
+    size_t input_size = 36;
+    size_t hidden_size = 36;
+    size_t batch = -1;
+    {
+        auto X = make_shared<Parameter>(f32, Shape{batch, input_size});
+        auto H = make_shared<Parameter>(f32, Shape{batch, hidden_size});
+        auto WRrz = make_shared<Parameter>(f32, Shape{input_size + hidden_size, 2 * hidden_size});
+        auto Brz = make_shared<Parameter>(f32, Shape{2 * hidden_size});
+        auto WRh = make_shared<Parameter>(f32, Shape{input_size + hidden_size, hidden_size});
+        auto Bh = make_shared<Parameter>(f32, Shape{hidden_size});
+        auto A = make_shared<Parameter>(f32, Shape{batch, 1});
+        auto concat_1 = make_shared<Concat>(OutputVector{X, H}, 1);
+        auto matmul_1 = make_shared<MatMul>(concat_1, WRrz, false, false);
+        auto add_1 = make_shared<Add>(matmul_1, Brz);
+
+        auto sigmoid = make_shared<Sigmoid>(add_1);
+        auto axis_1 = make_shared<Constant>(i64, Shape{}, 1);
+        auto split = make_shared<Split>(sigmoid, axis_1, 2);
+
+        auto multiply_1 = make_shared<Multiply>(split, H);
+        auto concat_2 = make_shared<Concat>(OutputVector{X, multiply_1}, 1);
+        auto matmul_2 = make_shared<MatMul>(concat_2, WRh, false, false);
+        auto add_2 = make_shared<Add>(matmul_2, Bh);
+        auto tanh = make_shared<Tanh>(add_2);
+
+        auto one = make_shared<Constant>(f32, Shape{1}, 1);
+        auto subtract_1 = make_shared<Subtract>(one, A);
+        auto multiply_2 = make_shared<Multiply>(subtract_1, split->output(1));
+        auto subtract_2 = make_shared<Subtract>(one, multiply_2);
+        auto multiply_3 = make_shared<Multiply>(subtract_2, tanh);
+
+        auto multiply_4 = make_shared<Multiply>(multiply_2, H);
+        auto add = make_shared<Add>(multiply_4, multiply_3);
+        model = make_shared<Model>(OutputVector{add}, ParameterVector{X, H, WRrz, WRh, Brz, Bh, A});
+
+        manager.register_pass<ov::pass::AUGRUCellFusion>();
+        comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+        comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+        comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    }
+    {
+        auto X = make_shared<Parameter>(f32, Shape{batch, input_size});
+        auto H = make_shared<Parameter>(f32, Shape{batch, hidden_size});
+        auto WRzr = make_shared<Parameter>(f32, Shape{input_size + hidden_size, 2 * hidden_size});
+        auto WRzr_transpose =
+            make_shared<ov::op::v1::Transpose>(WRzr,
+                                               ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0}));
+        auto Bzr = make_shared<Parameter>(f32, Shape{2 * hidden_size});
+        auto Bzr_unsqz =
+            make_shared<ov::op::v0::Unsqueeze>(Bzr, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+        auto WRh = make_shared<Parameter>(f32, Shape{input_size + hidden_size, hidden_size});
+        auto WRh_transpose =
+            make_shared<ov::op::v1::Transpose>(WRh,
+                                               ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0}));
+
+        auto Bh = make_shared<Parameter>(f32, Shape{hidden_size});
+        auto Bh_unsqz =
+            make_shared<ov::op::v0::Unsqueeze>(Bh, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+        auto A = make_shared<Parameter>(f32, Shape{batch, 1});
+
+        auto axis_0 = make_shared<Constant>(i64, Shape{}, 0);
+        auto axis_1 = make_shared<Constant>(i64, Shape{}, 1);
+        auto split_lenghts = make_shared<Constant>(i64, Shape{2}, vector<size_t>{input_size, hidden_size});
+        auto split_WRrz = make_shared<VariadicSplit>(WRzr_transpose, axis_1, split_lenghts);
+        auto split_W_r_z = make_shared<Split>(split_WRrz->output(0), axis_0, 2);
+        auto split_R_r_z = make_shared<Split>(split_WRrz->output(1), axis_0, 2);
+        auto split_WRh = make_shared<VariadicSplit>(WRh_transpose, axis_1, split_lenghts);
+        auto Wzrh =
+            make_shared<Concat>(OutputVector{split_W_r_z->output(1), split_W_r_z->output(0), split_WRh->output(0)}, 0);
+        auto Rzrh =
+            make_shared<Concat>(OutputVector{split_R_r_z->output(1), split_R_r_z->output(0), split_WRh->output(1)}, 0);
+
+        auto split_bias_r_z = make_shared<Split>(Bzr_unsqz, axis_1, 2);
+        auto B = make_shared<Concat>(OutputVector{split_bias_r_z->output(1), split_bias_r_z->output(0), Bh_unsqz}, 1);
+
+        auto squeeze_B = make_shared<Squeeze>(B, axis_0);
+        auto cell = make_shared<ov::op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, hidden_size);
+
+        ParameterVector params = {X, H, WRzr, WRh, Bzr, Bh, A};
+        model_ref = make_shared<Model>(OutputVector{cell}, params);
+    }
+}

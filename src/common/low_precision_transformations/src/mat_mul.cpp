@@ -15,6 +15,10 @@
 #include "low_precision/network_helper.hpp"
 #include "openvino/util/log.hpp"
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace ov;
 using namespace ov::pass;

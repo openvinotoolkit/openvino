@@ -9,6 +9,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;

@@ -8,7 +8,8 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/prior_box.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {

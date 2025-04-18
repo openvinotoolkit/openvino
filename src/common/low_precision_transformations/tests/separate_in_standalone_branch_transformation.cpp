@@ -21,6 +21,7 @@
 
 #include "simple_low_precision_transformer.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace {
 

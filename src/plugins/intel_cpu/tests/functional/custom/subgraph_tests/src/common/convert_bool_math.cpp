@@ -3,6 +3,10 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/reshape.hpp"
 
 namespace ov {
 namespace test {

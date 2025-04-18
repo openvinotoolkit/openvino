@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/slice.hpp"
+#include "openvino/op/slice.hpp"
 
 namespace ov {
 namespace test {

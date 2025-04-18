@@ -48,7 +48,6 @@ MemoryPtr prepareWeightMemory(const MemoryArgs& memory,
                               const ExecutorContext::CPtr& context,
                               const FCAttrs& attrs,
                               ACLFCAttrs& aclfcAttrs,
-                              const PostOps& postOps,
                               arm_compute::WeightFormat& expectedWeightFormat,
                               arm_compute::TensorInfo& weiTensorInfo);
 
@@ -66,7 +65,7 @@ public:
 
 class ACLWeightFormatGenerator : public ACLCommonExecutor {
 public:
-    ACLWeightFormatGenerator(const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory);
+    ACLWeightFormatGenerator(const FCAttrs& attrs, const MemoryArgs& memory);
     void updateTensorsShapes(ACLShapes& aclMemoryShapes) override;
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;

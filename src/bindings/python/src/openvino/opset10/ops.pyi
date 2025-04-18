@@ -1,9 +1,6 @@
 # type: ignore
-"""
-Factory functions for all openvino ops.
-"""
-from functools import partial
 from __future__ import annotations
+from functools import partial
 from openvino._pyopenvino import Node
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import _get_node_factory
@@ -13,6 +10,9 @@ from openvino.utils.types import make_constant_node
 import functools
 import openvino._pyopenvino
 import typing
+"""
+Factory functions for all openvino ops.
+"""
 __all__ = ['Node', 'NodeInput', 'as_node', 'as_nodes', 'interpolate', 'is_finite', 'is_inf', 'is_nan', 'make_constant_node', 'nameable_op', 'partial', 'unique']
 def interpolate(*args, **kwargs) -> openvino._pyopenvino.Node:
     """

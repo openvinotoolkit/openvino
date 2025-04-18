@@ -5,12 +5,19 @@
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "internal_properties.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -216,7 +223,7 @@ public:
             value += stride;
         }
     }
-    void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
+    virtual void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
         auto create_input = [this](std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
             if (param->get_element_type() == ov::element::i32) {
@@ -514,6 +521,71 @@ const std::vector<InputShapeAndTransposeOrder> inputShapeAndReordersSetState = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestSetState,
                          ConcatSDPTransposeTestSetState,
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
+                                            ::testing::ValuesIn(inputShapeAndReordersSetState),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0)),
+                         ConcatSDPTransposeTest::getTestCaseName);
+
+class ConcatSDPTransposeTestWrongBeamIdx : public ConcatSDPTransposeTest {
+public:
+    void generate(int idx, const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        auto create_input = [this](std::shared_ptr<ov::op::v0::Parameter> param, ov::Shape shape, float val) {
+            if (param->get_element_type() == ov::element::i32) {
+                ov::Tensor t{ov::element::i32, shape};
+                auto size = shape[0];
+                auto* p = static_cast<int*>(t.data());
+                auto start = static_cast<int>(val);
+
+                for (size_t i = 0; i < size; i++) {
+                    p[i] = (start + i) % size + 1024;
+                }
+
+                inputs.insert({param, t});
+            } else if (param->get_element_type() == ov::element::f32) {
+                ov::Tensor t{ov::element::f32, shape};
+                strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
+            } else if (param->get_element_type() == ov::element::f16) {
+                ov::Tensor t{ov::element::f16, shape};
+                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
+            } else {
+                ASSERT_TRUE(param->get_element_type() == ov::element::bf16);
+                ov::Tensor t{ov::element::bf16, shape};
+                strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
+            }
+        };
+        // q, k, v, pastkv
+        create_input(function->get_parameters()[0], targetInputStaticShapes[0], idx + 1.0f);
+        create_input(function->get_parameters()[1], targetInputStaticShapes[0], idx + 2.0f);
+        create_input(function->get_parameters()[2], targetInputStaticShapes[0], idx + 3.0f);
+        create_input(function->get_parameters()[3], targetInputStaticShapes[1], idx + 4.0f);
+        create_input(function->get_parameters()[4], ov::Shape{targetInputStaticShapes[0][0]}, idx + 0.0f);
+    }
+};
+
+TEST_P(ConcatSDPTransposeTestWrongBeamIdx, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ElementType inType;
+    InputShapeAndTransposeOrder inputShapeAndOrders;
+    bool hasShapeOf;
+    bool quantKeyByChannel;
+    size_t groupSize;
+    std::tie(inType, inputShapeAndOrders, hasShapeOf, quantKeyByChannel, groupSize) = this->GetParam();
+
+    // skip bf16 test on avx512 platform
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+
+    ASSERT_THROW(run_test(function), ov::Exception);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTransposeTestWrongBeamIdx,
+                         ConcatSDPTransposeTestWrongBeamIdx,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                             ::testing::ValuesIn(inputShapeAndReordersSetState),
                                             ::testing::Values(false),

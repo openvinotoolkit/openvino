@@ -12,10 +12,11 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/detection_output.hpp"
 #include "openvino/op/util/detection_output_base.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -89,7 +90,7 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
             auto detection_output_v8 =
                 std::make_shared<opset8::DetectionOutput>(box_logits, class_preds, proposals, attributes_v8);
 
-            f = std::make_shared<ov::Model>(NodeVector{detection_output_v8},
+            f = std::make_shared<ov::Model>(OutputVector{detection_output_v8},
                                             ParameterVector{box_logits, class_preds, proposals});
 
             pass::Manager manager;
@@ -105,7 +106,7 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
             auto detection_output_v1 =
                 std::make_shared<opset1::DetectionOutput>(box_logits, class_preds, proposals, attributes_v1);
 
-            f_ref = std::make_shared<ov::Model>(NodeVector{detection_output_v1},
+            f_ref = std::make_shared<ov::Model>(OutputVector{detection_output_v1},
                                                 ParameterVector{box_logits, class_preds, proposals});
         }
         const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -160,7 +161,7 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
                                                                                  attributes_v8);
 
             f = std::make_shared<ov::Model>(
-                NodeVector{detection_output_v8},
+                OutputVector{detection_output_v8},
                 ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
 
             pass::Manager manager;
@@ -183,7 +184,7 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
                                                                                  attributes_v1);
 
             f_ref = std::make_shared<ov::Model>(
-                NodeVector{detection_output_v1},
+                OutputVector{detection_output_v1},
                 ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
         }
         const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);

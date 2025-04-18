@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
 
 namespace ov {
 namespace test {

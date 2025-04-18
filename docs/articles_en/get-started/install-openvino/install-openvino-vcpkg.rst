@@ -11,7 +11,6 @@ Install OpenVINO™ Runtime via vcpkg
    Note that the vcpkg distribution:
 
    * offers C/C++ API only
-   * does not offer support for NPU inference
    * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
 

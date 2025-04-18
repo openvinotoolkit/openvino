@@ -37,7 +37,7 @@ struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;
         auto push_if_live = [&live_regs, &regs_to_spill](Xbyak::Reg&& reg) {
-            if (live_regs.empty() || live_regs.count(Xbyak2SnippetsReg(reg))) {
+            if (live_regs.empty() || (live_regs.count(Xbyak2SnippetsReg(reg)) != 0u)) {
                 regs_to_spill.emplace_back(reg);
             }
         };
