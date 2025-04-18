@@ -130,25 +130,79 @@ protected:
         get_matmul_primitive_descriptor(const kernel_impl_params& impl_params,
                                         cldnn::engine& engine,
                                         size_t prim_input_size,
+                                        size_t prim_weights_rank,
                                         bool has_bias,
                                         const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
         auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
         auto output_layout = impl_params.get_output_layout();
 
-        transform_layouts(input_layout, weights_layout, output_layout, prim_input_size);
+        dnnl::memory::format_tag target_fmt;
+        dnnl::memory::format_tag weights_fmt;
 
-        auto input_md = onednn::layout_to_memory_desc(input_layout, dnnl::memory::format_tag::ab, false);
-        // TODO: should change format to any. May need a reorder.
-        auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::ba);
-        auto output_md = onednn::layout_to_memory_desc(output_layout, dnnl::memory::format_tag::ab, false);
+        if (prim_input_size == 3) {
+            target_fmt = dnnl::memory::format_tag::abc;
+            weights_fmt = dnnl::memory::format_tag::acb;
+        } else if (prim_input_size == 4) {
+            target_fmt = dnnl::memory::format_tag::abcd;
+            weights_fmt = dnnl::memory::format_tag::abdc;
+        } else if (prim_input_size == 5) {
+            target_fmt = dnnl::memory::format_tag::abcde;
+            weights_fmt = dnnl::memory::format_tag::abced;
+        } else if (prim_input_size == 6) {
+            target_fmt = dnnl::memory::format_tag::abcdef;
+            weights_fmt = dnnl::memory::format_tag::abcdfe;
+        } else {
+            target_fmt = dnnl::memory::format_tag::ab;
+            weights_fmt = dnnl::memory::format_tag::ba;
+        }
+
+        if (prim_input_size < 4) {
+            auto output_pshape = output_layout.get_partial_shape();
+            if (output_pshape.size() > prim_input_size) {
+                output_pshape.resize(prim_input_size);
+                output_layout.set_partial_shape(output_pshape);
+            }
+        }
+
+        // Transform weights_layout according to input layout
+        {
+            ov::PartialShape new_weights_pshape;
+
+            for (size_t i = 0; i < (prim_input_size - prim_weights_rank); i++) {
+                new_weights_pshape.push_back(1);
+            }
+
+            for (size_t i = 0; i < prim_weights_rank; i++) {
+                new_weights_pshape.push_back(weights_layout.get_partial_shape()[i]);
+            }
+
+            weights_layout.set_partial_shape(new_weights_pshape);
+            weights_layout.format = input_layout.format;
+        }
+
+        dnnl::memory::desc input_md = onednn::layout_to_memory_desc(input_layout, target_fmt, false);
+        dnnl::memory::desc weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt, false);
+        dnnl::memory::desc output_md = onednn::layout_to_memory_desc(output_layout, target_fmt, false);
 
         if (has_bias) {
-            dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::ab;
             auto bias_l = impl_params.get_input_layout(2);
-            if (bias_l.get_shape().size() == 1)
-                target_fmt = dnnl::memory::format_tag::ba;
-            auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), target_fmt, false);
+            auto bias_b_size = (bias_l.get_partial_shape().size() == 1) ? 1 : bias_l.batch();
+            auto bias_f_size = static_cast<int32_t>(bias_l.get_tensor().count()) / bias_b_size;
+
+            if (prim_input_size == 3) {
+                bias_l.set_partial_shape({ 1, bias_b_size, bias_f_size });
+            } else if (prim_input_size == 4) {
+                bias_l.set_partial_shape({ 1, 1, bias_b_size, bias_f_size });
+            } else if (prim_input_size == 5) {
+                bias_l.set_partial_shape({ 1, 1, 1, bias_b_size, bias_f_size });
+            } else if (prim_input_size == 6) {
+                bias_l.set_partial_shape({ 1, 1, 1, 1, bias_b_size, bias_f_size });
+            } else {
+                bias_l.set_partial_shape({ bias_b_size, bias_f_size });
+            }
+
+            auto bias_md = onednn::layout_to_memory_desc(bias_l, target_fmt, false);
             return std::make_shared<dnnl::matmul::primitive_desc>(
                 engine.get_onednn_engine(),
                 input_md,
@@ -174,9 +228,11 @@ public:
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
         size_t input_size = prim->input_size;
+        size_t weights_rank = prim->weights_rank;
         bool has_bias = !prim->bias.empty();
         bool is_compressed = prim->compressed_weights;
         ob << input_size;
+        ob << weights_rank;
         ob << has_bias;
         ob << is_compressed;
         ob << prim->dynamic_quantized_activation;
@@ -204,11 +260,13 @@ public:
         parent::load(ib);
 
         size_t input_size = 2;
+        size_t weights_rank = 2;
         bool has_bias = false;
         bool is_compressed = false;
         bool dynamic_quantized_activation;
         bool dynamic_quantized_activation_zp;
         ib >> input_size;
+        ib >> weights_rank;
         ib >> has_bias;
         ib >> is_compressed;
         ib >> dynamic_quantized_activation;
@@ -218,15 +276,18 @@ public:
         auto prim = impl_params->typed_desc<fully_connected>();
         auto weights_layout = impl_params->get_input_layout(1);
         bool is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
+        auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
+        int per_oc = PER_OC << shift_size;
+        int grouped = GROUPED << shift_size;
 
         bool has_decompression_scale = !prim->decompression_scale.empty();
         if (has_decompression_scale) {
             ib >> _ds_group_size;
             ib >> make_data(&_ds_data_type, sizeof(dnnl::memory::data_type));
             if (!is_four_bit_weight)
-                _attrs->set_scales(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, _ds_data_type);
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
             else
-                _attrs->set_scales(DNNL_ARG_WEIGHTS, GROUPED, {_ds_group_size, 1}, _ds_data_type);
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
         }
 
         bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value();
@@ -243,9 +304,9 @@ public:
             } else {
                 auto ngroups = dzp_layout.get_dim(1);
                 if (ngroups == 1) {
-                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, _dzp_data_type);
+                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, GROUPED, {_ds_group_size, 1}, _dzp_data_type);
+                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type);
                 }
             }
         }
@@ -260,12 +321,12 @@ public:
             int src_group_size = innermost_len / src_scale_ngroups;
 
             auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(src_scale_idx).data_type);
-            _attrs->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
+            _attrs->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
             if (dynamic_quantized_activation_zp)
-                _attrs->set_zero_points(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                _attrs->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
         }
 
-        auto prim_desc = get_matmul_primitive_descriptor(*impl_params, ib.get_engine(), input_size, has_bias, *_attrs);
+        auto prim_desc = get_matmul_primitive_descriptor(*impl_params, ib.get_engine(), input_size, weights_rank, has_bias, *_attrs);
         _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;
@@ -298,18 +359,23 @@ public:
 
             auto weights_layout = impl_params.get_input_layout(1);
             is_four_bit_weight = weights_layout.data_type == data_types::u4 || weights_layout.data_type == data_types::i4;
+            auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
+            int per_oc = PER_OC << shift_size;
+            int grouped = GROUPED << shift_size;
+
             if (!prim->decompression_scale.empty()) {
                 auto decompression_scale_idx = ++idx;
-                ds_data_type = convert_data_type(arg.get_dependency(decompression_scale_idx).get_output_layout().data_type);
+                auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
+                ds_data_type = convert_data_type(scale_layout.data_type);
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(1);
-                auto ngroups = arg.get_dependency(decompression_scale_idx).get_output_layout().get_dim(1);
+                auto ngroups = scale_layout.get_dim(1);
                 group_size = ifm / ngroups;
                 if (!is_four_bit_weight) {
                     // 8-bit quantized weight
-                    attr->set_scales(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, ds_data_type);
+                    attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
                 } else {
                     // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
-                    attr->set_scales(DNNL_ARG_WEIGHTS, GROUPED, {group_size, 1}, ds_data_type);
+                    attr->set_scales(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, ds_data_type);
                 }
             }
 
@@ -323,9 +389,9 @@ public:
                 } else {
                     auto ngroups = dzp_layout.get_dim(1);
                     if (ngroups == 1) {
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, dzp_data_type);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, GROUPED, {group_size, 1}, dzp_data_type);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type);
                     }
                 }
             }
@@ -339,15 +405,15 @@ public:
                 int src_group_size = innermost_len / src_scale_ngroups;
 
                 auto act_scale_data_type = convert_data_type(impl_params.input_layouts[src_scale_idx].data_type);
-                attr->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
+                attr->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
 
                 if (prim->activation_zero_point.is_valid())
-                    attr->set_zero_points(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                    attr->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
             }
 
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
-                                                             prim->input_size, !prim->bias.empty(), *attr);
+                                                             prim->input_size, prim->weights_rank, !prim->bias.empty(), *attr);
 
             auto prim_onednn = std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc);
             prim_onednn->_ds_group_size = group_size;
@@ -356,7 +422,7 @@ public:
             return prim_onednn;
         } else {
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
-                                                             prim->input_size, !prim->bias.empty(), *attr);
+                                                             prim->input_size, prim->weights_rank, !prim->bias.empty(), *attr);
 
             return std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc);
         }

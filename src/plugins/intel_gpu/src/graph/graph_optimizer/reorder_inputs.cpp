@@ -870,51 +870,6 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                     broadcast_node.recalc_output_layouts(false);
                 }
             }
-        } else if (node->is_type<fully_connected>() && node->get_preferred_impl_type() == impl_types::onednn) {
-            for (const auto& fused_prim : node->get_fused_primitives()) {
-                if (fused_prim.is_type<eltwise>() &&
-                    one_of(fused_prim.typed_desc<eltwise>()->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})) {
-                    auto fc_layout = node->get_output_layout();
-                    auto& data = node->get_dependency(fused_prim.outer_dep_start_idx);
-                    auto data_layout = data.get_output_layout();
-
-                    if (fc_layout.is_dynamic() || data_layout.is_dynamic())
-                        continue;
-
-                    // fc_b     | fc_f      | data_b    | data_f    | broadcast condition
-                    // ---------+-----------+-----------+-----------+--------------------
-                    // 1        | 1         | 1         | 1         | no broadcast
-                    // 1        | 1         | 1         | N         | N/A
-                    // 1        | 1         | N         | 1         | N/A
-                    // 1        | 1         | N         | N         | N/A
-                    // 1        | N         | 1         | 1         | implicit broadcast
-                    // 1        | N         | 1         | N         | no broadcast
-                    // 1        | N         | N         | 1         | N/A
-                    // 1        | N         | N         | N         | N/A
-                    // N        | 1         | 1         | 1         | implicit broadcast
-                    // N        | 1         | 1         | N         | N/A
-                    // N        | 1         | N         | 1         | no broadcast
-                    // N        | 1         | N         | N         | N/A
-                    // N        | N         | 1         | 1         | implicit broadcast
-                    // N        | N         | 1         | N         | explicit broadcast
-                    // N        | N         | N         | 1         | explicit broadcast
-                    // N        | N         | N         | N         | no broadcast
-                    if ((fc_layout.batch() == 1 || fc_layout.feature() == 1) ||
-                        (data_layout.batch() == 1 && data_layout.feature() == 1) ||
-                        (fc_layout.count() == data_layout.count())) {
-                        continue;
-                    }
-
-                    static size_t idx = 0;
-                    const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
-                    auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), fc_layout.get_shape(),
-                                                                            ov::AxisSet{}, ov::op::BroadcastType::NUMPY);
-
-                    auto& broadcast_node = p.get_or_create(broadcast_prim);
-                    p.add_intermediate(broadcast_node, *node, fused_prim.outer_dep_start_idx, true);
-                    broadcast_node.recalc_output_layouts(false);
-                }
-            }
         }
     }
 #endif
