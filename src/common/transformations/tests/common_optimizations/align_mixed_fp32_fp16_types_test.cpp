@@ -198,8 +198,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_with_rand_uniform) {
         auto minval = Constant::create(element::f32, Shape{}, {1});
         auto maxval = Constant::create(element::f32, Shape{}, {10});
         auto rand_uniform = make_shared<RandomUniform>(out_shape, minval, maxval, element::f32);
-        auto rand_uniform_decompressed = make_shared<Convert>(rand_uniform, element::f32);
-        auto rand_uniform_add_factor = make_shared<Add>(rand_uniform_decompressed, factor_const_decompressed);
+        auto rand_uniform_add_factor = make_shared<Add>(rand_uniform, factor_const_decompressed);
 
         auto mul_1 = make_shared<Multiply>(reduce_sum_1, rand_uniform_add_factor);
         auto convert_to_f16_1 = make_shared<Convert>(mul_1, element::f32);
