@@ -98,7 +98,7 @@ class CustomOpWithAttribute(Op):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
 
     def clone_with_new_inputs(self, new_inputs):
-        return CustomOpWithAttribute(new_inputs)
+        return CustomOpWithAttribute(new_inputs, self._attrs)
 
     def get_type_info(self):
         return CustomOpWithAttribute.class_type_info
@@ -138,7 +138,6 @@ def prepared_paths(request, tmp_path):
     ({"wrong_np": np.array([1.5, 2.5], dtype="complex128")}, pytest.raises(TypeError), "Unsupported NumPy array dtype: complex128"),
     ({"wrong": {}}, pytest.raises(TypeError), "Unsupported attribute type: <class 'dict'>")
 ])
-@pytest.mark.skipif(sys.platform == "win32", reason="CVS-164354 BUG: hanged on windows wheels")
 def test_visit_attributes_custom_op(prepared_paths, attributes, expectation, raise_msg):
     input_shape = [2, 1]
 
