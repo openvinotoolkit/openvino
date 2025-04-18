@@ -204,8 +204,7 @@ void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
     }
 
     if (!info[0].InstanceOf(TensorWrap::get_class(env))) {
-        Napi::TypeError::New(env, "Argument must be an instance of Tensor.")
-            .ThrowAsJavaScriptException();
+        Napi::TypeError::New(env, "Argument must be an instance of Tensor.").ThrowAsJavaScriptException();
         return;
     }
 
@@ -213,14 +212,12 @@ void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
     ov::Tensor& otherTensor = otherTensorWrap->_tensor;
 
     if (_tensor.get_element_type() != otherTensor.get_element_type()) {
-        Napi::TypeError::New(env, "Tensors must have the same element type to copy data.")
-            .ThrowAsJavaScriptException();
+        Napi::TypeError::New(env, "Tensors must have the same element type to copy data.").ThrowAsJavaScriptException();
         return;
     }
 
     if (_tensor.get_shape() != otherTensor.get_shape()) {
-        Napi::TypeError::New(env, "Tensors must have the same shape to copy data.")
-            .ThrowAsJavaScriptException();
+        Napi::TypeError::New(env, "Tensors must have the same shape to copy data.").ThrowAsJavaScriptException();
         return;
     }
 
