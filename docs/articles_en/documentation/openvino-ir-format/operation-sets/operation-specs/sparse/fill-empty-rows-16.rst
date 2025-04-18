@@ -39,6 +39,7 @@ This operator also returns a boolean vector indicating which rows were filled wi
 
     * ``M`` is the same as the length of the ``values`` input.
     * The second dimension is always 2, as only 2D sparse tensors are supported.
+
 * **4**: ``default_value`` a scalar of type *T* to be inserted into the empty rows. **Required.**
 
 **Outputs**:
