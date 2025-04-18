@@ -5,7 +5,6 @@ include = '\.pyi?$'
 [tool.pyright]
 exclude = [
     "src/openvino/utils/data_helpers/data_dispatcher.py",
-    "src/openvino/utils/types.py",
     "src/openvino/**/ops.py",
     "src/openvino/utils/decorators.py",
     "src/openvino/frontend/frontend.py",

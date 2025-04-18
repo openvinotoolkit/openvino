@@ -19,7 +19,7 @@ TensorShape = List[int]
 NumericData = Union[int, float, np.ndarray]
 NumericType = Union[type, np.dtype]
 ScalarData = Union[int, float]
-NodeInput = Union[Node, NumericData]
+NodeInput = Union[Node, Output, NumericData]
 
 openvino_to_numpy_types_map = [
     (Type.boolean, bool),
@@ -145,7 +145,7 @@ def get_shape(data: NumericData) -> TensorShape:
     return []
 
 
-def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = None, *, name: Optional[str] = None) -> Constant:
+def make_constant_node(value: NumericData, dtype: Optional[Union[NumericType, Type]] = None, *, name: Optional[str] = None) -> Constant:
     """Return an openvino Constant node with the specified value."""
     ndarray = get_ndarray(value)
     if dtype is not None:
@@ -161,15 +161,15 @@ def make_constant_node(value: NumericData, dtype: Union[NumericType, Type] = Non
     return const
 
 
-def as_node(input_value: NodeInput, name: Optional[str] = None) -> Union[Node, Output]:
+def as_node(input_value: NodeInput, name: Optional[str] = None) -> Union[Node, Output, Constant]:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
-    if issubclass(type(input_value), Node):
+    if isinstance(input_value, Node):
         return input_value
-    if issubclass(type(input_value), Output):
+    if isinstance(input_value, Output):
         return input_value
     return make_constant_node(input_value, name=name)
 
 
-def as_nodes(*input_values: NodeInput, name: Optional[str] = None) -> List[Node]:
+def as_nodes(*input_values: NodeInput, name: Optional[str] = None) -> List[Union[Node, Output]]:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
     return [as_node(input_value, name=name) for input_value in input_values]
