@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/ops.hpp"
 #include "matchers/single_op/single_op.hpp"
 #include "utils/node.hpp"
 #include "utils/attribute_visitor.hpp"
 #include "utils/model_comparator.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 
 using namespace ov::tools::subgraph_dumper;
 

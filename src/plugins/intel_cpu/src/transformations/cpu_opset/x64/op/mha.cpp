@@ -8,7 +8,8 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::MHANode::MHANode(const ov::Output<ov::Node>& in0,

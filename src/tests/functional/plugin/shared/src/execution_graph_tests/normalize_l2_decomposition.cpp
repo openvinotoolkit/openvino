@@ -7,12 +7,13 @@
 #include <memory>
 
 #include "openvino/runtime/core.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "execution_graph_tests/normalize_l2_decomposition.hpp"
+#include "openvino/op/normalize_l2.hpp"
 
 namespace ExecutionGraphTests {
 

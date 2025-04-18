@@ -7,8 +7,21 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/opsets/opset12_decl.hpp"
 
 using namespace testing;
 using namespace ov;
