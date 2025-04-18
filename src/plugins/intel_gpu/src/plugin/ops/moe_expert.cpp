@@ -5,6 +5,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/constant.hpp"
 
 #include "intel_gpu/op/fully_connected.hpp"
@@ -24,13 +25,14 @@ void repack(Type* dst, const Type* src, size_t N, size_t K) {
     }
 }
 
-static bool repack_zp_scale(std::vector<uint8_t>& dst, const uint8_t* src, const ov::Shape& shape, const ov::element::Type type) {
-    OPENVINO_ASSERT(shape.size() == 3, "repack_zp_scale expects zp/scale's rank is 3, current is ", shape.size());
-    auto groups_count = shape[1];
-    if (groups_count == 1)
-        return false;
+static std::vector<uint8_t> repack(const uint8_t* src, const ov::Shape& shape, const ov::element::Type type) {
+    OPENVINO_ASSERT(shape.size() == 3, "repack expects rank is 3, current is ", shape.size());
+    std::vector<uint8_t> dst;
+    // auto groups_count = shape[1];
+    // if (groups_count == 1)
+    //     return false;
     auto N = shape[0];
-    auto K = shape[1];
+    auto K = shape[1] * shape[2];
     auto element_size = std::accumulate(shape.begin(), shape.end(), int64_t{1}, std::multiplies<>());
     if (type == ov::element::u4 || type == ov::element::i4) {
         dst.resize(element_size / 2);
@@ -54,12 +56,12 @@ static bool repack_zp_scale(std::vector<uint8_t>& dst, const uint8_t* src, const
     } else {
         OPENVINO_ASSERT(false, "repack_zp_scale does not support type: ", type);
     }
-    return true;
+    return dst;
 }
 
 static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert2>& op, std::vector<cldnn::moe_expert::mlp_params>& params) {
     const auto& bodys = op->get_body();
-    auto alloc = [&] (const std::shared_ptr<ov::Node>& node, bool try_repack = false) {
+    auto alloc = [&] (const std::shared_ptr<ov::Node>& node, bool is_weight = false) {
         auto op = ov::as_type_ptr<ov::op::v0::Constant>(node);
         ov::Shape const_shape = op->get_shape();
         auto constFormat = cldnn::format::get_default_format(const_shape.size());
@@ -67,14 +69,14 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
         auto layout = cldnn::layout(const_shape, out_dtype, constFormat);
         auto data = op->get_data_ptr<uint8_t>();
         const auto cache_key = std::make_tuple(data, const_shape, out_dtype);
-        std::vector<uint8_t> repacked_buf;
-        if (try_repack) {
-            auto repacked = repack_zp_scale(repacked_buf, data, const_shape, op->get_output_element_type(0));
-            if (repacked) {
-                data = repacked_buf.data();
-                auto new_shape = ov::Shape{const_shape[1], const_shape[0], 1};
-                layout = cldnn::layout(new_shape, out_dtype, constFormat);
-            }
+        std::vector<uint8_t> repacked_buf = repack(data, const_shape, op->get_output_element_type(0));
+        data = repacked_buf.data();
+        if (is_weight) {
+            auto new_shape = ov::Shape{const_shape[1], const_shape[2], const_shape[0]};
+            layout = cldnn::layout(new_shape, out_dtype, constFormat);
+        } else {
+            auto new_shape = ov::Shape{const_shape[1], const_shape[0], 1};
+            layout = cldnn::layout(new_shape, out_dtype, constFormat);
         }
         auto mem = p.get_engine().allocate_memory(layout, cldnn::allocation_type::usm_device, false);
         auto& stream = p.get_engine().get_service_stream();
@@ -86,24 +88,26 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
     };
     OPENVINO_ASSERT(op->get_config().expert_num == bodys.size());
     params.resize(bodys.size());
+    // TODO: parallel
     for (size_t i = 0; i < bodys.size(); i++) {
+    //ov::parallel_for(bodys.size(), [&](size_t i) {
         auto internal_body = bodys[i];
         for (auto& node : internal_body->get_ordered_ops()) {
             auto& rt = node->get_rt_info();
             if (rt.count("__weight_const__")) {
                 auto idx = rt["__weight_const__"].as<int>();
                 OPENVINO_ASSERT(idx >= 0 && idx < 3);
-                params[i].param[idx].weight = alloc(node);
+                params[i].param[idx].weight = alloc(node, true);
             }
             if (rt.count("__scale_const__")) {
                 auto idx = rt["__scale_const__"].as<int>();
                 OPENVINO_ASSERT(idx >= 0 && idx < 3);
-                params[i].param[idx].scale = alloc(node, true);
+                params[i].param[idx].scale = alloc(node);
             }
             if (rt.count("__zp_const__")) {
                 auto idx = rt["__zp_const__"].as<int>();
                 OPENVINO_ASSERT(idx >= 0 && idx < 3);
-                params[i].param[idx].zp = alloc(node, true);
+                params[i].param[idx].zp = alloc(node);
             }
         }
     }

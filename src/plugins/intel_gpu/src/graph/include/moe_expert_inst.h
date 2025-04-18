@@ -34,6 +34,7 @@ struct expert_mask_tmp_scratch {
     memory::ptr gate;
     memory::ptr y;
     memory::ptr routing_weights;
+    layout x_layout;
     size_t max_size = 0;
 };
 
@@ -43,7 +44,6 @@ struct expert_mask_output_scratch {
     size_t max_size = 0;
 };
 
-static constexpr const char* expert_mask_scratch_key = "expert_mask_scratch";
 static constexpr const char* expert_mask_mem_scratch_key = "expert_mask_scratch_mem";
 static constexpr const char* expert_mask_tmp_scratch_key = "expert_mask_scratch_tmp";
 static constexpr const char* expert_mask_output_scratch_key = "expert_mask_scratch_output";

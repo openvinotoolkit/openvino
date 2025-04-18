@@ -82,15 +82,9 @@ void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, layout& layou
     if (layout.data_padding) {
         mem_lock<int32_t, mem_lock_type::read> lock_data{mem, stream};
         auto p = lock_data.data();
-        if (max_tokens < 5) {
-            for (int expert_no = 0; expert_no < max_expert_num; expert_no++) {
-                fill_with_padding(p, expert_no);
-            }
-        } else {
-            ov::parallel_for(max_expert_num, [&](int expert_no) {
-                fill_with_padding(p, expert_no);
-            });
-        }
+        ov::parallel_for(max_expert_num, [&](int expert_no) {
+            fill_with_padding(p, expert_no);
+        });
     } else {
         std::vector<int32_t> buf(max_expert_num * max_topk * max_tokens);
         {
@@ -98,15 +92,9 @@ void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, layout& layou
             auto p = lock_data.data();
             memcpy(buf.data(), p, buf.size() * sizeof(int32_t));
         }
-        if (max_tokens < 5) {
-            for (int expert_no = 0; expert_no < max_expert_num; expert_no++) {
-                fill(buf.data(), expert_no);
-            }
-        } else {
-            ov::parallel_for(max_expert_num, [&](int expert_no) {
-                fill(buf.data(), expert_no);
-            });
-        }
+        ov::parallel_for(max_expert_num, [&](int expert_no) {
+            fill(buf.data(), expert_no);
+        });
     }
 }
 
@@ -162,10 +150,13 @@ void moe_expert_inst::copy_expert_mask_to_gpu(stream& stream,
 
 void moe_expert_inst::get_tmp_memory(data_types type, int m, int hidden_size, int inter_size, int topk, expert_mask_tmp_scratch& scratch) {
     layout x_layout(ov::PartialShape{m, hidden_size}, type, cldnn::format::bfyx);
+
+    if (x_layout == scratch.x_layout)
+        return;
+
     auto new_size = x_layout.bytes_count();
     layout gate_layout(ov::PartialShape{m, inter_size}, type, cldnn::format::bfyx);
     layout routing_layout(ov::PartialShape{m * topk}, type, cldnn::format::bfyx);
-
     if (new_size > scratch.max_size) {
         auto alloc_type = _network.get_engine().get_lockable_preferred_memory_allocation_type();
         GPU_DEBUG_LOG << "=> allocate expert_mask to " << alloc_type << std::endl;
@@ -201,6 +192,7 @@ void moe_expert_inst::get_tmp_memory(data_types type, int m, int hidden_size, in
     scratch.up = _network.get_engine().reinterpret_buffer(*scratch.up, gate_layout);
     scratch.gate = _network.get_engine().reinterpret_buffer(*scratch.gate, gate_layout);
     scratch.routing_weights = _network.get_engine().reinterpret_buffer(*scratch.routing_weights, routing_layout);
+    scratch.x_layout = x_layout;
 }
 
 template<typename ShapeType>

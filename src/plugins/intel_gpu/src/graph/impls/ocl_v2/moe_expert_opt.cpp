@@ -4,21 +4,22 @@
 #include "moe_expert_opt.hpp"
 
 #include <initializer_list>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_ocl.hpp>
 #include <string_view>
+#include <tuple>
+#include <utility>
 
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/moe_expert.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+#include "moe_expert_inst.h"
 #include "ocl_v2/utils/fused_ops_jitter.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 #include "primitive_inst.h"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
-#include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_ocl.hpp>
-#include <tuple>
-#include "intel_gpu/runtime/utils.hpp"
-#include "moe_expert_inst.h"
 
 namespace ov::intel_gpu::ocl {
 
@@ -28,14 +29,22 @@ using namespace ov::intel_gpu::ocl;
 
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     switch (dt) {
-        case cldnn::data_types::f32: return dnnl::memory::data_type::f32;
-        case cldnn::data_types::f16: return dnnl::memory::data_type::f16;
-        case cldnn::data_types::i8: return dnnl::memory::data_type::s8;
-        case cldnn::data_types::u8: return dnnl::memory::data_type::u8;
-        case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
-        case cldnn::data_types::i4: return dnnl::memory::data_type::s4;
-        case cldnn::data_types::u4: return dnnl::memory::data_type::u4;
-        default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
+    case cldnn::data_types::f32:
+        return dnnl::memory::data_type::f32;
+    case cldnn::data_types::f16:
+        return dnnl::memory::data_type::f16;
+    case cldnn::data_types::i8:
+        return dnnl::memory::data_type::s8;
+    case cldnn::data_types::u8:
+        return dnnl::memory::data_type::u8;
+    case cldnn::data_types::i32:
+        return dnnl::memory::data_type::s32;
+    case cldnn::data_types::i4:
+        return dnnl::memory::data_type::s4;
+    case cldnn::data_types::u4:
+        return dnnl::memory::data_type::u4;
+    default:
+        throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
     }
 }
 
@@ -43,7 +52,7 @@ struct onednn_matmul {
     dnnl::matmul m_prim;
     dnnl::memory::desc m_wei_md;
     dnnl::memory::data_type m_w_type;
-    dnnl::memory::data_type m_a_type; // activation dtype
+    dnnl::memory::data_type m_a_type;  // activation dtype
     dnnl::memory::dim m_K;
     dnnl::memory::dim m_N;
     dnnl::memory::dim m_M;
@@ -106,7 +115,7 @@ struct onednn_matmul {
     onednn_matmul& post_op_bin_mul(bool per_oc = true) {
         dnnl::memory::dim batch_size = m_M;
         if (batch_size == DNNL_RUNTIME_DIM_VAL)
-            batch_size = 1024*1024; // big enough fake static batch
+            batch_size = 1024 * 1024;  // big enough fake static batch
 
         dnnl::memory::desc bin_mul_md = dnnl::memory::desc(dnnl::memory::dims({batch_size, per_oc ? m_N : 1}), m_a_type, dnnl::memory::format_tag::ab);
         postops.append_binary(dnnl::algorithm::binary_mul, bin_mul_md);
@@ -125,10 +134,10 @@ struct onednn_matmul {
 
         dnnl::memory::desc src_md = dnnl::memory::desc(dnnl::memory::dims({m_M, m_K}), m_a_type, dnnl::memory::format_tag::ab);
         dnnl::memory::desc dst_md = dnnl::memory::desc(dnnl::memory::dims({m_M, m_N}), m_a_type, dnnl::memory::format_tag::ab);
-        //memory::desc wei_md = memory::desc(memory::dims({m_K, m_N}), m_w_type, memory::format_tag::any);
+        // memory::desc wei_md = memory::desc(memory::dims({m_K, m_N}), m_w_type, memory::format_tag::any);
 
         // use fixed weight-layout to prevent shape-dependent weight-layout changes
-        dnnl::memory::desc wei_md = dnnl::memory::desc(dnnl::memory::dims({m_K, m_N}), m_w_type, dnnl::memory::format_tag::ba);
+        dnnl::memory::desc wei_md = dnnl::memory::desc(dnnl::memory::dims({m_K, m_N}), m_w_type, dnnl::memory::format_tag::ab);
 
         // Create primitive descriptor.
         auto matmul_pd = dnnl::matmul::primitive_desc(eng, src_md, wei_md, dst_md, attr);
@@ -151,7 +160,15 @@ struct onednn_matmul {
     };
     int bin_post_id = -1;
     bool bin_per_row = false;
-    onednn_matmul(dnnl::engine eng, dnnl::memory::data_type act_dtype, dnnl::memory::data_type weight_dtype, int batch, int ic, int oc, int ic_group_size, type t) : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size) {
+    onednn_matmul(dnnl::engine eng,
+                  dnnl::memory::data_type act_dtype,
+                  dnnl::memory::data_type weight_dtype,
+                  int batch,
+                  int ic,
+                  int oc,
+                  int ic_group_size,
+                  type t)
+        : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size) {
         if (t == type::with_bin_mul) {
             bin_post_id = 0;
             post_op_bin_mul(true);
@@ -251,12 +268,17 @@ struct onednn_linear {
     dnnl::memory::data_type m_a_type;
     int bin_post_id;
 
-    static onednn_linear create(
-              dnnl::engine eng,
-              dnnl::memory::data_type act_dtype, dnnl::memory::data_type weight_dtype, int batch, int ic, int oc, int ic_group_size, onednn_matmul::type t,
-              dnnl::memory weight, // external weight
-              dnnl::memory scale,
-              dnnl::memory zp) {
+    static onednn_linear create(dnnl::engine eng,
+                                dnnl::memory::data_type act_dtype,
+                                dnnl::memory::data_type weight_dtype,
+                                int batch,
+                                int ic,
+                                int oc,
+                                int ic_group_size,
+                                onednn_matmul::type t,
+                                dnnl::memory weight,  // external weight
+                                dnnl::memory scale,
+                                dnnl::memory zp) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::create()"));
         auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t);
         onednn_linear linear;
@@ -273,40 +295,36 @@ struct onednn_linear {
 
         // if (raw_wei_md != mm->m_wei_md) {
         //    OPENVINO_ASSERT(0);
-            /*
-            linear.weight = memory(mm->m_wei_md, mm->m_engine);
-            std::cout << ">>>>>>>>>>>>>>>>>> weight layout changed : reorder is called (seems to be not working)" << std::endl;
-            auto src_wei_mem = dnnl::ocl_interop::make_memory(
-                                        raw_wei_md,
-                                        mm->m_engine,
-                                        ocl_interop::memory_kind::usm,
-                                        static_cast<void*>(data));
-            reorder cvt(src_wei_mem, linear.weight);
-            cvt.execute(linear.m_stream, src_wei_mem, linear.weight);
-            linear.m_stream.wait();
-            */
+        /*
+        linear.weight = memory(mm->m_wei_md, mm->m_engine);
+        std::cout << ">>>>>>>>>>>>>>>>>> weight layout changed : reorder is called (seems to be not working)" << std::endl;
+        auto src_wei_mem = dnnl::ocl_interop::make_memory(
+                                    raw_wei_md,
+                                    mm->m_engine,
+                                    ocl_interop::memory_kind::usm,
+                                    static_cast<void*>(data));
+        reorder cvt(src_wei_mem, linear.weight);
+        cvt.execute(linear.m_stream, src_wei_mem, linear.weight);
+        linear.m_stream.wait();
+        */
         //} else {
-            linear.weight = weight; // dnnl::ocl_interop::make_memory(raw_wei_md, linear.m_engine, dnnl::ocl_interop::memory_kind::usm, static_cast<void*>(data));
+        linear.weight = weight;  // dnnl::ocl_interop::make_memory(raw_wei_md, linear.m_engine, dnnl::ocl_interop::memory_kind::usm, static_cast<void*>(data));
         //}
 
         if (scale) {
             // https://uxlfoundation.github.io/oneDNN/page_weights_decompression_matmul_cpp.html
             // Quantization Group size for scales. Must be divisible by 32.
-            auto wei_scale_md = dnnl::memory::desc(dnnl::memory::dims({mm->m_K_groups, mm->m_N}),
-                                             dnnl::memory::data_type::f16,
-                                             dnnl::memory::format_tag::ab);
-            linear.scale = scale; //dnnl::ocl_interop::make_memory(wei_scale_md, linear.m_engine, dnnl::ocl_interop::memory_kind::usm, scale);
+            auto wei_scale_md = dnnl::memory::desc(dnnl::memory::dims({mm->m_K_groups, mm->m_N}), dnnl::memory::data_type::f16, dnnl::memory::format_tag::ab);
+            linear.scale = scale;  // dnnl::ocl_interop::make_memory(wei_scale_md, linear.m_engine, dnnl::ocl_interop::memory_kind::usm, scale);
             if (zp) {
-                auto wei_zp_md = dnnl::memory::desc(dnnl::memory::dims({mm->m_K_groups, mm->m_N}),
-                                              mm->m_w_type,
-                                              dnnl::memory::format_tag::ab);
-                linear.zp = zp; // dnnl::ocl_interop::make_memory(wei_zp_md, linear.m_engine, dnnl::ocl_interop::memory_kind::usm, zp);
+                auto wei_zp_md = dnnl::memory::desc(dnnl::memory::dims({mm->m_K_groups, mm->m_N}), mm->m_w_type, dnnl::memory::format_tag::ab);
+                linear.zp = zp;  // dnnl::ocl_interop::make_memory(wei_zp_md, linear.m_engine, dnnl::ocl_interop::memory_kind::usm, zp);
             }
         }
         return linear;
     }
 
-    void forward(dnnl::stream& stream, int m, dnnl::memory src_mem, dnnl::memory dst_mem, dnnl::memory bin_mem/*void* a, void* c, void* bin_input*/) {
+    void forward(dnnl::stream& stream, int m, dnnl::memory src_mem, dnnl::memory dst_mem, dnnl::memory bin_mem /*void* a, void* c, void* bin_input*/) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::forward()"));
         dnnl::memory::dim M = m;
 
@@ -321,14 +339,14 @@ struct onednn_linear {
             rt_bin_md = dnnl::memory::desc(dnnl::memory::dims({M, m_N}), m_a_type, dnnl::memory::format_tag::ab);
         }
         // auto src_mem = dnnl::ocl_interop::make_memory(rt_src_md, m_engine, dnnl::ocl_interop::memory_kind::usm, (void *)(a));
-        //auto weights_mem = dnnl::ocl_interop::make_memory(m_weights_md, m_engine, ocl_interop::memory_kind::usm, (void *)(w));
+        // auto weights_mem = dnnl::ocl_interop::make_memory(m_weights_md, m_engine, ocl_interop::memory_kind::usm, (void *)(w));
         // auto dst_mem = dnnl::ocl_interop::make_memory(rt_dst_md, m_engine, dnnl::ocl_interop::memory_kind::usm, (void *)(c));
-        //auto bias_mem = memory(bias_md, m_engine);
+        // auto bias_mem = memory(bias_md, m_engine);
 
         std::unordered_map<int, dnnl::memory> args;
         args.insert({DNNL_ARG_SRC, src_mem});
         args.insert({DNNL_ARG_WEIGHTS, weight});
-        //args.insert({DNNL_ARG_BIAS, bias_mem});
+        // args.insert({DNNL_ARG_BIAS, bias_mem});
         args.insert({DNNL_ARG_DST, dst_mem});
 
         if (scale) {
@@ -338,7 +356,7 @@ struct onednn_linear {
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp});
         }
         if (bin_mem) {
-            //auto bin_mem = dnnl::ocl_interop::make_memory(rt_bin_md, m_engine, dnnl::ocl_interop::memory_kind::usm, (void *)(bin_input));
+            // auto bin_mem = dnnl::ocl_interop::make_memory(rt_bin_md, m_engine, dnnl::ocl_interop::memory_kind::usm, (void *)(bin_input));
             args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(bin_post_id) | DNNL_ARG_SRC_1, bin_mem});
         }
         m_prim.execute(stream, args);
@@ -409,8 +427,97 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-        }};
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
+#define N_BLOCK_SIZE  64
+#define SUBGROUP_SIZE 32
+
+static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
+    auto desc = params.typed_desc<moe_expert>();
+    jit.make("MAX_TOPK", desc->_config.topk);
+    jit.make("HIDDEN_SIZE", desc->get_hidden_size());
+    jit.make("INTERMEDIATE_SIZE", desc->get_intermediate_size());
+    jit.make("N_BLOCK_SIZE", N_BLOCK_SIZE);
+    jit.make("SUBGROUP_SIZE", SUBGROUP_SIZE);
+    jit.make("GROUP_SIZE", desc->get_group_size());
+    jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+    jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+}
+
+class MoeExpertOptMLPGateUp : public KernelGenerator {
+public:
+    MoeExpertOptMLPGateUp() : KernelGenerator("moe_expert_mlp", "gate_up") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_expert>();
+        add_common_consts(params, jit);
+        jit.make("GATE_UP_ENABLE", 1);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
+class MoeExpertOptMLPDown : public KernelGenerator {
+public:
+    MoeExpertOptMLPDown() : KernelGenerator("moe_expert_mlp", "down") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_expert>();
+        add_common_consts(params, jit);
+        jit.make("DOWN_ENABLE", 1);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
+class MoeExpertOptMLPReduce : public KernelGenerator {
+public:
+    MoeExpertOptMLPReduce() : KernelGenerator("moe_expert_mlp", "reduce") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_expert>();
+        add_common_consts(params, jit);
+        jit.make("REDUCE_ENABLE", 1);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
     }
 };
 
@@ -424,6 +531,9 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoeExpertOptImpl)
     Stage::Ptr gather = make_stage<MoeExpertOptGather>();
     Stage::Ptr scatter = make_stage<MoeExpertOptScatter>();
+    Stage::Ptr mlp_gate_up = make_stage<MoeExpertOptMLPGateUp>();
+    Stage::Ptr mlp_down = make_stage<MoeExpertOptMLPDown>();
+    Stage::Ptr mlp_reduce = make_stage<MoeExpertOptMLPReduce>();
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -432,49 +542,34 @@ public:
         int ic, oc, ic_group_size;
     };
     std::vector<std::vector<dnnl_weights>> _dnnl_weights;
+    int _hidden_size;
+    int _intermediate_size;
+    int _group_size;
 
     MoeExpertOptImpl() : PrimitiveImplOCL(MoeExpertOpt::get_type_info_static()) {}
     MoeExpertOptImpl(const program_node& node, const RuntimeParams& params) : MoeExpertOptImpl() {
         node.get_program().get_engine().create_onednn_engine(node.get_program().get_config());
-        const auto& moe = node.as<moe_expert>();
-        const auto& moe_mlp_params = moe.get_mlp_params();
+        const auto& moe = node.as<moe_expert>().get_primitive();
+        const auto& moe_mlp_params = moe->_mlp_params;
         _dnnl_weights.resize(moe_mlp_params.size());
+        _hidden_size = static_cast<int>(moe->get_hidden_size());
+        _intermediate_size = static_cast<int>(moe->get_intermediate_size());
+        _group_size = static_cast<int>(moe->get_group_size());
+
         for (size_t j = 0; j < moe_mlp_params.size(); j++) {
             const auto& mlp_params = moe_mlp_params[j];
             auto& dnnl_weights = _dnnl_weights[j];
             dnnl_weights.resize(3);
+            dnnl_weights[0].ic = _hidden_size;
+            dnnl_weights[0].ic_group_size = _group_size;
+            dnnl_weights[0].oc = _intermediate_size;
+            dnnl_weights[1].ic = _hidden_size;
+            dnnl_weights[1].ic_group_size = _group_size;
+            dnnl_weights[1].oc = _intermediate_size;
+            dnnl_weights[2].ic = _intermediate_size;
+            dnnl_weights[2].ic_group_size = _group_size;
+            dnnl_weights[2].oc = _hidden_size;
             for (int i = 0; i < 3; i++) {
-                auto layout = mlp_params.param[i].weight->get_layout();
-                const auto& shape = layout.get_shape();
-                dnnl_weights[i].oc = static_cast<int>(shape[0]);
-                if (shape.size() == 3) {
-                    dnnl_weights[i].ic = static_cast<int>(shape[1] * shape[2]);
-                    dnnl_weights[i].ic_group_size = static_cast<int>(shape[2]);
-                    if (mlp_params.param[i].zp) {
-                        auto zp_shape = mlp_params.param[i].zp->get_layout().get_shape();
-                        OPENVINO_ASSERT(zp_shape.size() == 3);
-                        OPENVINO_ASSERT(zp_shape[0] == shape[1] && zp_shape[1] == shape[0] && zp_shape[2] == 1);
-                    }
-                    if (mlp_params.param[i].scale) {
-                        auto scale_shape = mlp_params.param[i].scale->get_layout().get_shape();
-                        OPENVINO_ASSERT(scale_shape.size() == 3);
-                        OPENVINO_ASSERT(scale_shape[0] == shape[1] && scale_shape[1] == shape[0] && scale_shape[2] == 1);
-                    }
-                } else {
-                    OPENVINO_ASSERT(shape.size() == 2);
-                    dnnl_weights[i].ic = static_cast<int>(shape[1]);
-                    dnnl_weights[i].ic_group_size = static_cast<int>(shape[1]);
-                    if (mlp_params.param[i].zp) {
-                        auto zp_shape = mlp_params.param[i].zp->get_layout().get_shape();
-                        OPENVINO_ASSERT(zp_shape.size() == 2);
-                        OPENVINO_ASSERT(zp_shape[0] == shape[0]);
-                    }
-                    if (mlp_params.param[i].scale) {
-                        auto scale_shape = mlp_params.param[i].scale->get_layout().get_shape();
-                        OPENVINO_ASSERT(scale_shape.size() == 2);
-                        OPENVINO_ASSERT(scale_shape[0] == shape[0]);
-                    }
-                }
                 if (mlp_params.param[i].scale) {
                     dnnl_weights[i].scale = convert2dnnl(mlp_params.param[i].scale,
                                                          {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
@@ -486,19 +581,24 @@ public:
                                                       dnnl::memory::format_tag::ab);
                 }
                 if (mlp_params.param[i].weight) {
-                    dnnl_weights[i].weight =
-                        convert2dnnl(mlp_params.param[i].weight, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba);
+                    dnnl_weights[i].weight = convert2dnnl(mlp_params.param[i].weight, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ab);
                 }
             }
         }
 
         add_stage(gather, params);
         add_stage(scatter, params);
+        add_stage(mlp_gate_up, params);
+        add_stage(mlp_down, params);
+        add_stage(mlp_reduce, params);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         auto moe = make_deep_copy<MoeExpertOptImpl>(this);
         moe->_dnnl_weights = _dnnl_weights;
+        moe->_hidden_size = _hidden_size;
+        moe->_intermediate_size = _intermediate_size;
+        moe->_group_size = _group_size;
         return moe;
     }
 
@@ -513,11 +613,16 @@ public:
     //     return {buf, buf};
     // }
 
-    cldnn::event::ptr execute_stage(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, Stage& stage, std::vector<memory::ptr> inputs,
-        std::vector<memory::ptr> outputs, const std::vector<size_t>& global, const std::vector<size_t>& local) const {
+    cldnn::event::ptr execute_stage(const std::vector<cldnn::event::ptr>& events,
+                                    cldnn::primitive_inst& instance,
+                                    Stage& stage,
+                                    std::vector<memory::ptr> inputs,
+                                    std::vector<memory::ptr> outputs,
+                                    const std::vector<size_t>& global,
+                                    const std::vector<size_t>& local,
+                                    bool needs_completion_event = false) const {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MoeExpertOptImpl::execute_stage"));
         cldnn::stream& stream = instance.get_network().get_stream();
-        bool needs_completion_event = false; // instance.needs_completion_event();
         cldnn::kernel_arguments_data args;
         cldnn::kernel_arguments_desc desc;
         for (uint32_t i = 0; i < inputs.size(); i++) {
@@ -545,6 +650,175 @@ public:
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
     }
 
+    auto get_input_info(typed_primitive_inst<moe_expert>& instance, int idx) {
+        auto mem = instance.input_memory_ptr(idx);
+        auto dep = instance.dependencies()[idx];
+        auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
+        return std::make_tuple(mem, layout);
+    }
+    // one expert weights pointers
+    struct expert_info {
+        void* weight[3];
+        void* zp[3];
+        void* scale[3];
+        int routing_offset;
+        int pad;
+    };
+
+    std::vector<expert_info> _expert_weight_pointers;
+    cldnn::event::ptr exec_batch1(typed_primitive_inst<moe_expert>& instance, const expert_mask_scratch& expert_mask, expert_mask_tmp_scratch& scratch) {
+        int max_topk = static_cast<int>(instance.get_config().topk);
+        auto& cur_net = instance.get_network();
+        auto& stream = cur_net.get_stream();
+        auto moe = instance.get_typed_desc<moe_expert>();
+
+        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 2);
+        auto [routing_mem_ptr, routing_layout] = get_input_info(instance, 3);
+
+        const auto& moe_mlp_params = moe->_mlp_params;
+        _hidden_size = static_cast<int>(moe->get_hidden_size());
+        _intermediate_size = static_cast<int>(moe->get_intermediate_size());
+        instance.get_tmp_memory(hidden_states_layout.data_type, max_topk, _hidden_size, _intermediate_size, max_topk, scratch);
+        _expert_weight_pointers.resize(max_topk);
+
+        for (size_t expert_no = 0, valid_expert_no = 0; expert_no < instance.get_config().expert_num; expert_no++) {
+            OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
+            auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
+            if (can_skip_subgraph) {
+                continue;
+            }
+            const auto& param = moe_mlp_params[expert_no];
+            _expert_weight_pointers[valid_expert_no].routing_offset = expert_mask.topk[expert_no][0];
+            for (int i = 0; i < 3; i++) {
+                _expert_weight_pointers[valid_expert_no].weight[i] = param.param[i].weight->buffer_ptr();
+                _expert_weight_pointers[valid_expert_no].zp[i] = param.param[i].zp->buffer_ptr();
+                _expert_weight_pointers[valid_expert_no].scale[i] = param.param[i].scale->buffer_ptr();
+            }
+            valid_expert_no++;
+        }
+
+        // reuse scratch.gate to store expert weights pointer
+        auto& expert_weight_ptr = scratch.gate;
+        OPENVINO_ASSERT(_expert_weight_pointers.size() * sizeof(expert_info) <= scratch.gate->size());
+        {
+            mem_lock<int32_t, mem_lock_type::write> lock_data{expert_weight_ptr, stream};
+            memcpy(lock_data.data(), _expert_weight_pointers.data(), _expert_weight_pointers.size() * sizeof(expert_info));
+        }
+        // scratch.up = up(x) * silu(gate(x))
+        execute_stage({},
+                      instance,
+                      *mlp_gate_up,
+                      {expert_weight_ptr, hidden_states_mem_ptr},
+                      {scratch.up},
+                      {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size)},
+                      {1, SUBGROUP_SIZE});
+        // scratch.y = down(scratch.up) * weight[expert_no]
+        execute_stage({},
+                      instance,
+                      *mlp_down,
+                      {expert_weight_ptr, scratch.up, routing_mem_ptr},
+                      {scratch.y},
+                      {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size)},
+                      {1, SUBGROUP_SIZE});
+        // final = sum(scratch.y)
+        return execute_stage({},
+                             instance,
+                             *mlp_reduce,
+                             {scratch.y},
+                             {final_hidden_states_mem_ptr},
+                             {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
+                             {1, SUBGROUP_SIZE},
+                             instance.needs_completion_event());
+    }
+
+    struct onednn_kernel {
+        onednn_linear up;
+        onednn_linear gate;
+        onednn_linear down;
+        onednn_linear down_batch1;
+    };
+    struct PairHash {
+        template <class T1, class T2>
+        size_t operator()(const std::pair<T1, T2>& p) const {
+            // Combine hash values of the pair elements
+            return std::hash<T1>()(p.first) ^ std::hash<T2>()(p.second);
+        }
+    };
+    std::unordered_map<std::pair<int, int>, onednn_kernel, PairHash> _kernels;
+
+    onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe_expert>& instance) {
+        auto key = std::make_pair(n_token, expert_no);
+        if (_kernels.count(key))
+            return _kernels[key];
+
+        auto& cur_net = instance.get_network();
+        auto& stream = cur_net.get_stream();
+        auto moe = instance.get_typed_desc<moe_expert>();
+        const auto& moe_mlp_params = moe->_mlp_params;
+        const auto& mlp_params = moe_mlp_params[expert_no];
+        auto& dnn_stream = stream.get_onednn_stream();
+        auto hidden_states_layout_dt = convert_data_type(instance.input_memory_ptr(2)->get_layout().data_type);
+        auto& dnnl_weights = _dnnl_weights[expert_no];
+        onednn_kernel kernel;
+        // up
+        auto up_weight_layout = mlp_params.param[1].weight->get_layout();
+        kernel.up = onednn_linear::create(dnn_stream.get_engine(),
+                                          hidden_states_layout_dt,
+                                          convert_data_type(up_weight_layout.data_type),
+                                          n_token,
+                                          dnnl_weights[1].ic,
+                                          dnnl_weights[1].oc,
+                                          dnnl_weights[1].ic_group_size,
+                                          onednn_matmul::type::none,
+                                          dnnl_weights[1].weight,
+                                          dnnl_weights[1].scale,
+                                          dnnl_weights[1].zp);
+
+        // gate
+        auto gate_weight_layout = mlp_params.param[0].weight->get_layout();
+        kernel.gate = onednn_linear::create(dnn_stream.get_engine(),
+                                            hidden_states_layout_dt,
+                                            convert_data_type(gate_weight_layout.data_type),
+                                            n_token,
+                                            dnnl_weights[0].ic,
+                                            dnnl_weights[0].oc,
+                                            dnnl_weights[0].ic_group_size,
+                                            onednn_matmul::type::with_silu_bin_mul,
+                                            dnnl_weights[0].weight,
+                                            dnnl_weights[0].scale,
+                                            dnnl_weights[0].zp);
+
+        // down
+        auto down_weight_layout = mlp_params.param[2].weight->get_layout();
+        if (n_token == 1) {
+            kernel.down_batch1 = onednn_linear::create(dnn_stream.get_engine(),
+                                                       hidden_states_layout_dt,
+                                                       convert_data_type(down_weight_layout.data_type),
+                                                       1,
+                                                       dnnl_weights[2].ic,
+                                                       dnnl_weights[2].oc,
+                                                       dnnl_weights[2].ic_group_size,
+                                                       onednn_matmul::type::with_bin_mul_per_row_sum,
+                                                       dnnl_weights[2].weight,
+                                                       dnnl_weights[2].scale,
+                                                       dnnl_weights[2].zp);
+        }
+        kernel.down = onednn_linear::create(dnn_stream.get_engine(),
+                                            hidden_states_layout_dt,
+                                            convert_data_type(down_weight_layout.data_type),
+                                            n_token,
+                                            dnnl_weights[2].ic,
+                                            dnnl_weights[2].oc,
+                                            dnnl_weights[2].ic_group_size,
+                                            onednn_matmul::type::with_bin_mul_per_row,
+                                            dnnl_weights[2].weight,
+                                            dnnl_weights[2].scale,
+                                            dnnl_weights[2].zp);
+        _kernels[key] = kernel;
+        return _kernels[key];
+    }
+
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MoeExpertOptImpl::execute"));
         auto& instance = reinterpret_cast<typed_primitive_inst<moe_expert>&>(ins);
@@ -556,10 +830,7 @@ public:
         instance.update_output_layout();
         instance.update_output_memory(true);
 
-        if (!cur_net.has_scratch<expert_mask_scratch>(expert_mask_scratch_key)) {
-            cur_net.set_scratch<expert_mask_scratch>(expert_mask_scratch_key, {});
-        }
-        expert_mask_scratch& expert_mask = cur_net.get_scratch<expert_mask_scratch>(expert_mask_scratch_key);
+        expert_mask_scratch expert_mask;
         {
             // Wait for moe_expert statement event only, and pass all other events to sub-network directly
             // The UpdateShape() is bypassed and it's in-order queue
@@ -574,177 +845,130 @@ public:
                 for (int no = 0; no < max_expert_num; no++) {
                     count += static_cast<int>(expert_mask.batch[no].size());
                 }
-                OPENVINO_ASSERT(count == max_topk * max_tokens, "With max_expert_num=", max_expert_num, ",max_topk=", max_topk, ",exec count=",
-                    expert_mask.execed_count, ",max_tokens=", max_tokens, " should have ", max_topk * max_tokens, " tokens, but current is ",
-                    count, ". layout=", layout);
+                OPENVINO_ASSERT(count == max_topk * max_tokens,
+                                "With max_expert_num=",
+                                max_expert_num,
+                                ",max_topk=",
+                                max_topk,
+                                ",exec count=",
+                                expert_mask.execed_count,
+                                ",max_tokens=",
+                                max_tokens,
+                                " should have ",
+                                max_topk * max_tokens,
+                                " tokens, but current is ",
+                                count,
+                                ". layout=",
+                                layout);
             }
         }
 
-        auto dnn_stream = stream.get_onednn_stream();
-        auto input_info = [&](int idx) {
-            auto mem = instance.input_memory_ptr(idx);
-            auto dep = instance.dependencies()[idx];
-            auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
-            return std::make_tuple(mem, layout);
-        };
+        auto& dnn_stream = stream.get_onednn_stream();
 
-        auto get_best_lws = [](size_t hidden_size) {
-            const size_t candidate[] = {128, 64, 32, 16, 8};
-            for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {
-                if (hidden_size % candidate[i] == 0) {
-                    return candidate[i];
-                }
-            }
-            OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
-        };
-
-        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
-        auto final_hidden_states_layout = instance.get_output_layout(0);
-        auto [expert_mask_mem_ptr, expert_mask_layout] = input_info(1);
-        auto [hidden_states_mem_ptr, hidden_states_layout] = input_info(2);
-        auto [routing_mem_ptr, routing_layout] = input_info(3);
-
-        const auto& moe_mlp_params = moe->_mlp_params;
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 2);
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[1]);
-        auto hidden_size = static_cast<int>(hidden_states_layout.get_shape()[2]);
-        auto lws_size = get_best_lws(hidden_size);
-        auto intermediate_size = static_cast<int>(moe_mlp_params[0].param[0].weight->get_layout().get_shape()[0]);
         if (!cur_net.has_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key)) {
             cur_net.set_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key, {});
         }
         expert_mask_tmp_scratch& scratch = cur_net.get_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key);
-        for (size_t expert_no = 0; expert_no < instance.get_config().expert_num; expert_no++) {
-            OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
-            auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
-            if (can_skip_subgraph) {
-                continue;
-            }
-            const auto& mlp_params = moe_mlp_params[expert_no];
-            auto& dnnl_weights = _dnnl_weights[expert_no];
-
-            expert_mask_mem_scratch* expert_mask_mem = nullptr;
-            if (batch != 1) {
-                auto key = expert_mask_mem_scratch_key + std::to_string(expert_no);
-                if (!cur_net.has_scratch<expert_mask_mem_scratch>(key)) {
-                    cur_net.set_scratch<expert_mask_mem_scratch>(key, {});
+        cldnn::event::ptr result_event;
+        if (batch == 1) {
+            result_event = exec_batch1(instance, expert_mask, scratch);
+        } else {
+            auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+            auto final_hidden_states_layout = instance.get_output_layout(0);
+            auto [expert_mask_mem_ptr, expert_mask_layout] = get_input_info(instance, 1);
+            auto [routing_mem_ptr, routing_layout] = get_input_info(instance, 3);
+            auto get_best_lws = [](size_t hidden_size) {
+                const size_t candidate[] = {128, 64, 32, 16, 8};
+                for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {
+                    if (hidden_size % candidate[i] == 0) {
+                        return candidate[i];
+                    }
                 }
-                expert_mask_mem = &cur_net.get_scratch<expert_mask_mem_scratch>(key);
-                instance.copy_expert_mask_to_gpu(stream, expert_mask, expert_no, *expert_mask_mem);
-            }
+                OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
+            };
+            auto lws_size = get_best_lws(_hidden_size);
 
-            auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
-            instance.get_tmp_memory(hidden_states_layout.data_type, n_token, hidden_size, intermediate_size, max_topk, scratch);
+            for (size_t expert_no = 0; expert_no < instance.get_config().expert_num; expert_no++) {
+                OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
+                auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
+                if (can_skip_subgraph) {
+                    continue;
+                }
+                auto& dnnl_weights = _dnnl_weights[expert_no];
 
-            memory::ptr x;
-            if (batch == 1) {
-                x = hidden_states_mem_ptr;
-            } else {
-                x = scratch.x;
+                expert_mask_mem_scratch* expert_mask_mem = nullptr;
+                if (batch != 1) {
+                    auto key = expert_mask_mem_scratch_key + std::to_string(expert_no);
+                    if (!cur_net.has_scratch<expert_mask_mem_scratch>(key)) {
+                        cur_net.set_scratch<expert_mask_mem_scratch>(key, {});
+                    }
+                    expert_mask_mem = &cur_net.get_scratch<expert_mask_mem_scratch>(key);
+                    instance.copy_expert_mask_to_gpu(stream, expert_mask, expert_no, *expert_mask_mem);
+                }
+
+                auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
+                instance.get_tmp_memory(hidden_states_layout.data_type, n_token, _hidden_size, _intermediate_size, max_topk, scratch);
+                onednn_kernel& kernel = get_kernel(batch == 1 ? 1 : n_token, expert_no, instance);
+                memory::ptr& x = batch == 1 ? hidden_states_mem_ptr : scratch.x;
+
                 // gather
-                OPENVINO_ASSERT(hidden_size % 16 == 0);
-                execute_stage(events,
-                              instance,
-                              *gather,
-                              {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem->batch, expert_mask_mem->topk},
-                              {x, scratch.routing_weights},
-                              {static_cast<size_t>(n_token), static_cast<size_t>(hidden_size)},
-                              {1, lws_size});
-            }
-            {
-                // up
-                auto up_weight_layout = mlp_params.param[1].weight->get_layout();
+                if (batch != 1) {
+                    execute_stage(events,
+                                  instance,
+                                  *gather,
+                                  {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem->batch, expert_mask_mem->topk},
+                                  {x, scratch.routing_weights},
+                                  {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
+                                  {1, lws_size});
+                }
 
-                auto linear = onednn_linear::create(dnn_stream.get_engine(),
-                                                    convert_data_type(hidden_states_layout.data_type),
-                                                    convert_data_type(up_weight_layout.data_type),
-                                                    n_token,
-                                                    dnnl_weights[1].ic,
-                                                    dnnl_weights[1].oc,
-                                                    dnnl_weights[1].ic_group_size,
-                                                    onednn_matmul::type::none,
-                                                    dnnl_weights[1].weight,
-                                                    dnnl_weights[1].scale,
-                                                    dnnl_weights[1].zp);
-                linear.forward(dnn_stream,
-                               n_token,
-                               convert2dnnl(x, {static_cast<int>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
-                               convert2dnnl(scratch.up, {static_cast<int>(n_token), intermediate_size}, dnnl::memory::format_tag::ab),
-                               dnnl::memory());
-            }
-            {
+                // up
+                kernel.up.forward(dnn_stream,
+                                  n_token,
+                                  convert2dnnl(x, {static_cast<int>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
+                                  convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                  dnnl::memory());
+
                 // gate
-                auto gate_weight_layout = mlp_params.param[0].weight->get_layout();
-                auto linear = onednn_linear::create(dnn_stream.get_engine(),
-                                                    convert_data_type(hidden_states_layout.data_type),
-                                                    convert_data_type(gate_weight_layout.data_type),
-                                                    n_token,
-                                                    dnnl_weights[0].ic,
-                                                    dnnl_weights[0].oc,
-                                                    dnnl_weights[0].ic_group_size,
-                                                    onednn_matmul::type::with_silu_bin_mul,
-                                                    dnnl_weights[0].weight,
-                                                    dnnl_weights[0].scale,
-                                                    dnnl_weights[0].zp);
-                linear.forward(dnn_stream,
-                               n_token,
-                               convert2dnnl(x, {static_cast<int>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
-                               convert2dnnl(scratch.gate, {static_cast<int>(n_token), intermediate_size}, dnnl::memory::format_tag::ab),
-                               convert2dnnl(scratch.up, {static_cast<int>(n_token), intermediate_size}, dnnl::memory::format_tag::ab));
-            }
-            // down
-            auto down_weight_layout = mlp_params.param[2].weight->get_layout();
-            auto routing_num = routing_layout.get_dim(0);
-            if (batch == 1) {
-                auto linear = onednn_linear::create(dnn_stream.get_engine(),
-                                                    convert_data_type(hidden_states_layout.data_type),
-                                                    convert_data_type(down_weight_layout.data_type),
-                                                    batch,
-                                                    dnnl_weights[2].ic,
-                                                    dnnl_weights[2].oc,
-                                                    dnnl_weights[2].ic_group_size,
-                                                    onednn_matmul::type::with_bin_mul_per_row_sum,
-                                                    dnnl_weights[2].weight,
-                                                    dnnl_weights[2].scale,
-                                                    dnnl_weights[2].zp);
-                linear.forward(dnn_stream,
-                               batch,
-                               convert2dnnl(scratch.gate, {static_cast<int>(batch), intermediate_size}, dnnl::memory::format_tag::ab),
-                               convert2dnnl(final_hidden_states_mem_ptr, {static_cast<int>(batch), hidden_size}, dnnl::memory::format_tag::ab),
-                               convert2dnnl(routing_mem_ptr,
-                                            {routing_num},
-                                            dnnl::memory::format_tag::a,
-                                            expert_mask.topk[expert_no][0] * static_cast<int>(ov::element::Type(routing_layout.data_type).size())));
-            } else {
-                auto linear = onednn_linear::create(dnn_stream.get_engine(),
-                                                    convert_data_type(hidden_states_layout.data_type),
-                                                    convert_data_type(down_weight_layout.data_type),
-                                                    n_token,
-                                                    dnnl_weights[2].ic,
-                                                    dnnl_weights[2].oc,
-                                                    dnnl_weights[2].ic_group_size,
-                                                    onednn_matmul::type::with_bin_mul_per_row,
-                                                    dnnl_weights[2].weight,
-                                                    dnnl_weights[2].scale,
-                                                    dnnl_weights[2].zp);
-                linear.forward(dnn_stream,
-                               n_token,
-                               convert2dnnl(scratch.gate, {static_cast<int>(n_token), intermediate_size}, dnnl::memory::format_tag::ab),
-                               convert2dnnl(scratch.y, {static_cast<int>(n_token), hidden_size}, dnnl::memory::format_tag::ab),
-                               convert2dnnl(scratch.routing_weights, {n_token * max_topk}, dnnl::memory::format_tag::a));
-                // index add
-                OPENVINO_ASSERT(hidden_size % 16 == 0);
-                execute_stage(events,
-                              instance,
-                              *scatter,
-                              {scratch.y, expert_mask_mem->batch},
-                              {final_hidden_states_mem_ptr},
-                              {static_cast<size_t>(n_token), static_cast<size_t>(hidden_size)},
-                              {1, lws_size});
+                kernel.gate.forward(dnn_stream,
+                                    n_token,
+                                    convert2dnnl(x, {static_cast<int>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
+                                    convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                    convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
+
+                // down
+                if (batch == 1) {
+                    kernel.down_batch1.forward(
+                        dnn_stream,
+                        1,
+                        convert2dnnl(scratch.gate, {static_cast<int>(1), _intermediate_size}, dnnl::memory::format_tag::ab),
+                        convert2dnnl(final_hidden_states_mem_ptr, {static_cast<int>(1), _hidden_size}, dnnl::memory::format_tag::ab),
+                        convert2dnnl(routing_mem_ptr,
+                                     {1},
+                                     dnnl::memory::format_tag::a,
+                                     expert_mask.topk[expert_no][0] * static_cast<int>(ov::element::Type(routing_layout.data_type).size())));
+                    if (instance.needs_completion_event())
+                        result_event = stream.enqueue_marker({});
+                } else {
+                    kernel.down.forward(dnn_stream,
+                                        n_token,
+                                        convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                        convert2dnnl(scratch.y, {static_cast<int>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
+                                        convert2dnnl(scratch.routing_weights, {n_token * max_topk}, dnnl::memory::format_tag::a));
+                    // index add
+                    result_event = execute_stage(events,
+                                                 instance,
+                                                 *scatter,
+                                                 {scratch.y, expert_mask_mem->batch},
+                                                 {final_hidden_states_mem_ptr},
+                                                 {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
+                                                 {1, lws_size},
+                                                 instance.needs_completion_event());
+                }
             }
         }
-        cldnn::event::ptr result_event;
-        if (instance.needs_completion_event())
-            result_event = stream.enqueue_marker({});
 
         return result_event;
     }
