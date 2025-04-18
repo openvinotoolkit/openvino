@@ -81,15 +81,12 @@ ov::OutputVector negative_log_likelihood_loss(const ov::OutputVector inputs,
             const auto loss_unweighted = std::make_shared<v0::Squeeze>(loss_N1dd, axes);
             const auto reduction_axes = get_dynamic_all_axes_range(loss_unweighted);
 
-            if (reduction == "none") {
-                loss = std::make_shared<v1::Multiply>(loss_unweighted, gather_weights);
-            } else if (reduction == "mean") {
-                loss = std::make_shared<v1::Multiply>(loss_unweighted, gather_weights);
+            loss = std::make_shared<v1::Multiply>(loss_unweighted, gather_weights);
+            if (reduction == "mean") {
                 const auto loss_sum = std::make_shared<v1::ReduceSum>(loss, reduction_axes);
                 const auto wg_sum = std::make_shared<v1::ReduceSum>(gather_weights, reduction_axes);
                 loss = std::make_shared<v1::Divide>(loss_sum, wg_sum);
             } else if (reduction == "sum") {
-                loss = std::make_shared<v1::Multiply>(loss_unweighted, gather_weights);
                 loss = std::make_shared<v1::ReduceSum>(loss, reduction_axes);
             }
         }
@@ -131,15 +128,12 @@ ov::OutputVector negative_log_likelihood_loss(const ov::OutputVector inputs,
         const auto loss_unweighted = std::make_shared<v0::Squeeze>(loss_N1dd, axes);
         const auto reduction_axes = get_dynamic_all_axes_range(loss_unweighted);
 
-        if (reduction == "none") {
-            loss = std::make_shared<v1::Multiply>(loss_unweighted, gather_weights);
-        } else if (reduction == "mean") {
-            loss = std::make_shared<v1::Multiply>(loss_unweighted, gather_weights);
+        loss = std::make_shared<v1::Multiply>(loss_unweighted, gather_weights);
+        if (reduction == "mean") {
             const auto loss_sum = std::make_shared<v1::ReduceSum>(loss, reduction_axes);
             const auto wg_sum = std::make_shared<v1::ReduceSum>(gather_weights, reduction_axes);
             loss = std::make_shared<v1::Divide>(loss_sum, wg_sum);
         } else if (reduction == "sum") {
-            loss = std::make_shared<v1::Multiply>(loss_unweighted, gather_weights);
             loss = std::make_shared<v1::ReduceSum>(loss, reduction_axes);
         }
     }
