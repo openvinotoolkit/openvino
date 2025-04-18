@@ -110,7 +110,7 @@ TEST_F(DISABLED_CpuReservationTest, Cpu_Reservation_CpuPinning) {
     ASSERT_EQ(res_cpu_pinning, cpu_pinning);
 }
 
-TEST_F(CpuReservationTest, Cpu_Reservation_CompiledModel_Release) {
+TEST_F(CpuReservationTest, smoke_Cpu_Reservation_CompiledModel_Release) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -120,17 +120,24 @@ TEST_F(CpuReservationTest, Cpu_Reservation_CompiledModel_Release) {
     core->set_property(target_device, config);
     ov::AnyMap property_config = {{ov::num_streams.name(), 2000},
                                   {ov::inference_num_threads.name(), 2000},
-                                  {ov::hint::enable_hyper_threading.name(), true},
-                                  {ov::hint::enable_cpu_reservation.name(), true}};
+                                  {ov::hint::enable_hyper_threading.name(), true}};
+    ov::AnyMap reserve_1_config = {{ov::num_streams.name(), 1},
+                                   {ov::inference_num_threads.name(), 1},
+                                   {ov::hint::enable_cpu_reservation.name(), true}};
+
+    auto compiled_model_1 = core->compile_model(models[0], target_device, property_config);
+    uint32_t nthreads_1 = compiled_model_1.get_property(ov::inference_num_threads);
+
     {
-        auto compiled_model = core->compile_model(models[0], target_device, property_config);
-        EXPECT_THROW(core->compile_model(models[0], target_device, property_config), ov::Exception);
+        auto compiled_model_2 = core->compile_model(models[0], target_device, reserve_1_config);
+        auto compiled_model_3 = core->compile_model(models[0], target_device, property_config);
+        uint32_t nthreads_3 = compiled_model_3.get_property(ov::inference_num_threads);
+        ASSERT_EQ(nthreads_1, nthreads_3 + 1);
     }
 
-    ov::AnyMap reserve_1_config = {{ov::num_streams.name(), 1},
-                                  {ov::inference_num_threads.name(), 1},
-                                  {ov::hint::enable_cpu_reservation.name(), true}};
-    EXPECT_NO_THROW(core->compile_model(models[0], target_device, reserve_1_config));
+    auto compiled_model_4 = core->compile_model(models[0], target_device, property_config);
+    uint32_t nthreads_4 = compiled_model_4.get_property(ov::inference_num_threads);
+    ASSERT_EQ(nthreads_1, nthreads_4);
 }
 
 #endif
