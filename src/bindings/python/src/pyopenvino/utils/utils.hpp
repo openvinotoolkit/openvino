@@ -140,6 +140,8 @@ protected:
 
     ov::AnyMap py_object_to_any_map(const py::object& py_obj);
 
+    std::unordered_map<std::string, ov::Any> py_object_to_unordered_any_map(const py::object& py_obj);
+
     ov::Any py_object_to_any(const py::object& py_obj);
 
     ov::pass::Serialize::Version convert_to_version(const std::string& version);

@@ -85,36 +85,50 @@ void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
 }
 
 template <class... NodeTypes, typename TPredicate>
-std::shared_ptr<Node> optional(const OutputVector& inputs, const TPredicate& pred) {
+std::shared_ptr<Node> optional(const OutputVector& inputs, const TPredicate& pred, const Attributes& attrs = {}) {
     std::vector<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
-    return std::make_shared<op::Optional>(optional_type_info_vec, inputs, op::Predicate(pred));
+    return std::make_shared<op::Optional>(
+        optional_type_info_vec,
+        inputs,
+        attrs.empty() ? op::Predicate(pred) : attrs_match(attrs) && op::Predicate(pred));
 }
 
 template <class... NodeTypes, typename TPredicate>
-std::shared_ptr<Node> optional(const Output<Node>& input, const TPredicate& pred) {
-    return optional<NodeTypes...>(OutputVector{input}, op::Predicate(pred));
+std::shared_ptr<Node> optional(const Output<Node>& input, const TPredicate& pred, const Attributes& attrs = {}) {
+    return optional<NodeTypes...>(OutputVector{input}, pred, attrs);
 }
 
 template <class... NodeTypes,
           typename TPredicate,
-          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate>>* = nullptr>
-std::shared_ptr<Node> optional(const TPredicate& pred) {
-    return optional<NodeTypes...>(OutputVector{}, op::Predicate(pred));
+          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate> &&
+                                    !std::is_constructible_v<OutputVector, TPredicate>>* = nullptr>
+std::shared_ptr<Node> optional(const TPredicate& pred, const Attributes& attrs = {}) {
+    return optional<NodeTypes...>(OutputVector{}, op::Predicate(pred), attrs);
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const OutputVector& inputs) {
-    return optional<NodeTypes...>(inputs, op::Predicate());
+std::shared_ptr<Node> optional(const OutputVector& inputs, const Attributes& attrs = {}) {
+    return optional<NodeTypes...>(inputs, attrs.empty() ? op::Predicate() : attrs_match(attrs));
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const Output<Node>& input) {
-    return optional<NodeTypes...>(OutputVector{input}, op::Predicate());
+std::shared_ptr<Node> optional(std::initializer_list<Output<Node>>&& inputs, const Attributes& attrs = {}) {
+    return optional<NodeTypes...>(OutputVector(inputs), attrs);
+}
+
+template <class... NodeTypes>
+std::shared_ptr<Node> optional(const Output<Node>& input, const Attributes& attrs = {}) {
+    return optional<NodeTypes...>(OutputVector{input}, attrs);
+}
+
+template <class... NodeTypes>
+std::shared_ptr<Node> optional(const Attributes& attrs) {
+    return optional<NodeTypes...>(OutputVector{}, attrs);
 }
 
 template <class... NodeTypes>
 std::shared_ptr<Node> optional() {
-    return optional<NodeTypes...>(OutputVector{}, op::Predicate());
+    return optional<NodeTypes...>(OutputVector{});
 }
 }  // namespace ov::pass::pattern
