@@ -189,7 +189,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 16;
         dispatchData.lws[2] = 1;
-    } else if (input_l == DataLayout::ybfx) {
+    } else if (input_l == DataLayout::ybfx || input_l == DataLayout::yfbx) {
         dispatchData.gws[2] = input.Batch().v;
         dispatchData.gws[1] = input.Feature().v;
         dispatchData.gws[0] = input.Y().v*input.X().v;

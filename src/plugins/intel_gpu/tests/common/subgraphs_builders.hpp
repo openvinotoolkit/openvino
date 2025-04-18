@@ -29,6 +29,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -323,6 +324,43 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension b
 
     return model;
 }
+
+
+inline std::shared_ptr<ov::Model> makeLBRGRUSequence(ov::element::Type_t model_type, ov::PartialShape initShape,
+    size_t N, size_t I, size_t H, size_t sequence_axis, ov::op::RecurrentSequenceDirection seq_direction) {
+    auto X = std::make_shared<ov::op::v0::Parameter>(model_type, initShape);
+    auto Y = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, H});
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(X);
+    auto indices = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
+    auto axis = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
+    auto seq_lengths = std::make_shared<ov::op::v1::Gather>(shape_of, indices, axis);
+
+    auto w_val = std::vector<float>(4 * H * I, 0);
+    auto r_val = std::vector<float>(4 * H * H, 0);
+    auto b_val = std::vector<float>(4 * H, 0);
+    auto W = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H, I}, w_val);
+    auto R = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H, H}, r_val);
+    auto B = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H}, b_val);
+
+    auto rnn_sequence = std::make_shared<ov::op::v5::GRUSequence>(X,
+        Y,
+        seq_lengths,
+        W,
+        R,
+        B,
+        128,
+        seq_direction);
+    rnn_sequence->set_linear_before_reset(true);
+    auto Y_out = std::make_shared<ov::op::v0::Result>(rnn_sequence->output(0));
+    auto Ho = std::make_shared<ov::op::v0::Result>(rnn_sequence->output(1));
+    Y_out->set_friendly_name("Y_out");
+    Ho->set_friendly_name("Ho");
+
+    auto fn_ptr = std::make_shared<ov::Model>(ov::NodeVector{Y_out, Ho}, ov::ParameterVector{X, Y});
+    fn_ptr->set_friendly_name("GRUSequence");
+    return fn_ptr;
+}
+
 
 /*
 *   Generate LSTMSequence

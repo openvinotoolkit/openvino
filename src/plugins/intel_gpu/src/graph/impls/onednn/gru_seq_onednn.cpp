@@ -145,7 +145,7 @@ protected:
         b_layout.format = cldnn::format::bfyx;
         auto B_md = onednn::layout_to_memory_desc(b_layout);
         auto out_shape = impl_params.get_output_layout().get_shape();
-        out_shape = {out_shape[2], out_shape[0], out_shape[3], 1};
+        out_shape = {out_shape[2], out_shape[0], num_dir*out_shape[3], 1};
         auto output_md = onednn::layout_to_memory_desc(impl_params.get_output_layout().clone_with_other_shape(out_shape), dnnl::memory::format_tag::abc);
         auto output1_md = onednn::layout_to_memory_desc(impl_params.get_output_layout().clone_with_other_shape(initial_hidden_shape_mod));
         OPENVINO_ASSERT(input_md.get_format_kind() != dnnl::memory::format_kind::any,
