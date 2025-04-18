@@ -398,7 +398,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
-                               val.as<ov::intel_cpu::CacheQuantMode>(),
+                               val.as<std::string>(),
                                " for property key ",
                                ov::intel_cpu::key_cache_quant_mode.name(),
                                ". Expected AUTO/BY_CHANNEL/BY_HIDDEN");
@@ -417,7 +417,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 }
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
-                               val.as<ov::intel_cpu::CacheQuantMode>(),
+                               val.as<std::string>(),
                                " for property key ",
                                ov::intel_cpu::value_cache_quant_mode.name(),
                                ". Expected AUTO/BY_CHANNEL/BY_HIDDEN");

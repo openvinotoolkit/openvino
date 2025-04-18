@@ -373,8 +373,8 @@ static void quantize_by_channel(const T* src,
         for (size_t i = 0; i < seq_dim; i++) {
             float tmp = src[i * src_stride + j];
             tmp = std::round(tmp / scale[j] + zp[j]);
-            uint8_t src_val = std::min((uint8_t)15, (uint8_t)(tmp));
-            src_val = std::max((uint8_t)0, (uint8_t)(tmp));
+            uint8_t src_val = std::min(static_cast<uint8_t>(15), static_cast<uint8_t>(tmp));
+            src_val = std::max(static_cast<uint8_t>(0), static_cast<uint8_t>(tmp));
             uint8_t dst_val = j % 2 == 0 ? 0 : dst[i * dst_stride + j / 2];
             dst_val = insert_half_byte(dst_val, src_val, static_cast<uint8_t>(j % 2));
             dst[i * dst_stride + j / 2] = dst_val;
@@ -437,8 +437,8 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
 #endif
     for (; i < n; i++) {
         float tmp = src[i];
-        uint8_t src_val = std::min((uint8_t)15, (uint8_t)(std::round(tmp / scale + zp)));
-        src_val = std::max((uint8_t)0, (uint8_t)(std::round(tmp / scale + zp)));
+        uint8_t src_val = std::min(static_cast<uint8_t>(15), static_cast<uint8_t>(std::round(tmp / scale + zp)));
+        src_val = std::max(static_cast<uint8_t>(0), static_cast<uint8_t>(std::round(tmp / scale + zp)));
         uint8_t dst_val = i % 2 == 0 ? 0 : dst_ptr[i / 2];
         dst_val = insert_half_byte(dst_val, src_val, static_cast<uint8_t>(i % 2));
         dst_ptr[i / 2] = dst_val;
@@ -456,7 +456,7 @@ static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
 }
 
 template <typename T, ov::element::Type_t DST_PREC>
-static inline void quantize_block_by_dims(const ov::intel_cpu::PlainTensor& src,
+static void quantize_block_by_dims(const ov::intel_cpu::PlainTensor& src,
                                           const ov::intel_cpu::PlainTensor& dst,
                                           size_t b,
                                           size_t h,

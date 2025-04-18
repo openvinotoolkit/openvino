@@ -1938,7 +1938,7 @@ static void pack_32NxK(TDST* dst,
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<precision_of<TDST>::value != ov::element::f32 &&
-                                      (SRC_PREC == ov::element::u4 || SRC_PREC == ov::element::u8),
+                                      one_of(SRC_PREC, ov::element::u4, ov::element::u8),
                                   bool>::type = true>
 static void pack_32NxK(TDST* dst,
                        void* src,
@@ -2637,7 +2637,7 @@ struct MHAHelper {
 #    endif
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
-                            if constexpr (KEY_PREC == ov::element::u8 || KEY_PREC == ov::element::u4) {
+                            if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
                                 dot_product_block_quantized<DATA_TYPE, KEY_PREC>(
                                     query.ptr<DATA_TYPE>(b, h, pq),
                                     key_cache.ptr<uint8_t, KEY_PREC>(block_number, hk),
@@ -3447,7 +3447,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                     rotation_trig_lut,
                     _helper._block_rotation_coefficient_scratch);
             } else {
-                OPENVINO_THROW("PagedAttn doesn't support rotate_kv_cache with u4 precision");
+                static_assert(KEY_PREC == ov::element::u4, "PagedAttn doesn't support rotate_kv_cache with u4 precision");
             }
         }
 
