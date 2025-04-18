@@ -237,6 +237,29 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
         output_format = node.get_preferred_output_fmt();
     }
 
+    auto areVectorsCompatible = [](const ov::Shape& vec1, const ov::Shape& vec2) -> bool {
+        std::unordered_map<size_t, size_t> countMap1, countMap2;
+
+        for (auto num : vec1) {
+            if (num != 1)
+                countMap1[num]++;
+        }
+        for (auto num : vec2) {
+            if (num != 1)
+                countMap2[num]++;
+        }
+
+        return countMap1 == countMap2;
+    };
+
+    auto candidate_layout = layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size()), out_pad};
+    if ((!node.is_dynamic()) && areVectorsCompatible(impl_param.get_output_layout().get_shape(), output_shapes[0].get_shape())) {
+        if (impl_param.get_output_layout().format != output_format && !candidate_layout.compatible(input_layout)) {
+            if (!impl_param.get_output_layout(false).compatible(candidate_layout))
+                output_format = impl_param.get_output_layout().format;
+        }
+    }
+
     auto new_out_pad = out_pad;
     if (new_out_pad == padding())
         new_out_pad = impl_param.get_output_layout(0).data_padding;

@@ -30,7 +30,7 @@ TEST(TransformationTests, ModDecompositionTests) {
     {
         auto mod = std::make_shared<op::v1::Mod>(data1, data2);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{mod}, ParameterVector{});
+        f = std::make_shared<ov::Model>(ov::OutputVector{mod}, ParameterVector{});
         auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         pass::Manager m;
         m.register_pass<ov::pass::InitUniqueNames>(unh);
