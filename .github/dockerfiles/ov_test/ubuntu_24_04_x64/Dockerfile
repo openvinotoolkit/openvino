@@ -10,7 +10,7 @@ ENV GROUP_NAME=${USER_NAME}
 ENV GROUP_ID=${USER_ID}
 
 # Ubuntu 24 images already has a user with UID 1000
-RUN usermod -l openvino ubuntu
+RUN usermod -l ${USER_NAME} ubuntu
 
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \

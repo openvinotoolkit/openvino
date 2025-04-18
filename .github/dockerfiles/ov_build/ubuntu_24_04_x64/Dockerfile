@@ -9,8 +9,8 @@ ENV USER_ID=1000
 ENV GROUP_NAME=${USER_NAME}
 ENV GROUP_ID=${USER_ID}
 
-RUN groupadd -g ${GROUP_ID} ${GROUP_NAME}
-RUN useradd ${USER_NAME} -u ${USER_ID} -g ${GROUP_ID} -ms /bin/bash
+# Ubuntu 24 images already has a user with UID 1000
+RUN usermod -l ${USER_NAME} ubuntu
 
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
