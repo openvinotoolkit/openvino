@@ -24,19 +24,17 @@ class TestGather(JaxLayerTest):
         self.axis = axis
         self.input_type = input_type
 
-        def jax_gather(data, indices):
+        def jax_gather(data, indices, axes=None):
             rank = data.ndim
-
+            axes = self.axis if axes is None else axes
             dnums = lax.GatherDimensionNumbers(
-                offset_dims=tuple(i for i in range(rank) if i != axis),
-                collapsed_slice_dims=(axis,),
-                start_index_map=(axis,)
+                offset_dims=tuple(i for i in range(rank) if i != axes),
+                collapsed_slice_dims=(axes,),
+                start_index_map=(axes,)
             )
 
-            slice_sizes = tuple(1 if i == axis else data.shape[i] for i in range(rank))
-
+            slice_sizes = tuple(1 if i == axes else data.shape[i] for i in range(rank))
             indices = indices[..., None]
-
             result = lax.gather(data, indices, dimension_numbers=dnums, slice_sizes=slice_sizes)
             return result
 
