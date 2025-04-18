@@ -82,7 +82,6 @@
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
-#include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_upgrade.hpp"
 #include "transformations/op_conversions/convert_pad12_downgrade.hpp"
@@ -170,7 +169,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, ConvertBroadcastToTiles)
     ADD_MATCHER(decomp, ConvertMod)
     ADD_MATCHER(decomp, ConvertGELU)
-    ADD_MATCHER(decomp, ConvertMinimum)
     ADD_MATCHER(decomp, ConvertSubtract)
     ADD_MATCHER(decomp, ConvertDivide)
     ADD_MATCHER(decomp, ConvertDepthToSpace)
