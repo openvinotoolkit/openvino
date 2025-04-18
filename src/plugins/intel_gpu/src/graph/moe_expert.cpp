@@ -87,11 +87,7 @@ void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, layout& layou
         });
     } else {
         std::vector<int32_t> buf(max_expert_num * max_topk * max_tokens);
-        {
-            mem_lock<int32_t, mem_lock_type::read> lock_data{mem, stream};
-            auto p = lock_data.data();
-            memcpy(buf.data(), p, buf.size() * sizeof(int32_t));
-        }
+        mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
         ov::parallel_for(max_expert_num, [&](int expert_no) {
             fill(buf.data(), expert_no);
         });
@@ -158,12 +154,10 @@ void moe_expert_inst::get_tmp_memory(data_types type, int m, int hidden_size, in
     layout gate_layout(ov::PartialShape{m, inter_size}, type, cldnn::format::bfyx);
     layout routing_layout(ov::PartialShape{m * topk}, type, cldnn::format::bfyx);
     if (new_size > scratch.max_size) {
-        auto alloc_type = _network.get_engine().get_lockable_preferred_memory_allocation_type();
-        GPU_DEBUG_LOG << "=> allocate expert_mask to " << alloc_type << std::endl;
         auto& pool = _network.get_memory_pool();
         auto net_id = _network.get_id();
 
-        auto alloc_buf = [&](memory* curr_memory, layout& alloc_layout) {
+        auto alloc_buf = [&](memory* curr_memory, layout& alloc_layout, allocation_type alloc_type = cldnn::allocation_type::usm_device) {
             if (_node->get_program().get_config().get_enable_memory_pool()) {
                 if (curr_memory != nullptr)
                     pool.release_memory(curr_memory, _node->get_unique_id(), _node->id(), net_id);
@@ -179,6 +173,12 @@ void moe_expert_inst::get_tmp_memory(data_types type, int m, int hidden_size, in
             }
             return pool.get_memory(alloc_layout, alloc_type, true);
         };
+        if (!scratch.expert_info) {
+            auto expected_alloc_type = _network.get_engine().get_lockable_preferred_memory_allocation_type();
+            GPU_DEBUG_LOG << "=> allocate expert_mask to " << expected_alloc_type << std::endl;
+            layout expert_layout(ov::PartialShape{topk * static_cast<int>(sizeof(expert_info))}, data_types::u8, cldnn::format::bfyx);
+            scratch.expert_info = alloc_buf(nullptr, expert_layout, expected_alloc_type);
+        }
 
         scratch.x = alloc_buf(scratch.x.get(), x_layout);
         scratch.y = alloc_buf(scratch.y.get(), x_layout);

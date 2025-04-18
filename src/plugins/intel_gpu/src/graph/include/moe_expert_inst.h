@@ -34,6 +34,7 @@ struct expert_mask_tmp_scratch {
     memory::ptr gate;
     memory::ptr y;
     memory::ptr routing_weights;
+    memory::ptr expert_info;
     layout x_layout;
     size_t max_size = 0;
 };
@@ -42,6 +43,15 @@ struct expert_mask_output_scratch {
     memory::ptr buf;
     layout buf_layout;
     size_t max_size = 0;
+};
+
+// one expert weights pointers
+struct expert_info {
+    void* weight[3];
+    void* zp[3];
+    void* scale[3];
+    int routing_offset;
+    int pad;
 };
 
 static constexpr const char* expert_mask_mem_scratch_key = "expert_mask_scratch_mem";

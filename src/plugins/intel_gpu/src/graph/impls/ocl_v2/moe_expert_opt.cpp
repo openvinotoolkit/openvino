@@ -432,15 +432,18 @@ protected:
 };
 
 #define N_BLOCK_SIZE  64
-#define SUBGROUP_SIZE 32
+#define SUBGROUP_NUM 8
 
 static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     auto desc = params.typed_desc<moe_expert>();
+    auto& engine = params.prog->get_engine();
+    const auto& info = engine.get_device_info();
     jit.make("MAX_TOPK", desc->_config.topk);
     jit.make("HIDDEN_SIZE", desc->get_hidden_size());
     jit.make("INTERMEDIATE_SIZE", desc->get_intermediate_size());
     jit.make("N_BLOCK_SIZE", N_BLOCK_SIZE);
-    jit.make("SUBGROUP_SIZE", SUBGROUP_SIZE);
+    jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
+    jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
     jit.make("GROUP_SIZE", desc->get_group_size());
     jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
@@ -656,14 +659,6 @@ public:
         auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
         return std::make_tuple(mem, layout);
     }
-    // one expert weights pointers
-    struct expert_info {
-        void* weight[3];
-        void* zp[3];
-        void* scale[3];
-        int routing_offset;
-        int pad;
-    };
 
     std::vector<expert_info> _expert_weight_pointers;
     cldnn::event::ptr exec_batch1(typed_primitive_inst<moe_expert>& instance, const expert_mask_scratch& expert_mask, expert_mask_tmp_scratch& scratch) {
@@ -698,29 +693,34 @@ public:
             valid_expert_no++;
         }
 
-        // reuse scratch.gate to store expert weights pointer
-        auto& expert_weight_ptr = scratch.gate;
-        OPENVINO_ASSERT(_expert_weight_pointers.size() * sizeof(expert_info) <= scratch.gate->size());
+        auto& expert_weight_ptr = scratch.expert_info;
+        OPENVINO_ASSERT(_expert_weight_pointers.size() * sizeof(expert_info) <= scratch.expert_info->size());
         {
             mem_lock<int32_t, mem_lock_type::write> lock_data{expert_weight_ptr, stream};
             memcpy(lock_data.data(), _expert_weight_pointers.data(), _expert_weight_pointers.size() * sizeof(expert_info));
         }
+        const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         // scratch.up = up(x) * silu(gate(x))
         execute_stage({},
                       instance,
                       *mlp_gate_up,
                       {expert_weight_ptr, hidden_states_mem_ptr},
                       {scratch.up},
-                      {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size)},
-                      {1, SUBGROUP_SIZE});
+                      // the following is for reference
+                      //{static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size)},
+                      //{1, SUBGROUP_SIZE});
+                      {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size / 2), SUBGROUP_NUM},
+                      {1, subgroup_size, SUBGROUP_NUM});
         // scratch.y = down(scratch.up) * weight[expert_no]
         execute_stage({},
                       instance,
                       *mlp_down,
                       {expert_weight_ptr, scratch.up, routing_mem_ptr},
                       {scratch.y},
-                      {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size)},
-                      {1, SUBGROUP_SIZE});
+                      // {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size)},
+                      // {1, SUBGROUP_SIZE});
+                      {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size / 2), SUBGROUP_NUM},
+                      {1, subgroup_size, SUBGROUP_NUM});
         // final = sum(scratch.y)
         return execute_stage({},
                              instance,
@@ -728,7 +728,7 @@ public:
                              {scratch.y},
                              {final_hidden_states_mem_ptr},
                              {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
-                             {1, SUBGROUP_SIZE},
+                             {1, 128},
                              instance.needs_completion_event());
     }
 
@@ -827,8 +827,11 @@ public:
         auto& stream = cur_net.get_stream();
         auto moe = instance.get_typed_desc<moe_expert>();
 
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 2);
+        auto batch = static_cast<int>(hidden_states_layout.get_shape()[1]);
+
         instance.update_output_layout();
-        instance.update_output_memory(true);
+        instance.update_output_memory(batch != 1);
 
         expert_mask_scratch expert_mask;
         {
@@ -865,8 +868,6 @@ public:
 
         auto& dnn_stream = stream.get_onednn_stream();
 
-        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 2);
-        auto batch = static_cast<int>(hidden_states_layout.get_shape()[1]);
         if (!cur_net.has_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key)) {
             cur_net.set_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key, {});
         }
@@ -910,7 +911,7 @@ public:
 
                 auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
                 instance.get_tmp_memory(hidden_states_layout.data_type, n_token, _hidden_size, _intermediate_size, max_topk, scratch);
-                onednn_kernel& kernel = get_kernel(batch == 1 ? 1 : n_token, expert_no, instance);
+                onednn_kernel& kernel = get_kernel(batch == 1 ? 1 : n_token, static_cast<int>(expert_no), instance);
                 memory::ptr& x = batch == 1 ? hidden_states_mem_ptr : scratch.x;
 
                 // gather
