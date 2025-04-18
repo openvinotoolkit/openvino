@@ -58,8 +58,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
         foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
                                    CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE
                                    CMAKE_VERBOSE_MAKEFILE CMAKE_GENERATOR
-                                   CMAKE_CXX_COMPILER CMAKE_C_COMPILER
-                                   CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
+                                   CMAKE_CXX_COMPILER CMAKE_C_COMPILER CMAKE_MAKE_PROGRAM
+                                   CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
+                                   CMAKE_EXPORT_COMPILE_COMMANDS)
             if(${cmake_var})
                 list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
             endif()
@@ -89,6 +90,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
             list(APPEND cmake_extra_args "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}")
         endif()
 
+        # bypass all variables specified to Android toolchain
+        foreach(flag_var IN ITEMS ANDROID_ABI ANDROID_ARM_MODE ANDROID_NATIVE_API_LEVEL ANDROID_PLATFORM ANDROID_STL
+                                  ANDROID_NDK CMAKE_ANDROID_ARCH_ABI CMAKE_ANDROID_NDK)
+            if(${flag_var})
+                list(APPEND cmake_extra_args "-D${flag_var}=${${flag_var}}")
+            endif()
+        endforeach()
+
         # propogate OpenCL if explicitly specified
         if(OpenCL_LIBRARY)
             list(APPEND cmake_extra_args "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}")
@@ -99,6 +108,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
         set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
+
+        message("ONEDNN GPU options:\n${cmake_extra_args}\n")
 
         ExternalProject_Add(onednn_gpu_build
             # Directory Options:
