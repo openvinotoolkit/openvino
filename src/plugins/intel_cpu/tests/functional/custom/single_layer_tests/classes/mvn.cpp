@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
+#include "openvino/op/mvn.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::intel_cpu;

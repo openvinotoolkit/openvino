@@ -4,7 +4,8 @@
 
 #include "precision_propagation.hpp"
 #include <assert.h>
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/op/maximum.hpp"
 
 namespace ov {
 namespace test {
