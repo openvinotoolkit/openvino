@@ -669,8 +669,6 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
 
     static inline uint32_t ChannelsCount(WeightsLayout l) { return TensorBaseT::ChannelsCount(weightsChannelArray, l); }
 
-    bool HasInnerMostPadding() const;
-
 private:
     using WeightsChannelDesc =
         std::pair<WeightsLayout, std::array<int, static_cast<size_t>(WeightsChannelName::COUNT)>>;
