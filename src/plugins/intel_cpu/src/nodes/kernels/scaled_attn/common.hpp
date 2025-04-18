@@ -47,12 +47,8 @@ inline size_t vec_len_f16_sve() {
 }
 #endif
 
-size_t inline get_sub_byte_multiplier(ov::element::Type type) {
-    if (type == ov::element::i4 || type == ov::element::u4) {
-        return 8 / type.bitwidth();
-    } else {
-        return 1;
-    }
+constexpr size_t get_sub_byte_multiplier(ov::element::Type type) {
+    return (type == ov::element::i4 || type == ov::element::u4) ?  2 : 1;
 }
 
 uint8_t inline insert_half_byte(uint8_t dst, uint8_t val, bool high_half) {

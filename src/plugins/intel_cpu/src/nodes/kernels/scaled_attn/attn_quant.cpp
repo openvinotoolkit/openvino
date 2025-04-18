@@ -457,17 +457,17 @@ static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
 
 template <typename T, ov::element::Type_t DST_PREC>
 static void quantize_block_by_dims(const ov::intel_cpu::PlainTensor& src,
-                                          const ov::intel_cpu::PlainTensor& dst,
-                                          size_t b,
-                                          size_t h,
-                                          size_t m,
-                                          size_t block_number,
-                                          size_t block_offset,
-                                          size_t groupe_size) {
+                                   const ov::intel_cpu::PlainTensor& dst,
+                                   size_t b,
+                                   size_t h,
+                                   size_t m,
+                                   size_t block_number,
+                                   size_t block_offset,
+                                   size_t groupe_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)|
-    size_t sub_byte_multiplier = DST_PREC == ov::element::u4 ? 2 : 1;
+    constexpr size_t sub_byte_multiplier = DST_PREC == ov::element::u4 ? 2 : 1;
     size_t S = src.m_dims[3];
     for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
          src_offset += groupe_size, dst_offset += groupe_size / sub_byte_multiplier + sizeof(float) + sizeof(float)) {
@@ -495,7 +495,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
     auto past_len = past_lens.ptr<int32_t>()[sub_seq_id];
     auto q_len = subsequence_begins.ptr<int32_t>()[sub_seq_id + 1] - subsequence_begins.ptr<int32_t>()[sub_seq_id];
     auto block_number_start = block_indices_begins.ptr<int32_t>()[sub_seq_id];
-    size_t block_size = dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(DST_PREC);
+    const size_t block_size = dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(DST_PREC);
     size_t m = 0;
     // Quantized cache is either u8/u4, the plain memory is both uint8,
     // Here we use stride_bytes instead of stride which consider divide sub_byte_multiplier automatically.

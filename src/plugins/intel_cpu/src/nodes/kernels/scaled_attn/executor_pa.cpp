@@ -430,7 +430,7 @@ static void attn_acc_value_block_by_dim(float* out,
     }
 }
 
-template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<one_of(SRC_PREC, ov::element::u8), bool> = true>
+template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
 static void attn_acc_value_block_by_channel(float* out,
                                             float* weight,
                                             void* v,
@@ -522,7 +522,7 @@ static void attn_acc_value_block_by_channel(float* out,
     }
 }
 
-template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<one_of(SRC_PREC, ov::element::u4), bool> = true>
+template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true>
 static void attn_acc_value_block_by_channel(float* out,
                                             float* weight,
                                             void* v,
@@ -1136,7 +1136,7 @@ static void dot_product_block_quantized_by_dims(TA* a,
     size_t src_offset = 0;
     size_t dst_offset = 0;
     const size_t params_offset = sizeof(float) * 2;
-    const size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
+    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     const size_t src_stride = n / group_size * (group_size / sub_byte_multiplier + params_offset);
 #    if defined(HAVE_AVX512F)
     size_t j = 0;
@@ -1734,7 +1734,7 @@ void transpose_16NxK(TDST* dst,
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = reinterpret_cast<uint8_t*>(src);
-    const auto sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
+    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
     if (quant_key_bychannel) {
@@ -1809,7 +1809,7 @@ void dequant(TDST* dst,
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
     auto s = reinterpret_cast<uint8_t*>(src);
     const size_t params_offset = sizeof(float) * 2;
-    const size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
+    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     if (quant_bychannel) {
         auto p_scales = reinterpret_cast<float*>(s);
         auto p_zps = p_scales + K;
@@ -1955,7 +1955,7 @@ static void pack_32NxK(TDST* dst,
     auto s = reinterpret_cast<uint8_t*>(src);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
-    const size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
+    constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     if (quant_bychannel) {
         auto p_scales = reinterpret_cast<float*>(s);
         auto p_zps = p_scales + K;
@@ -3447,7 +3447,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                     rotation_trig_lut,
                     _helper._block_rotation_coefficient_scratch);
             } else {
-                static_assert(KEY_PREC == ov::element::u4, "PagedAttn doesn't support rotate_kv_cache with u4 precision");
+                static_assert(KEY_PREC == ov::element::u4,
+                              "PagedAttn doesn't support rotate_kv_cache with u4 precision");
             }
         }
 

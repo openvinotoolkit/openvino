@@ -150,11 +150,13 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
-bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode, const ov::element::Type precision) noexcept {
+bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
+                                      const ov::element::Type precision,
+                                      const bool isKey) noexcept {
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
-    // by-channel should only be enabled when precision is integral
-    bool byChannel = precision.is_integral();
+    // By default, by-channel should only be enabled when precision is integral
+    bool byChannel = precision.is_integral() && isKey;
     if (!precision.is_integral() || mode == Config::CacheQuantMode::BY_HIDDEN) {
         byChannel = false;
     }
@@ -177,8 +179,9 @@ void PagedAttention::createPrimitive() {
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision);
-        bool quantValuebyChannel = isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision);
+        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+        bool quantValuebyChannel =
+            isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
         return make_pa_executor(rtPrecision,
                                 kCachePrecision,
                                 vCachePrecision,
