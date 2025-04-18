@@ -7,7 +7,11 @@
 KERNEL(swiglu_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
-    __global OUTPUT_TYPE* output)
+    __global OUTPUT_TYPE* output
+    #if HAS_FUSED_OPS_DECLS
+        , FUSED_OPS_DECLS
+    #endif
+    )
 {
 #if OUTPUT_DIMS == 5
     uint data_idx = (uint)get_global_id(GWS_YX);
@@ -55,5 +59,9 @@ KERNEL(swiglu_gpu_ref)(
     #endif
     res *= (ACCUMULATOR_TYPE)input[input_idx];
 
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        res = FUSED_OPS_RESULT;
+    #endif
     output[output_idx] = TO_OUTPUT_TYPE(res);
 }
