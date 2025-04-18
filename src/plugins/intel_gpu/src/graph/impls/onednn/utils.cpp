@@ -274,6 +274,28 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
         dims.push_back(l.batch());
         dims.push_back(l.feature());
         dims.push_back(l.spatial(1));
+    } else if (target_fmt == dnnl::memory::format_tag::acb) {
+        dims.push_back(l.batch());
+        dims.push_back(l.spatial(1));
+        dims.push_back(l.feature());
+    } else if (target_fmt == dnnl::memory::format_tag::abdc) {
+        dims.push_back(l.batch());
+        dims.push_back(l.feature());
+        dims.push_back(l.spatial(0));
+        dims.push_back(l.spatial(1));
+    } else if (target_fmt == dnnl::memory::format_tag::abced) {
+        dims.push_back(l.batch());
+        dims.push_back(l.feature());
+        dims.push_back(l.spatial(2));
+        dims.push_back(l.spatial(0));
+        dims.push_back(l.spatial(1));
+    } else if (target_fmt == dnnl::memory::format_tag::abcdfe) {
+        dims.push_back(l.batch());
+        dims.push_back(l.feature());
+        dims.push_back(l.spatial(3));
+        dims.push_back(l.spatial(2));
+        dims.push_back(l.spatial(0));
+        dims.push_back(l.spatial(1));
     } else if (target_fmt == dnnl::memory::format_tag::ba) {
         dims.push_back(l.feature());
         dims.push_back(l.get_tensor().count() / l.feature());
