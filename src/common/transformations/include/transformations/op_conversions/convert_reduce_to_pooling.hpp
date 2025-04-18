@@ -163,7 +163,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
                     dims_end *= input_shape[i];
                 }
             }
-            // The batch dimenstion is repositioned in the shape
+            // The batch dimension is repositioned in the shape
             // only in case of batch dimension reduction
             shape_begin.assign({dims_begin, 1, dims_prod, dims_end});
             shape_end = reduce->output(0).get_shape();
