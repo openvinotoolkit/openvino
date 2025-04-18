@@ -126,6 +126,7 @@ struct sdpa_params : public base_params {
 
     sdpa_configuration conf;
     bool should_use_sdpa_opt = false;
+    bool could_use_flashattn_v2 = true;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
