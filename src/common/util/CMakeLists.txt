@@ -40,8 +40,8 @@ set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME util)
 target_link_libraries(${TARGET_NAME}
     PRIVATE ${CMAKE_DL_LIBS}
     PUBLIC openvino::pugixml
-           $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS_EQUAL:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
-           $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS_EQUAL:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
+           $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
+           $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
 
 if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
