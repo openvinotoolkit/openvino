@@ -120,6 +120,99 @@ INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
                                         unit_test::ShapeVector{{1, 32, 4, 128}, {1, 4, 32, 128}, {1, 4, 32, 128}})),
                          SDPACpuShapeInferenceTest::getTestCaseName);
 
+using  SDPACpuShapeInferenceThrowExceptionTest = SDPACpuShapeInferenceTest;
+
+TEST_P(SDPACpuShapeInferenceThrowExceptionTest, wrong_attention_mask) {
+    ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
+    config.permute_axes = permute_axes;
+    const auto op = make_op(args, config);
+    std::ostringstream os;
+    os << "attention_mask do not match q and k,";
+    auto set_input_shape_str = [&os](std::string name, const StaticShape& input_shape) {
+        os << name;
+        os << "(";
+        for (size_t i = 0; i < input_shape.size(); i++) {
+            os << input_shape[i];
+            if (i < input_shape.size() - 1) {
+                os << ".";
+            }
+        }
+        os << ")";
+    };
+    set_input_shape_str(" query_dims:", input_shapes[0]);
+    set_input_shape_str(" cur_k_dims:", input_shapes[1]);
+    set_input_shape_str(" cur_v_dims:", input_shapes[2]);
+    set_input_shape_str(" attn_mask_dims:", input_shapes[3]);
+    set_input_shape_str(" beam_idx_dims:", input_shapes[4]);
+    set_input_shape_str(" cache_k_dims:", input_shapes[5]);
+    set_input_shape_str(" cache_v_dims:", input_shapes[6]);
+    OV_EXPECT_THROW(unit_test::cpu_test_shape_infer(op.get(), input_shapes, output_shapes),
+                    ov::Exception,
+                    HasSubstr(os.str()));
+}
+
+INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
+                         SDPACpuShapeInferenceThrowExceptionTest,
+                         Values(
+                             // llama
+                             make_tuple(unit_test::ShapeVector{{1, 16, 47, 56},
+                                                               {1, 8, 47, 56},
+                                                               {1, 8, 47, 56},
+                                                               {1, 1, 47, 47},
+                                                               {1},
+                                                               {1, 8, 47, 56},
+                                                               {1, 8, 47, 56}},
+                                        std::vector<size_t>{},
+                                        unit_test::ShapeVector{{1, 16, 47, 56}, {1, 8, 47, 56}, {1, 8, 47, 56}}),
+                             make_tuple(unit_test::ShapeVector{{1, 32, 1, 128},
+                                                               {1, 32, 1, 128},
+                                                               {1, 32, 1, 128},
+                                                               {1, 1, 2, 16},
+                                                               {1},
+                                                               {1, 32, 15, 128},
+                                                               {1, 32, 15, 128}},
+                                        std::vector<size_t>{},
+                                        unit_test::ShapeVector{{1, 32, 1, 128}, {1, 32, 16, 128}, {1, 32, 16, 128}}),
+                             // chatglm
+                             make_tuple(unit_test::ShapeVector{{1, 1, 32, 128},
+                                                               {1, 1, 2, 128},
+                                                               {1, 1, 2, 128},
+                                                               {1, 1, 1, 9},
+                                                               {1},
+                                                               {7, 1, 2, 128},
+                                                               {7, 1, 2, 128}},
+                                        std::vector<size_t>{1, 2, 0, 3},
+                                        unit_test::ShapeVector{{1, 32, 1, 128}, {8, 1, 2, 128}, {8, 1, 2, 128}}),
+                             make_tuple(unit_test::ShapeVector{{7, 1, 32, 128},
+                                                               {7, 1, 2, 128},
+                                                               {7, 1, 2, 128},
+                                                               {1, 1, 5, 7},
+                                                               {1},
+                                                               {0, 1, 2, 128},
+                                                               {0, 1, 2, 128}},
+                                        std::vector<size_t>{1, 2, 0, 3},
+                                        unit_test::ShapeVector{{1, 32, 7, 128}, {7, 1, 2, 128}, {7, 1, 2, 128}}),
+                             // qwen
+                             make_tuple(unit_test::ShapeVector{{1, 1, 32, 128},
+                                                               {1, 1, 32, 128},
+                                                               {1, 1, 32, 128},
+                                                               {1, 1, 1, 6},
+                                                               {1},
+                                                               {1, 4, 32, 128},
+                                                               {1, 4, 32, 128}},
+                                        std::vector<size_t>{0, 2, 1, 3},
+                                        unit_test::ShapeVector{{1, 32, 1, 128}, {1, 5, 32, 128}, {1, 5, 32, 128}}),
+
+                             make_tuple(unit_test::ShapeVector{{1, 4, 32, 128},
+                                                               {1, 4, 32, 128},
+                                                               {1, 4, 32, 128},
+                                                               {1, 1, 2, 4},
+                                                               {1},
+                                                               {1, 0, 32, 128},
+                                                               {1, 0, 32, 128}},
+                                        std::vector<size_t>{0, 2, 1, 3},
+                                        unit_test::ShapeVector{{1, 32, 4, 128}, {1, 4, 32, 128}, {1, 4, 32, 128}})),
+                         SDPACpuShapeInferenceTest::getTestCaseName);
 }  // namespace cpu_shape_infer
 }  // namespace unit_test
 }  // namespace intel_cpu
