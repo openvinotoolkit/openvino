@@ -18,6 +18,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "openvino/op/matmul.hpp"
 #ifndef WIN32
 #    include <unistd.h>
 #endif
@@ -31,7 +32,8 @@ namespace {
 enum class Import_API {
     IMPORT_EXPORT,
     COMPILE_FILEPATH,
-    COMPILE_MODEL
+    COMPILE_MODEL,
+    COMPILE_MODEL_WITH_MODEL_STR
 };
 
 std::string import_api_to_string(Import_API api) {
@@ -42,6 +44,8 @@ std::string import_api_to_string(Import_API api) {
         return "compile_filepath";
     case Import_API::COMPILE_MODEL:
         return "compile_model";
+    case Import_API::COMPILE_MODEL_WITH_MODEL_STR:
+        return "compile_model_with_model_str";
     default:
         return "";
     }
@@ -132,13 +136,19 @@ void CheckWeightlessCacheAccuracy::run() {
     } else if (import_api == Import_API::COMPILE_MODEL) {
         auto model = core->read_model(xml_path);
         compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, config);
+    } else if (import_api == Import_API::COMPILE_MODEL_WITH_MODEL_STR) {
+        std::ifstream model_s(xml_path);
+        std::string model_str((std::istreambuf_iterator<char>(model_s)), std::istreambuf_iterator<char>());
+        auto model_weight = ov::read_tensor_data(bin_path);
+        auto model = core->read_model(model_str, model_weight);
+        compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, config);
     } else {
         OPENVINO_THROW("Unknown import API");
     }
 
     auto get_cache_path = [&]() {
         std::string path;
-        if (import_api == Import_API::COMPILE_FILEPATH || import_api == Import_API::COMPILE_MODEL) {
+        if (import_api == Import_API::COMPILE_FILEPATH || import_api == Import_API::COMPILE_MODEL || import_api == Import_API::COMPILE_MODEL_WITH_MODEL_STR) {
             auto blobs = ov::test::utils::listFilesWithExt(cache_dir, "blob");
             EXPECT_EQ(blobs.size(), 1);
             path = blobs[0];
@@ -166,10 +176,18 @@ void CheckWeightlessCacheAccuracy::run() {
     } else if (import_api == Import_API::COMPILE_MODEL) {
         auto model = core->read_model(xml_path);
         imported_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, config);
-    } else {
+    } else if (import_api == Import_API::COMPILE_MODEL_WITH_MODEL_STR) {
+        std::ifstream model_s(xml_path);
+        std::string model_str((std::istreambuf_iterator<char>(model_s)), std::istreambuf_iterator<char>());
+        auto model_weight = ov::read_tensor_data(bin_path);
+        auto model = core->read_model(model_str, model_weight);
+        imported_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, config);
+    } else if (import_api == Import_API::IMPORT_EXPORT) {
         auto ifstr = std::ifstream(cache_path, std::ifstream::binary);
         imported_model = core->import_model(ifstr, ov::test::utils::DEVICE_GPU, config_with_weights_path);
         ifstr.close();
+    } else {
+        OPENVINO_THROW("Unknown import API");
     }
 
     auto second_cache_path = get_cache_path();
@@ -251,6 +269,7 @@ const std::vector<Import_API> import_api_types = {
     Import_API::IMPORT_EXPORT,
     Import_API::COMPILE_FILEPATH,
     Import_API::COMPILE_MODEL,
+    Import_API::COMPILE_MODEL_WITH_MODEL_STR,
 };
 
 const std::vector<ov::element::Type> inference_modes = {

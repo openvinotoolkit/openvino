@@ -14,6 +14,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -131,7 +132,7 @@ protected:
                                                                        per_tensor_zp);
 
         auto mat_mul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
-        return std::make_shared<ov::Model>(ov::NodeVector{mat_mul}, params, "MatmulWeightsDecompression");
+        return std::make_shared<ov::Model>(ov::OutputVector{mat_mul}, params, "MatmulWeightsDecompression");
     }
 
     std::shared_ptr<ov::Node> init_compressed_weights_subgraph(const ov::Shape& weights_shape,
@@ -413,10 +414,11 @@ INSTANTIATE_TEST_SUITE_P(MatMulCompressedWeights_corner_cases_big,
 // per_tensor_zp=0 is not supported
 // transpose_weights is not supported
 // weight precision u4 is only supported
-const std::vector<uint64_t> group_size = {32, 128, UINT64_MAX};
+const std::vector<uint64_t> group_size = {128, 256, std::numeric_limits<int64_t>::max()};
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                          MatmulWeightsDecompression,
-                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1, 1, 4096}}}, {4096, 4096}, 128}),  // shape
+                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1024, 1, 1024}, {1, 1, 1024}, {1024, 1, 1024}}},
+                                                                            {1024, 1024}, 128}),  // shape
                                             ::testing::Values(ov::element::u4),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(false),

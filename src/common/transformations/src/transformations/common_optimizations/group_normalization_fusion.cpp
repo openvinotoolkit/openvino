@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"

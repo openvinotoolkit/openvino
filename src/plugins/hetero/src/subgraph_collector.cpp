@@ -643,7 +643,7 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::sh
             ParameterVector subgraph_parameters{submodel->inputs().size()};
             OutputVector args{submodel->inputs().size()};
             for (size_t j = 0; j < submodel->inputs().size(); j++) {
-                auto const& input = submodel->input(j);
+                const auto& input = submodel->input(j);
                 subgraph_parameters[j] =
                     std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_partial_shape());
                 supported_ops[subgraph_parameters[j]->get_friendly_name()] = subgraph._affinity;
