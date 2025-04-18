@@ -18,6 +18,7 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
+#include "intel_gpu/op/kv_cache.hpp"
 
 
 namespace ov::intel_gpu {
@@ -132,7 +133,8 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 }
 
 void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {
-    const auto is_LLM = ov::op::util::is_large_language_model(model);
+    const auto is_LLM = ov::op::util::is_large_language_model(model) ||
+                        ov::op::util::has_op_with_type<ov::intel_gpu::op::KVCache>(model.shared_from_this());
     apply_rt_info(context, get_rt_info(model), is_LLM);
 
     const auto& ops = model.get_ops();
@@ -154,7 +156,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
             m_use_onednn = true;
         }
 
-        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 for (auto& sub_op : sub_graph->get_ops()) {
                     process_op(sub_op);
