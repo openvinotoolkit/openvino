@@ -2144,3 +2144,61 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved)
     test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_value);
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_rotary_embedding) {
+    const auto model = convert_model("com.microsoft/rotary_embedding.onnx");
+
+    std::vector<float> query = {-1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f, -0.3160f, -2.1152f, 0.3223f,
+                                -1.2633f, 0.3500f,  0.3081f,  0.1198f,  1.2377f,  1.1168f, -0.2473f, -1.3527f, -1.6959f,
+                                0.5667f,  0.7935f,  0.5988f,  -1.5551f, -0.3414f, 1.8530f, 0.7502f,  -0.5855f, -0.1734f,
+                                0.1835f,  1.3894f,  1.5863f,  0.9463f,  -0.8437f};
+
+    std::vector<int64_t> position_ids = {0};
+    std::vector<float> cos_cache = {0.8437f,
+                                    -0.7849f,
+                                    -0.7829f,
+                                    0.4581f,
+                                    -0.9870f,
+                                    0.6273f,
+                                    -0.9483f,
+                                    -0.9962f,
+                                    -0.9635f,
+                                    -0.8046f,
+                                    0.4139f,
+                                    0.9863f,
+                                    0.4117f,
+                                    0.9874f,
+                                    -0.9743f,
+                                    0.9494f};
+    std::vector<float> sin_cache = {0.5368f,
+                                    0.6196f,
+                                    -0.6222f,
+                                    0.8889f,
+                                    0.1605f,
+                                    -0.7788f,
+                                    0.3174f,
+                                    -0.0872f,
+                                    0.2677f,
+                                    -0.5938f,
+                                    -0.9103f,
+                                    -0.1650f,
+                                    -0.9113f,
+                                    -0.1583f,
+                                    0.2253f,
+                                    0.3140f};
+
+    std::vector<float> expected_output = {
+        -0.33396345f, -1.332403f,   0.31613833f, 0.40111685f,  0.16033238f, 1.0781744f, -0.7741276f, 0.07257013f,
+        -0.9535321f,  -0.491965f,   1.1324831f,  -0.43444604f, -0.2675047f, 1.1483997f, 0.57366973f, 1.1961825f,
+        -0.24709277f, -2.164195f,   0.02267693f, 0.07289726f,  0.7654276f,  0.5282906f, -0.8852943f, -0.02456442f,
+        -0.7039771f,  -0.47064403f, 1.7278847f,  -0.41034833f, 0.02774171f, 1.1607709f, 0.83748007f, 1.3403473f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+     test_case.add_input<int64_t>(Shape{1, 1}, position_ids);
+    test_case.add_input<float>(Shape{1, 32}, cos_cache);
+    test_case.add_input<float>(Shape{1, 32}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
