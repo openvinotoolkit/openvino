@@ -13,13 +13,14 @@ if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LES
 endif()
 
 if(WIN32)
-    set(CMAKE_SHARED_LINKER_FLAGS /DELAYLOAD:NODE.EXE)
     set(CMAKE_JS_LIB ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node.lib)
     set(CMAKE_JS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/win_delay_load_hook.cc)
 
     set(CMAKE_JS_NODELIB_DEF ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node-lib.def)
     set(CMAKE_JS_NODELIB_TARGET ${CMAKE_JS_LIB})
+
     set(DELAYIMP_LIB delayimp.lib)
+
 endif()
 
 cmake_minimum_required(VERSION 3.14)
@@ -27,6 +28,7 @@ cmake_minimum_required(VERSION 3.14)
 project(ov_node_addon)
 
 set(CMAKE_CXX_STANDARD 17)
+
 add_definitions(-DNAPI_VERSION=8)
 
 include(FetchContent)
@@ -40,6 +42,7 @@ FetchContent_MakeAvailable(node-api-headers)
 
 FetchContent_Declare(
     node-addon-api
+
     URL      https://github.com/nodejs/node-addon-api/archive/refs/tags/v8.0.0.tar.gz
     URL_HASH SHA256=42424c5206b9d67b41af4fcff5d6e3cb22074168035a03b8467852938a281d47
 )
@@ -59,6 +62,7 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/resize_algorithm.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/errors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/helper.cpp
+
     ${CMAKE_CURRENT_SOURCE_DIR}/src/type_validation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tensor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
@@ -68,6 +72,7 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/addon.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/element_type.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/partial_shape_wrap.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/node_wrap.cpp
 
     ${CMAKE_JS_SRC}
 )
@@ -77,6 +82,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${node-addon-api_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
+
 
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::util ${DELAYIMP_LIB} ${CMAKE_JS_LIB})
 
