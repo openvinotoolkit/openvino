@@ -89,7 +89,6 @@ uint8_t f16_to_f8e4m3_bits(const float16 value) {
             if ((fractional & round_half) == round_odd || (fractional & round_norm) != 0) {
                 fractional += round_even;
                 if (0 != (fractional & f8_e_mask)) {
-                    fractional &= f8_e_mask;
                     ++f8_biased_exp;
                 }
             }
