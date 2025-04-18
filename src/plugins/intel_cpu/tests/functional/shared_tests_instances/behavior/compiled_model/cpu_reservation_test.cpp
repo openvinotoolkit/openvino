@@ -26,7 +26,8 @@ using CpuReservationTest = ::testing::Test;
 // Issue: 163348
 using DISABLED_CpuReservationTest = ::testing::Test;
 
-TEST_F(DISABLED_CpuReservationTest, Mutiple_CompiledModel_Reservation) {
+#if defined(__linux__) || defined(_WIN32)
+TEST_F(CpuReservationTest, Mutiple_CompiledModel_Reservation) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -62,7 +63,7 @@ TEST_F(DISABLED_CpuReservationTest, Mutiple_CompiledModel_Reservation) {
     }
 }
 
-TEST_F(DISABLED_CpuReservationTest, Cpu_Reservation_NoAvailableCores) {
+TEST_F(CpuReservationTest, Cpu_Reservation_NoAvailableCores) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -78,8 +79,7 @@ TEST_F(DISABLED_CpuReservationTest, Cpu_Reservation_NoAvailableCores) {
     EXPECT_THROW(core->compile_model(models[0], target_device, property_config), ov::Exception);
 }
 
-#if defined(__linux__)
-TEST_F(DISABLED_CpuReservationTest, Cpu_Reservation_CpuPinning) {
+TEST_F(CpuReservationTest, Cpu_Reservation_CpuPinning) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -110,7 +110,7 @@ TEST_F(DISABLED_CpuReservationTest, Cpu_Reservation_CpuPinning) {
     ASSERT_EQ(res_cpu_pinning, cpu_pinning);
 }
 
-TEST_F(CpuReservationTest, Cpu_Reservation_CompiledModel_Release) {
+TEST_F(CpuReservationTest, smoke_Cpu_Reservation_CompiledModel_Release) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -123,13 +123,16 @@ TEST_F(CpuReservationTest, Cpu_Reservation_CompiledModel_Release) {
                                   {ov::hint::enable_hyper_threading.name(), true},
                                   {ov::hint::enable_cpu_reservation.name(), true}};
     {
+        std::cout << "compile_model 111111\n";
         auto compiled_model = core->compile_model(models[0], target_device, property_config);
+        std::cout << "compile_model 2222222\n";
         EXPECT_THROW(core->compile_model(models[0], target_device, property_config), ov::Exception);
     }
 
     ov::AnyMap reserve_1_config = {{ov::num_streams.name(), 1},
                                   {ov::inference_num_threads.name(), 1},
                                   {ov::hint::enable_cpu_reservation.name(), true}};
+    std::cout << "compile_model 333333\n";
     EXPECT_NO_THROW(core->compile_model(models[0], target_device, reserve_1_config));
 }
 
