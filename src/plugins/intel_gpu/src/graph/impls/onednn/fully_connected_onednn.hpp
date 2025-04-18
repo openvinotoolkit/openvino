@@ -28,11 +28,16 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
 
         const auto& fc_node = node.as<fully_connected>();
         const auto& in_layout = fc_node.get_input_layout(0);
+        const auto& wei_layout = fc_node.weights().get_output_layout(false);
         const auto& out_layout = fc_node.get_output_layout(0);
         auto in0_dt = in_layout.data_type;
-        auto wei_dt = fc_node.weights().get_output_layout(false).data_type;
+        auto wei_dt = wei_layout.data_type;
         auto out_dt = out_layout.data_type;
         auto fc_prim = fc_node.get_primitive();
+
+        // Do not allow onednn if INT4 weight compressed layout has odd dimension.
+        if (one_of(wei_dt, {data_types::i4, data_types::u4}) && (wei_layout.batch() % 2 != 0 || wei_layout.feature() % 2 != 0))
+            return false;
 
         if (one_of(data_types::i64, {in0_dt, wei_dt}))
             return false;
