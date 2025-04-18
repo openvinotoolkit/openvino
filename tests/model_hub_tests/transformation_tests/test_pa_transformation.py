@@ -66,6 +66,9 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
     if (use_score_outputs):
         interesting_output_patterns["scores"] = r'^scores\.[0-9]+'
 
+    if (allow_score_aggregation):
+        interesting_input_patterns["score_aggregation_window"] = r'score_aggregation_window'
+
     if (allow_cache_rotation):
         interesting_input_patterns["rotated_block_indices"] = r'^rotated_block_indices\.[0-9]+';
         interesting_input_patterns["rotation_deltas"] = r'^rotation_deltas\.[0-9]+';
@@ -87,6 +90,10 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
     if allow_cache_rotation:
         assert input_counters["rotation_trig_lut"] == 1
         input_counters.pop("rotation_trig_lut")
+
+    if allow_score_aggregation:
+        assert input_counters["score_aggregation_window"] == 1
+        input_counters.pop("score_aggregation_window")
 
     for input_id, count in input_counters.items():
         assert count == resulting_map["PagedAttentionExtension"], \

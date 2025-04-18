@@ -19,8 +19,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 13 || get_input_size() == 16,
-                          "PagedAttensionExtension expects 13 or 16 inputs, but it has ",
+                          get_input_size() == 14 || get_input_size() == 17,
+                          "PagedAttensionExtension expects 14 or 17 inputs, but it has ",
                           get_input_size());
 
     NODE_VALIDATION_CHECK(
@@ -147,40 +147,51 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           get_input_element_type(12),
                           ".");
 
-    if (get_input_size() == 16) {
+    NODE_VALIDATION_CHECK( this,
+        get_input_partial_shape(13).rank().is_dynamic() || get_input_partial_shape(13).rank().get_length() == 1 || get_input_partial_shape(13).rank().get_length() == 0,
+        "Input `score_aggregation_window` should either have rank 1 or 0, but it has rank ",
+        get_input_partial_shape(13).rank().get_length(),
+        ".");
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(13).is_dynamic() || get_input_element_type(13) == element::i32,
+                          "Element type of `score_aggregation_window` input should be i32, but it is ",
+                          get_input_element_type(13),
+                          ".");
+
+    if (get_input_size() == 17) {
         NODE_VALIDATION_CHECK(
             this,
-            get_input_partial_shape(13).rank().is_dynamic() || get_input_partial_shape(13).rank().get_length() == 1,
+            get_input_partial_shape(14).rank().is_dynamic() || get_input_partial_shape(14).rank().get_length() == 1,
             "Input `rotated_block_indices` should either have rank 1 or be omitted, but it has rank ",
-            get_input_partial_shape(13).rank().get_length(),
-            ".");
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(13).is_dynamic() || get_input_element_type(13) == element::i32,
-                              "Element type of `rotated_block_indices` input should be i32, but it is ",
-                              get_input_element_type(13),
-                              ".");
-        NODE_VALIDATION_CHECK(
-            this,
-            get_input_partial_shape(14).rank().is_dynamic() || get_input_partial_shape(14).rank().get_length() == 2,
-            "Input `rotation_deltas` should either have rank 2 or be omitted, but it has rank ",
             get_input_partial_shape(14).rank().get_length(),
             ".");
         NODE_VALIDATION_CHECK(this,
                               get_input_element_type(14).is_dynamic() || get_input_element_type(14) == element::i32,
-                              "Element type of `rotation_deltas` input should be i32, but it is ",
+                              "Element type of `rotated_block_indices` input should be i32, but it is ",
                               get_input_element_type(14),
                               ".");
         NODE_VALIDATION_CHECK(
             this,
             get_input_partial_shape(15).rank().is_dynamic() || get_input_partial_shape(15).rank().get_length() == 2,
-            "Input `rotation_trig_lut` should either have rank 2 or be omitted, but it has rank ",
+            "Input `rotation_deltas` should either have rank 2 or be omitted, but it has rank ",
             get_input_partial_shape(15).rank().get_length(),
             ".");
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(15).is_dynamic() || get_input_element_type(15) == element::f32 ||
-                                  get_input_element_type(15) == element::f16,
-                              "Element type of `rotation_trig_lut` input should be f32 or f16, but it is ",
+                              get_input_element_type(15).is_dynamic() || get_input_element_type(15) == element::i32,
+                              "Element type of `rotation_deltas` input should be i32, but it is ",
                               get_input_element_type(15),
+                              ".");
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_partial_shape(16).rank().is_dynamic() || get_input_partial_shape(16).rank().get_length() == 2,
+            "Input `rotation_trig_lut` should either have rank 2 or be omitted, but it has rank ",
+            get_input_partial_shape(16).rank().get_length(),
+            ".");
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(16).is_dynamic() || get_input_element_type(16) == element::f32 ||
+                                  get_input_element_type(16) == element::f16,
+                              "Element type of `rotation_trig_lut` input should be f32 or f16, but it is ",
+                              get_input_element_type(16),
                               ".");
     }
 
