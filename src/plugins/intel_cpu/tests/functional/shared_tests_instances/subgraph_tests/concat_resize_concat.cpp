@@ -7,6 +7,9 @@
 #include <tuple>
 #include <string>
 #include <vector>
+#include "openvino/op/concat.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/util/interpolate_base.hpp"
 
 namespace ov {
 namespace test {

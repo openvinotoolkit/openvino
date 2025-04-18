@@ -12,7 +12,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -28,7 +31,7 @@ TEST(TransformationTests, DivideFusion) {
         auto pow = std::make_shared<opset1::Power>(data2, pow_constant);
         auto mul = std::make_shared<opset1::Multiply>(data1, pow);
 
-        f = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data1, data2});
+        f = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{data1, data2});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -42,7 +45,7 @@ TEST(TransformationTests, DivideFusion) {
         auto data2 = std::make_shared<opset1::Parameter>(element::f32, Shape{3, 1, 2});
         auto divide = std::make_shared<opset1::Divide>(data1, data2);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{divide}, ParameterVector{data1, data2});
+        f_ref = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{data1, data2});
     }
 
     const auto res = FunctionsComparator::with_default()
@@ -61,7 +64,7 @@ TEST(TransformationTests, DivideFusionNegative) {
         auto pow = std::make_shared<opset1::Power>(data2, pow_constant);
         auto mul = std::make_shared<opset1::Multiply>(data1, pow);
 
-        f = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data1, data2});
+        f = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{data1, data2});
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
@@ -77,7 +80,7 @@ TEST(TransformationTests, DivideFusionNegative) {
         auto pow = std::make_shared<opset1::Power>(data2, pow_constant);
         auto mul = std::make_shared<opset1::Multiply>(data1, pow);
 
-        f_ref = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data1, data2});
+        f_ref = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{data1, data2});
     }
 
     const auto res = FunctionsComparator::with_default()

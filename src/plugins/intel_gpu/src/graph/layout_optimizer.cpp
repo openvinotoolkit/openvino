@@ -1285,11 +1285,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 expected = format::get_default_format(node.get_input_layout(0).get_rank());
                 node.set_preferred_input_fmt(0, expected);
             } else {
-                auto& fc_node = node.as<fully_connected>();
-                auto input_layout = fc_node.get_input_layout();
-                if (input_layout.format.dimension() > 4) {
-                    expected = format::bfyx;
-                    node.set_preferred_input_fmt(0, format::bfyx);
+                if (!use_onednn_impls) {
+                    auto& fc_node = node.as<fully_connected>();
+                    auto input_layout = fc_node.get_input_layout();
+                    if (input_layout.format.dimension() > 4) {
+                        expected = format::bfyx;
+                        node.set_preferred_input_fmt(0, format::bfyx);
+                    }
                 }
             }
         }
