@@ -16,6 +16,8 @@
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
