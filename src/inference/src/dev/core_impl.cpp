@@ -1726,18 +1726,12 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
 }
 
 ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::string& dir) {
-    std::shared_ptr<ov::ICacheManager> cache_manager = nullptr;
-
+    CacheConfig cache_config{dir, nullptr};
     if (!dir.empty()) {
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-        ov::util::create_directory_recursive(ov::util::string_to_wstring(dir));
-#else
         ov::util::create_directory_recursive(dir);
-#endif
-        cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
+        cache_config._cacheManager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
-
-    return {dir, std::move(cache_manager)};
+    return cache_config;
 }
 
 std::mutex& ov::CoreImpl::get_mutex(const std::string& dev_name) const {
