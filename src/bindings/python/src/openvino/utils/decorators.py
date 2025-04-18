@@ -10,7 +10,7 @@ from openvino import Node, Output
 from openvino.utils.types import NodeInput, as_node, as_nodes
 
 
-def _get_name(**kwargs: Any) -> Optional[str]:  # Corretto il tipo di ritorno
+def _get_name(**kwargs: Any) -> Optional[str]:
     if "name" in kwargs:
         return kwargs["name"]
     return None
@@ -80,12 +80,11 @@ class MultiMethod(object):
         for type_arg in get_args(union_type):
             if isinstance(type_arg, type) and isinstance(actual_type, type) and issubclass(actual_type, type_arg):
                 return True
-            elif get_origin(type_arg) == list:
-                if isinstance(actual_type, type) and issubclass(actual_type, list):
-                    return True
+            elif get_origin(type_arg) == list and isinstance(actual_type, type) and issubclass(actual_type, list):
+                return True
         return False
 
-    def matches_optional(self, optional_type: Any, actual_type: Any) -> bool:
+    def matches_optional(self, optional_type, actual_type) -> bool:  # type: ignore
         return actual_type is None or self.matches_union(optional_type, actual_type)
 
     # Checks whether there is overloading which matches invoked argument types
