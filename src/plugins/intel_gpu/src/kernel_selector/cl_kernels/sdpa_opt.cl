@@ -1336,7 +1336,11 @@ KERNEL(sdpa_opt)(
             for (uint i = 0; i < TARGET_SEQ_LEN_BLOCK_SIZE; i++) {
                 qk_acc[i] = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]) - qk_max_new);
 #if IS_CAUSAL
+#if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
+                if ((seq_len + i <= target_seq_idx + sglid) && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i >= target_seq_idx + sglid - SLIDING_WINDOW_SIZE)) {
+#else
                 if (seq_len + i <= target_seq_idx + sglid) {
+#endif
                     exp_sum_new += qk_acc[i];
                 }
 # else
