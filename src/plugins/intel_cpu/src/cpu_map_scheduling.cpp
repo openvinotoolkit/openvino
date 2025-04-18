@@ -101,7 +101,7 @@ bool check_cpu_pinning(const bool cpu_pinning,
 #endif
 
     // Disable cpu pinning when nstreams=1 and nthreads=1
-    if (result_value) {
+    if (!cpu_pinning_changed && result_value) {
         result_value = ((streams_info_table.size() == 1) && (streams_info_table[0][NUMBER_OF_STREAMS] == 1) &&
                         (streams_info_table[0][THREADS_PER_STREAM] == 1))
                            ? false
