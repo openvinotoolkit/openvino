@@ -15,7 +15,6 @@ class TestGather(JaxLayerTest):
     def _prepare_input(self):
         data = rng.integers(-10, 10, self.data_shape).astype(self.input_type)
         indices = rng.integers(0, self.data_shape[self.axis], self.indices_shape).astype(np.int32)
-
         return [jnp.array(data), jnp.array(indices)]
 
     def create_model(self, data_shape, indices_shape, axis, input_type):
