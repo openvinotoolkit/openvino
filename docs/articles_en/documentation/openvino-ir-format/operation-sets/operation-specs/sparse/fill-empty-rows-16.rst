@@ -49,6 +49,7 @@ This operator also returns a boolean vector indicating which rows were filled wi
 
     * ``M`` is the length of the updated ``output_values``.
     * The second dimension is always 2, as only 2D sparse tensors are supported.
+
 * **2**: ``output_values`` 1D tensor containing the values of type *T* to be inserted at the specified indices.
 * **3**: ``empty_row_indicator`` 1D tensor of type ``boolean`` indicating True for rows which were empty before executing the operation.
 
