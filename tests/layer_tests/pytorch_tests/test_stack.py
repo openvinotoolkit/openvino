@@ -39,6 +39,7 @@ class TestStack2D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_stack2D(self, input_shape, dim, ie_device, precision, ir_version):
         self.input_tensors = [
             np.random.randn(*input_shape).astype(np.float32),
@@ -79,6 +80,7 @@ class TestStack3D(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_stack3D(self, input_shape, dim, ie_device, precision, ir_version):
         self.input_tensors = [
             np.random.randn(*input_shape).astype(np.float32),
