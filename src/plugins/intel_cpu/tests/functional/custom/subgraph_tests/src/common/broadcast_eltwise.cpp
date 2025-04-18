@@ -5,6 +5,9 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {

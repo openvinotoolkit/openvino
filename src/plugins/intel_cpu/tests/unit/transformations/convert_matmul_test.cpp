@@ -6,9 +6,9 @@
 
 #include <memory>
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset7.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 #include <openvino/pass/manager.hpp>
 #include <ov_ops/type_relaxed.hpp>
 #include <transformations/cpu_opset/common/pass/convert_matmul_to_fc.hpp>
@@ -19,6 +19,12 @@
 #include "openvino/op/constant.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;

@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/variadic_split.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov {
 namespace test {
