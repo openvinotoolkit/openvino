@@ -82,7 +82,7 @@ jobs:
       SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
       SCCACHE_LOG: warn
       GITHUB_WORKSPACE: /__w/openvino/openvino
-      USER_HOME_DIR: /home/openvino
+      USER_HOME_DIR: /home/runner
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       INSTALL_DIR: /__w/openvino/openvino/openvino_install

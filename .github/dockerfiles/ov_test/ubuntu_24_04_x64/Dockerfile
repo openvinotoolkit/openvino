@@ -9,8 +9,8 @@ ENV USER_ID=1000
 ENV GROUP_NAME=${USER_NAME}
 ENV GROUP_ID=${USER_ID}
 
-RUN groupadd -g ${GROUP_ID} ${GROUP_NAME}
-RUN useradd ${USER_NAME} -u ${USER_ID} -g ${GROUP_ID} -ms /bin/bash
+# Ubuntu 24 images already has a user with UID 1000
+RUN usermod -l openvino ubuntu
 
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
@@ -57,7 +57,6 @@ ENV PIP_INSTALL_PATH=/venv/lib/python3/site-packages
 
 # Change ownership of the home directory to the non-root user
 RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
-RUN mkdir -p /home/openvino && chown -R ${USER_NAME}:${USER_NAME} /home/openvino
 
 # Change ownership of the venv directory to the non-root user
 RUN chown -R ${USER_NAME}:${USER_NAME} /venv
