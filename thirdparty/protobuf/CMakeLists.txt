@@ -63,7 +63,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
             CXX_VISIBILITY_PRESET default
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF
-            INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
+            INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
     endif()
     ov_disable_all_warnings(${_protoc_libs} libprotobuf-lite)
     set_target_properties(libprotobuf-lite PROPERTIES
