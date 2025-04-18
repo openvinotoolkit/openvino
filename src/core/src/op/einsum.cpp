@@ -103,7 +103,8 @@ void op::v7::Einsum::parse_equation(const std::string& equation,
     std::istringstream input;
     input.str(input_subscripts_str);
     constexpr char delimeter = ',';
-    for (auto i = 0; i <= std::count(input_subscripts_str.begin(), input_subscripts_str.end(), delimeter); ++i) {
+    const auto input_subscripts_count = std::count(input_subscripts_str.begin(), input_subscripts_str.end(), delimeter);
+    for (auto i = 0; i <= input_subscripts_count; ++i) {
         std::string input_subscript;
         std::getline(input, input_subscript, delimeter);
         bool local_is_ellipsis_met = false;
