@@ -18,15 +18,41 @@ public:
 
     IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                               [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        OPENVINO_ASSERT(input_shapes.size() == 7,
+                        "the input parameters of ScaledDotProductAttentionWithKVCache should be 7");
         const auto& query_dims = input_shapes.front().get();
         VectorDims present_v_dims = input_shapes.back().get();
         const auto& beam_idx_dims = input_shapes.end()[-3].get();
         const auto& permute_axes = m_config.permute_axes;
-
         if (permute_axes.empty()) {
             // [B, H, L, S]
             present_v_dims[0] = beam_idx_dims[0];
             present_v_dims[2] += query_dims[2];
+            if (!m_config.is_causal) {
+                const auto& attn_mask_dims = input_shapes.end()[-4].get();
+                if ((query_dims[2] != attn_mask_dims[2] && attn_mask_dims[2] != 1) ||
+                    (present_v_dims[2] != attn_mask_dims[3] && attn_mask_dims[3] != 1)) {
+                    const auto& cur_k_dims = input_shapes[1].get();
+                    const auto& cur_v_dims = input_shapes[2].get();
+                    const auto& cache_k_dims = input_shapes[5].get();
+                    const auto& cache_v_dims = input_shapes[6].get();
+                    OPENVINO_THROW("attention_mask do not match q and k,",
+                                   " query_dims:",
+                                   ov::intel_cpu::vec2str(query_dims),
+                                   " cur_k_dims:",
+                                   ov::intel_cpu::vec2str(cur_k_dims),
+                                   " cur_v_dims:",
+                                   ov::intel_cpu::vec2str(cur_v_dims),
+                                   " attn_mask_dims:",
+                                   ov::intel_cpu::vec2str(attn_mask_dims),
+                                   " beam_idx_dims:",
+                                   ov::intel_cpu::vec2str(beam_idx_dims),
+                                   " cache_k_dims:",
+                                   ov::intel_cpu::vec2str(cache_k_dims),
+                                   " cache_v_dims:",
+                                   ov::intel_cpu::vec2str(cache_v_dims));
+                }
+            }
             // normal and fast path
             if (present_v_dims[3] == query_dims[3]) {
                 return {{query_dims, present_v_dims, present_v_dims}, ShapeInferStatus::success};
@@ -50,6 +76,32 @@ public:
         VectorDims output_dims(n_dims);
         for (size_t i = 0; i < n_dims; i++) {
             output_dims[i] = query_dims[permute_axes[i]];
+        }
+
+        if (!m_config.is_causal) {
+            const auto& attn_mask_dims = input_shapes.end()[-4].get();
+            if ((query_dims[length_index] != attn_mask_dims[2] && attn_mask_dims[2] != 1) ||
+                (present_v_dims[length_index] != attn_mask_dims[3] && attn_mask_dims[3] != 1)) {
+                const auto& cur_k_dims = input_shapes[1].get();
+                const auto& cur_v_dims = input_shapes[2].get();
+                const auto& cache_k_dims = input_shapes[5].get();
+                const auto& cache_v_dims = input_shapes[6].get();
+                OPENVINO_THROW("attention_mask do not match q and k,",
+                               " query_dims:",
+                               ov::intel_cpu::vec2str(query_dims),
+                               " cur_k_dims:",
+                               ov::intel_cpu::vec2str(cur_k_dims),
+                               " cur_v_dims:",
+                               ov::intel_cpu::vec2str(cur_v_dims),
+                               " attn_mask_dims:",
+                               ov::intel_cpu::vec2str(attn_mask_dims),
+                               " beam_idx_dims:",
+                               ov::intel_cpu::vec2str(beam_idx_dims),
+                               " cache_k_dims:",
+                               ov::intel_cpu::vec2str(cache_k_dims),
+                               " cache_v_dims:",
+                               ov::intel_cpu::vec2str(cache_v_dims));
+            }
         }
 
         // normal and fast path
