@@ -2069,7 +2069,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             if (isAxesSpecified) {
                 axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))
                            ->cast_vector<int>();
-                if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2 && mayiuse(cpu::x64::sse41)) {
+                if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2) {
                     NCHWAsNHWC = true;
                     axes[0] = 2;
                     axes[1] = 3;
@@ -2501,9 +2501,8 @@ void Interpolate::prepareParams() {
                             key.nodeAttrs.mode == InterpolateMode::bicubic_pillow;
         bool isByChannelLayout = key.nodeAttrs.layout == InterpolateLayoutType::by_channel;
         bool isNearestLinearOrCubicSupported = isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32);
-        bool isPillowModeSupported = isPillowMode && isByChannelLayout;
 
-        if (isNearestLinearOrCubicSupported || isPillowModeSupported) {
+        if (isNearestLinearOrCubicSupported) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,
