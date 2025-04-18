@@ -4,13 +4,13 @@
 
 from functools import wraps
 from inspect import signature
-from typing import Any, Callable, Dict, Optional, Union, get_origin, get_args
+from typing import Any, Callable, Dict, Optional, Union, get_origin, get_args, Type, TypeVar, cast
 
 from openvino import Node, Output
 from openvino.utils.types import NodeInput, as_node, as_nodes
 
 
-def _get_name(**kwargs: Any) -> Node:
+def _get_name(**kwargs: Any) -> Optional[str]:
     if "name" in kwargs:
         return kwargs["name"]
     return None
@@ -76,13 +76,12 @@ class MultiMethod(object):
         self.typemap: Dict[tuple, Callable] = {}
 
     # Checks if actual_type is a subclass of any type in the union
-    def matches_union(self, union_type, actual_type) -> bool:  # type: ignore
+    def matches_union(self, union_type: Any, actual_type: Type) -> bool:
         for type_arg in get_args(union_type):
-            if isinstance(type_arg, type) and issubclass(actual_type, type_arg):
+            if isinstance(type_arg, type) and isinstance(actual_type, type) and issubclass(actual_type, type_arg):
                 return True
-            elif get_origin(type_arg) == list:
-                if issubclass(actual_type, list):
-                    return True
+            elif get_origin(type_arg) == list and isinstance(actual_type, type) and issubclass(actual_type, list):
+                return True
         return False
 
     def matches_optional(self, optional_type, actual_type) -> bool:  # type: ignore
@@ -98,11 +97,11 @@ class MultiMethod(object):
             elif origin is Optional:
                 if not self.matches_optional(expected_type, actual_type):
                     return False
-            elif not issubclass(actual_type, expected_type):
+            elif isinstance(actual_type, type) and isinstance(expected_type, type) and not issubclass(actual_type, expected_type):
                 return False
         return True
 
-    def __call__(self, *args, **kwargs) -> Any:  # type: ignore
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         arg_types = tuple(arg.__class__ for arg in args)
         kwarg_types = {key: type(value) for key, value in kwargs.items()}
 
@@ -115,14 +114,14 @@ class MultiMethod(object):
                     break
         elif len(arg_types) == 0 and len(kwarg_types) != 0:
             for key, func in self.typemap.items():
-                func_signature = {arg_name: types.annotation for arg_name, types in signature(func).parameters.items()}
+                func_signature = {arg_name: param.annotation for arg_name, param in signature(func).parameters.items()}
                 # if kwargs of called function are subset of overloaded function, we use this overload
                 if kwarg_types.keys() <= func_signature.keys():
                     key_matched = key
                     break
         elif len(arg_types) != 0 and len(kwarg_types) != 0:
             for key, func in self.typemap.items():
-                func_signature = {arg_name: types.annotation for arg_name, types in signature(func).parameters.items()}
+                func_signature = {arg_name: param.annotation for arg_name, param in signature(func).parameters.items()}
                 # compare types of called function with overloads
                 if self.check_invoked_types_in_overloaded_funcs(arg_types, tuple(func_signature.values())):
                     # if kwargs of called function are subset of overloaded function, we use this overload
@@ -134,7 +133,9 @@ class MultiMethod(object):
             raise TypeError(f"The necessary overload for {self.name} was not found")
 
         function = self.typemap.get(key_matched)
-        return function(*args, **kwargs)  # type: ignore
+        if function:
+            return function(*args, **kwargs)
+        raise TypeError(f"Implementation not found for {self.name} with given types")
 
     def register(self, types: tuple, function: Callable) -> None:
         if types in self.typemap:
