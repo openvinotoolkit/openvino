@@ -4,6 +4,7 @@
 
 #include "utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/region_yolo.hpp"
 
 using namespace CPUTestUtils;
 
