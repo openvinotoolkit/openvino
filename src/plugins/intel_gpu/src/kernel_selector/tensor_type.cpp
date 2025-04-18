@@ -988,25 +988,5 @@ void WeightsTensor::SwapXY() {
     *this = {vec, dtype, layout};
 }
 
-bool WeightsTensor::HasInnerMostPadding() const {
-    bool innermost_dim_found = false;
-    for (const auto& d : GetDims()) {
-        if (d.pad.before > 0 || (innermost_dim_found && d.pad.after > 0)) {
-            return false;
-        }
-        if (!innermost_dim_found) {
-            if (d.v != 1) {
-                if (d.pad.after == 0) {
-                    return false;
-                }
-                innermost_dim_found = true;
-            } else if (d.pad.after > 0) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 }  // namespace Tensor
 }  // namespace kernel_selector

@@ -50,10 +50,16 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
         dispatchData.gws = { Align(output.OFM().v, 64) / 2, output.IFM().v, 1 };
     } else if (output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
         dispatchData.gws = { Align(output.OFM().v, 64), output.IFM().v / 2, 1 };
-    } else if (output.GetLayout() == WeightsLayout::oiyx && output.HasInnerMostPadding()) {
-        dispatchData.gws = { CeilDiv(output.PhysicalSize(), 2), 1, 1 };
-    } else {
-        dispatchData.gws = { CeilDiv(output.LogicalSize(), 2), 1, 1 };
+    } else if (output.GetLayout() == WeightsLayout::oiyx) {
+        auto dims = output.GetDims();
+        bool has_pads = std::any_of(dims.begin(), dims.end(), [](const kernel_selector::Tensor::Dim& d) {
+            return d.pad.Total() != 0;
+        });
+        if (has_pads) {
+            dispatchData.gws = { CeilDiv(output.PhysicalSize(), 2), 1, 1 };
+        } else {
+            dispatchData.gws = { CeilDiv(output.LogicalSize(), 2), 1, 1 };
+        }
     }
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
@@ -65,15 +71,40 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     const auto& input = p.input;
     const auto& output = p.output;
 
-    auto has_only_inner_most_padding = output.HasInnerMostPadding();
+    // To use the reorder weight i4 kernel for adding padding to an odd innermost dimension,
+    // the input tensor should have an odd innermost dimension without any padding,
+    // and the output tensor should have padding with only the pad.after value for the innermost dimension.
+    if (input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) {
+        auto get_trimmed_dims = [&](const kernel_selector::Tensor::NDims& org_dims) -> kernel_selector::Tensor::NDims {
+            auto it = org_dims.begin();
+            while (it != org_dims.end() && it->v == 1) {
+                ++it;
+            }
+            return std::vector<kernel_selector::Tensor::Dim>(it, org_dims.end());
+        };
 
-    if (input.GetLayout() != WeightsLayout::oiyx
-            || output.GetLayout() != WeightsLayout::oiyx
-            || !has_only_inner_most_padding) {
-        OPENVINO_ASSERT((input.LogicalSize() == input.OFM().v * input.IFM().v
-                        && output.LogicalSize() == output.OFM().v * output.IFM().v),
-                        "Reorder weight i4 only supports 2D input/output, except when adding padding for the same shape(WeightsLayout::oiyx).");
+        auto idims = get_trimmed_dims(input.GetDims());
+        auto odims = get_trimmed_dims(output.GetDims());
+
+        bool has_pads_for_input_dims = std::any_of(idims.begin(), idims.end(), [](const kernel_selector::Tensor::Dim& d) {
+            return d.pad.Total() != 0;
+        });
+        bool has_pads_for_output_dims_except_inner_most = std::any_of(odims.begin() + 1, odims.end(), [](const kernel_selector::Tensor::Dim& d) {
+            return d.pad.Total() != 0;
+        });
+
+        if (idims[0].v % 2 != 0
+            && !has_pads_for_input_dims
+            && !has_pads_for_output_dims_except_inner_most
+            && odims[0].pad.before == 0
+            && odims[0].LogicalDimPadded() % 2 == 0) {
+            return true;
+        }
     }
+
+    OPENVINO_ASSERT((input.LogicalSize() == input.OFM().v * input.IFM().v
+                    && output.LogicalSize() == output.OFM().v * output.IFM().v),
+                    "Reorder weight i4 only supports 2D input/output, except when adding padding for the same shape(WeightsLayout::oiyx).");
 
     bool supported_case = input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
     supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2;
@@ -81,7 +112,6 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv64;
     supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2;
     supported_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::oiyx;
-    supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx && has_only_inner_most_padding;
     supported_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
     return supported_case;
 }
