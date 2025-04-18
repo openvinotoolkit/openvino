@@ -20,7 +20,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
 #include "utils/cpu_utils.hpp"
