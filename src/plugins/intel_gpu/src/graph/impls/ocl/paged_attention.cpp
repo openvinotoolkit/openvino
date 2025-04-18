@@ -853,6 +853,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
 
+        params.could_use_flashattn_v2 = impl_param.get_program().get_config().get_could_use_flashattn_v2();
+
         return params;
     }
 
