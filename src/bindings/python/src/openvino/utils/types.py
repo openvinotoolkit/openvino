@@ -73,7 +73,6 @@ def get_element_type(data_type: NumericType) -> Type:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return Type.f32
 
-    # Sostituita implementazione con next() per evitare None
     for ov_type, np_type in openvino_to_numpy_types_map:
         if np_type == data_type:
             return ov_type
@@ -91,7 +90,6 @@ def get_element_type_str(data_type: NumericType) -> str:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return "f32"
 
-    # Sostituita implementazione con next() per evitare None
     for ov_type, np_type in openvino_to_numpy_types_str_map:
         if np_type == data_type:
             return ov_type
@@ -101,7 +99,6 @@ def get_element_type_str(data_type: NumericType) -> str:
 
 def get_dtype(openvino_type: Type) -> np.dtype:
     """Return a numpy.dtype for an openvino element type."""
-    # Sostituita implementazione con next() per evitare None
     for ov_type, np_type in openvino_to_numpy_types_map:
         if ov_type == openvino_type:
             return np.dtype(np_type)
@@ -111,7 +108,6 @@ def get_dtype(openvino_type: Type) -> np.dtype:
 
 def get_numpy_ctype(openvino_type: Type) -> type:
     """Return numpy ctype for an openvino element type."""
-    # Sostituita implementazione con next() per evitare None
     for ov_type, np_type in openvino_to_numpy_types_map:
         if ov_type == openvino_type:
             return np_type
@@ -155,7 +151,6 @@ def as_node(input_value: NodeInput, name: Optional[str] = None) -> Union[Node, O
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
     if isinstance(input_value, (Node, Output)):
         return input_value
-    # A questo punto input_value è NumericData
     return cast(Node, make_constant_node(input_value, name=name))
 
 
