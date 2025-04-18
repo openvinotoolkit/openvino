@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/op/util/attr_types.hpp"
+
 namespace ov {
 namespace preprocess {
 
