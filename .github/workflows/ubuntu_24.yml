@@ -85,9 +85,10 @@ jobs:
       event-name: ${{ github.event_name }}
       os: 'ubuntu_24_04'
       build-rpm-packages: false
-      build-js: true
+      build-js: false
       build-debian-packages: true
       build-contrib: true
+      build-additional-python-packages: true
       cmake-options: >- 
             -G 'Ninja Multi-Config'
             -DENABLE_CPPLINT=OFF

@@ -6,16 +6,26 @@
 
 #include <algorithm>
 #include <memory>
-#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/reverse_sequence.hpp"
+#include "openvino/op/roll.hpp"
+#include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
