@@ -7,6 +7,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/precision_support.h"
+#include "openvino/op/string_tensor_unpack.hpp"
 
 using namespace CPUTestUtils;
 

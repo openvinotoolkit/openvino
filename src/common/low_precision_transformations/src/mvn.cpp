@@ -12,13 +12,14 @@
 
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/mvn.hpp"
 
 using namespace ov;
 using namespace ov::pass;

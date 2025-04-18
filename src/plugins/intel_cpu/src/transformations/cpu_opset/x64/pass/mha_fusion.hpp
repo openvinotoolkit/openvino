@@ -3,8 +3,7 @@
 //
 
 #pragma once
-
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov::intel_cpu {
@@ -15,7 +14,7 @@ public:
 
 protected:
     bool valid_transpose_order(const std::shared_ptr<ov::Node>& node, const std::vector<int64_t>& expected_order) {
-        if (auto transpose_pattern = ov::as_type_ptr<ov::opset4::Constant>(node)) {
+        if (auto transpose_pattern = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
             if (transpose_pattern->cast_vector<int64_t>() != expected_order) {
                 return false;
             }
