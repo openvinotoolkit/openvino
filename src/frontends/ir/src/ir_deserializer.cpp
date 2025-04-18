@@ -7,6 +7,7 @@
 #include <regex>
 #include <string_view>
 
+#include "../../../core/reference/include/openvino/reference/convert.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -20,7 +21,6 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "../../../core/reference/include/openvino/reference/convert.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
@@ -402,7 +402,8 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
             value.copy(data, value.size());
             a->set(buffer);
         } else if (name == "value" && type == "Const") {
-            OPENVINO_ASSERT(m_weights, "Empty weights data in bin file or bin file cannot be found!");
+            OPENVINO_ASSERT(m_weights != nullptr || m_origin_weights != nullptr,
+                "Empty weights data in bin file or bin file cannot be found!");
             std::vector<int64_t> shape;
             std::string el_type_str;
 

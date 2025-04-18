@@ -317,6 +317,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*FC_3D_BF16.*MatMulLayerCPUTest.*)",
         // Issue: 163242
         R"(.*bf16.*RNNSequenceCPUTest.*)",
+        R"(.*WeightlessCacheAccuracy.TiWithLstmCell.*model_dtype=bf16.*)",
         // Issue: 163250
         R"(.*OnnxModelWithExtensionFromDSO.*)",
         // Issue: 163273

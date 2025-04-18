@@ -234,10 +234,12 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         } else if (variant.is<std::wstring>()) {
             weights_path = variant.as<std::wstring>();
 #endif
-        } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>() && !weights) {
-            weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
-        } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>() && !origin_weights) {
-            origin_weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
+        } else if (variant.is<std::shared_ptr<ov::AlignedBuffer>>()) {
+            if (variant_id == 1) {
+                weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
+            } else if (variant_id == 2) {
+                origin_weights = variant.as<std::shared_ptr<ov::AlignedBuffer>>();
+            }
         }
     }
     bool enable_mmap = variants[variants.size() - 1].is<bool>() ? variants[variants.size() - 1].as<bool>() : false;

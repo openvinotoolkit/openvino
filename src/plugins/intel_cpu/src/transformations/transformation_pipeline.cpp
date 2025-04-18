@@ -29,6 +29,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/eliminate_weightless_attributes.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
@@ -402,6 +403,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     ov::pass::Manager manager("Plugin:CPU");
     manager.set_per_pass_validation(false);
+    if (config.m_cache_mode != ov::CacheMode::OPTIMIZE_SIZE) {
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateWeightlessAttributes);
+    }
     if (useLpt) {
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantization, defaultPrecisions);
     }

@@ -9,6 +9,7 @@
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 
@@ -140,21 +141,25 @@ void WeightlessCacheAccuracy::run() {
 }
 
 TEST_P(WeightlessCacheAccuracy, ReadConcatSplitAssign) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     OV_ASSERT_NO_THROW(m_model = ov::test::utils::make_read_concat_split_assign({1, 1, 2, 4}, m_model_dtype));
     OV_ASSERT_NO_THROW(run());
 }
 
 TEST_P(WeightlessCacheAccuracy, SingleConcatWithConstant) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     OV_ASSERT_NO_THROW(m_model = ov::test::utils::make_single_concat_with_constant({1, 1, 2, 4}, m_model_dtype));
     OV_ASSERT_NO_THROW(run());
 }
 
 TEST_P(WeightlessCacheAccuracy, TiWithLstmCell) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     OV_ASSERT_NO_THROW(m_model = ov::test::utils::make_ti_with_lstm_cell(m_model_dtype));
     OV_ASSERT_NO_THROW(run());
 }
 
 TEST_P(WeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::test::MatMulDecompressionShapeParams shape_params{{{}, {{1, 4, 16}}}, {1, 16, 32}};
     auto dynShape = shape_params.data_shape.first;
     if (dynShape.rank() == 0) {

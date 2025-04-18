@@ -7,7 +7,7 @@
 
 using namespace ov::test::behavior;
 
-INSTANTIATE_TEST_SUITE_P(smoke_WeightlessCacheAccuracy,
+INSTANTIATE_TEST_SUITE_P(smoke_,
                          WeightlessCacheAccuracy,
                          ::testing::Combine(::testing::Bool(),
                                             ::testing::Bool(),
@@ -16,7 +16,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_WeightlessCacheAccuracy,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          WeightlessCacheAccuracy::get_test_case_name);
 
-INSTANTIATE_TEST_SUITE_P(smoke_WeightlessCacheAccuracyLowPrecision,
+INSTANTIATE_TEST_SUITE_P(smoke_LowPrecision,
                          WeightlessCacheAccuracyLowPrecision,
                          ::testing::Combine(::testing::Bool(),
                                             ::testing::Bool(),
