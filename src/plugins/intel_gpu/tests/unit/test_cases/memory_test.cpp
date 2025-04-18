@@ -623,7 +623,7 @@ public:
             // The 'grid_sample' layer should be dynamic, not 'shape agnostic kernel' and user of 'elt1'. This is a key condition of this test.
             grid_sample("grid_sample", { input_info("elt1"), input_info("input_dyn") }, attributes),
             data("fc_weights", fc_weights_data),
-            fully_connected("fc", input_info("grid_sample"), "fc_weights")
+            fully_connected("fc", input_info("grid_sample"), "fc_weights", "", 4, 4)
         };
 
         ExecutionConfig config = get_test_default_config(engine);

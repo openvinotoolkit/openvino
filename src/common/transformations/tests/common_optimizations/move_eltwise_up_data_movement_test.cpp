@@ -7,10 +7,21 @@
 #include <gtest/gtest.h>
 
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/init_node_info.hpp"
 

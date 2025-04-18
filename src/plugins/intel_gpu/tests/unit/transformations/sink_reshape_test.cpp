@@ -7,13 +7,19 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/op/softmax.hpp"
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
