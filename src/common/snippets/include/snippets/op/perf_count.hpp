@@ -135,7 +135,7 @@ class PerfCountEnd : public PerfCountEndBase {
 public:
     OPENVINO_OP("PerfCountEnd", "SnippetsOpset", PerfCountEndBase);
     PerfCountEnd(const Output<Node>& pc_begin,
-                 std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
+                 std::vector<std::shared_ptr<utils::Dumper>> dumper_types = {},
                  const std::string& params = "");
     PerfCountEnd();
     ~PerfCountEnd();

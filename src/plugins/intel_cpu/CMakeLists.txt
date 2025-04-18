@@ -142,6 +142,11 @@ else()
 endif()
 ov_dependent_option(ENABLE_KLEIDIAI_FOR_CPU "Enable KleidiAI for OpenVINO CPU Plugin" ${ENABLE_KLEIDIAI_FOR_CPU_DEFAULT} "AARCH64" OFF)
 
+if(AARCH64 AND (NOT ANDROID))
+    # ARM snippets MatMul depend on TPP
+    set(ENABLE_SNIPPETS_LIBXSMM_TPP ON)
+endif()
+
 add_subdirectory(thirdparty)
 
 if(WIN32)
