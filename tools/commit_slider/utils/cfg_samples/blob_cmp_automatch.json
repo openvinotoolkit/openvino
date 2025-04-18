@@ -1,0 +1,56 @@
+{
+    "buildEnvVars" : [
+        {"name" : "CMAKE_CXX_COMPILER_LAUNCHER", "val" : "ccache"},
+        {"name" : "ALL_PROXY", "val" : "<path_1>"},
+        {"name" : "http_proxy", "val" : "<path_2>"},
+        {"name" : "https_proxy", "val" : "<path_3>"}
+    ],
+	"envVars" : [
+        {"name" : "ALL_PROXY", "val" : "<path_1>"},
+        {"name" : "http_proxy", "val" : "<path_2>"},
+        {"name" : "https_proxy", "val" : "<path_3>"},
+        {"name" : "OV_CPU_BLOB_DUMP_NODE_TYPE", "val" : "Output"},
+        {"name" : "OV_CPU_BLOB_DUMP_FORMAT", "val" : "TEXT"},
+        {"name" : "OV_CPU_BLOB_DUMP_DIR", "val" : "/tmp/commit_slider_tool/tmp/"}
+    ],
+    "makeCmd" : "cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=OFF -DTHREADING=TBB -DENABLE_INTEL_GPU=OFF -DENABLE_SAMPLES=ON -DENABLE_TESTS=OFF -DENABLE_HETERO=OFF -DENABLE_TEMPLATE=OFF -DENABLE_CPU_DEBUG_CAPS=ON -DENABLE_DEBUG_CAPS=ON -DENABLE_OPENVINO_DEBUG=ON -DCMAKE_CXX_FLAGS=-Wno-deprecated -DCMAKE_C_FLAGS=-Wno-deprecated -DCMAKE_CXX_FLAGS=-Wno-deprecated-declarations -DCMAKE_C_FLAGS=-Wno-deprecated-declarations -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ..",
+	"appPath" : "../../bin/intel64/Release/",
+    "appCmd" : "./benchmark_app -m <path_to_model> -i <path_to_input> -t 10",
+    "verboseOutput": false,
+    "commandList" : [
+        {"cmd" : "git rm --cached -r .", "path" : "{gitPath}"},
+        {"cmd" : "git reset --hard", "path" : "{gitPath}"},
+        {"cmd" : "git rm .gitattributes", "path" : "{gitPath}"},
+        {"cmd" : "git reset .", "path" : "{gitPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+        {"cmd" : "git rm --cached -r .", "path" : "{gitPath}"},
+        {"cmd" : "git reset --hard", "path" : "{gitPath}"},
+        {"cmd" : "git rm .gitattributes", "path" : "{gitPath}"},
+        {"cmd" : "git reset .", "path" : "{gitPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"},
+        {"cmd" : "git clean -fxd", "path" : "{gitPath}"},
+        {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
+        {"cmd" : "git checkout {commit}", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
+        {"tag" : "preprocess"},
+        {"cmd" : "git submodule init", "path" : "{gitPath}"},
+        {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+        {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"},
+        {"cmd" : "make --jobs=4", "catchMsg" : "(.)*make(.)*Error(.)*", "path" : "{buildPath}"},
+        {"cmd" : "git checkout -- .", "path" : "{gitPath}"}
+   ],
+    "runConfig" : {
+        "preprocess" : {
+            "name" : "replace",
+            "file" : "src/plugins/intel_cpu/src/graph.cpp",
+            "pattern" : "\\!node->isDynamicNode\\(\\)\\ &&\\ \\!node->isExecutable\\(\\)\\ &&\\ \\!node->isInPlace\\(\\)",
+            "replacement" : "false"
+        },
+        "commitList" : {
+            "getCommitListCmd" : "git log <hash_1>..<hash_2> --boundary --pretty=\"%h\""
+        },
+        "mode" : "compareBlobs",
+        "traversal" : "firstFailedVersion",
+        "autoMatch" : true,
+        "limit" : 0.00
+    }
+}
