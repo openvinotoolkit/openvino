@@ -396,15 +396,13 @@ op::Predicate shape_matches(const std::string& shape_notation) {
             PatternSymbolMap local_m;
             GroupDetails group;
             for (const auto& [this_dim_idx, name] : idx_to_name) {
-                if (name == "?" || name == "...")
-                    continue;
+                if (!group.name.empty() && this_dim_idx < group.end)
+                    group.end = this_dim_idx;
                 if (ends_with(name, "...")) {  // named group detected
                     group.name = {name.substr(0, name.size() - 3)};
                     group.begin = this_dim_idx;
                     continue;
                 }
-                if (!group.name.empty() && this_dim_idx < group.end)
-                    group.end = this_dim_idx;
                 const auto& this_dim = shape[this_dim_idx];
                 const auto& [conversion_failed, converted_int] = str2int(name);
                 if (conversion_failed) {  // failed the conversion -- this is a name
@@ -489,6 +487,10 @@ op::Predicate value_matches(const std::string& value_notation) {
     const auto& element_count_restrictions = item.second;
     return op::Predicate(
         [idx_to_name, element_count_restrictions](PatternSymbolMap& m, const Output<Node>& output) -> bool {
+            if (output.get_node_shared_ptr()->get_friendly_name() == "Constant_50289") {
+                std::cout << "!found const" << std::endl;
+                std::cout << "half_ndims -> " << m["half_ndims"].i() << std::endl;
+            }
             const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
             if (!constant)
                 return false;
@@ -522,7 +524,7 @@ op::Predicate value_matches(const std::string& value_notation) {
                     group.begin = this_el_idx;
                     continue;
                 }
-                if (!group.name.empty() && this_el_idx < group.end)
+                if (!group.name.empty() && this_el_idx < group.end) //TODO: ask if we need to move it here
                     group.end = this_el_idx;
                 const auto& this_el = get_element(values, this_el_idx);
                 const auto& [i_conversion_failed, converted_int] = str2int(name);
@@ -533,10 +535,8 @@ op::Predicate value_matches(const std::string& value_notation) {
                         if (recorded_value.is_integer()) {
                             if (!this_el.is<int64_t>() || this_el.as<int64_t>() != recorded_value.i())
                                 return false;
-                        }
-                        if (recorded_value.is_double()) {
-                            if (!this_el.is<double>() ||
-                                this_el.as<double>() != recorded_value.d())  // TODO: double cmp
+                        } else if (recorded_value.is_double()) {
+                            if (!this_el.is<double>() || this_el.as<double>() != recorded_value.d())  // TODO: double cmp
                                 return false;
                         } else {
                             return false;
