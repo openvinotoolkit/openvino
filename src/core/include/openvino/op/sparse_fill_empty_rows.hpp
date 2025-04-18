@@ -11,7 +11,7 @@ namespace ov::op::v16 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API SparseFillEmptyRows : public ov::op::Op {
 public:
-    OPENVINO_OP("SparseFillEmptyRows", "opset16", ov::op::Op);
+    OPENVINO_OP("SparseFillEmptyRows", "opset16");
 
     SparseFillEmptyRows() = default;
 
