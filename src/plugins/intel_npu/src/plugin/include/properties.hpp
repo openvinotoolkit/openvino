@@ -75,6 +75,11 @@ private:
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name()};
+
+    std::vector<std::string> _optimizationCapabilities = {ov::device::capability::EXPORT_IMPORT,
+                                                          ov::device::capability::FP32,
+                                                          ov::device::capability::FP16,
+                                                          ov::device::capability::INT8};
 };
 
 }  // namespace intel_npu
