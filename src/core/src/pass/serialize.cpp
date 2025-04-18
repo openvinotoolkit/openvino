@@ -25,6 +25,7 @@
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/op/util/deformable_convolution_base.hpp"
 #include "openvino/op/util/framework_node.hpp"
