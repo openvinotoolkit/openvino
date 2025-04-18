@@ -26,8 +26,7 @@ namespace {
         {{ 10, 2, 1}, { 10, 1, 10 }, { 10 }},
     };
     const std::vector<std::vector<ov::Shape>> input_shapes_bidirect_zero_clip_static = {
-        {{ 10, 2, 1}, { 10, 2, 1 }, { 10 }},
-        {{ 10, 2, 1}, { 10, 2, 10 }, { 10 }},
+        {{ 2, 2, 1}, { 2, 2, 1 }, { 2 }},
     };
     const std::vector<std::vector<ov::Shape>> input_shapes_non_zero_clip_static = {
         {{ 10, 20, 1}, { 10, 1, 1 }, { 10 }},

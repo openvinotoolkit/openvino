@@ -243,6 +243,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "fully_connected", "FullyConnected" },
                 { "gather", "Gather" },
                 { "gemm", "Gemm" },
+                { "gru_seq", "GRU_Seq" },
                 { "input_layout", "Input" },
                 { "lrn", "LRN" },
                 { "lstm_cell", "LSTM_Cell" },
