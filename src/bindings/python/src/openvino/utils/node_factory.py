@@ -4,7 +4,7 @@
 
 
 from functools import singledispatchmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast, Sequence, TypeVar
 from pathlib import Path
 
 from openvino._pyopenvino import NodeFactory as _NodeFactory
@@ -52,15 +52,23 @@ class NodeFactory(object):
         if attributes is None:
             attributes = {}
 
-        assert arguments is not None
+        assert arguments is not None  # Questa asserzione aiuta Pyright a capire che arguments non è None
 
-        arguments = self._arguments_as_outputs(arguments)
-        node = self.factory.create(op_type_name, arguments, attributes)
+        # Qui uso cast per dichiarare esplicitamente il tipo del risultato
+        output_args = self._arguments_as_outputs(arguments)
+        node = self.factory.create(op_type_name, output_args, attributes)
 
         return node
 
     @singledispatchmethod
     def add_extension(self, extension: Union[Path, str, Extension, List[Extension]]) -> None:
+        """Add custom operations from an extension.
+
+        Base method that raises TypeError for unknown types.
+        
+        :param      extension:  An extension path or object.
+        :raises     TypeError:  If the extension type is not supported.
+        """
         raise TypeError(f"Unknown argument type: {type(extension)}")
 
     @add_extension.register(Path)
@@ -117,12 +125,19 @@ class NodeFactory(object):
 
     @staticmethod
     def _arguments_as_outputs(arguments: List[Union[Node, Output]]) -> List[Output]:
-        outputs = []
+        """Convert a list of Nodes and Outputs to a list of only Outputs.
+
+        :param      arguments:  The arguments to convert.
+        :return:    A list containing only Output objects.
+        """
+        outputs: List[Output] = []
         for argument in arguments:
-            if issubclass(type(argument), Output):
-                outputs.append(argument)
+            if isinstance(argument, Output):  # Usa isinstance invece di issubclass(type())
+                outputs.append(cast(Output, argument))  # Cast esplicito
             else:
-                outputs.extend(argument.outputs())
+                # Se non è un Output, deve essere un Node
+                node_outputs = cast(Node, argument).outputs()
+                outputs.extend(node_outputs)
         return outputs
 
 
