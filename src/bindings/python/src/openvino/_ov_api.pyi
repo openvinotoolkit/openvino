@@ -21,9 +21,18 @@ import openvino._pyopenvino.op
 import openvino._pyopenvino.op.util
 import openvino.utils.data_helpers.wrappers
 import pathlib
+import pathlib
+import pathlib
+import pathlib
 import traceback as traceback
 import typing
 import typing
+import typing
+import typing
+import typing
+# type: ignore
+# type: ignore
+# type: ignore
 __all__ = ['Any', 'AsyncInferQueue', 'AsyncInferQueueBase', 'CompiledModel', 'CompiledModelBase', 'Core', 'CoreBase', 'InferRequest', 'Model', 'ModelBase', 'ModelMeta', 'Node', 'OVDict', 'Path', 'Tensor', 'TracebackType', 'Type', 'TypingType', 'compile_model', 'deprecatedclassproperty', 'io', 'tensor_from_file', 'traceback']
 class AsyncInferQueue(openvino._pyopenvino.AsyncInferQueue):
     """

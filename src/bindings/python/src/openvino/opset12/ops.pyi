@@ -9,6 +9,9 @@ from openvino.utils.types import as_nodes
 import functools
 import openvino._pyopenvino
 import typing
+# type: ignore
+# type: ignore
+# type: ignore
 """
 Factory functions for all ngraph ops.
 """

@@ -6,7 +6,7 @@ from openvino._pyopenvino import Node
 from openvino._pyopenvino import Output
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
-from typing import Any
+from typing import Any, Optional
 from typing import get_args
 from typing import get_origin
 import openvino._pyopenvino
@@ -25,7 +25,7 @@ class MultiMethod:
         ...
     def register(self, types: tuple, function: typing.Callable) -> None:
         ...
-def _get_name(**kwargs: typing.Any) -> openvino._pyopenvino.Node:
+def _get_name(**kwargs: typing.Any) -> typing.Optional[str]:
     ...
 def _set_node_friendly_name(node: openvino._pyopenvino.Node, *, name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
     ...
