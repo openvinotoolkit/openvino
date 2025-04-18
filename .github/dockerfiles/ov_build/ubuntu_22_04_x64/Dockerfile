@@ -3,6 +3,15 @@ FROM ${REGISTRY}/library/ubuntu:22.04
 
 USER root
 
+# Create a non-root user and group
+ENV USER_NAME=runner
+ENV USER_ID=1000
+ENV GROUP_NAME=${USER_NAME}
+ENV GROUP_ID=${USER_ID}
+
+RUN groupadd -g ${GROUP_ID} ${GROUP_NAME}
+RUN useradd ${USER_NAME} -u ${USER_ID} -g ${GROUP_ID} -ms /bin/bash
+
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
@@ -23,6 +32,8 @@ RUN apt-get update && \
         gpg-agent \
         tzdata \
         libtbb2 \
+        # ONNX Runtime build
+        language-pack-en \
         # parallel gzip
         pigz \
         # Pythons
@@ -41,6 +52,10 @@ RUN apt-get update && \
         python3.13-venv \
         # For Java API
         default-jdk \
+        # OpenVINO JS API
+        libgtk-3-0 \
+        libgbm1 \
+        xvfb \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -61,6 +76,10 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
+# ONNX Runtime, see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
+RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
@@ -86,3 +105,16 @@ RUN mkdir -p $NVM_DIR
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
 RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
 ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
+
+# Change ownership of the home directory to the non-root user
+RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
+
+# Change ownership of the venv directory to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} /venv
+
+# Change ownership of node to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} ${NVM_DIR}
+
+# Switch to the non-root user
+USER ${USER_NAME}
+
