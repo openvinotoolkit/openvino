@@ -215,6 +215,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(MODEL_PTR);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
+    REGISTER_OPTION(STORE_LOGGER_LOG);
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(TURBO);
