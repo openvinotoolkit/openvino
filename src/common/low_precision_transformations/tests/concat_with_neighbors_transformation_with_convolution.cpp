@@ -18,6 +18,8 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/max_pool.hpp"
 
 using namespace testing;
 using namespace ov;

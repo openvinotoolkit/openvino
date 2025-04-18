@@ -10,7 +10,9 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 using namespace ov;
 using namespace testing;
 
