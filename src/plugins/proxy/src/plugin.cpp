@@ -265,6 +265,7 @@ void ov::proxy::Plugin::set_property(const ov::AnyMap& properties) {
     }
     if (proxy_config_was_changed) {
         // need initialization of hidden devices
+        std::lock_guard<std::mutex> lock(m_init_devs_mutex);
         m_init_devs = false;
     }
 

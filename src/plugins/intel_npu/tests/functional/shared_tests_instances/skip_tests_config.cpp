@@ -823,7 +823,7 @@ std::vector<std::string> disabledTestPatterns() {
         });
 
         // [Tracking number: E#125086]
-        _skipRegistry.addPatterns(devices.has3720() && backendName.isZero(), 
+        _skipRegistry.addPatterns(devices.has3720() && backendName.isZero(),
                 "Failing tests after functional tests migration to OV", {
                 #ifdef WIN32
                         ".*OVInferRequestPerfCountersExceptionTest.perfCountWereNotEnabledExceptionTest.*",
@@ -897,9 +897,12 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
         });
 
-        // get_runtime_model method is not supported on NPU
-        _skipRegistry.addPatterns("get_runtime_model method is not supported on NPU", {
-                ".*OVClassModelOptionalTestP.CompileModelCreateDefaultExecGraphResult.*",
+        // CACHE_MODE is not supported on NPU, update test with correct property to make weightless compiled model
+        _skipRegistry.addPatterns("compiled_blob test use `CACHE_MOD` which is not supported on NPU", {
+                R"(.*OVCompiledModelBaseTest.*import_from_.*_blob.*)",
+                R"(.*OVCompiledModelBaseTest.*compile_from_.*_blob.*)",
+                R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*)",
+                R"(.*OVCompiledModelBaseTest.*use_blob_hint_.*)",
         });
         return _skipRegistry;
     }();

@@ -155,6 +155,28 @@ OutputVector translate_stack_fx(const NodeContext& context) {
     return translate_cat_common(context, list_elems, axis, true);
 }
 
+OutputVector translate_hstack(const NodeContext& context) {
+    num_inputs_check(context, 1, 2);
+    const auto&& list_elems = get_list_as_outputs(context.get_input(0));
+    int64_t axis = 1;
+    auto out = translate_cat_common(context, list_elems, axis, false);
+    if (!context.input_is_none(1)) {
+        context.mutate_input(1, out[0]);
+    }
+    return out;
+};
+
+OutputVector translate_vstack(const NodeContext& context) {
+    num_inputs_check(context, 1, 2);
+    const auto&& list_elems = get_list_as_outputs(context.get_input(0));
+    int64_t axis = 0;
+    auto out = translate_cat_common(context, list_elems, axis, false);
+    if (!context.input_is_none(1)) {
+        context.mutate_input(1, out[0]);
+    }
+    return out;
+};
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

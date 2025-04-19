@@ -5,7 +5,7 @@
 #include "behavior/work_with_devices.hpp"
 
 #include "common/utils.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 namespace {
 

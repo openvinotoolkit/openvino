@@ -22,8 +22,8 @@
 #include "fake_quantize.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "utils/bfloat16.hpp"
 
 using namespace dnnl;
@@ -1936,42 +1936,42 @@ private:
 const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>& op, Reduce& node)>>&
 Reduce::getInitializers() {
     static const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Reduce&)>>
-        initializers = {
-            {ov::opset4::ReduceL1::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceL1;
-             }},
-            {ov::opset4::ReduceL2::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceL2;
-             }},
-            {ov::opset1::ReduceLogicalAnd::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceAnd;
-             }},
-            {ov::opset1::ReduceLogicalOr::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceOr;
-             }},
-            {ov::opset1::ReduceMax::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceMax;
-             }},
-            {ov::opset1::ReduceMean::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceMean;
-             }},
-            {ov::opset1::ReduceMin::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceMin;
-             }},
-            {ov::opset1::ReduceProd::get_type_info_static(),
-             [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceProd;
-             }},
-            {ov::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Reduce& node) {
-                 node.algorithm = Algorithm::ReduceSum;
-             }}};
+        initializers = {{ov::opset4::ReduceL1::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceL1;
+                         }},
+                        {ov::opset4::ReduceL2::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceL2;
+                         }},
+                        {ov::opset1::ReduceLogicalAnd::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceAnd;
+                         }},
+                        {ov::opset1::ReduceLogicalOr::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceOr;
+                         }},
+                        {ov::opset1::ReduceMax::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceMax;
+                         }},
+                        {ov::opset1::ReduceMean::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceMean;
+                         }},
+                        {ov::opset1::ReduceMin::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceMin;
+                         }},
+                        {ov::opset1::ReduceProd::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceProd;
+                         }},
+                        {ov::opset1::ReduceSum::get_type_info_static(),
+                         []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
+                             node.algorithm = Algorithm::ReduceSum;
+                         }}};
     return initializers;
 }
 
@@ -2439,7 +2439,7 @@ void Reduce::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Reduce::execute(const dnnl::stream& strm) {
+void Reduce::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
 
@@ -3537,7 +3537,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
     switch (algorithm) {
     case Algorithm::ReduceAnd:
         reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y) -> float {
-            return x && y;
+            return static_cast<float>((x != 0.0f) && (y) != 0.0f);
         });
         break;
     case Algorithm::ReduceL1:
@@ -3577,7 +3577,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         break;
     case Algorithm::ReduceOr:
         reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y) -> float {
-            return x || y;
+            return static_cast<float>((x != 0.0f) || (y) != 0.0f);
         });
         break;
     case Algorithm::ReduceProd:
@@ -3693,7 +3693,7 @@ inline void Reduce::reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_
     }
 }
 
-void Reduce::setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims, bool initWeights) {
+void Reduce::setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims, [[maybe_unused]] bool initWeights) {
     dnnl::post_ops ops;
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
@@ -3746,7 +3746,7 @@ void Reduce::setJITBeyond5D() {
 std::vector<int> Reduce::update_src_dims() {
     std::vector<int> reduce_axes = raw_axes;
 
-    if (reduce_axes.size() < 1) {
+    if (reduce_axes.empty()) {
         return reduce_axes;
     }
 

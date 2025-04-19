@@ -17,6 +17,8 @@
 #include <cassert>
 #include <memory>
 #include <vector>
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
 
 using namespace CPUTestUtils;
 
