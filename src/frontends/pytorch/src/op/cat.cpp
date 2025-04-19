@@ -127,7 +127,6 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
 
 OutputVector translate_stack_fx(const NodeContext& context) {
     num_inputs_check(context, 1, context.get_input_size());
-    auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     int64_t axis = 0;
 
     std::deque<Output<Node>> list_elems;
@@ -145,7 +144,7 @@ OutputVector translate_stack_fx(const NodeContext& context) {
     // returns the u4 constant if the stack operation is a part of the decompression pattern
     if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))
         return {u4_const};
-    
+
     list_elems_unsqueeze = get_list_as_outputs(context.get_input(0), true, axis);
 
     return translate_cat_common(context, list_elems_unsqueeze, axis, true);
