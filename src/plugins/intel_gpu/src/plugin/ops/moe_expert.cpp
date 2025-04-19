@@ -56,7 +56,7 @@ struct reorder_helper {
     dnnl::memory convert2dnnl(const cldnn::memory::ptr& ptr, const std::vector<int64_t>& dim, dnnl::memory::format_tag tag, int offset = 0) {
         return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
     }
-    cldnn::memory::ptr convert(const std::shared_ptr<ov::Node>& node, const cldnn::layout& new_layout) {
+    cldnn::memory::ptr convert(const std::shared_ptr<ov::Node>& node, const cldnn::layout& new_layout, bool transpose = true) {
         auto op = ov::as_type_ptr<ov::op::v0::Constant>(node);
         ov::Shape const_shape = op->get_shape();
         OPENVINO_ASSERT(const_shape.size() == 3, "convert expects rank is 3, current is ", const_shape.size());
@@ -64,17 +64,23 @@ struct reorder_helper {
         cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
         auto layout = cldnn::layout(const_shape, out_dtype, constFormat);
         auto data = op->get_data_ptr<uint8_t>();
-        auto raw_ptr = get_tmp_buf(layout);
-        raw_ptr->copy_from(*_stream, data, 0, 0, layout.bytes_count(), true);
-        auto N = static_cast<int>(const_shape[0]);
-        auto K = static_cast<int>(const_shape[1] * const_shape[2]);
-        auto& reorder = get_reorder(K, N, out_dtype);
-        auto mem = _eng.allocate_memory(new_layout, cldnn::allocation_type::usm_device, false);
-        std::unordered_map<int, dnnl::memory> reorder_args;
-        reorder_args.insert({DNNL_ARG_SRC, convert2dnnl(raw_ptr, {K, N}, dnnl::memory::format_tag::ba)});
-        reorder_args.insert({DNNL_ARG_DST, convert2dnnl(mem, {K, N}, dnnl::memory::format_tag::ab)});
-        reorder.execute(_stream->get_onednn_stream(), reorder_args);
-        _stream->get_onednn_stream().wait();
+        cldnn::memory::ptr mem;
+        if (transpose) {
+            auto raw_ptr = get_tmp_buf(layout);
+            raw_ptr->copy_from(*_stream, data, 0, 0, layout.bytes_count(), true);
+            auto N = static_cast<int>(const_shape[0]);
+            auto K = static_cast<int>(const_shape[1] * const_shape[2]);
+            auto& reorder = get_reorder(K, N, out_dtype);
+            mem = _eng.allocate_memory(new_layout, cldnn::allocation_type::usm_device, false);
+            std::unordered_map<int, dnnl::memory> reorder_args;
+            reorder_args.insert({DNNL_ARG_SRC, convert2dnnl(raw_ptr, {K, N}, dnnl::memory::format_tag::ba)});
+            reorder_args.insert({DNNL_ARG_DST, convert2dnnl(mem, {K, N}, dnnl::memory::format_tag::ab)});
+            reorder.execute(_stream->get_onednn_stream(), reorder_args);
+            _stream->get_onednn_stream().wait();
+        } else {
+            mem = _eng.allocate_memory(layout, cldnn::allocation_type::usm_device, false);
+            mem->copy_from(*_stream, data, 0, 0, layout.bytes_count(), true);
+        }
         return mem;
     }
     cldnn::memory::ptr get_tmp_buf(const cldnn::layout& layout) {
@@ -108,9 +114,7 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
         cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
         cldnn::memory::ptr dst;
         if (is_weight) {
-            auto new_shape = ov::Shape{const_shape[1], const_shape[2], const_shape[0]};
-            auto layout = cldnn::layout(new_shape, out_dtype, constFormat);
-            dst = helper.convert(op, layout);
+            dst = helper.convert(op, {}, false);
         } else {
             auto new_shape = ov::Shape{const_shape[1], const_shape[0], 1};
             auto layout = cldnn::layout(new_shape, out_dtype, constFormat);

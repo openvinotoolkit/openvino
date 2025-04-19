@@ -51,25 +51,23 @@ struct moe_expert : public primitive_base<moe_expert> {
         auto shape = _mlp_params[0].param[0].weight->get_layout().get_shape();
 
         if (shape.size() == 3) {
-            return shape[0] * shape[1];
-        }
-        OPENVINO_ASSERT(shape.size() == 2);
-        return shape[0];
-    }
-
-    size_t get_intermediate_size() const {
-        auto shape = _mlp_params[0].param[0].weight->get_layout().get_shape();
-
-        if (shape.size() == 3) {
-            return shape[2];
+            return shape[1] * shape[2];
         }
         OPENVINO_ASSERT(shape.size() == 2);
         return shape[1];
     }
 
-    size_t get_group_size() const {
+    size_t get_intermediate_size() const {
         auto shape = _mlp_params[0].param[0].weight->get_layout().get_shape();
 
+        return shape[0];
+    }
+
+    size_t get_group_size() const {
+        auto shape = _mlp_params[0].param[0].weight->get_layout().get_shape();
+        if (shape.size() == 3) {
+            return shape[2];
+        }
         return shape[1];
     }
 

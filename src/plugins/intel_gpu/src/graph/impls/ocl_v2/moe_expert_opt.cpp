@@ -137,7 +137,7 @@ struct onednn_matmul {
         // memory::desc wei_md = memory::desc(memory::dims({m_K, m_N}), m_w_type, memory::format_tag::any);
 
         // use fixed weight-layout to prevent shape-dependent weight-layout changes
-        dnnl::memory::desc wei_md = dnnl::memory::desc(dnnl::memory::dims({m_K, m_N}), m_w_type, dnnl::memory::format_tag::ab);
+        dnnl::memory::desc wei_md = dnnl::memory::desc(dnnl::memory::dims({m_K, m_N}), m_w_type, dnnl::memory::format_tag::ba);
 
         // Create primitive descriptor.
         auto matmul_pd = dnnl::matmul::primitive_desc(eng, src_md, wei_md, dst_md, attr);
@@ -431,7 +431,7 @@ protected:
     }
 };
 
-#define N_BLOCK_SIZE  64
+#define N_BLOCK 8
 #define SUBGROUP_NUM 8
 
 static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
@@ -441,7 +441,7 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("MAX_TOPK", desc->_config.topk);
     jit.make("HIDDEN_SIZE", desc->get_hidden_size());
     jit.make("INTERMEDIATE_SIZE", desc->get_intermediate_size());
-    jit.make("N_BLOCK_SIZE", N_BLOCK_SIZE);
+    jit.make("N_BLOCK", N_BLOCK);
     jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
     jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
     jit.make("GROUP_SIZE", desc->get_group_size());
@@ -584,7 +584,7 @@ public:
                                                       dnnl::memory::format_tag::ab);
                 }
                 if (mlp_params.param[i].weight) {
-                    dnnl_weights[i].weight = convert2dnnl(mlp_params.param[i].weight, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ab);
+                    dnnl_weights[i].weight = convert2dnnl(mlp_params.param[i].weight, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba);
                 }
             }
         }
@@ -706,10 +706,7 @@ public:
                       *mlp_gate_up,
                       {expert_weight_ptr, hidden_states_mem_ptr},
                       {scratch.up},
-                      // the following is for reference
-                      //{static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size)},
-                      //{1, SUBGROUP_SIZE});
-                      {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size / 2), SUBGROUP_NUM},
+                      {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
                       {1, subgroup_size, SUBGROUP_NUM});
         // scratch.y = down(scratch.up) * weight[expert_no]
         execute_stage({},
@@ -717,9 +714,7 @@ public:
                       *mlp_down,
                       {expert_weight_ptr, scratch.up, routing_mem_ptr},
                       {scratch.y},
-                      // {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size)},
-                      // {1, SUBGROUP_SIZE});
-                      {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size / 2), SUBGROUP_NUM},
+                      {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
                       {1, subgroup_size, SUBGROUP_NUM});
         // final = sum(scratch.y)
         return execute_stage({},
