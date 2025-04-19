@@ -3,11 +3,11 @@
 //
 
 #include "openvino/op/relu.hpp"
-#include "utils/common.hpp"
-#include "exceptions.hpp"
-#include "openvino/frontend/exception.hpp"
 
 #include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "utils/common.hpp"
 
 namespace ov {
 namespace frontend {
@@ -16,22 +16,19 @@ namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector relu(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node,
-        !node.has_attribute("consumed_inputs"),
-        "consumed_inputs legacy attribute of Relu op is not supported");
+                     !node.has_attribute("consumed_inputs"),
+                     "consumed_inputs legacy attribute of Relu op is not supported");
 
     const auto A = node.get_ov_inputs().at(0);
-    std::vector<ov::element::Type> unsupported_types = {
-        ov::element::bf16,
-        ov::element::i8,
-        ov::element::i16,
-        ov::element::i32,
-        ov::element::i64
-    };
+    std::vector<ov::element::Type> unsupported_types = {ov::element::bf16,
+                                                        ov::element::i8,
+                                                        ov::element::i16,
+                                                        ov::element::i32,
+                                                        ov::element::i64};
     for (size_t i = 0; i < unsupported_types.size(); ++i) {
         FRONT_END_GENERAL_CHECK(
             A.get_element_type() != unsupported_types[i],
-            "The input data types bf16, int8, int16, int32, and int64 are not supported in opset 1"
-        );
+            "The input data types bf16, int8, int16, int32, and int64 are not supported in opset 1");
     }
 
     ov::OutputVector ov_inputs{node.get_ov_inputs()};
@@ -44,18 +41,15 @@ ONNX_OP("Relu", OPSET_RANGE(1, 5), ai_onnx::opset_1::relu);
 namespace opset_6 {
 ov::OutputVector relu(const ov::frontend::onnx::Node& node) {
     const auto A = node.get_ov_inputs().at(0);
-    std::vector<ov::element::Type> unsupported_types = {
-        ov::element::bf16,
-        ov::element::i8,
-        ov::element::i16,
-        ov::element::i32,
-        ov::element::i64
-    };
+    std::vector<ov::element::Type> unsupported_types = {ov::element::bf16,
+                                                        ov::element::i8,
+                                                        ov::element::i16,
+                                                        ov::element::i32,
+                                                        ov::element::i64};
     for (size_t i = 0; i < unsupported_types.size(); ++i) {
         FRONT_END_GENERAL_CHECK(
             A.get_element_type() != unsupported_types[i],
-            "The input data types bf16, int8, int16, int32, and int64 are not supported in opset 6"
-        );
+            "The input data types bf16, int8, int16, int32, and int64 are not supported in opset 6");
     }
 
     ov::OutputVector ov_inputs{node.get_ov_inputs()};
@@ -68,17 +62,13 @@ ONNX_OP("Relu", OPSET_RANGE(6, 12), ai_onnx::opset_6::relu);
 namespace opset_13 {
 ov::OutputVector relu(const ov::frontend::onnx::Node& node) {
     const auto A = node.get_ov_inputs().at(0);
-    std::vector<ov::element::Type> unsupported_types = {
-        ov::element::i8,
-        ov::element::i16,
-        ov::element::i32,
-        ov::element::i64
-    };
+    std::vector<ov::element::Type> unsupported_types = {ov::element::i8,
+                                                        ov::element::i16,
+                                                        ov::element::i32,
+                                                        ov::element::i64};
     for (size_t i = 0; i < unsupported_types.size(); ++i) {
-        FRONT_END_GENERAL_CHECK(
-            A.get_element_type() != unsupported_types[i],
-            "The input data types int8, int16, int32, and int64 are not supported in opset 13"
-        );
+        FRONT_END_GENERAL_CHECK(A.get_element_type() != unsupported_types[i],
+                                "The input data types int8, int16, int32, and int64 are not supported in opset 13");
     }
 
     ov::OutputVector ov_inputs{node.get_ov_inputs()};
