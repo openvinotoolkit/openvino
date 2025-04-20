@@ -469,7 +469,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     cacheConfig.keyCacheBlockSize = 32;
     cacheConfig.valueCacheBlockSize = 32;
 
-    bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode);
+    bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode, cacheConfig.keyCachePrecision);
     cacheConfig.keyCacheQuantBychannel = byChannel;
     cacheConfig.valueCacheQuantBychannel = false;
     cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
