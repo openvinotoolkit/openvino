@@ -115,7 +115,9 @@ void VariableState::update_device_buffer() {
         m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
         actual_size = std::max(actual_size, alloc_layout.bytes_count());
     }
-    m_memory = m_context->get_engine().reinterpret_buffer(*m_memory, m_layout);
+
+    if (m_memory != nullptr)
+        m_memory = m_context->get_engine().reinterpret_buffer(*m_memory, m_layout);
 }
 
 ov::element::Type VariableState::get_user_specified_type() const {
