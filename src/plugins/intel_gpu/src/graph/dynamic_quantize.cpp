@@ -32,7 +32,7 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
 
     // If batch size is 1, dynamic_quantize is disabled for performance reason
     size_t input_batch = act_layout.batch();
-    if (act_layout.format == format::bfyx) {
+    if (act_layout.format == format::bfyx && act_layout.get<ov::PartialShape>().rank() != 2) {
         // 3D input
         input_batch = act_layout.batch() * act_layout.feature();
     }

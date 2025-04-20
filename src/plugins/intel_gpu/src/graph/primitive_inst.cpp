@@ -56,6 +56,7 @@
 #include "json_object.h"
 #include <string>
 #include <vector>
+#include <set>
 #include <memory>
 #include <algorithm>
 
@@ -1833,6 +1834,11 @@ void primitive_inst::reset_flags() {
 void primitive_inst::prepare_primitive() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
     const auto& primitive_id = id();
+    if (!_has_valid_input) {
+        // XXX: proper fix would be to attach a dummy input, instead of bypassing here
+        GPU_DEBUG_COUT << primitive_id << " does not have proper input. do nothing" << std::endl;
+        return;
+    }
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
@@ -2001,19 +2007,24 @@ void primitive_inst::execute() {
     }
 
     if (_unfused_subgraph != nullptr) {
+        GPU_DEBUG_TRACE << "Now execute unfused subgraph  " << _node->id() << std::endl;
         for (auto& d : _deps) {
             if (!d.first->get_node().is_type<data>()) {
-                auto allocated_mem = d.first->output_memory_ptr();
-                auto actual_input_layout = d.first->get_output_layout();
+                auto allocated_mem = d.first->output_memory_ptr(d.second);
+                auto actual_input_layout = d.first->get_output_layout(d.second);
                 auto& engine = get_network().get_engine();
                 cldnn::memory_ptr actual_mem = nullptr;
                 // Need to use actual layout, not the fake aligned memory layout
                 if (actual_input_layout.count() != 0) {
-                    actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                    if (allocated_mem)  // It may be nullptr (such as 2nd port of dyn_quan)
+                        actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
                 } else {
                     actual_mem = engine.allocate_memory(actual_input_layout);
                 }
-                _unfused_subgraph->set_input_data(d.first->id(), std::move(actual_mem));
+                cldnn::primitive_id input_id = d.first->id();
+                GPU_DEBUG_TRACE << "Prepare to execute unfused subgraph: set_input_data " << input_id << "  actual_mem " << actual_mem << "  port " << d.second << std::endl;
+                if (actual_mem)
+                    _unfused_subgraph->set_input_data(input_id, std::move(actual_mem), true, d.second);
             }
         }
         GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;
@@ -2562,8 +2573,15 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         // Any other primitive types are replaced with input_layout
         auto prim_of_fused_node = std::const_pointer_cast<primitive>(_impl_params->desc);
         size_t dep_idx = 0;
+        std::set<cldnn::primitive_id> already_added;
+
         for (auto& dep : get_node().get_dependencies()) {
             cldnn::primitive_id dep_id = dep.first->id();
+            if (already_added.count(dep_id) > 0) {
+                dep_idx += 1;
+                continue;
+            }
+            already_added.insert(dep_id);
 
             if (dep.first->is_type<data>()) {
                 auto& data_node = dep.first->as<data>();
@@ -2574,8 +2592,16 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 data data_prim(dep_id, data_node.get_attached_memory_ptr());
                 t.add(data_prim);
             } else {
-                input_layout in_prim(dep_id, dep.first->get_output_layout());
-                t.add(in_prim);
+                if (dep.first->get_outputs_count() == 1) {
+                    input_layout in_prim(dep_id, dep.first->get_output_layout());
+                    t.add(in_prim);
+                } else {
+                    std::vector<padding> paddings;
+                    for (auto &l: dep.first->get_output_layouts())
+                        paddings.push_back(l.data_padding);
+                    input_layout in_prim(dep_id, dep.first->get_output_layouts(), paddings);
+                    t.add(in_prim);
+                }
             }
             outer_dep_ids.push_back(dep_id);
             dep_idx += 1;
@@ -2652,6 +2678,11 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
     return _unfused_subgraph;
 }
 
+#define LOG_AND_RETURN_FALSE(node) do {                                         \
+    GPU_DEBUG_TRACE_DETAIL << (node)->id() << " : it is an invalid fusion" << std::endl;  \
+    return false;                                                               \
+} while (0)
+
 bool primitive_inst::is_valid_fusion() const {
     if (!is_dynamic())
         return true;
@@ -2669,12 +2700,12 @@ bool primitive_inst::is_valid_fusion() const {
             if (fd.is_type<swiglu>()) {
                 OPENVINO_ASSERT(get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::ocl);
                 if (!get_node().get_selected_impl())
-                    return false;
+                    LOG_AND_RETURN_FALSE(_node);
                 // TODO : support ref kernel too
                 if (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") != std::string::npos)
                     return true;
                 else
-                    return false;
+                    LOG_AND_RETURN_FALSE(_node);
             }
 
             OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
@@ -2687,18 +2718,18 @@ bool primitive_inst::is_valid_fusion() const {
     if (get_node().is_type<fully_connected>() || get_node().is_type<gemm>() || get_node().is_type<convolution>()) {
         if (_impl_params->input_layouts[0].count() == 0 ||
             _impl_params->input_layouts[1].count() == 0) {
-            return false;
+            LOG_AND_RETURN_FALSE(_node);
         }
     }
 
     if (get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::ocl) {
         // TODO: Only fc_bf_tiled_kernel & ref kernel are verified for fused eltwise. To support more fc kernels for eltwise fusion
         if (!get_node().get_selected_impl())
-            return false;
+            LOG_AND_RETURN_FALSE(_node);
         if (!data_type_traits::is_i8_u8(get_node().get_input_layout(0).data_type) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bf_tiled") == std::string::npos) &&
             (get_node().get_selected_impl()->get_kernel_name().find("fully_connected_gpu_bfyx_ref") == std::string::npos)) {
-            return false;
+            LOG_AND_RETURN_FALSE(_node);
         }
     }
 
@@ -2737,14 +2768,14 @@ bool primitive_inst::is_valid_fusion() const {
                                                          false);
 
             if (gemm_dims[0] != data_dims[0] && gemm_dims[1] != 1)
-                return false;
+                LOG_AND_RETURN_FALSE(_node);
         }
 #endif
 
         // We check that broadcasting of extra input is possible and it doesn't change output shape. If it output shape is changed, then
         // some dimension of dep_pshape is greater than out_pshape
         if (!can_broadcast || merged_shape != out_pshape)
-            return false;
+            LOG_AND_RETURN_FALSE(_node);
     }
 
     return true;

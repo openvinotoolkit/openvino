@@ -354,8 +354,8 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
 
     auto input = input_layout("input", { { 1, height, width, 1} , data_types::u8, format::nv12 });
     auto input2 = input_layout("input2", { { 1, height / 2, width / 2, 2}, data_types::u8, format::nv12 });
-    auto input_memory = engine->share_image(input.layout, nv12_image_plane_y);
-    auto input_memory2 = engine->share_image(input2.layout, nv12_image_plane_uv);
+    auto input_memory = engine->share_image(input.layouts[0], nv12_image_plane_y);
+    auto input_memory2 = engine->share_image(input2.layouts[0], nv12_image_plane_uv);
 
     topology topology;
     topology.add(input);
@@ -423,7 +423,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     checkStatus(err, "Writing nv12 image failed");
 
     auto input = input_layout("input", {{ 1, input_height, width, 1 }, data_types::u8, format::nv12});
-    auto input_memory = engine->share_image(input.layout, nv12_image);
+    auto input_memory = engine->share_image(input.layouts[0], nv12_image);
 
     topology topology;
     topology.add(input);
@@ -603,9 +603,9 @@ void test_convert_color_i420_to_rgb_three_planes_surface_u8(bool is_caching_test
     auto input2 = input_layout("input2", { { 1, height / 2, width / 2, 1 }, data_types::u8, format::nv12 });
     auto input3 = input_layout("input3", { { 1, height / 2, width / 2, 1 }, data_types::u8, format::nv12 });
 
-    auto input_memory = engine->share_image(input.layout, i420_image_plane_y);
-    auto input_memory2 = engine->share_image(input2.layout, i420_image_plane_u);
-    auto input_memory3 = engine->share_image(input3.layout, i420_image_plane_v);
+    auto input_memory = engine->share_image(input.layouts[0], i420_image_plane_y);
+    auto input_memory2 = engine->share_image(input2.layouts[0], i420_image_plane_u);
+    auto input_memory3 = engine->share_image(input3.layouts[0], i420_image_plane_v);
 
     topology topology;
     topology.add(input);

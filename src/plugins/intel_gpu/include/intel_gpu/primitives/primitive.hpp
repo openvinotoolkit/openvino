@@ -52,7 +52,7 @@ struct input_info {
     }
 
     primitive_id pid;
-    int32_t idx;
+    int32_t idx;    // output port index of primitive
     struct cmp {
         bool operator() (const input_info a, const input_info b) {
             if (a.pid < b.pid) {
