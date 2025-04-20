@@ -39,7 +39,6 @@ class TestAffineGridGenerator(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            custom_eps=5e-2
         )
 
 
@@ -56,5 +55,4 @@ class TestAffineGridGenerator(PytorchLayerTest):
             ie_device,
             precision,
             ir_version,
-            custom_eps=5e-2
         )

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -12,7 +11,6 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
-#include "openvino/op/logical_or.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
@@ -21,7 +19,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "pt_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -46,14 +43,12 @@ OutputVector translate_linspace_from_neg_one(const NodeContext& context,
 
     auto end = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1.0f}));
 
-    // auto dtype = grid.get_element_type();
-
     auto const_0 = v0::Constant::create(element::f32, Shape{}, {0});
     auto const_1 = v0::Constant::create(element::f32, Shape{}, {1});
 
     if (num_steps <= 1) {
-        // auto linspace = context.mark_node(v0::Constant::create(dtype, Shape{}, {0}));
         auto linspace = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+        linspace = context.mark_node(std::make_shared<v1::ConvertLike>(linspace, grid));
         return {linspace};
     }
 
@@ -73,7 +68,7 @@ OutputVector translate_linspace_from_neg_one(const NodeContext& context,
         linspace = context.mark_node(std::make_shared<v1::Multiply>(linspace, scale_factor));
     }
 
-    // linspace = context.mark_node(std::make_shared<v0::Convert>(linspace, dtype));
+    linspace = context.mark_node(std::make_shared<v1::ConvertLike>(linspace, grid));
 
     return {linspace};
 }
@@ -86,7 +81,6 @@ OutputVector translate_make_base_grid_4D(const NodeContext& context,
                                          int64_t W,
                                          bool align_corners) {
     // aten::make_base_grid_4D(Tensor theta, int64_t N, int64_t C, int64_t H, int64_t W, bool align_corners) -> Tensor
-    // auto dtype = theta.get_element_type();
     auto x_coords = translate_linspace_from_neg_one(context, theta, W, align_corners)[0];
     auto y_coords = translate_linspace_from_neg_one(context, theta, H, align_corners)[0];
 
@@ -96,19 +90,17 @@ OutputVector translate_make_base_grid_4D(const NodeContext& context,
 
     auto hw_shape =
         context.mark_node(std::make_shared<v0::Constant>(element::i64, Shape{2}, std::vector<int64_t>{H, W}.data()));
-
     auto x_grid = context.mark_node(std::make_shared<v3::Broadcast>(x_coords, hw_shape, BroadcastType::NUMPY));
-
     auto y_grid =
         context.mark_node(std::make_shared<v3::Broadcast>(y_coords_unsqueezed, hw_shape, BroadcastType::NUMPY));
 
     auto ones =
         context.mark_node(std::make_shared<v0::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f}.data()));
     auto z_grid = context.mark_node(std::make_shared<v3::Broadcast>(ones, hw_shape, BroadcastType::NUMPY));
+    z_grid = context.mark_node(std::make_shared<v1::ConvertLike>(z_grid, x_grid));
 
     auto reshape_axis =
         context.mark_node(std::make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1}.data()));
-
     auto x_reshaped = context.mark_node(std::make_shared<v0::Unsqueeze>(x_grid, reshape_axis));
     auto y_reshaped = context.mark_node(std::make_shared<v0::Unsqueeze>(y_grid, reshape_axis));
     auto z_reshaped = context.mark_node(std::make_shared<v0::Unsqueeze>(z_grid, reshape_axis));
@@ -140,8 +132,7 @@ OutputVector translate_affine_grid_generator_4D(const NodeContext& context,
         context.mark_node(std::make_shared<v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{0, 2, 1}.data()));
     auto transposed_theta = context.mark_node(std::make_shared<v1::Transpose>(theta, transpose_order));
 
-    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(reshaped_grid, transposed_theta, false, false));
-
+    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(reshaped_grid, transposed_theta));
     auto reshape_shape2 = context.mark_node(
         std::make_shared<v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{N, H, W, 2}.data()));
     auto final_grid = context.mark_node(std::make_shared<v1::Reshape>(matmul, reshape_shape2, false));
@@ -159,7 +150,6 @@ OutputVector translate_make_base_grid_5D(const NodeContext& context,
                                          bool align_corners) {
     // aten::make_base_grid_5D(Tensor theta, int64_t N, int64_t C, int64_t D, int64_t H, int64_t W, bool align_corners)
     // -> Tensor
-    // auto dtype = theta.get_element_type();
     auto x_coords = translate_linspace_from_neg_one(context, theta, W, align_corners)[0];
     auto y_coords = translate_linspace_from_neg_one(context, theta, H, align_corners)[0];
     auto z_coords = translate_linspace_from_neg_one(context, theta, D, align_corners)[0];
@@ -167,29 +157,25 @@ OutputVector translate_make_base_grid_5D(const NodeContext& context,
     auto unsqueeze_axis =
         context.mark_node(std::make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1}.data()));
     auto y_coords_unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(y_coords, unsqueeze_axis));
-
     auto z_coords_unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(z_coords, unsqueeze_axis));
     auto z_coords_unsqueezed_twice =
         context.mark_node(std::make_shared<v0::Unsqueeze>(z_coords_unsqueezed, unsqueeze_axis));
 
     auto dhw_shape =
         context.mark_node(std::make_shared<v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{D, H, W}.data()));
-
     auto x_grid = context.mark_node(std::make_shared<v3::Broadcast>(x_coords, dhw_shape, BroadcastType::NUMPY));
-
     auto y_grid =
         context.mark_node(std::make_shared<v3::Broadcast>(y_coords_unsqueezed, dhw_shape, BroadcastType::NUMPY));
-
     auto z_grid =
         context.mark_node(std::make_shared<v3::Broadcast>(z_coords_unsqueezed_twice, dhw_shape, BroadcastType::NUMPY));
 
     auto ones =
         context.mark_node(std::make_shared<v0::Constant>(element::f32, Shape{1}, std::vector<float>{1.0f}.data()));
     auto w_grid = context.mark_node(std::make_shared<v3::Broadcast>(ones, dhw_shape, BroadcastType::NUMPY));
+    w_grid = context.mark_node(std::make_shared<v1::ConvertLike>(w_grid, x_grid));
 
     auto reshape_axis =
         context.mark_node(std::make_shared<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-1}.data()));
-
     auto x_reshaped = context.mark_node(std::make_shared<v0::Unsqueeze>(x_grid, reshape_axis));
     auto y_reshaped = context.mark_node(std::make_shared<v0::Unsqueeze>(y_grid, reshape_axis));
     auto z_reshaped = context.mark_node(std::make_shared<v0::Unsqueeze>(z_grid, reshape_axis));
@@ -197,7 +183,6 @@ OutputVector translate_make_base_grid_5D(const NodeContext& context,
 
     OutputVector grid_coords = {x_reshaped, y_reshaped, z_reshaped, w_reshaped};
     auto grid_3d = context.mark_node(std::make_shared<v0::Concat>(grid_coords, -1));
-
     auto batch_shape = context.mark_node(
         std::make_shared<v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{N, D, H, W, 4}.data()));
     auto grid_with_batch =
@@ -224,7 +209,6 @@ OutputVector translate_affine_grid_generator_5D(const NodeContext& context,
     auto transposed_theta = context.mark_node(std::make_shared<v1::Transpose>(theta, transpose_order));
 
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(reshaped_grid, transposed_theta, false, false));
-
     auto reshape_shape2 = context.mark_node(
         std::make_shared<v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{N, D, H, W, 3}.data()));
     auto final_grid = context.mark_node(std::make_shared<v1::Reshape>(matmul, reshape_shape2, false));
