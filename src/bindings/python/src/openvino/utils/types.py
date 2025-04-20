@@ -153,7 +153,7 @@ def make_constant_node(value: NumericData, dtype: Optional[Union[NumericType, Ty
     else:
         element_type = get_element_type(ndarray.dtype)
 
-    const = Constant(element_type, Shape(ndarray.shape), ndarray.flatten().tolist())
+    const = Constant(element_type, ndarray.shape, ndarray.flatten().tolist())
 
     if name:
         const.friendly_name = name + "/" + const.friendly_name
@@ -170,6 +170,6 @@ def as_node(input_value: NodeInput, name: Optional[str] = None) -> Union[Node, O
     return make_constant_node(input_value, name=name)
 
 
-def as_nodes(*input_values: NodeInput, name: Optional[str] = None) -> List[Union[Node, Output]]:
+def as_nodes(*input_values: NodeInput, name: Optional[str] = None) -> List[Union[Node, Output, Constant]]:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
     return [as_node(input_value, name=name) for input_value in input_values]

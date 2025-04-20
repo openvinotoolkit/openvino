@@ -1,17 +1,16 @@
 # type: ignore
 from __future__ import annotations
 from importlib import metadata as importlib_metadata
+from openvino.tools.ovc import telemetry_stub as tm
 from openvino.tools.ovc.error import Error
-from openvino_telemetry.backend import backend_ga4
 import importlib as importlib
 import logging as log
 import numpy
 import numpy as np
 import numpy.ma.core
-import openvino_telemetry as tm
 import os as os
 import sys as sys
-__all__ = ['Error', 'backend_ga4', 'bool_cast', 'check_values_equal', 'dynamic_dimension', 'get_ir_version', 'get_mo_root_dir', 'import_openvino_tokenizers', 'importlib', 'importlib_metadata', 'log', 'mo_array', 'np', 'np_map_cast', 'os', 'refer_to_faq_msg', 'sys', 'tm', 'validate_batch_in_shape']
+__all__ = ['Error', 'bool_cast', 'check_values_equal', 'dynamic_dimension', 'get_ir_version', 'get_mo_root_dir', 'import_openvino_tokenizers', 'importlib', 'importlib_metadata', 'log', 'mo_array', 'np', 'np_map_cast', 'os', 'refer_to_faq_msg', 'sys', 'tm', 'validate_batch_in_shape']
 def bool_cast(x):
     ...
 def check_values_equal(val1, val2):

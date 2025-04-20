@@ -188,7 +188,7 @@ def scaled_dot_product_attention(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: The new node performing Scaled Dot Product Attention operation.
         
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 _get_node_factory_opset13: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset13')

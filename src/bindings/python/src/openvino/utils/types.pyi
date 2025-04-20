@@ -16,11 +16,11 @@ import typing
 Functions related to converting between Python and numpy types and openvino types.
 """
 __all__ = ['Constant', 'Node', 'NodeInput', 'NumericData', 'NumericType', 'OVTypeError', 'Output', 'ScalarData', 'Shape', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'get_dtype', 'get_element_type', 'get_element_type_str', 'get_ndarray', 'get_numpy_ctype', 'get_shape', 'log', 'logging', 'make_constant_node', 'np', 'openvino_to_numpy_types_map', 'openvino_to_numpy_types_str_map']
-def as_node(input_value: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output]:
+def as_node(input_value: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, openvino._pyopenvino.op.Constant]:
     """
     Return input values as nodes. Scalars will be converted to Constant nodes.
     """
-def as_nodes(*input_values: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> typing.List[openvino._pyopenvino.Node]:
+def as_nodes(*input_values: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> typing.List[typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, openvino._pyopenvino.op.Constant]]:
     """
     Return input values as nodes. Scalars will be converted to Constant nodes.
     """
@@ -48,11 +48,11 @@ def get_shape(data: typing.Union[int, float, numpy.ndarray]) -> typing.List[int]
     """
     Return a shape of NumericData.
     """
-def make_constant_node(value: typing.Union[int, float, numpy.ndarray], dtype: typing.Union[type, numpy.dtype, openvino._pyopenvino.Type] = None, *, name: typing.Optional[str] = None) -> openvino._pyopenvino.op.Constant:
+def make_constant_node(value: typing.Union[int, float, numpy.ndarray], dtype: typing.Union[type, numpy.dtype, openvino._pyopenvino.Type, NoneType] = None, *, name: typing.Optional[str] = None) -> openvino._pyopenvino.op.Constant:
     """
     Return an openvino Constant node with the specified value.
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]

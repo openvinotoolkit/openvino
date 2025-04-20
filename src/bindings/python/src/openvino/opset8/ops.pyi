@@ -448,6 +448,6 @@ def softmax(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: The new node with softmax operation applied on each element.
         
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 TensorShape: typing._GenericAlias  # value = typing.List[int]
 _get_node_factory_opset8: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset8')

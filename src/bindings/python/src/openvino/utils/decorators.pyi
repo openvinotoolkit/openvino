@@ -47,5 +47,5 @@ def unary_op(node_factory_function: typing.Callable) -> typing.Callable:
     """
     Convert the first input value to a Constant Node if a numeric value is detected.
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 registry: dict  # value = {'read_value': <openvino.utils.decorators.MultiMethod object>, 'constant': <openvino.utils.decorators.MultiMethod object>}

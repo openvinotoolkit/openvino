@@ -12,6 +12,10 @@ class Constant(openvino._pyopenvino.Node):
     """
     openvino.op.Constant wraps ov::op::v0::Constant
     """
+    def __buffer__(self, flags):
+        """
+        Return a buffer object that exposes the underlying memory of the object.
+        """
     @typing.overload
     def __init__(self, array: numpy.ndarray[typing.Any, numpy.dtype[typing.Any]], shared_memory: bool = False) -> None:
         ...
@@ -54,6 +58,10 @@ class Constant(openvino._pyopenvino.Node):
     @typing.overload
     def __init__(self, arg0: openvino._pyopenvino.Type, arg1: openvino._pyopenvino.Shape, arg2: list[int]) -> None:
         ...
+    def __release_buffer__(self, buffer):
+        """
+        Release the buffer object that exposes the underlying memory of the object.
+        """
     def __repr__(self) -> str:
         ...
     def get_byte_size(self) -> int:

@@ -83,7 +83,7 @@ def gru_sequence(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: The new node represents GRUSequence. Node outputs count: 2.
         
     """
-def hsigmoid(data: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
+def hsigmoid(data: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
     """
     Return a node which performs HSigmoid.
     
@@ -186,7 +186,7 @@ def round(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: The new node with Round operation applied on each element.
         
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]

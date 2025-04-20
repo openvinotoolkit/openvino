@@ -519,16 +519,28 @@ class Model:
                             :type name: str
         """
     @typing.overload
-    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.op.Result], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
         """
                             Create user-defined Model which is a representation of a model.
         
-                            :param results: List of Nodes to be used as results.
-                            :type results: List[openvino.Node]
+                            :param results: List of results.
+                            :type results: List[op.Result]
                             :param parameters: List of parameters.
-                            :type parameters:  List[op.Parameter]
+                            :type parameters: List[op.Parameter]
                             :param name: String to set as model's friendly name.
                             :type name: str
+        """
+    @typing.overload
+    def __init__(self: openvino._pyopenvino.Model, results: list[openvino._pyopenvino.Node], parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:
+        """
+                    Create user-defined Model which is a representation of a model.
+        
+                    :param results: List of Nodes to be used as results.
+                    :type results: List[openvino.Node]
+                    :param parameters: List of parameters.
+                    :type parameters:  List[op.Parameter]
+                    :param name: String to set as model's friendly name.
+                    :type name: str
         """
     @typing.overload
     def __init__(self: openvino._pyopenvino.Model, result: openvino._pyopenvino.Node, parameters: list[openvino._pyopenvino.op.Parameter], name: str = '') -> None:

@@ -49,5 +49,5 @@ def segment_max(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: The new node performing SegmentMax operation.
         
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 _get_node_factory_opset16: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset16')

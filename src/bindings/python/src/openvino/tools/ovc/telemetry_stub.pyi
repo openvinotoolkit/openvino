@@ -1,0 +1,23 @@
+# type: ignore
+from __future__ import annotations
+__all__ = ['Telemetry']
+class Telemetry:
+    """
+    
+        Stab file for the Telemetry class which is used when Telemetry class is not available.
+        
+    """
+    def __init__(self, *arg, **kwargs):
+        ...
+    def end_session(self, *arg, **kwargs):
+        ...
+    def force_shutdown(self, *arg, **kwargs):
+        ...
+    def send_error(self, *arg, **kwargs):
+        ...
+    def send_event(self, *arg, **kwargs):
+        ...
+    def send_stack_trace(self, *arg, **kwargs):
+        ...
+    def start_session(self, *arg, **kwargs):
+        ...

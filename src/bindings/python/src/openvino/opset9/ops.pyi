@@ -47,7 +47,7 @@ def generate_proposals(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: New node performing GenerateProposals operation.
         
     """
-def grid_sample(data: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], grid: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], attributes: dict, name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
+def grid_sample(data: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], grid: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], attributes: dict, name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
     """
     Return a node which performs GridSample operation.
     
@@ -144,7 +144,7 @@ def rdft(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: The new node which performs RDFT operation on the input data tensor.
         
     """
-def roi_align(data: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], rois: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], batch_indices: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], pooled_h: int, pooled_w: int, sampling_ratio: int, spatial_scale: float, mode: str, aligned_mode: typing.Optional[str] = 'asymmetric', name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
+def roi_align(data: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], rois: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], batch_indices: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], pooled_h: int, pooled_w: int, sampling_ratio: int, spatial_scale: float, mode: str, aligned_mode: typing.Optional[str] = 'asymmetric', name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
     """
     Return a node which performs ROIAlign operation.
     
@@ -170,7 +170,7 @@ def roi_align(data: typing.Union[openvino._pyopenvino.Node, int, float, numpy.nd
         :return: The new node which performs ROIAlign
         
     """
-def softsign(node: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
+def softsign(node: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
     """
     Apply SoftSign operation on the input node element-wise.
     
@@ -179,5 +179,5 @@ def softsign(node: typing.Union[openvino._pyopenvino.Node, int, float, numpy.nda
         :return: New node with SoftSign operation applied on each element of it.
         
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 _get_node_factory_opset9: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset9')

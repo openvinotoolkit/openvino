@@ -1772,7 +1772,7 @@ def transpose(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: Transpose node
         
     """
-def unsqueeze(data: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], axes: typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
+def unsqueeze(data: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], axes: typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray], name: typing.Optional[str] = None) -> openvino._pyopenvino.Node:
     """
     Perform unsqueeze operation on input tensor.
     
@@ -1799,7 +1799,7 @@ def variadic_split(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: VariadicSplit node
         
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]

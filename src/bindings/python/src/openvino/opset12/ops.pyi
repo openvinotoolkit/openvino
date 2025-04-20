@@ -64,5 +64,5 @@ def scatter_elements_update(*args, **kwargs) -> openvino._pyopenvino.Node:
         to `axis` is obtained from the index of the entry itself.
         
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 _get_node_factory_opset12: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset12')

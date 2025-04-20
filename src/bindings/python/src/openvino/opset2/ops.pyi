@@ -115,7 +115,7 @@ def space_to_batch(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: The new node performing a SpaceToBatch operation.
         
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]

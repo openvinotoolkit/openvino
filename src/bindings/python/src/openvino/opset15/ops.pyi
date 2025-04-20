@@ -202,6 +202,6 @@ def string_tensor_unpack(*args, **kwargs) -> openvino._pyopenvino.Node:
         :return: The new node performing StringTensorUnpack operation.
         
     """
-NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output, int, float, numpy.ndarray]
 _get_node_factory_opset15: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset15')
 constant: openvino.utils.decorators.MultiMethod  # value = <openvino.utils.decorators.MultiMethod object>

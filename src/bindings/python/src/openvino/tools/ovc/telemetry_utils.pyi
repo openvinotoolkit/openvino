@@ -1,14 +1,13 @@
 # type: ignore
 from __future__ import annotations
 from openvino._pyopenvino import get_version as get_rt_version
+from openvino.tools.ovc import telemetry_stub as tm
 from openvino.tools.ovc.cli_parser import get_params_with_paths_list
 from openvino.tools.ovc.utils import check_values_equal
-from openvino_telemetry.backend import backend_ga4
 import argparse as argparse
 import numbers as numbers
-import openvino_telemetry as tm
 import os as os
-__all__ = ['arg_to_str', 'argparse', 'backend_ga4', 'check_values_equal', 'get_params_with_paths_list', 'get_rt_version', 'get_tid', 'init_ovc_telemetry', 'init_telemetry_class', 'is_keras3', 'is_optimum', 'is_torch_compile', 'numbers', 'os', 'send_conversion_result', 'send_framework_info', 'send_params_info', 'telemetry_params', 'tm']
+__all__ = ['arg_to_str', 'argparse', 'check_values_equal', 'get_params_with_paths_list', 'get_rt_version', 'get_tid', 'init_ovc_telemetry', 'init_telemetry_class', 'is_keras3', 'is_optimum', 'is_torch_compile', 'numbers', 'os', 'send_conversion_result', 'send_framework_info', 'send_params_info', 'telemetry_params', 'tm']
 def arg_to_str(arg):
     ...
 def get_tid():
