@@ -215,6 +215,7 @@ Datatype ResampleKernelOpt::GetUnitType(const base_params& params) const {
     return params.inputs[0].GetDType();
 }
 
+/* CI sanity check */
 KernelsData ResampleKernelOpt::GetKernelsData(const Params& params) const {
     return GetCommonKernelsData(params);
 }
