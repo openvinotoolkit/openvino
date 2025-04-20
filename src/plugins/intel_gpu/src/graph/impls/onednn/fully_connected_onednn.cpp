@@ -370,7 +370,8 @@ public:
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(1);
                 auto ngroups = scale_layout.get_dim(1);
                 group_size = ifm / ngroups;
-                OPENVINO_ASSERT((ngroups == 1 || group_size % 32 == 0), "group_size should be aligned to 32 if it is not a single scale group");
+                OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 32 == 0),
+                    "group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
                 if (!is_four_bit_weight) {
                     // 8-bit quantized weight
                     attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);

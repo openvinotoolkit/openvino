@@ -32,11 +32,18 @@ void prepare_padding::run(program& p) {
                 const size_t alignment = 2;
                 auto input_layout = input_node.get_output_layout(0);
                 const auto const_shape = input_layout.get_partial_shape().to_shape();
-                if (const_shape.back() % alignment != 0) {
+                // Get the innermost index after trimming trailing elements in the shape.
+                size_t inner_most_idx = const_shape.size() - 1;
+                for (; inner_most_idx >= 0; --inner_most_idx) {
+                    if (const_shape[inner_most_idx] != 1)
+                        break;
+                }
+
+                if (const_shape[inner_most_idx] % alignment != 0) {
                     auto weight_in_layout  = input_layout.convert_to_weights_layout(false);
                     auto weight_out_layout = weight_in_layout;
                     std::vector<int32_t> new_paddings(const_shape.size(), 0);
-                    new_paddings[const_shape.size() - 1] = 1;
+                    new_paddings[inner_most_idx] = 1;
                     weight_out_layout.data_padding = padding::max(weight_out_layout.data_padding, padding({0}, new_paddings));
                     auto weights_reorder_params = std::make_shared<WeightsReorderParams>(weight_in_layout, weight_out_layout, false, false);
 
