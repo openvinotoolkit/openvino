@@ -169,7 +169,7 @@ private:
                                                                                            auto_pad,
                                                                                            params.group,
                                                                                            params.deformableGroup);
-        return std::make_shared<ov::Model>(NodeVector{DeformableConvolution}, ParameterVector{in, offset, filter});
+        return std::make_shared<ov::Model>(OutputVector{DeformableConvolution}, ParameterVector{in, offset, filter});
     }
 };
 
@@ -233,7 +233,7 @@ private:
                                                                 params.group,
                                                                 params.deformableGroup,
                                                                 params.use_bilinear_interpolation_padding);
-            return std::make_shared<ov::Model>(NodeVector{DeformableConvolutionV8},
+            return std::make_shared<ov::Model>(OutputVector{DeformableConvolutionV8},
                                                ParameterVector{in, offset, filter, mask});
         } else {
             const auto DeformableConvolutionV8 =
@@ -248,7 +248,7 @@ private:
                                                                 params.group,
                                                                 params.deformableGroup,
                                                                 params.use_bilinear_interpolation_padding);
-            return std::make_shared<ov::Model>(NodeVector{DeformableConvolutionV8},
+            return std::make_shared<ov::Model>(OutputVector{DeformableConvolutionV8},
                                                ParameterVector{in, offset, filter});
         }
     }

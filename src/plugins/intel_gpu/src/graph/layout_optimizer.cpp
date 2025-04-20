@@ -931,6 +931,12 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         return format::bfyx;
     }
 
+    // Use planar format for dynamic convolution with small input channel(IC <= 3)
+    if (node.is_dynamic() && use_onednn_impls && onednn_valid_post_ops &&
+        input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 3) {
+        return format::get_default_format(input_layout.get_partial_shape().size());
+    }
+
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
         if (input_layout.get_partial_shape().size() <= 4)
             expected_format = format::b_fs_yx_fsv16;
@@ -1277,11 +1283,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 expected = format::get_default_format(node.get_input_layout(0).get_rank());
                 node.set_preferred_input_fmt(0, expected);
             } else {
-                auto& fc_node = node.as<fully_connected>();
-                auto input_layout = fc_node.get_input_layout();
-                if (input_layout.format.dimension() > 4) {
-                    expected = format::bfyx;
-                    node.set_preferred_input_fmt(0, format::bfyx);
+                if (!use_onednn_impls) {
+                    auto& fc_node = node.as<fully_connected>();
+                    auto input_layout = fc_node.get_input_layout();
+                    if (input_layout.format.dimension() > 4) {
+                        expected = format::bfyx;
+                        node.set_preferred_input_fmt(0, format::bfyx);
+                    }
                 }
             }
         }

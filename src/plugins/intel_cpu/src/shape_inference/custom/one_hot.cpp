@@ -4,7 +4,8 @@
 
 #include "one_hot.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/one_hot.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_cpu::node {
@@ -21,7 +22,11 @@ Result OneHotShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
         OPENVINO_THROW("OneHot depth value can't be negative.");
     }
     auto result = input_shapes.front().get();
-    result.insert(result.begin() + m_axis, depth);
+    auto depth_pos = result.begin();
+    if (!result.empty()) {
+        depth_pos += m_axis;
+    }
+    result.insert(depth_pos, depth);
 
     return {{std::move(result)}, ShapeInferStatus::success};
 }

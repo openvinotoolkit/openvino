@@ -386,7 +386,7 @@ bool FrontEndMockPy::supported_impl(const std::vector<ov::Any>& params) const {
 
 std::shared_ptr<ov::Model> FrontEndMockPy::convert(const InputModel::Ptr& model) const {
     m_stat.m_convert_model++;
-    return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
+    return std::make_shared<ov::Model>(ov::OutputVector{}, ov::ParameterVector{});
 }
 
 void FrontEndMockPy::convert(const std::shared_ptr<ov::Model>& func) const {
@@ -395,12 +395,12 @@ void FrontEndMockPy::convert(const std::shared_ptr<ov::Model>& func) const {
 
 std::shared_ptr<ov::Model> FrontEndMockPy::convert_partially(const InputModel::Ptr& model) const {
     m_stat.m_convert_partially++;
-    return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
+    return std::make_shared<ov::Model>(ov::OutputVector{}, ov::ParameterVector{});
 }
 
 std::shared_ptr<ov::Model> FrontEndMockPy::decode(const InputModel::Ptr& model) const {
     m_stat.m_decode++;
-    return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
+    return std::make_shared<ov::Model>(ov::OutputVector{}, ov::ParameterVector{});
 }
 
 void FrontEndMockPy::normalize(const std::shared_ptr<ov::Model>& function) const {
