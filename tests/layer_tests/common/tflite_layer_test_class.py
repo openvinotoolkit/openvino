@@ -44,7 +44,7 @@ class TFLiteLayerTest(CommonLayerTest):
         return self.model_path
 
     def get_framework_results(self, inputs_dict, model_path):
-        return get_tflite_results(self.use_legacy_frontend, inputs_dict, model_path)
+        return get_tflite_results(inputs_dict, model_path)
 
     def check_tflite_model_has_only_allowed_ops(self):
         if self.allowed_ops is None:
