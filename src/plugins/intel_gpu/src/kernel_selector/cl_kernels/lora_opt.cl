@@ -184,28 +184,80 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #ifdef FIRST_TOKEN_A
+__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(first_token_a)(OPTIONAL_SHAPE_INFO_ARG
-                      __global half* main_input,
-                      __global half* lora_input,
-                      __global half* state_a,
-                      __global half* state_alpha,
-                      __global half* state_b,
-                      __global half* output)
+                      __global INPUT1_TYPE* lora_input,
+                      __global STATE_TYPE* state_a,
+                      __global STATE_TYPE* state_alpha,
+                      __global ACCUMULATOR_TYPE* output_a)
 {
+    int sgid = get_sub_group_id();
+    int sgN = get_local_size(1) / SUBGROUP_SIZE;
+    int sgM = get_local_size(0);
+    int sgid_N = sgid % sgN;
+    int sgid_M = sgid / sgN;
+    int BM = REG_M * sgM;
+    int BN = get_local_size(1) * REG_N;
+    int m_idx = get_group_id(0) * BM  + sgid_M * REG_M;
+    int n_idx = get_group_id(1) * BN  + sgid_N * SUBGROUP_SIZE * REG_N;
 
+    if (m_idx >= M || n_idx >= LORA_RANK)
+        return;
+
+    if (m_idx + REG_M > M)
+        m_idx = M - REG_M;
+
+    if (n_idx + REG_N * SUBGROUP_SIZE > LORA_RANK)
+        n_idx = LORA_RANK - REG_N * SUBGROUP_SIZE;
+
+    __global INPUT1_TYPE* ptrA = lora_input + m_idx * K;
+    __global STATE_TYPE* ptrB = state_a + n_idx;
+    __global ACCUMULATOR_TYPE* ptrC = output_a + m_idx * LORA_RANK + n_idx;
+
+    MAIN_MATMUL_CODE
+
+    __global STATE_TYPE *alpha_ptr = state_alpha + n_idx;
+
+    MULTIPLY_AND_STORE_CODE
 }
 #endif
 
 
 #ifdef FIRST_TOKEN_B
+__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL(first_token_b)(OPTIONAL_SHAPE_INFO_ARG
-                       __global half* main_input,
-                       __global half* lora_input,
-                       __global half* state_a,
-                       __global half* state_alpha,
-                       __global half* state_b,
-                       __global half* output)
+                      __global INPUT0_TYPE* main_input,
+                      __global ACCUMULATOR_TYPE* output_a,
+                      __global STATE_TYPE* state_b,
+                      __global OUTPUT_TYPE* output)
 {
+    int sgid = get_sub_group_id();
+    int sgN = get_local_size(1) / SUBGROUP_SIZE;
+    int sgM = get_local_size(0);
+    int sgid_N = sgid % sgN;
+    int sgid_M = sgid / sgN;
+    int BM = REG_M * sgM;
+    int BN = get_local_size(1) * REG_N;
+    int m_idx = get_group_id(0) * BM  + sgid_M * REG_M;
+    int n_idx = get_group_id(1) * BN  + sgid_N * SUBGROUP_SIZE * REG_N;
 
+    if (m_idx >= M || n_idx >= N)
+        return;
+
+    if (m_idx + REG_M > M)
+        m_idx = M - REG_M;
+
+    if (n_idx + REG_N * SUBGROUP_SIZE > N)
+        n_idx = N - REG_N * SUBGROUP_SIZE;
+
+    __global ACCUMULATOR_TYPE* ptrA = output_a + m_idx * LORA_RANK;
+    __global STATE_TYPE* ptrB = state_b + n_idx;
+    __global OUTPUT_TYPE* ptrC = output + m_idx * N + n_idx;
+
+    MAIN_MATMUL_CODE
+
+    __global INPUT0_TYPE *main_ptr = main_input + m_idx * N + n_idx;
+
+    ADD_AND_STORE_CODE
 }
 #endif
