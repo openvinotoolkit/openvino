@@ -75,6 +75,17 @@ dnnl::memory::dims convert_gemm_dims(const std::vector<int32_t> &sizes, size_t d
     return res;
 }
 
+dnnl::memory::format_tag get_default_data_format(cldnn::layout& l) {
+    switch (l.get_partial_shape().size()) {
+    case 2: return dnnl::memory::format_tag::ab;
+    case 3: return dnnl::memory::format_tag::abc;
+    case 4: return dnnl::memory::format_tag::abcd;
+    case 5: return dnnl::memory::format_tag::abcde;
+    case 6: return dnnl::memory::format_tag::abcdef;
+    default: throw std::invalid_argument("[clDNN] Unsupported conversion from "+ l.to_short_string() + " to onednn format_tag");
+    }
+}
+
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
     if (dims.size() == target.dimension()) {
         auto tag = convert_data_format(target);
