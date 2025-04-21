@@ -99,6 +99,19 @@ std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::
     OV_CORE_CALL_STATEMENT(return _impl->read_model(model, weights););
 }
 
+std::shared_ptr<ov::Model> Core::read_model(const char* xml_buffer,
+                                            size_t xml_len,
+                                            const char* bin_buffer,
+                                            size_t bin_len) const {
+    std::shared_ptr<AlignedBuffer> model_buffer(std::make_shared<AlignedBuffer>(xml_len));
+    std::shared_ptr<AlignedBuffer> weight_buffer(std::make_shared<AlignedBuffer>(bin_len));
+
+    memcpy((*model_buffer).get_ptr(), xml_buffer, xml_len);
+    memcpy((*weight_buffer).get_ptr(), bin_buffer, bin_len);
+
+    OV_CORE_CALL_STATEMENT(return _impl->read_model(model_buffer, weight_buffer););
+}
+
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
     return compile_model(model, ov::DEFAULT_DEVICE_NAME, config);
 }

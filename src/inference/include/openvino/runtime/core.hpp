@@ -157,6 +157,20 @@ public:
     std::shared_ptr<ov::Model> read_model(const std::string& model, const Tensor& weights) const;
 
     /**
+     * @brief Reads models from IR format using pre-existing data.
+     * @param xml_str XML string buffer.
+     * @param str_len The length of XML string.
+     * @param bin_str BIN string buffer.
+     * @param bin_len The length of BIN string.
+     * @return A model.
+     */
+    std::shared_ptr<ov::Model> read_model(const char* xml_buffer,
+                                          size_t xml_len,
+                                          const char* bin_buffer,
+                                          size_t bin_len) const;
+
+
+    /**
      * @brief Creates and loads a compiled model from a source model to the default OpenVINO device selected by the AUTO
      * plugin.
      *

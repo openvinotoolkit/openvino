@@ -194,6 +194,25 @@ ov_core_read_model_from_memory_buffer(const ov_core_t* core,
                                       ov_model_t** model);
 
 /**
+ * @brief Reads IR model from memory.
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ov_core_t instance.
+ * @param xml_str XML string buffer.
+ * @param str_len The length of XML string.
+ * @param bin_str BIN string buffer.
+ * @param bin_len The length of BIN string.
+ * @param model A pointer to the newly created model.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_read_ir_model_from_memory_buffer(const ov_core_t* core,
+                                         const char* xml_str,
+                                         const size_t xml_len,
+                                         const char* bin_str,
+                                         const size_t bin_len,
+                                         ov_model_t** model);
+
+/**
  * @brief Creates a compiled model from a source model object.
  * Users can create as many compiled models as they need and use
  * them simultaneously (up to the limitation of the hardware resources).

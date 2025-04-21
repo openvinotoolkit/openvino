@@ -132,6 +132,25 @@ ov_status_e ov_core_read_model_from_memory_buffer(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
+ov_status_e ov_core_read_ir_model_from_memory_buffer(const ov_core_t* core,
+                                                     const char* xml_str,
+                                                     const size_t xml_len,
+                                                     const char* bin_str,
+                                                     const size_t bin_len,
+                                                     ov_model_t** model) {
+    if (!core || !xml_str || !xml_len || !bin_str || !bin_len || !model) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::unique_ptr<ov_model_t> _model(new ov_model_t);
+        _model->object = core->object->read_model(xml_str, xml_len, bin_str, bin_len);
+        *model = _model.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_core_compile_model(const ov_core_t* core,
                                   const ov_model_t* model,
                                   const char* device_name,
