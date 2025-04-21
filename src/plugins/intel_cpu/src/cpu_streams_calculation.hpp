@@ -34,7 +34,8 @@ namespace ov::intel_cpu {
  * function.
  *               - input "0" indicates that the function generates the optimal number of threads per stream based on
  * processors type information.
- * @param[in]  is_test is test flag mainly used with hint_llm_distribution_policy to test data accurcy of TENSOR_PARALLEL
+ * @param[in]  is_test is test flag mainly used with hint_llm_distribution_policy to test data accurcy of
+ * TENSOR_PARALLEL
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
  * @param[in]  hint_llm_distribution_policy is the distribution policy for Large language models
  * @param[in]  proc_type_table is currently available candidate processors.
