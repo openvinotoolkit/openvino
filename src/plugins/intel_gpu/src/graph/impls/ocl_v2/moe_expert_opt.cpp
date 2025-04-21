@@ -823,7 +823,7 @@ public:
         auto moe = instance.get_typed_desc<moe_expert>();
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 2);
-        auto batch = static_cast<int>(hidden_states_layout.get_shape()[1]);
+        auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
 
         instance.update_output_layout();
         instance.update_output_memory(batch != 1);
@@ -834,11 +834,14 @@ public:
             // The UpdateShape() is bypassed and it's in-order queue
             stream.finish();
             auto dep = instance.dependencies()[1];
+            // [batch, max_topk]
             auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
-            moe_expert_inst::get_expert_mask_from_memory(instance.pred_memory_ptr(), layout, stream, expert_mask);
+            instance.get_expert_mask_from_memory(instance.pred_memory_ptr(), layout, stream, expert_mask);
             {
                 const auto& shape = layout.get_shape();
-                int max_expert_num = static_cast<int>(shape[0]), max_topk = static_cast<int>(shape[1]), max_tokens = static_cast<int>(shape[2]);
+                int max_expert_num = static_cast<int>(moe->_config.expert_num),
+                    max_topk = static_cast<int>(moe->_config.topk),
+                    max_tokens = static_cast<int>(shape[0]);
                 int count = 0;
                 for (int no = 0; no < max_expert_num; no++) {
                     count += static_cast<int>(expert_mask.batch[no].size());

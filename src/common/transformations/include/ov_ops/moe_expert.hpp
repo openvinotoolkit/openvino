@@ -52,6 +52,7 @@ public:
         size_t expert_num = 0;
         size_t hidden_size = 0;
         size_t expert_no = 0;
+        bool has_onehot = false;
     };
 
     MOEExpert2(const OutputVector& args, const Config& config, const std::vector<std::shared_ptr<ov::Model>>& body);
