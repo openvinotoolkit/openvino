@@ -16,7 +16,6 @@ if(WIN32)
     set(CMAKE_SHARED_LINKER_FLAGS /DELAYLOAD:NODE.EXE)
     set(CMAKE_JS_LIB ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node.lib)
     set(CMAKE_JS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/win_delay_load_hook.cc)
-
     set(CMAKE_JS_NODELIB_DEF ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node-lib.def)
     set(CMAKE_JS_NODELIB_TARGET ${CMAKE_JS_LIB})
 endif()
@@ -67,7 +66,6 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/element_type.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/partial_shape_wrap.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/node_wrap.cpp
-
     ${CMAKE_JS_SRC}
 )
 
