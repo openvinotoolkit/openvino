@@ -3,6 +3,7 @@
 //
 
 #include "moe_expert_inst.h"
+#include "openvino/core/except.hpp"
 #include "program_node.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
@@ -37,60 +38,32 @@ bool moe_expert_inst::get_pred_from_memory(memory::ptr mem, stream& stream, size
 }
 
 void moe_expert_inst::get_expert_mask_from_memory(memory::ptr mem, layout& layout, stream& stream, expert_mask_scratch& expert_mask) {
+    // shape: [batch, topk]
     const auto& shape = layout.get_shape();
-    int max_expert_num = static_cast<int>(shape[0]), max_topk = static_cast<int>(shape[1]), max_tokens = static_cast<int>(shape[2]);
-    expert_mask.pred_flag.clear();
-    expert_mask.batch.clear();
-    expert_mask.topk.clear();
+    const auto& config = get_config();
+
+    int max_expert_num = static_cast<int>(config.expert_num),
+        max_topk = static_cast<int>(config.topk),
+        max_tokens = static_cast<int>(shape[0]);
+
     expert_mask.pred_flag.resize(max_expert_num, 0);
     expert_mask.batch.resize(max_expert_num, {});
     expert_mask.topk.resize(max_expert_num, {});
-    auto num_per_expert = max_topk * max_tokens;
-    auto fill_with_padding = [&](int* p, int expert_no) {
-        cldnn::tensor size = layout.get_tensor();
-        // topk
-        for (int f = 0; f < size.feature[0]; f++) {
-            // bfxyzw
-            auto offset = layout.get_linear_offset(cldnn::tensor(expert_no, f, 0, 0, 0, 0));
-            // tokens
-            for (int y = 0; y < size.spatial[1]; y++) {
-                OPENVINO_ASSERT(static_cast<int>(offset) + y == expert_no * num_per_expert + f * max_tokens + y);
-                if (p[offset + y]) {
-                    expert_mask.pred_flag[expert_no] = 1;
-                    expert_mask.batch[expert_no].push_back(y);
-                    // routing weights is 1d, its shape: [topk * batch, 1] corresponding 2d shape: [batch, topk]. The following will get its offset in 1d:
-                    //   batch * max_topk + topk
-                    expert_mask.topk[expert_no].push_back(f + y * max_topk);
-                }
-            }
+
+    OPENVINO_ASSERT(!layout.data_padding, "get_expert_mask_from_memory not support padding");
+
+    std::vector<int32_t> buf(max_topk * max_tokens);
+    mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
+
+    for (int b = 0; b < max_tokens; b++) {
+        auto* tok_p = &buf[b * max_topk];
+        for (int t = 0; t < max_topk; t++) {
+            auto expert_no = tok_p[t];
+            OPENVINO_ASSERT(expert_no < max_expert_num);
+            expert_mask.batch[expert_no].push_back(b);
+            expert_mask.topk[expert_no].push_back(t + b * max_topk);
+            expert_mask.pred_flag[expert_no] = 1;
         }
-    };
-    auto fill = [&](int* p, int expert_no) {
-       auto offset = expert_no * num_per_expert;
-       for (int t = 0; t < max_topk; t++) {
-           for (int b = 0; b < max_tokens; b++) {
-               if (p[offset + t * max_tokens + b]) {
-                   expert_mask.pred_flag[expert_no] = 1;
-                   expert_mask.batch[expert_no].push_back(b);
-                   // routing weights is 1d, its shape: [topk * batch, 1] corresponding 2d shape: [batch, topk]. The following will get its offset in 1d:
-                   //   batch * max_topk + topk
-                   expert_mask.topk[expert_no].push_back(t + b * max_topk);
-               }
-           }
-       }
-    };
-    if (layout.data_padding) {
-        mem_lock<int32_t, mem_lock_type::read> lock_data{mem, stream};
-        auto p = lock_data.data();
-        ov::parallel_for(max_expert_num, [&](int expert_no) {
-            fill_with_padding(p, expert_no);
-        });
-    } else {
-        std::vector<int32_t> buf(max_expert_num * max_topk * max_tokens);
-        mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
-        ov::parallel_for(max_expert_num, [&](int expert_no) {
-            fill(buf.data(), expert_no);
-        });
     }
 }
 

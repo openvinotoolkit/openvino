@@ -9,6 +9,7 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -62,20 +63,49 @@ public:
     }
 
     std::shared_ptr<ov::Model> BuildMoeExpert(ElementType inType, bool expected_pattern, int expert_num = 1, int topk = 8) {
-        // shape: [expert_number, topk, batch]
-        auto expert_mask = std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::PartialShape{expert_num, topk, -1});
-        // shape: [batch * seq_len, hidden_dim]
+        // param1: [batch*seq, 2048]
         auto final_hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 2048});
+        // f32[?,128]
+        //auto softmax_Softmax = makeOP(ov::Rank(2)); // std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::Shape{256, 8, batch});
+        auto softmax_Softmax = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, expert_num});
+        auto softmax_Softmax_ = makeOP<opset1::Convert>({softmax_Softmax}, {{"destination_type", "f32"}});
+        auto topk_TopK = makeOP<opset11::TopK>({softmax_Softmax_, topk}, {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i32"}, {"stable", false}});   //  tensor_array<f32[?,8] i64[?,8]> __module.model.model.layers.3.mlp/aten::topk/TopK(__module.model.model.layers.3.mlp/aten::softmax/Softmax, 290)
+        auto sum_ReduceSum = makeOP<opset1::ReduceSum>({topk_TopK->output(0), {-1}}, {{"keep_dims", true}});   //  tensor_array<f32[?,1]> __module.model.model.layers.3.mlp/aten::sum/ReduceSum(__module.model.model.layers.3.mlp/aten::topk/TopK[0], Constant_78291)
+        auto div__Divide = makeOP<opset1::Divide>({topk_TopK->output(0), sum_ReduceSum}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});   //  tensor_array<f32[?,8]> __module.model.model.layers.3.mlp/aten::div_/Divide(__module.model.model.layers.3.mlp/aten::topk/TopK[0], __module.model.model.layers.3.mlp/aten::sum/ReduceSum)
+        //auto one_hot_OneHot = makeOP<opset1::OneHot>({topk_TopK->output(1), 128, 1, 0}, {{"axis", 2}});   //  tensor_array<i64[?,8,128]> __module.model.model.layers.3.mlp/aten::one_hot/OneHot(__module.model.model.layers.3.mlp/aten::topk/TopK[1], __module.model.model.layers.0.mlp/aten::one_hot/Convert_1, __module.model.model.layers.3.mlp/aten::one_hot/Constant_3, __module.model.model.layers.3.mlp/aten::one_hot/Constant)
+        auto one_hot_OneHot = makeOP<opset1::OneHot>({topk_TopK->output(1), expert_num, 1, 0}, {{"axis", 2}});
+        // param2: expert_mask: [128, 8, batch]
+        auto permute_Transpose = makeOP<opset1::Transpose>({one_hot_OneHot, {2, 1, 0}});   //  tensor_array<i64[128,8,?]> __module.model.model.layers.3.mlp/aten::permute/Transpose(__module.model.model.layers.3.mlp/aten::one_hot/OneHot, Constant_78475)
+
+        // hidden_states_2d: f32[-1, 2048]
+        //auto view_Reshape = makeOP(ov::Rank(2));
+        auto hidden_states_2d = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 2048});
+        auto hidden_states_ = makeOP<opset1::Convert>({hidden_states_2d}, {{"destination_type", "f32"}});
+        // param3: hidden_states: f32[1, -1, 2048]
+        auto hidden_states = makeOP<opset1::Unsqueeze>({hidden_states_, 0});   //  tensor_array<f32[1,?,2048]> __module.model.model.layers.3.mlp/aten::unsqueeze/Unsqueeze(__module.model.model.layers.3.mlp/aten::view/Reshape, 160)
+
+        auto unsqueeze_Unsqueeze_1 = makeOP<opset1::Unsqueeze>({div__Divide, 2});   //  tensor_array<f32[?,8,1]> __module.model.model.layers.3.mlp/aten::unsqueeze/Unsqueeze_1(__module.model.model.layers.3.mlp/aten::div_/Divide, 298)
+        auto index_ShapeOf_1 = makeOP<opset3::ShapeOf>({unsqueeze_Unsqueeze_1}, {{"output_type", "i32"}});   //  tensor_array<i32[3]> __module.model.model.layers.3.mlp/aten::index/ShapeOf_1(__module.model.model.layers.3.mlp/aten::unsqueeze/Unsqueeze_1)
+        auto index_Slice = makeOP<opset8::Slice>({index_ShapeOf_1, {0}, {2}, {1}, {0}});   //  tensor_array<i32[2]> __module.model.model.layers.3.mlp/aten::index/Slice(__module.model.model.layers.3.mlp/aten::index/ShapeOf_1, Constant_639495, Constant_639494, Constant_639496, Constant_639498)
+        auto index_ReduceProd = makeOP<opset1::ReduceProd>({index_Slice, 0}, {{"keep_dims", true}});   //  tensor_array<i32[1]> __module.model.model.layers.3.mlp/aten::index/ReduceProd(__module.model.model.layers.3.mlp/aten::index/Slice, Constant_639499)
+        auto index_Concat = makeOP<opset1::Concat>({index_ReduceProd, {-1}}, {{"axis", 0}});   //  tensor_array<i32[2]> __module.model.model.layers.3.mlp/aten::index/Concat(__module.model.model.layers.3.mlp/aten::index/ReduceProd, Constant_639501)
+        // param4: routing weights: [self.topk * batch, 1]
+        auto index_Reshape = makeOP<opset1::Reshape>({unsqueeze_Unsqueeze_1, index_Concat}, {{"special_zero", true}});   //  tensor_array<f32[?,?]> __module.model.model.layers.3.mlp/aten::index/Reshape(__module.model.model.layers.3.mlp/aten::unsqueeze/Unsqueeze_1, __module.model.model.layers.3.mlp/aten::index/Concat)
+
+        // shape: [expert_number, topk, batch]
+        auto expert_mask = permute_Transpose;  // std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::PartialShape{expert_num, topk, -1});
+        // shape: [batch * seq_len, hidden_dim]
+        //auto final_hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 2048});
         // shape: [1, batch * seq_len, hidden_dim]
-        auto hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{1, -1, 2048});
+        //auto hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{1, -1, 2048});
         
         auto routing_weights_shapeof_split = makeConst(element::i32, ov::Shape({1,}), {topk});
         // shape: [self.topk * batch, 1]
-        auto routing_weights_ =  std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 1});
+        auto routing_weights = index_Reshape; //std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 1});
 
         std::shared_ptr<ov::Node> final_hidden_states = makeOP<opset1::Convert>({final_hidden_states_}, {{"destination_type", "f32"}});
-        auto hidden_states = makeOP<opset1::Convert>({hidden_states_}, {{"destination_type", "f32"}});
-        auto routing_weights = makeOP<opset1::Convert>({routing_weights_}, {{"destination_type", "f32"}});
+        //auto hidden_states = makeOP<opset1::Convert>({hidden_states_3d}, {{"destination_type", "f32"}});
+        //auto routing_weights = makeOP<opset1::Convert>({routing_weights_}, {{"destination_type", "f32"}});
 
         for (int i = 0; i < expert_num; i++) {
             // ----------------------------- pattern begin
@@ -150,7 +180,8 @@ public:
             auto index_add__ScatterElementsUpdate_8 = makeOP<opset12::ScatterElementsUpdate>({final_hidden_states/*index_add__ScatterElementsUpdate_5*/, index_add__Broadcast_25, index_add__Broadcast_26, 0}, {{"reduction", "sum"}, {"use_init_val", true}});   //  tensor_array<f32[?,2048]> __module.model.model.layers.0.mlp/aten::index_add_/ScatterElementsUpdate_8(__module.model.model.layers.0.mlp/aten::index_add_/ScatterElementsUpdate_5, __module.model.model.layers.0.mlp/aten::index_add_/Broadcast_25, __module.model.model.layers.0.mlp/aten::index_add_/Broadcast_26, 160)
             final_hidden_states = index_add__ScatterElementsUpdate_8;
         }
-        return std::make_shared<ov::Model>(ov::NodeVector{final_hidden_states}, ov::ParameterVector{final_hidden_states_, expert_mask, hidden_states_, routing_weights_});
+        return std::make_shared<ov::Model>(ov::NodeVector{final_hidden_states},
+                                           ov::ParameterVector{final_hidden_states_, softmax_Softmax, hidden_states_2d});
     }
 
     void SetUp() override {
@@ -190,29 +221,11 @@ public:
         };
         // final_hidden_states/f32[batch * seq_length, 2048]
         create_input(function->get_parameters()[0], {bs, 2048}, 0.0f, 0.f);
-        // expert_mask/i64[128, 8, batch]
-        {
-            auto param = function->get_parameters()[1];
-            ov::Shape shape{_expert_num, _topk, bs};
-            ov::Tensor t{ov::element::i64, shape};
-            auto* p = static_cast<int64_t*>(t.data());
-            memset(p, 0, shape[0] * shape[1] * shape[2] * sizeof(int64_t));
-            size_t expert_start = is_then ? 0 : 1;
-            for (size_t j = expert_start; j < shape[1] + expert_start; j++) {
-                // current expert
-                auto expert = p + j * shape[1] * shape[2];
-                // topk[1] is valid for each batch
-                expert += shape[2] * 1;
-                for (size_t i = 0; i < shape[2]; i++)
-                    expert[i] = 1;
-            }
+        // softmax_out[batch * seq_length, 128]
+        create_input(function->get_parameters()[1], {bs, _expert_num}, 0.9f, -0.1f);
+        // hidden_states/f32[batch * seq_length, 2048]
+        create_input(function->get_parameters()[2], {bs, 2048}, -1.f, 0.0001f);
 
-            inputs.insert({param, t});
-        }
-        // hidden_states/f32[1, batch * seq_length, 2048]
-        create_input(function->get_parameters()[2], {1ul, bs, 2048}, -1.f, 0.0001f);
-        // routing_weights/f32[batch * 8, 1]
-        create_input(function->get_parameters()[3], {bs * _topk, 1ul}, 1.f, 1.f);
     }
 
     void prepare() {
@@ -256,9 +269,12 @@ public:
 TEST_P(MOEExpertTest, Inference_then) {
     auto actualOutputs = run_test(function, true);
     check_op("moe_expert", 1);
+    check_op("OneHot", 0);
     configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
     auto expectedOutputs = run_test(functionRefs, true);
     check_op("moe_expert", 0);
+    check_op("OneHot", 1);
+
     for (size_t i = 0; i < actualOutputs.size(); i++) {
        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
     }

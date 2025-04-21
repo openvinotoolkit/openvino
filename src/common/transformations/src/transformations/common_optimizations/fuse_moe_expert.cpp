@@ -13,6 +13,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/opsets/opset15.hpp"
@@ -990,6 +991,82 @@ ov::pass::FuseMoeExpertPlain::FuseMoeExpertPlain() {
             ov::replace_node(last_node, new_node);
             register_new_node(new_node);
         }
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+ov::pass::FuseMoeExpertOneHot::FuseMoeExpertOneHot() {
+    MATCHER_SCOPE(FuseMoeExpertOneHot);
+
+    // param1: [batch*seq, 2048]
+    auto final_hidden_states = makePattern(ov::Rank(2));
+    // f32[?,128]
+    auto softmax_Softmax = makePattern(ov::Rank(2)); // std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::Shape{256, 8, batch});
+    auto topk_TopK = makePattern<opset11::TopK>({softmax_Softmax, pattern::any_input()});   //  tensor_array<f32[?,8] i64[?,8]> __module.model.model.layers.3.mlp/aten::topk/TopK(__module.model.model.layers.3.mlp/aten::softmax/Softmax, 290)
+    topk_TopK->set_output_size(2);
+    auto sum_ReduceSum = makePattern<opset1::ReduceSum>({topk_TopK->output(0), {-1}}, {{"keep_dims", true}});   //  tensor_array<f32[?,1]> __module.model.model.layers.3.mlp/aten::sum/ReduceSum(__module.model.model.layers.3.mlp/aten::topk/TopK[0], Constant_78291)
+    auto div__Divide = makePattern<opset1::Divide>({topk_TopK->output(0), sum_ReduceSum}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});   //  tensor_array<f32[?,8]> __module.model.model.layers.3.mlp/aten::div_/Divide(__module.model.model.layers.3.mlp/aten::topk/TopK[0], __module.model.model.layers.3.mlp/aten::sum/ReduceSum)
+    //auto one_hot_OneHot = makePattern<opset1::OneHot>({topk_TopK->output(1), 128, 1, 0}, {{"axis", 2}});   //  tensor_array<i64[?,8,128]> __module.model.model.layers.3.mlp/aten::one_hot/OneHot(__module.model.model.layers.3.mlp/aten::topk/TopK[1], __module.model.model.layers.0.mlp/aten::one_hot/Convert_1, __module.model.model.layers.3.mlp/aten::one_hot/Constant_3, __module.model.model.layers.3.mlp/aten::one_hot/Constant)
+    auto one_hot_OneHot = makePattern<opset1::OneHot>({topk_TopK->output(1), pattern::any_input(), pattern::any_input(), pattern::any_input()}, {{"axis", 2}});
+    // param2: expert_mask: [128, 8, batch]
+    auto permute_Transpose = makePattern<opset1::Transpose>({one_hot_OneHot, {2, 1, 0}});   //  tensor_array<i64[128,8,?]> __module.model.model.layers.3.mlp/aten::permute/Transpose(__module.model.model.layers.3.mlp/aten::one_hot/OneHot, Constant_78475)
+
+    // hidden_states_2d: f32[-1, 2048]
+    auto view_Reshape = makePattern(ov::Rank(2));
+    // param3: hidden_states: f32[1, -1, 2048]
+    auto unsqueeze_Unsqueeze = makePattern<opset1::Unsqueeze>({view_Reshape, 0});   //  tensor_array<f32[1,?,2048]> __module.model.model.layers.3.mlp/aten::unsqueeze/Unsqueeze(__module.model.model.layers.3.mlp/aten::view/Reshape, 160)
+
+    auto unsqueeze_Unsqueeze_1 = makePattern<opset1::Unsqueeze>({div__Divide, 2});   //  tensor_array<f32[?,8,1]> __module.model.model.layers.3.mlp/aten::unsqueeze/Unsqueeze_1(__module.model.model.layers.3.mlp/aten::div_/Divide, 298)
+    auto index_ShapeOf_1 = makePattern<opset3::ShapeOf>({unsqueeze_Unsqueeze_1}, {{"output_type", "i32"}});   //  tensor_array<i32[3]> __module.model.model.layers.3.mlp/aten::index/ShapeOf_1(__module.model.model.layers.3.mlp/aten::unsqueeze/Unsqueeze_1)
+    auto index_Slice = makePattern<opset8::Slice>({index_ShapeOf_1, {0}, {2}, {1}, {0}});   //  tensor_array<i32[2]> __module.model.model.layers.3.mlp/aten::index/Slice(__module.model.model.layers.3.mlp/aten::index/ShapeOf_1, Constant_639495, Constant_639494, Constant_639496, Constant_639498)
+    auto index_ReduceProd = makePattern<opset1::ReduceProd>({index_Slice, 0}, {{"keep_dims", true}});   //  tensor_array<i32[1]> __module.model.model.layers.3.mlp/aten::index/ReduceProd(__module.model.model.layers.3.mlp/aten::index/Slice, Constant_639499)
+    auto index_Concat = makePattern<opset1::Concat>({index_ReduceProd, {-1}}, {{"axis", 0}});   //  tensor_array<i32[2]> __module.model.model.layers.3.mlp/aten::index/Concat(__module.model.model.layers.3.mlp/aten::index/ReduceProd, Constant_639501)
+    // param4: routing weights: [self.topk * batch, 1]
+    auto index_Reshape = makePattern<opset1::Reshape>({unsqueeze_Unsqueeze_1, index_Concat}, {{"special_zero", true}});   //  tensor_array<f32[?,?]> __module.model.model.layers.3.mlp/aten::index/Reshape(__module.model.model.layers.3.mlp/aten::unsqueeze/Unsqueeze_1, __module.model.model.layers.3.mlp/aten::index/Concat)
+
+    auto moe_expert03 = makePattern<ov::op::internal::MOEExpert2>({final_hidden_states, permute_Transpose, unsqueeze_Unsqueeze, index_Reshape});   //  tensor_array<f32[?,2048]> moe_expert0(__module.model.model.layers.0.mlp/aten::zeros/Broadcast, __module.model.model.layers.3.mlp/aten::permute/Transpose, __module.model.model.layers.3.mlp/aten::unsqueeze/Unsqueeze, __module.model.model.layers.3.mlp/aten::index/Reshape)
+    //auto reshape_Reshape_128 = makePattern<opset1::Reshape>({moe_expert03, pattern::any_input()}, {{"special_zero", false}});   //  tensor_array<f32[?,1,2048]> __module.model.model.layers.3.mlp/aten::reshape/Reshape_128(moe_expert0, ShapeOf_3143693)
+    auto result = moe_expert03;
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        PatternValidator validator(m);
+        if (!validator) {
+            return false;
+        }
+
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+        // f32[batch*seq, 2048]
+        auto final_hidden_states_node = pattern_map.at(final_hidden_states).get_node_shared_ptr();
+        // f32[batch*seq, 8]
+        auto div__Divide_node = pattern_map.at(div__Divide).get_node_shared_ptr();
+        // i64[batch*seq, 8]
+        auto batch_out = pattern_map.at(topk_TopK).get_node_shared_ptr()->output(1);
+        // f32[batch*seq, 2048]
+        auto hidden_states_2d = pattern_map.at(view_Reshape).get_node_shared_ptr();
+        // f32[batch*seq, 2048]
+        auto moe_node = pattern_map.at(moe_expert03).get_node_shared_ptr();
+        // f32[batch*seq, 1, 2048]
+        //auto reshape_moe = pattern_map.at(reshape_Reshape_128).get_node_shared_ptr();
+
+        auto moe = ov::as_type_ptr<op::internal::MOEExpert2>(moe_node);
+
+        OutputVector new_args(4);
+        // final_hidden_states: f32[batch*seq, 2048]
+        // topk_index: i32[batch*seq, 8]
+        // hidden_states_2d: f32[batch*seq, 2048]
+        // topk_routing_weight: f32[batch*seq, 8]
+        new_args[0] = final_hidden_states_node;
+        new_args[1] = batch_out;
+        new_args[2] = hidden_states_2d;
+        new_args[3] = div__Divide_node;
+        moe->set_arguments(new_args);
+
+        moe->set_friendly_name(std::string("moe_expert_onehot"));
+
         return true;
     };
 
