@@ -6,6 +6,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/pass/pattern/op/op.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 
 namespace ov::pass::pattern {
@@ -63,35 +64,33 @@ void collect_wrap_info(std::vector<DiscreteTypeInfo>& info) {
     collect_wrap_info<Targs...>(info);
 }
 
-template <class... Args, typename TPredicate>
-std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const TPredicate& pred, const Attributes& attrs = {}) {
+template <class... Args,
+          typename TPredicate,
+          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate>>* = nullptr>
+std::shared_ptr<Node> wrap_type(const PatternOps& inputs, const TPredicate& pred, const Attributes& attrs = {}) {
     std::vector<DiscreteTypeInfo> info;
     collect_wrap_info<Args...>(info);
     return std::make_shared<op::WrapType>(
         info,
         (attrs.empty() ? op::Predicate(pred) : attrs_match(attrs) && op::Predicate(pred)),
-        inputs);
+        ov::OutputVector(inputs));
 }
 
 template <class... Args,
           typename TPredicate,
-          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate>>* = nullptr>
+          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate> &&
+                                    !std::is_constructible_v<std::vector<PatternOp>, TPredicate>>* = nullptr>
 std::shared_ptr<Node> wrap_type(const TPredicate& pred, const Attributes& attrs = {}) {
-    return wrap_type<Args...>({}, op::Predicate(pred), attrs);
+    return wrap_type<Args...>(PatternOps{}, op::Predicate(pred), attrs);
 }
 
 template <class... Args>
-std::shared_ptr<Node> wrap_type(const OutputVector& inputs, const Attributes& attrs = {}) {
+std::shared_ptr<Node> wrap_type(const PatternOps& inputs = {}, const Attributes& attrs = {}) {
     return wrap_type<Args...>(inputs, (attrs.empty() ? op::Predicate() : attrs_match(attrs)));
 }
 
 template <class... Args>
-std::shared_ptr<Node> wrap_type(std::initializer_list<Output<Node>>&& inputs, const Attributes& attrs = {}) {
-    return wrap_type<Args...>(OutputVector(inputs), attrs);
-}
-
-template <class... Args>
-std::shared_ptr<Node> wrap_type(const Attributes& attrs = {}) {
-    return wrap_type<Args...>({}, attrs);
+std::shared_ptr<Node> wrap_type(std::initializer_list<std::pair<const std::string, ov::Any>>&& attrs) {
+    return wrap_type<Args...>(PatternOps{}, Attributes(attrs));
 }
 }  // namespace ov::pass::pattern

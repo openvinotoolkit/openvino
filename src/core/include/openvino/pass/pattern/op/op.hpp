@@ -1,40 +1,69 @@
-//// Copyright (C) 2018-2025 Intel Corporation
-//// SPDX-License-Identifier: Apache-2.0
-////
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-//#pragma once
-//
-//#include "openvino/pass/pattern/op/predicate.hpp"
-//
-// namespace ov::pass::pattern {
-//// A glue/syntax-sugar type which allows more types to be used as input to pattern operations
-// struct PatternOp {
-//     std::shared_ptr<ov::Node> op;
-//     size_t output_idx;
-//
-//     operator ov::Output<ov::Node>() const;
-//     ov::Output<ov::Node> get_output() const;
-//
-//     PatternOp();
-//     PatternOp(const Output<Node> &out);
-//
-//     template <typename TPredicate,
-//               typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate>>>* = nullptr>
-//     PatternOp(PredicateT pred) {
-//         op = any_input(pred);
-//     }
-//
-//     PatternOp(ov::Rank rank);
-//
-//     // Constant matching
-//     PatternOp(std::string value_notation);
-//     PatternOp(int v);
-//     PatternOp(float v);
-//     PatternOp(double v);
-//     PatternOp(long long v);
-//     PatternOp(std::initializer_list<int> v);
-//     PatternOp(std::initializer_list<float> v);
-//     PatternOp(std::initializer_list<double> v);
-//     PatternOp(std::initializer_list<long> v);
-// };
-// }
+
+#pragma once
+
+#include <variant>
+
+#include "openvino/op/constant.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/predicate.hpp"
+
+namespace ov::pass::pattern {
+// A glue/syntax-sugar type which allows more types to be used as input to pattern operations
+struct OPENVINO_API PatternOp {
+private:
+    std::shared_ptr<ov::Node> op;
+    int64_t output_idx = -1;
+
+public:
+    operator ov::Output<ov::Node>() const;
+    ov::Output<ov::Node> get_output() const;
+
+    PatternOp(const Output<Node>& out);
+    PatternOp(const std::shared_ptr<Node>& op);
+    PatternOp(const std::shared_ptr<ov::op::Op>& op);
+    PatternOp(const std::shared_ptr<op::Or>& op);
+    PatternOp(const std::shared_ptr<ov::op::v0::Constant>& op);
+    PatternOp(ov::Rank rank);
+
+    // Constant matching
+    PatternOp(const char* value_notation);
+    PatternOp(std::string value_notation);
+    PatternOp(int v);
+    PatternOp(float v);
+    PatternOp(double v);
+    PatternOp(long long v);
+
+    PatternOp(std::initializer_list<const char*>&& v);
+    PatternOp(std::initializer_list<const std::string>&& v);
+    PatternOp(std::initializer_list<const int>&& v);
+    PatternOp(std::initializer_list<const float>&& v);
+    PatternOp(std::initializer_list<const double>&& v);
+    PatternOp(std::initializer_list<const long long>&& v);
+};
+
+// Syntax-sugar type for pattern operators to consume all the different ways to pass containter of inputs with use of
+// PatternOp
+struct OPENVINO_API PatternOps {
+private:
+    std::vector<PatternOp> data;
+
+public:
+    PatternOps();
+
+    // single element
+    template <typename T, typename std::enable_if_t<std::is_constructible_v<PatternOp, T>>* = nullptr>
+    PatternOps(const T& in) : data{PatternOp(in)} {};
+    PatternOps(const std::shared_ptr<Node>&);
+    PatternOps(const Output<Node>&);
+
+    // multi-element
+    PatternOps(const OutputVector&);
+    PatternOps(std::initializer_list<pattern::PatternOp>&&);
+
+    explicit operator ov::OutputVector() const;
+};
+
+}  // namespace ov::pass::pattern

@@ -34,11 +34,13 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -540,7 +542,7 @@ TEST(pattern, or_pattern_points_the_selected_branch) {
     // Pattern:
     auto option_1 = wrap_type<v0::Parameter>();
     auto option_2 = wrap_type<v0::Sigmoid>();
-    auto or_pattern = std::make_shared<pattern::op::Or>(ov::OutputVector{option_1, option_2});
+    auto or_pattern = option_1 | option_2;
 
     // Test:
     TestMatcher matcher;
@@ -1518,6 +1520,23 @@ TEST(pattern, predicate_attr_match) {
     ASSERT_TRUE(tm.match(pattern_numpy_or_pdpd, mul_numpy));
     ASSERT_TRUE(tm.match(pattern_numpy_or_pdpd, mul_pdpd));
     ASSERT_FALSE(tm.match(pattern_numpy_or_pdpd, mul_none));
+
+    auto num_splits_pattern = pattern::any_input({{"num_splits", 3}});
+    auto split = std::make_shared<op::v1::Split>(input, op::v0::Constant::create(element::i64, {}, {0}), 3);
+    ASSERT_TRUE(tm.match(num_splits_pattern, split));
+
+    auto ss = std::make_shared<op::v1::StridedSlice>(input,
+                                                     op::v0::Constant::create(element::i64, {1}, {0}),
+                                                     op::v0::Constant::create(element::i64, {1}, {-1}),
+                                                     op::v0::Constant::create(element::i64, {1}, {1}),
+                                                     std::vector<int64_t>{0, 1},
+                                                     std::vector<int64_t>{1, 0});
+
+    auto ss_pattern = pattern::any_input({{"begin_mask", std::vector<int64_t>{0, 1}}});
+    // TODO: to allow initializer list as attribute value -- need to update ov::Attribute value type -- wrap ov::Any and
+    //  allow implicit conversion from initializer lists of different types.
+    //  For now it seems excessive as it impacts quality of life of limited number of developers aka there is a WA
+    ASSERT_TRUE(tm.match(ss_pattern, ss));
 }
 
 TEST(pattern, predicate_value_match) {
@@ -1539,4 +1558,24 @@ TEST(pattern, predicate_value_match) {
 
     auto pattern_neg_d = pattern::any_input(pattern::value_matches("[-1.5, -0.1, 1.25, 2.65]"));
     ASSERT_FALSE(tm.match(pattern_neg_d, constant_d));
+}
+
+TEST(pattern, predicate_syntactic_sugar) {
+    TestMatcher tm;
+    auto pattern_with_constant_inputs =
+        pattern::wrap_type<op::v1::VariadicSplit>({pattern::any_input(), 3, {"count", "-1"}});
+
+    auto vsplit = std::make_shared<op::v1::VariadicSplit>(
+        std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{1, -1, -1, 10}),
+        op::v0::Constant::create(element::i64, {}, vector<int8_t>{3}),
+        op::v0::Constant::create(element::i64, {2}, vector<int8_t>{4, -1}));
+    vsplit->set_output_size(2);
+    ASSERT_TRUE(tm.match_value(pattern_with_constant_inputs, vsplit->output(0)));
+    const auto& symbols = tm.get_symbols();
+    ASSERT_TRUE(symbols.count("count") && symbols.at("count").i() == 4);
+
+    // different ways to pass single input to the pattern op
+    ASSERT_NO_THROW(pattern::wrap_type<op::v0::Relu>(pattern::any_input()));
+    ASSERT_NO_THROW(pattern::wrap_type<op::v0::Relu>(pattern::wrap_type<op::v0::Relu>()));
+    ASSERT_NO_THROW(pattern::wrap_type<op::v0::Relu>("[-1,0,1]"));
 }
