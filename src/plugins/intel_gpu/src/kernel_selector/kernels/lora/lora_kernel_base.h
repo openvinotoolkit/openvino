@@ -34,6 +34,7 @@ public:
 
 protected:
     bool Validate(const Params&) const override;
+    Datatype GetAccumulatorType(const lora_params& params) const;
     virtual JitConstants GetJitConstants(const lora_params& params) const;
 };
 }  // namespace kernel_selector

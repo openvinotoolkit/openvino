@@ -70,11 +70,8 @@ struct lora_impl : multi_stage_primitive<lora> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, lora_inst& instance) override {
-        const auto& lora_input_shape = instance.get_impl_params()->get_input_layout(1).get_shape();
-        bool is_first_token = lora_input_shape[0] * lora_input_shape[1] > 1;
-
         if (is_optimized_kernel_supported(instance)) {
-            return execute_stage(events, instance, optimized_kernel, is_first_token);
+            return execute_stage(events, instance, optimized_kernel);
         } else {
             return execute_stage(events, instance, reference_kernel);
         }
@@ -82,15 +79,11 @@ struct lora_impl : multi_stage_primitive<lora> {
 
     void set_arguments_impl(lora_inst& instance) override {}
 
-    event::ptr execute_stage(const std::vector<event::ptr>& events, lora_inst& instance, size_t stage, bool is_first_token = true) {
+    event::ptr execute_stage(const std::vector<event::ptr>& events, lora_inst& instance, size_t stage) {
         stream& stream = instance.get_network().get_stream();
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
         size_t kernel_offset = 0;
-
-        if (is_first_token && stage == optimized_kernel) {
-            stage = reference_kernel;
-        }
 
         for (size_t s = 0; s < stage; s++) {
             kernel_offset += _kernels_data[s].kernels.size();
@@ -98,15 +91,6 @@ struct lora_impl : multi_stage_primitive<lora> {
         for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); ++kd_idx) {
             if (_kernels_data[stage].kernels[kd_idx].skip_execution)
                 continue;
-
-            if (stage == optimized_kernel) {
-                if (is_first_token && (kd_idx == 2 || kd_idx == 3)) {
-                    continue;
-                }
-                if (!is_first_token && (kd_idx == 0 || kd_idx == 1)) {
-                    continue;
-                }
-            }
 
             size_t idx_final = kernel_offset + kd_idx;
             // If any user of the desc's users is CPU implementation or network's output, set desc as a output event (event won't be nullptr)

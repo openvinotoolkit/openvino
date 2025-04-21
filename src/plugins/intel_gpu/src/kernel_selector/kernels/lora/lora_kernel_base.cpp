@@ -11,14 +11,17 @@ bool LoRAKernelBase::Validate(const Params& p) const {
     return p.GetType() == KernelType::LORA;
 }
 
+Datatype LoRAKernelBase::GetAccumulatorType(const lora_params& params) const {
+    return params.inputs[0].GetDType();
+}
+
 JitConstants LoRAKernelBase::GetJitConstants(const lora_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     const auto& state_dtype = params.inputs[2].GetDType();
     jit.Merge(MakeTypeJitConstants(state_dtype, "STATE"));
 
-    auto acc_dt = params.inputs[0].GetDType();
-    jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     DimensionAccessHelperJit dims(params.inputs[3]);
     jit.AddConstant(MakeJitConstant("LORA_RANK", dims.f()));
