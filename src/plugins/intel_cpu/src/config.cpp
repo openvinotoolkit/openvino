@@ -159,6 +159,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 error_info();
             }
+        } else if (key == ov::hint::is_test.name()) {
+            try {
+                isTest = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::is_test.name(),
+                               ". Expected only true/false.");
+            }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
             try {
                 enableHyperThreading = val.as<bool>();

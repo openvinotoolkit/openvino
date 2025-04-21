@@ -41,6 +41,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::hint::enable_cpu_reservation.name()),
         RO_property(ov::hint::scheduling_core_type.name()),
         RO_property(ov::hint::model_distribution_policy.name()),
+        RO_property(ov::hint::is_test.name()),
         RO_property(ov::hint::enable_hyper_threading.name()),
         RO_property(ov::execution_devices.name()),
         RO_property(ov::intel_cpu::denormals_optimization.name()),
@@ -525,6 +526,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
     std::shared_ptr<ov::Model> model = ov::test::utils::make_matmul_bias();
     std::set<ov::hint::ModelDistributionPolicy> setModels = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
     ov::AnyMap config = {{ov::hint::model_distribution_policy.name(), setModels},
+                         {ov::hint::is_test.name(), true},
                          {ov::num_streams.name(), 1},
                          {ov::inference_num_threads.name(), 1}};
 
@@ -532,8 +534,11 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
     ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
 
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy_value = {};
+    bool is_test = false;
     OV_ASSERT_NO_THROW(model_distribution_policy_value = compiledModel.get_property(ov::hint::model_distribution_policy));
+    OV_ASSERT_NO_THROW(is_test = compiledModel.get_property(ov::hint::is_test));
     ASSERT_EQ(model_distribution_policy_value, setModels);
+    ASSERT_EQ(is_test, true);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallelAccurcay) {

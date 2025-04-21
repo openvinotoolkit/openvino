@@ -49,6 +49,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::hint::enable_cpu_reservation.name()),
         RW_property(ov::hint::scheduling_core_type.name()),
         RW_property(ov::hint::model_distribution_policy.name()),
+        RW_property(ov::hint::is_test.name()),
         RW_property(ov::hint::enable_hyper_threading.name()),
         RW_property(ov::device::id.name()),
         RW_property(ov::intel_cpu::denormals_optimization.name()),

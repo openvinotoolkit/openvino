@@ -276,6 +276,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::enable_cpu_reservation.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
             RO_property(ov::hint::model_distribution_policy.name()),
+            RO_property(ov::hint::is_test.name()),
             RO_property(ov::hint::enable_hyper_threading.name()),
             RO_property(ov::execution_devices.name()),
             RO_property(ov::intel_cpu::denormals_optimization.name()),
@@ -339,6 +340,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::hint::model_distribution_policy) {
         const auto& distribution_policy = config.modelDistributionPolicy;
         return distribution_policy;
+    }
+    if (name == ov::hint::is_test) {
+        const auto& is_test = config.isTest;
+        return is_test;
     }
     if (name == ov::hint::enable_hyper_threading.name()) {
         const bool use_ht = config.enableHyperThreading;

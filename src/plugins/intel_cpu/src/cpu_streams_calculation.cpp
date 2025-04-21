@@ -48,6 +48,7 @@ std::vector<std::vector<int>> get_streams_info_table(
     const int input_threads,
     const int input_infer_requests,
     const int model_prefer_threads,
+    const bool is_test,
     const std::string& input_perf_hint,
     const std::set<ov::hint::ModelDistributionPolicy>& hint_model_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table) {
@@ -503,7 +504,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                 }
             }
 
-            if ((total_streams == 1) && (proc_type_table.size() == 1) &&
+            if ((total_streams == 1) && (proc_type_table.size() == 1) && is_test &&
                 (hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
                  hint_model_distribution_policy.end())) {
                 streams_info_table.push_back(streams_info_table[0]);
@@ -729,6 +730,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      config.threads,
                                                      config.hintNumRequests,
                                                      model_prefer_threads,
+                                                     config.isTest,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);
