@@ -33,7 +33,7 @@ dnnl::memory::dims get_strides(dnnl::memory::dims dims);
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt);
 dnnl::memory::format_tag convert_data_format(cldnn::format fmt);
 cldnn::format convert_data_format(dnnl::memory::format_tag fmt);
-dnnl::memory::format_tag get_default_data_format(cldnn::layout& l);
+dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l);
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target);
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef, bool flatten = false);
 dnnl::algorithm convert_activation_func(cldnn::activation_func func);
