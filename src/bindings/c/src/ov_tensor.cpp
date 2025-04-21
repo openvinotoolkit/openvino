@@ -122,13 +122,16 @@ ov_status_e ov_tensor_get_shape(const ov_tensor_t* tensor, ov_shape_t* shape) {
     if (!tensor) {
         return ov_status_e::INVALID_C_PARAM;
     }
+    ov_status_e status = ov_status_e::OK;
     try {
         auto tmp_shape = tensor->object->get_shape();
-        ov_shape_create(tmp_shape.size(), nullptr, shape);
-        std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
+        status = ov_shape_create(tmp_shape.size(), nullptr, shape);
+        if (status == ov_status_e::OK) {
+            std::copy_n(tmp_shape.begin(), tmp_shape.size(), shape->dims);
+        }
     }
     CATCH_OV_EXCEPTIONS
-    return ov_status_e::OK;
+    return status;
 }
 
 ov_status_e ov_tensor_set_string_data(ov_tensor_t* tensor, const char** string_array, const size_t array_size) {

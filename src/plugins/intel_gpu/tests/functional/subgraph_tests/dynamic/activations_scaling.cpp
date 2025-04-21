@@ -17,6 +17,10 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -151,7 +155,7 @@ protected:
 
         auto add = std::make_shared<ov::op::v1::Add>(concat0, concat1);
 
-        return std::make_shared<ov::Model>(ov::NodeVector{add}, params, "ActivationsScaling");
+        return std::make_shared<ov::Model>(ov::OutputVector{add}, params, "ActivationsScaling");
     }
 
     void SetUp() override {

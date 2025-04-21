@@ -563,7 +563,7 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                         // first block may have pre-filled data, the offset of first block is prev_nums, following
                         // blocks have offset = block_size
                         valid_length =
-                            std::min(static_cast<size_t>(q_len) - block_size * block_id - prev_nums, block_size);
+                            std::min(static_cast<size_t>(q_len) + prev_nums - block_size * block_id, block_size);
                     }
                     if (is_first_block && prev_nums) {
                         attn_dequant_u8_by_channel_kernel(p_k,
