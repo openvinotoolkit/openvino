@@ -15,6 +15,7 @@ cmake-build*
 *.idea
 .vscode
 .vs/
+out/
 .vsconan/
 .DS_Store
 **/tags
