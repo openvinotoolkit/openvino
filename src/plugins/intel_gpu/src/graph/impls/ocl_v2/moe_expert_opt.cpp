@@ -431,7 +431,7 @@ protected:
     }
 };
 
-#define N_BLOCK 8
+#define N_BLOCK 4
 #define SUBGROUP_NUM 8
 
 static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
@@ -442,7 +442,7 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("HIDDEN_SIZE", desc->get_hidden_size());
     jit.make("INTERMEDIATE_SIZE", desc->get_intermediate_size());
     jit.make("N_BLOCK", N_BLOCK);
-    jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
+    jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 16 : 16);
     jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
     jit.make("GROUP_SIZE", desc->get_group_size());
     jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
@@ -699,7 +699,7 @@ public:
             mem_lock<int32_t, mem_lock_type::write> lock_data{expert_weight_ptr, stream};
             memcpy(lock_data.data(), _expert_weight_pointers.data(), _expert_weight_pointers.size() * sizeof(expert_info));
         }
-        const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
+        const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 16 : 16;
         // scratch.up = up(x) * silu(gate(x))
         execute_stage({},
                       instance,
