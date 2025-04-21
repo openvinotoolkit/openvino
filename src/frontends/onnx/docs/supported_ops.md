@@ -118,7 +118,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Mul                                                     |7, 1                    |14, 13, 7, 6, 1                 |                                |
 |                        |Multinomial                                             |7                       |22, 7                           |                                |
 |                        |Neg                                                     |1                       |13, 6, 1                        |                                |
-|                        |NegativeLogLikelihoodLoss                               |                        |22, 13, 12                      |                                |
+|                        |NegativeLogLikelihoodLoss                               |12                      |22, 13, 12                      |                                |
 |                        |NonMaxSuppression                                       |10                      |11, 10                          |                                |
 |                        |NonZero                                                 |9                       |13, 9                           |                                |
 |                        |Not                                                     |1                       |1                               |                                |
@@ -174,7 +174,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Shrink                                                  |9                       |9                               |                                |
 |                        |Sigmoid                                                 |1                       |13, 6, 1                        |                                |
 |                        |Sign                                                    |9                       |13, 9                           |                                |
-|                        |SimplifiedLayerNormalization                            |                        |1                               |                                |
+|                        |SimplifiedLayerNormalization                            |1                       |1                               |                                |
 |                        |Sin                                                     |7                       |22, 7                           |                                |
 |                        |Sinh                                                    |9                       |22, 9                           |                                |
 |                        |Size                                                    |1                       |21, 19, 13, 1                   |                                |
@@ -248,7 +248,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |GreedySearch                                            |                        |1                               |                                |
 |com.microsoft           |GridSample                                              |                        |1                               |                                |
 |com.microsoft           |GroupNorm                                               |                        |1                               |                                |
-|com.microsoft           |GroupQueryAttention                                     |                        |1                               |                                |
+|com.microsoft           |GroupQueryAttention                                     |1                       |1                               |                                |
 |com.microsoft           |Inverse                                                 |                        |1                               |                                |
 |com.microsoft           |Irfft                                                   |                        |1                               |                                |
 |com.microsoft           |LongformerAttention                                     |                        |1                               |                                |
@@ -301,7 +301,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |RotaryEmbedding                                         |                        |1                               |                                |
 |com.microsoft           |SampleOp                                                |                        |1                               |                                |
 |com.microsoft           |Sampling                                                |                        |1                               |                                |
-|com.microsoft           |SimplifiedLayerNormalization                            |1                       |1                               |                                |
+|com.microsoft           |SimplifiedLayerNormalization                            |                        |1                               |                                |
 |com.microsoft           |SkipGroupNorm                                           |                        |1                               |                                |
 |com.microsoft           |SkipLayerNormalization                                  |1                       |1                               |                                |
 |com.microsoft           |SkipSimplifiedLayerNormalization                        |1                       |1                               |                                |
