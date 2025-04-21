@@ -6,6 +6,7 @@
 #include <initializer_list>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_ocl.hpp>
+#include <sstream>
 #include <string_view>
 #include <tuple>
 #include <utility>
@@ -434,7 +435,7 @@ protected:
 #define N_BLOCK 4
 #define SUBGROUP_NUM 8
 
-static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
+static void add_common_consts(const RuntimeParams& params, JitConstants& jit, bool gen_weights_ptr = true) {
     auto desc = params.typed_desc<moe_expert>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
@@ -447,6 +448,53 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("GROUP_SIZE", desc->get_group_size());
     jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+    if (gen_weights_ptr) {
+        // typedef struct {
+        //     __global void* weight[3];
+        //     __global void* zp[3];
+        //     __global void* scale[3];
+        // } FUNC(expert_info);
+        const auto& params = desc->_mlp_params;
+        std::stringstream buf;
+        for (size_t i = 0; i < params.size(); i++) {
+            const auto& param = params[i];
+            buf << "{{";
+            for (size_t j = 0; j < 3; j++) {
+#ifdef _WIN32
+                buf << "0x" << param.param[j].weight->buffer_ptr();
+#else
+                buf << param.param[j].weight->buffer_ptr();
+#endif
+                if (j != 3 - 1)
+                    buf << ",";
+            }
+            buf << "},{";
+            for (size_t j = 0; j < 3; j++) {
+#ifdef _WIN32
+                buf << "0x" << param.param[j].zp->buffer_ptr();
+#else
+                buf << param.param[j].zp->buffer_ptr();
+#endif
+                if (j != 3 - 1)
+                    buf << ",";
+            }
+            buf << "},{";
+            for (size_t j = 0; j < 3; j++) {
+#ifdef _WIN32
+                buf << "0x" << param.param[j].scale->buffer_ptr();
+#else
+                buf << param.param[j].scale->buffer_ptr();
+#endif
+                if (j != 3 - 1)
+                    buf << ",";
+            }
+            if (i != params.size() - 1)
+                buf << "}},";
+            else
+                buf << "}}";
+        }
+        jit.make("WEIGHT_POINTERS", buf.str());
+    }
 }
 
 class MoeExpertOptMLPGateUp : public KernelGenerator {
@@ -507,7 +555,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_expert>();
-        add_common_consts(params, jit);
+        add_common_consts(params, jit, false);
         jit.make("REDUCE_ENABLE", 1);
         return jit;
     }
@@ -660,51 +708,25 @@ public:
         return std::make_tuple(mem, layout);
     }
 
-    std::vector<expert_info> _expert_weight_pointers;
-    cldnn::event::ptr exec_batch1(typed_primitive_inst<moe_expert>& instance, const expert_mask_scratch& expert_mask, expert_mask_tmp_scratch& scratch) {
+    cldnn::event::ptr exec_batch1(typed_primitive_inst<moe_expert>& instance, expert_mask_tmp_scratch& scratch) {
         int max_topk = static_cast<int>(instance.get_config().topk);
-        auto& cur_net = instance.get_network();
-        auto& stream = cur_net.get_stream();
         auto moe = instance.get_typed_desc<moe_expert>();
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+        auto batch_mem_ptr = instance.input_memory_ptr(1);
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 2);
-        auto [routing_mem_ptr, routing_layout] = get_input_info(instance, 3);
+        auto routing_mem_ptr = instance.input_memory_ptr(3);
 
-        const auto& moe_mlp_params = moe->_mlp_params;
         _hidden_size = static_cast<int>(moe->get_hidden_size());
         _intermediate_size = static_cast<int>(moe->get_intermediate_size());
         instance.get_tmp_memory(hidden_states_layout.data_type, max_topk, _hidden_size, _intermediate_size, max_topk, scratch);
-        _expert_weight_pointers.resize(max_topk);
 
-        for (size_t expert_no = 0, valid_expert_no = 0; expert_no < instance.get_config().expert_num; expert_no++) {
-            OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
-            auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
-            if (can_skip_subgraph) {
-                continue;
-            }
-            const auto& param = moe_mlp_params[expert_no];
-            _expert_weight_pointers[valid_expert_no].routing_offset = expert_mask.topk[expert_no][0];
-            for (int i = 0; i < 3; i++) {
-                _expert_weight_pointers[valid_expert_no].weight[i] = param.param[i].weight->buffer_ptr();
-                _expert_weight_pointers[valid_expert_no].zp[i] = param.param[i].zp->buffer_ptr();
-                _expert_weight_pointers[valid_expert_no].scale[i] = param.param[i].scale->buffer_ptr();
-            }
-            valid_expert_no++;
-        }
-
-        auto& expert_weight_ptr = scratch.expert_info;
-        OPENVINO_ASSERT(_expert_weight_pointers.size() * sizeof(expert_info) <= scratch.expert_info->size());
-        {
-            mem_lock<int32_t, mem_lock_type::write> lock_data{expert_weight_ptr, stream};
-            memcpy(lock_data.data(), _expert_weight_pointers.data(), _expert_weight_pointers.size() * sizeof(expert_info));
-        }
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 16 : 16;
         // scratch.up = up(x) * silu(gate(x))
         execute_stage({},
                       instance,
                       *mlp_gate_up,
-                      {expert_weight_ptr, hidden_states_mem_ptr},
+                      {batch_mem_ptr, hidden_states_mem_ptr},
                       {scratch.up},
                       {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
                       {1, subgroup_size, SUBGROUP_NUM});
@@ -712,7 +734,7 @@ public:
         execute_stage({},
                       instance,
                       *mlp_down,
-                      {expert_weight_ptr, scratch.up, routing_mem_ptr},
+                      {batch_mem_ptr, scratch.up, routing_mem_ptr},
                       {scratch.y},
                       {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
                       {1, subgroup_size, SUBGROUP_NUM});
@@ -827,6 +849,13 @@ public:
 
         instance.update_output_layout();
         instance.update_output_memory(batch != 1);
+        if (!cur_net.has_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key)) {
+            cur_net.set_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key, {});
+        }
+        expert_mask_tmp_scratch& scratch = cur_net.get_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key);
+        if (batch == 1) {
+            return exec_batch1(instance, scratch);
+        }
 
         expert_mask_scratch expert_mask;
         {
@@ -866,106 +895,99 @@ public:
 
         auto& dnn_stream = stream.get_onednn_stream();
 
-        if (!cur_net.has_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key)) {
-            cur_net.set_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key, {});
-        }
-        expert_mask_tmp_scratch& scratch = cur_net.get_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key);
         cldnn::event::ptr result_event;
-        if (batch == 1) {
-            result_event = exec_batch1(instance, expert_mask, scratch);
-        } else {
-            auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
-            auto final_hidden_states_layout = instance.get_output_layout(0);
-            auto [expert_mask_mem_ptr, expert_mask_layout] = get_input_info(instance, 1);
-            auto [routing_mem_ptr, routing_layout] = get_input_info(instance, 3);
-            auto get_best_lws = [](size_t hidden_size) {
-                const size_t candidate[] = {128, 64, 32, 16, 8};
-                for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {
-                    if (hidden_size % candidate[i] == 0) {
-                        return candidate[i];
-                    }
+
+        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+        auto final_hidden_states_layout = instance.get_output_layout(0);
+        auto [expert_mask_mem_ptr, expert_mask_layout] = get_input_info(instance, 1);
+        auto [routing_mem_ptr, routing_layout] = get_input_info(instance, 3);
+        auto get_best_lws = [](size_t hidden_size) {
+            const size_t candidate[] = {128, 64, 32, 16, 8};
+            for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {
+                if (hidden_size % candidate[i] == 0) {
+                    return candidate[i];
                 }
-                OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
-            };
-            auto lws_size = get_best_lws(_hidden_size);
+            }
+            OPENVINO_ASSERT(false, "hidden_size=", hidden_size, " is not divisible by any of ", sizeof(candidate) / sizeof(size_t), " candidates");
+        };
+        auto lws_size = get_best_lws(_hidden_size);
 
-            for (size_t expert_no = 0; expert_no < instance.get_config().expert_num; expert_no++) {
-                OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
-                auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
-                if (can_skip_subgraph) {
-                    continue;
+        for (size_t expert_no = 0; expert_no < instance.get_config().expert_num; expert_no++) {
+            OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
+            auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
+            if (can_skip_subgraph) {
+                continue;
+            }
+            auto& dnnl_weights = _dnnl_weights[expert_no];
+
+            expert_mask_mem_scratch* expert_mask_mem = nullptr;
+            if (batch != 1) {
+                auto key = expert_mask_mem_scratch_key + std::to_string(expert_no);
+                if (!cur_net.has_scratch<expert_mask_mem_scratch>(key)) {
+                    cur_net.set_scratch<expert_mask_mem_scratch>(key, {});
                 }
-                auto& dnnl_weights = _dnnl_weights[expert_no];
+                expert_mask_mem = &cur_net.get_scratch<expert_mask_mem_scratch>(key);
+                instance.copy_expert_mask_to_gpu(stream, expert_mask, expert_no, *expert_mask_mem);
+            }
 
-                expert_mask_mem_scratch* expert_mask_mem = nullptr;
-                if (batch != 1) {
-                    auto key = expert_mask_mem_scratch_key + std::to_string(expert_no);
-                    if (!cur_net.has_scratch<expert_mask_mem_scratch>(key)) {
-                        cur_net.set_scratch<expert_mask_mem_scratch>(key, {});
-                    }
-                    expert_mask_mem = &cur_net.get_scratch<expert_mask_mem_scratch>(key);
-                    instance.copy_expert_mask_to_gpu(stream, expert_mask, expert_no, *expert_mask_mem);
-                }
+            auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
+            instance.get_tmp_memory(hidden_states_layout.data_type, n_token, _hidden_size, _intermediate_size, max_topk, scratch);
+            onednn_kernel& kernel = get_kernel(batch == 1 ? 1 : n_token, static_cast<int>(expert_no), instance);
+            memory::ptr& x = batch == 1 ? hidden_states_mem_ptr : scratch.x;
 
-                auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
-                instance.get_tmp_memory(hidden_states_layout.data_type, n_token, _hidden_size, _intermediate_size, max_topk, scratch);
-                onednn_kernel& kernel = get_kernel(batch == 1 ? 1 : n_token, static_cast<int>(expert_no), instance);
-                memory::ptr& x = batch == 1 ? hidden_states_mem_ptr : scratch.x;
+            // gather
+            if (batch != 1) {
+                execute_stage(events,
+                                instance,
+                                *gather,
+                                {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem->batch, expert_mask_mem->topk},
+                                {x, scratch.routing_weights},
+                                {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
+                                {1, lws_size});
+            }
 
-                // gather
-                if (batch != 1) {
-                    execute_stage(events,
-                                  instance,
-                                  *gather,
-                                  {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem->batch, expert_mask_mem->topk},
-                                  {x, scratch.routing_weights},
-                                  {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
-                                  {1, lws_size});
-                }
+            // up
+            kernel.up.forward(dnn_stream,
+                                n_token,
+                                convert2dnnl(x, {static_cast<int>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                dnnl::memory());
 
-                // up
-                kernel.up.forward(dnn_stream,
-                                  n_token,
-                                  convert2dnnl(x, {static_cast<int>(n_token), dnnl_weights[1].ic}, dnnl::memory::format_tag::ab),
-                                  convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                  dnnl::memory());
+            // gate
+            kernel.gate.forward(dnn_stream,
+                                n_token,
+                                convert2dnnl(x, {static_cast<int>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
+                                convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
 
-                // gate
-                kernel.gate.forward(dnn_stream,
+            // down
+            if (batch == 1) {
+                kernel.down_batch1.forward(
+                    dnn_stream,
+                    1,
+                    convert2dnnl(scratch.gate, {static_cast<int>(1), _intermediate_size}, dnnl::memory::format_tag::ab),
+                    convert2dnnl(final_hidden_states_mem_ptr, {static_cast<int>(1), _hidden_size}, dnnl::memory::format_tag::ab),
+                    convert2dnnl(routing_mem_ptr,
+                                    {1},
+                                    dnnl::memory::format_tag::a,
+                                    expert_mask.topk[expert_no][0] * static_cast<int>(ov::element::Type(routing_layout.data_type).size())));
+                if (instance.needs_completion_event())
+                    result_event = stream.enqueue_marker({});
+            } else {
+                kernel.down.forward(dnn_stream,
                                     n_token,
-                                    convert2dnnl(x, {static_cast<int>(n_token), dnnl_weights[0].ic}, dnnl::memory::format_tag::ab),
                                     convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                    convert2dnnl(scratch.up, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab));
-
-                // down
-                if (batch == 1) {
-                    kernel.down_batch1.forward(
-                        dnn_stream,
-                        1,
-                        convert2dnnl(scratch.gate, {static_cast<int>(1), _intermediate_size}, dnnl::memory::format_tag::ab),
-                        convert2dnnl(final_hidden_states_mem_ptr, {static_cast<int>(1), _hidden_size}, dnnl::memory::format_tag::ab),
-                        convert2dnnl(routing_mem_ptr,
-                                     {1},
-                                     dnnl::memory::format_tag::a,
-                                     expert_mask.topk[expert_no][0] * static_cast<int>(ov::element::Type(routing_layout.data_type).size())));
-                    if (instance.needs_completion_event())
-                        result_event = stream.enqueue_marker({});
-                } else {
-                    kernel.down.forward(dnn_stream,
-                                        n_token,
-                                        convert2dnnl(scratch.gate, {static_cast<int>(n_token), _intermediate_size}, dnnl::memory::format_tag::ab),
-                                        convert2dnnl(scratch.y, {static_cast<int>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
-                                        convert2dnnl(scratch.routing_weights, {n_token * max_topk}, dnnl::memory::format_tag::a));
-                    // index add
-                    result_event = execute_stage(events,
-                                                 instance,
-                                                 *scatter,
-                                                 {scratch.y, expert_mask_mem->batch},
-                                                 {final_hidden_states_mem_ptr},
-                                                 {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
-                                                 {1, lws_size},
-                                                 instance.needs_completion_event());
-                }
+                                    convert2dnnl(scratch.y, {static_cast<int>(n_token), _hidden_size}, dnnl::memory::format_tag::ab),
+                                    convert2dnnl(scratch.routing_weights, {n_token * max_topk}, dnnl::memory::format_tag::a));
+                // index add
+                result_event = execute_stage(events,
+                                                instance,
+                                                *scatter,
+                                                {scratch.y, expert_mask_mem->batch},
+                                                {final_hidden_states_mem_ptr},
+                                                {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
+                                                {1, lws_size},
+                                                instance.needs_completion_event());
             }
         }
 

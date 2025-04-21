@@ -1053,8 +1053,6 @@ ov::pass::FuseMoeExpertOneHot::FuseMoeExpertOneHot() {
         //auto reshape_moe = pattern_map.at(reshape_Reshape_128).get_node_shared_ptr();
 
         auto moe = ov::as_type_ptr<op::internal::MOEExpert2>(moe_node);
-        op::internal::MOEExpert2::Config config = moe->get_config();
-        config.has_onehot = true;
 
         OutputVector new_args(4);
         // final_hidden_states: f32[batch*seq, 2048]
