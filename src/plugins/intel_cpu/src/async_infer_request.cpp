@@ -10,9 +10,9 @@ ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<IInferRequest>& request,
     const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
     const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
-    : ov::IAsyncInferRequest(request, task_executor, callback_executor) {
+    : ov::IAsyncInferRequest(request, task_executor, callback_executor),
+      m_internal_request(request) {
     static_cast<SyncInferRequest*>(request.get())->set_async_request(this);
-    m_internal_request = request;
 }
 
 ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
