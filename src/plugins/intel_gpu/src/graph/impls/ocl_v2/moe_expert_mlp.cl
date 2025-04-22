@@ -115,8 +115,6 @@ inline void gemv_n2x(const __global uchar* weight,
         float sum_all0 = 0;
         float sum_all1 = 0;
         for (int gk = 0; gk < K / GROUP_SIZE; gk++, S += N, Z += N / 2) {
-            half2 sum0;
-            half2 sum1;
             half s0 = S[0];
             half s1 = S[1];
             ushort z = Z[0];
@@ -124,6 +122,8 @@ inline void gemv_n2x(const __global uchar* weight,
             half z_hf1 = convert_half(z >> 4);
 
 #if SUBGROUP_SIZE == 32
+            half2 sum0;
+            half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk*GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk*GROUP_SIZE/2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K/2) + gk*GROUP_SIZE/2));
@@ -141,6 +141,8 @@ inline void gemv_n2x(const __global uchar* weight,
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z_hf1) * s1;
 #else
+            half4 sum0;
+            half4 sum1;
             half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk*GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk*GROUP_SIZE/2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K/2) + gk*GROUP_SIZE/2));
@@ -330,8 +332,6 @@ KERNEL (mlp_down)(
         float sum_all0 = 0;
         float sum_all1 = 0;
         for (int gk = 0; gk < K / GROUP_SIZE; gk++, S += N, Z += N / 2) {
-            half2 sum0;
-            half2 sum1;
             half s0 = S[0];
             half s1 = S[1];
             ushort z = Z[0];
@@ -339,6 +339,8 @@ KERNEL (mlp_down)(
             half z_hf1 = convert_half(z >> 4);
 
 #if SUBGROUP_SIZE == 32
+            half2 sum0;
+            half2 sum1;
             half4 a = as_half4(intel_sub_group_block_read_us4((const __local ushort*)x2 + gk*GROUP_SIZE));
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk*GROUP_SIZE/2);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K/2) + gk*GROUP_SIZE/2));
@@ -356,6 +358,8 @@ KERNEL (mlp_down)(
             sum_all0 += (sum0[0] + sum0[1] - xg_sum[gk] * z_hf0) * s0;
             sum_all1 += (sum1[0] + sum1[1] - xg_sum[gk] * z_hf1) * s1;
 #else
+            half4 sum0;
+            half4 sum1;
             half8 a = as_half8(intel_sub_group_block_read_us8((const __local ushort*)x2 + gk*GROUP_SIZE));
             uchar4 b = intel_sub_group_block_read_uc4((const __global uchar*)B + gk*GROUP_SIZE/2);
             uchar4 b2 = intel_sub_group_block_read_uc4((const __global uchar*)(B + (K/2) + gk*GROUP_SIZE/2));
