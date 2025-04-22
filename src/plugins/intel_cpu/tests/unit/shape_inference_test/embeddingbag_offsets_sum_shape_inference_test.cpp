@@ -7,7 +7,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "embeddingbag_offsets_shape_inference.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "utils.hpp"
 
 using namespace ov;

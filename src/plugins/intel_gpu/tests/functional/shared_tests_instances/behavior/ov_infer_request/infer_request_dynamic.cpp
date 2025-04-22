@@ -6,6 +6,7 @@
 
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "behavior/ov_infer_request/inference_chaining.hpp"
+#include "openvino/op/relu.hpp"
 
 using namespace ov::test::behavior;
 
