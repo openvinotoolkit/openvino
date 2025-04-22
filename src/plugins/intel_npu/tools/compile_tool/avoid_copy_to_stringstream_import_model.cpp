@@ -165,11 +165,35 @@ std::shared_ptr<ov::Model> make_conv_pool_relu() {
 
 int main(int argc, char* argv[]) {
     ov::Core core;
+    auto tensor = ov::read_tensor_data("large_3gb_blob.blob");  // if we don't test this, uncomment lines 171 and 196
+    ov::SharedStreamBuffer streambuf(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
     {
-        auto compiledModel = core.compile_model(make_conv_pool_relu(), "NPU", {});
+        // auto compiledModel = core.compile_model(make_conv_pool_relu(), "NPU", {});
+
         std::stringstream sstream;
+        dynamic_cast<std::iostream*>(&sstream)->rdbuf(&streambuf);
+
+        // below code needed by sstream.str(), std::stringstream implementation has its own std::stringbuf, other than
+        // std::streambuf which is found in std::ios
+        ov::SharedStreamBuffer copyStreamBuf(streambuf);
+        std::stringbuf strbuf;
+        copyStreamBuf.swap(*dynamic_cast<std::streambuf*>(&strbuf));
+        sstream.rdbuf()->swap(strbuf);
+
+        // below code needed by operator>> str whitespaces fix
+        auto& f = std::use_facet<std::iostream::_Ctype>(sstream.getloc());
+        for (size_t i = 0; i < f.table_size; ++i) {
+            static_cast<std::iostream::_Ctype::mask>(f.table()[i]) = ~f.space;
+        }
+
+        auto compiledModel = core.import_model(sstream,
+                                               "NPU",
+                                               {ov::intel_npu::disable_version_check(true),
+                                                ov::intel_npu::defer_weights_load(true),
+                                                ov::hint::compiled_blob(tensor)});
+
         std::ofstream outputCryptedBlob("crypted_blob.blob", std::ios::out | std::ios::binary);
-        compiledModel.export_model(sstream);
+        // compiledModel.export_model(sstream);
         auto cryptedBlob = ov::util::codec_xor(sstream.str());
         outputCryptedBlob.write(cryptedBlob.c_str(), cryptedBlob.size());
     }
@@ -182,18 +206,36 @@ int main(int argc, char* argv[]) {
 
         inputCryptedBlob.read(decryptBuffer.data(), decryptBuffer.size());
         auto decryptedBlobSO = std::make_shared<std::string>(ov::util::codec_xor(decryptBuffer));
-        decryptBuffer = {};
+        decryptBuffer.resize(0);
+        decryptBuffer.shrink_to_fit();
 
-        ov::Tensor tensor(ov::element::u8, ov::Shape{decryptedBlobSO->size()}, decryptedBlobSO->data());
+        tensor = ov::Tensor(ov::element::u8, ov::Shape{decryptedBlobSO->size()}, decryptedBlobSO->data());
         auto impl = ov::get_tensor_impl(tensor);
         impl._so = decryptedBlobSO;
         tensor = ov::make_tensor(impl);
 
         std::stringstream sstream;
-        auto compiledModel = core.import_model(
-            sstream,
-            "NPU",
-            ov::AnyMap{ov::hint::compiled_blob(tensor) /*, ov::intel_npu::disable_version_check(true) */});
+        streambuf = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+        dynamic_cast<std::iostream*>(&sstream)->rdbuf(&streambuf);
+
+        // below code needed by sstream.str(), std::stringstream implementation has its own std::stringbuf, other than
+        // std::streambuf which is found in std::ios
+        ov::SharedStreamBuffer copyStreamBuf(streambuf);
+        std::stringbuf strbuf;
+        copyStreamBuf.swap(*dynamic_cast<std::streambuf*>(&strbuf));
+        sstream.rdbuf()->swap(strbuf);
+
+        // needed by operator>> str whitespaces fix
+        auto& f = std::use_facet<std::iostream::_Ctype>(sstream.getloc());
+        for (size_t i = 0; i < f.table_size; ++i) {
+            static_cast<std::iostream::_Ctype::mask>(f.table()[i]) = ~f.space;
+        }
+
+        auto compiledModel = core.import_model(sstream,
+                                               "NPU",
+                                               ov::AnyMap{ov::intel_npu::defer_weights_load(true),
+                                                          ov::intel_npu::disable_version_check(true),
+                                                          ov::hint::compiled_blob(tensor)});
 
         // Test #1, operator>> is used
         std::string str;
@@ -210,24 +252,32 @@ int main(int argc, char* argv[]) {
         sstream.clear(sstream.rdstate() & ~std::ios::eofbit);
         sstream.seekg(0, std::ios::beg);
         size_t size = str.size();
-        str = {};
+        str.resize(0);
+        str.shrink_to_fit();
 
         // Test #2 sstream.read() is used
         str = std::string(size, '\0');
         sstream.read(str.data(), str.size());
         sstream.seekg(0, std::ios::beg);
+        str.resize(0);
+        str.shrink_to_fit();
 
         // Test #3 sstream.str() is used
-        str = sstream.str();  // current seekg won't be changed
-        std::cout << sstream.tellg() << std::endl;
+        str = sstream.str();                        // current seekg won't be changed
+        std::cout << sstream.tellg() << std::endl;  // expect 0
+        str.resize(0);
+        str.shrink_to_fit();
 
         // Test #4 write to stringstream works
         char c = 'Y';
-        sstream.write(&c, 1);
-        // sstream.seekg(0, std::ios::beg);
-        // sstream.seekp(0, std::ios::end);
-        std::cout << sstream.tellp() << std::endl;
-        std::cout << sstream.tellg() << std::endl;
+        sstream.write(&c, 1);  // for large blobs > 2GB this won't work due to INT_MAX = 2GB in `overflow` function
+        // can be fixed in a custom streambuf as `overflow` function is virtual
+        sstream.seekg(-1, std::ios::end);
+        sstream.seekp(0, std::ios::end);
+        std::cout << sstream.tellp() << std::endl;  // expect 78776
+        std::cout << sstream.tellg() << std::endl;  // expect 0
+
+        sstream.read(&c, 1);
 
         // TODO: // Test #... check the tests above for istringstream
     }
