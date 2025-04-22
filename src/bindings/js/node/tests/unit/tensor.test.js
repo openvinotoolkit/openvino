@@ -316,26 +316,24 @@ describe('ov.Tensor tests', () => {
 
 describe('Tensor setShape', () => {
   
-  it('correctly sets a new shape for a tensor', () => {
+  it('correctly sets a new shape for a tensor when element count matches', () => {
     const initialShape = [3, 224, 224];
     const newShape = [3, 256, 196]; 
     const tensorData = new Float32Array(3 * 224 * 224).fill(0);
     const tensor = new ov.Tensor(ov.element.f32, initialShape, tensorData);
 
     assert.deepStrictEqual(tensor.getShape(), initialShape);
-
     tensor.setShape(newShape);
-
     assert.deepStrictEqual(tensor.getShape(), newShape);
   });
 
-  it('throws an error when setting an invalid shape', () => {
+  it('throws an error when passing a non-array value', () => {
     const initialShape = [3, 224, 224];
     const tensorData = new Float32Array(3 * 224 * 224).fill(0);
     const tensor = new ov.Tensor(ov.element.f32, initialShape, tensorData);
-
+  
     assert.throws(() => {
-      tensor.setShape([3, 224]); 
+      tensor.setShape("not-an-array");
     }, {
       message: 'The argument to setShape() must be an array.'
     });
@@ -347,13 +345,11 @@ describe('Tensor setShape', () => {
     const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
 
     assert.deepStrictEqual(tensor.getShape(), shape);
-
     tensor.setShape(shape);
-
     assert.deepStrictEqual(tensor.getShape(), shape);
   });
 
-  it('throws an error if the new shape has a different number of elements', () => {
+  it('throws an error when setting a shape with different number of elements', () => {
     const shape = [3, 224, 224];
     const tensorData = new Float32Array(3 * 224 * 224).fill(0);
     const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
@@ -364,5 +360,4 @@ describe('Tensor setShape', () => {
       message: 'Shape mismatch: the new shape must have the same number of elements as the original shape.'
     });
   });
-
 });
