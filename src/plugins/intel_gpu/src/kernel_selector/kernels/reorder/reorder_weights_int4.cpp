@@ -66,6 +66,34 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
     return dispatchData;
 }
 
+static inline  kernel_selector::Tensor::NDims GetTrimmedDims(const kernel_selector::Tensor::NDims& org_dims) {
+    auto it = org_dims.begin();
+    while (it != org_dims.end() && it->v == 1) {
+        ++it;
+    }
+    return std::vector<kernel_selector::Tensor::Dim>(it, org_dims.end());
+}
+
+JitConstants ReorderWeightsKernelInt4::GetJitConstants(const reorder_weights_params& params) const {
+    auto jit = ReorderKernelBase::GetJitConstants(params);
+    const auto& input = params.input;
+    const auto& output = params.output;
+
+    if (input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) {
+        auto idims = GetTrimmedDims(input.GetDims());
+        auto odims = GetTrimmedDims(output.GetDims());
+        const auto input_inner_most_dim = idims.front().LogicalDimPadded();
+        const auto output_inner_most_dim = odims.front().LogicalDimPadded();
+        OPENVINO_ASSERT(input_inner_most_dim % 2 != 0 && output_inner_most_dim % 2 == 0,
+                        "Reorder weight i4 kernel for data padding only supports"
+                        "an odd input innermost dimension and an even output innermost dimension.");
+        jit.AddConstant(MakeJitConstant("INPUT0_INNERMOST_NUM", input_inner_most_dim));
+        jit.AddConstant(MakeJitConstant("OUTPUT_INNERMOST_NUM", output_inner_most_dim));
+    }
+
+    return jit;
+}
+
 bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     const auto& p = static_cast<const reorder_weights_params&>(params);
     const auto& input = p.input;
@@ -75,16 +103,8 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     // the input tensor should have an odd innermost dimension without any padding,
     // and the output tensor should have padding with only the pad.after value for the innermost dimension.
     if (input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) {
-        auto get_trimmed_dims = [&](const kernel_selector::Tensor::NDims& org_dims) -> kernel_selector::Tensor::NDims {
-            auto it = org_dims.begin();
-            while (it != org_dims.end() && it->v == 1) {
-                ++it;
-            }
-            return std::vector<kernel_selector::Tensor::Dim>(it, org_dims.end());
-        };
-
-        auto idims = get_trimmed_dims(input.GetDims());
-        auto odims = get_trimmed_dims(output.GetDims());
+        auto idims = GetTrimmedDims(input.GetDims());
+        auto odims = GetTrimmedDims(output.GetDims());
 
         bool has_pads_for_input_dims = std::any_of(idims.begin(), idims.end(), [](const kernel_selector::Tensor::Dim& d) {
             return d.pad.Total() != 0;

@@ -23,16 +23,15 @@ void prepare_padding::run(program& p) {
             if (node->get_preferred_impl_type() != impl_types::onednn)
                 continue;
 
-            auto& input_node = node->get_dependency(1);
-            if (input_node.is_type<data>()
-                && input_node.is_constant()
-                && !input_node.is_dynamic()
-                && (input_node.get_output_layout(0).data_type == cldnn::data_types::u4
-                    || input_node.get_output_layout(0).data_type == cldnn::data_types::i4)) {
+            auto& weight_node = node->get_dependency(1);
+            if (weight_node.is_type<data>()
+                && weight_node.is_constant()
+                && (weight_node.get_output_layout(0).data_type == cldnn::data_types::u4
+                    || weight_node.get_output_layout(0).data_type == cldnn::data_types::i4)) {
                 const size_t alignment = 2;
-                auto input_layout = input_node.get_output_layout(0);
-                const auto const_shape = input_layout.get_partial_shape().to_shape();
-                // Get the innermost index after trimming trailing elements in the shape.
+                auto weight_layout = weight_node.get_output_layout(0);
+                const auto const_shape = weight_layout.get_partial_shape().to_shape();
+                // Get the innermost index after trimming trailing elements in the shape such as [4,64,1,1].
                 size_t inner_most_idx = const_shape.size() - 1;
                 for (; inner_most_idx >= 0; --inner_most_idx) {
                     if (const_shape[inner_most_idx] != 1)
@@ -40,17 +39,17 @@ void prepare_padding::run(program& p) {
                 }
 
                 if (const_shape[inner_most_idx] % alignment != 0) {
-                    auto weight_in_layout  = input_layout.convert_to_weights_layout(false);
+                    auto weight_in_layout  = weight_layout.convert_to_weights_layout(false);
                     auto weight_out_layout = weight_in_layout;
                     std::vector<int32_t> new_paddings(const_shape.size(), 0);
                     new_paddings[inner_most_idx] = 1;
                     weight_out_layout.data_padding = padding::max(weight_out_layout.data_padding, padding({0}, new_paddings));
                     auto weights_reorder_params = std::make_shared<WeightsReorderParams>(weight_in_layout, weight_out_layout, false, false);
 
-                    auto new_reorder = std::make_shared<reorder>("padding_reorder_for_" + input_node.id(),
-                                                                    input_node.id(), weights_reorder_params);
+                    auto new_reorder = std::make_shared<reorder>("padding_reorder_for_" + weight_node.id(),
+                                                                    weight_node.id(), weights_reorder_params);
                     auto& new_reorder_node = p.get_or_create(new_reorder);
-                    p.add_intermediate(new_reorder_node, *node, input_node);
+                    p.add_intermediate(new_reorder_node, *node, weight_node);
 
                     new_reorder_node.recalc_output_layouts(false);
                 }

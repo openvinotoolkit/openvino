@@ -6,39 +6,6 @@
 
 KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output) {
 #if defined(INPUT0_LAYOUT_OIYX) && defined(OUTPUT_LAYOUT_OIYX)
-
-#if OUTPUT_X_PITCH != 1
-#define OUTPUT_INNERMOST_NUM OUTPUT_X_PITCH
-#elif OUTPUT_Y_PITCH != 1
-#define OUTPUT_INNERMOST_NUM OUTPUT_Y_PITCH
-#elif OUTPUT_Z_PITCH != 1
-#define OUTPUT_INNERMOST_NUM OUTPUT_Z_PITCH
-#elif OUTPUT_IFM_PITCH != 1
-#define OUTPUT_INNERMOST_NUM OUTPUT_IFM_PITCH
-#elif OUTPUT_OFM_PITCH != 1
-#define OUTPUT_INNERMOST_NUM OUTPUT_OFM_PITCH
-#else
-#error "reorder_weights_int4: not found output innermost pitch"
-#endif
-
-#if INPUT0_X_PITCH != 1
-#define INPUT0_INNERMOST_NUM INPUT0_X_PITCH
-#elif INPUT0_Y_PITCH != 1
-#define INPUT0_INNERMOST_NUM INPUT0_Y_PITCH
-#elif INPUT0_Z_PITCH != 1
-#define INPUT0_INNERMOST_NUM INPUT0_Z_PITCH
-#elif INPUT0_IFM_PITCH != 1
-#define INPUT0_INNERMOST_NUM INPUT0_IFM_PITCH
-#elif INPUT0_OFM_PITCH != 1
-#define INPUT0_INNERMOST_NUM INPUT0_OFM_PITCH
-#else
-#error "reorder_weights_int4: not found output innermost pitch"
-#endif
-
-#if INPUT0_INNERMOST_NUM % 2 == 0 || OUTPUT_INNERMOST_NUM % 2 != 0
-#error "reorder_weights_int4: This kernel only supports an odd input innermost dimension and an even output innermost dimension."
-#endif
-
     const uint out_byte_offset = get_global_id(0);
     const uint output_index = out_byte_offset * 2;
     const uint w = output_index % OUTPUT_INNERMOST_NUM;
