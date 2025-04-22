@@ -46,7 +46,6 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getSize", &TensorWrap::get_size),
                         InstanceMethod("isContinuous", &TensorWrap::is_continuous),
                         InstanceMethod("setShape", &TensorWrap::set_shape)});
-                        
 }
 
 ov::Tensor TensorWrap::get_tensor() const {
@@ -225,7 +224,6 @@ void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
         }
         return;
     }
-
     try {
         _tensor.set_shape(shape);
     } catch (const std::exception& e) {
@@ -233,5 +231,3 @@ void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
         return;
     }
 }
-
-
