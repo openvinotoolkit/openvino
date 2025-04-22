@@ -518,7 +518,7 @@ inline void scale_add2_reduce_max(ov::float16* a,
         i += inc;
     }
     max = svmaxv_f16(pg_f16, v_max);
-#    else
+#    elif defined(HAVE_NEON_FP16)
     float16x8_t v_max = vdupq_n_f16(static_cast<float16_t>(-FLT_MAX));
     float16x8_t v_scale = vdupq_n_f16(static_cast<float16_t>(scale));
     float16x8_t v_a;
