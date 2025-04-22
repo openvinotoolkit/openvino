@@ -443,7 +443,7 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit, bo
     jit.make("HIDDEN_SIZE", desc->get_hidden_size());
     jit.make("INTERMEDIATE_SIZE", desc->get_intermediate_size());
     jit.make("N_BLOCK", N_BLOCK);
-    jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 16 : 16);
+    jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
     jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
     jit.make("GROUP_SIZE", desc->get_group_size());
     jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
@@ -721,7 +721,7 @@ public:
         _intermediate_size = static_cast<int>(moe->get_intermediate_size());
         instance.get_tmp_memory(hidden_states_layout.data_type, max_topk, _hidden_size, _intermediate_size, max_topk, scratch);
 
-        const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 16 : 16;
+        const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         // scratch.up = up(x) * silu(gate(x))
         execute_stage({},
                       instance,
