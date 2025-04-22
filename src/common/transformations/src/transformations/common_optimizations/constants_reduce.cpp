@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/constants_reduce.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/util/log.hpp"
+
 #include "itt.hpp"
 
 #define LARGE_TENSOR_BYTE_SIZE 64
@@ -14,7 +15,7 @@ namespace ov::pass {
 using BlobCacheKey = std::shared_ptr<ov::Node>;
 
 struct KeyHash {
-        std::size_t operator()(const BlobCacheKey& key) const {
+    std::size_t operator()(const BlobCacheKey& key) const {
         std::size_t hash = 0;
 
         auto node = ov::as_type_ptr<op::v0::Constant>(key);
@@ -83,12 +84,14 @@ bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
     unsigned int copies = 0;
 
     for (auto& op : ops) {
-        if (!ov::is_type<ov::op::v0::Constant>(op)) continue;
+        if (!ov::is_type<ov::op::v0::Constant>(op))
+            continue;
 
         auto const_node = ov::as_type_ptr<op::v0::Constant>(op);
 
         // Limit size of node reading to avoid reading large tensors
-        if (const_node->get_byte_size() > LARGE_TENSOR_BYTE_SIZE) continue;
+        if (const_node->get_byte_size() > LARGE_TENSOR_BYTE_SIZE)
+            continue;
 
         const auto cache_key = op;
         auto bufIter = blobMemCache.find(cache_key);
