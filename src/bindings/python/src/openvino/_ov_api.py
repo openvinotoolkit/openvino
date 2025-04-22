@@ -43,8 +43,7 @@ class ModelMeta(type):
 class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if not args and not kwargs:
-            raise RuntimeError("Cannot initialize Model with no arguments.")
-            # self.__model = ModelBase() commented this as there has to be some argument passed
+            raise ValueError("Cannot initialize Model with no arguments.")
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
                 self.__model = ModelBase(args[0])
@@ -76,7 +75,7 @@ class Model(object, metaclass=ModelMeta):
         :return: A copy of Model.
         :rtype: openvino.Model
         """
-        if self.__model is None: # added checks to see before clonning
+        if self.__model is None:
             raise ValueError("Cannot copy a None value")
         return Model(self.__model.clone())
 
@@ -605,8 +604,8 @@ class Core(CoreBase):
             )
         else:
             if device_name is None:
-                device_name = "" # added a empty string as the contructor requires a argument of str not bytes
-                return CompiledModel(
+                raise ValueError("Device name must be specified when weights are provided.")
+            return CompiledModel(
                     super().compile_model(model, device_name, {} if config is None else config), # added device_name("") in place of weights
                     weights=weights,
                 )

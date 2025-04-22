@@ -912,5 +912,5 @@ def test_model_dir():
 
 
 def test_model_without_arguments():
-    with pytest.raises(TypeError, match="The following argument types are supported"):
+    with pytest.raises(ValueError, match="The following argument types are supported"):
         Model()
