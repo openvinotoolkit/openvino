@@ -1542,7 +1542,7 @@ TEST(pattern, predicate_attr_match) {
 TEST(pattern, predicate_value_match) {
     TestMatcher tm;
     auto constant_i = op::v0::Constant::create(element::i64, {4}, vector<int8_t>{-1, 0, 1, 2});
-    auto constant_d = op::v0::Constant::create(element::f64, {4}, vector<float>{-1.5, 0, 1.3, 2.75});
+    auto constant_d = op::v0::Constant::create(element::f64, {4}, vector<float>{-1.5f, 0.f, 1.3f, 2.75f});
 
     // actual value check
     auto pattern_i = pattern::any_input(pattern::value_matches("[-1, 0, 1, 2]"));
