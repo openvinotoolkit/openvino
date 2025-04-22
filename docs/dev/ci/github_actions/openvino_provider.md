@@ -1,6 +1,6 @@
 # OpenVINO Provider
 
-This is a custom GitHub Action that provides pre-built OpenVINO artifacts for a given revision—either a specific commit,
+This is a custom GitHub Action that provides pre-built OpenVINO artifacts for a given revision — either a specific commit,
 the latest available from a branch, or a publicly available package.
 It is designed for use in GitHub Action workflows of third-party repositories that depend on OpenVINO and require 
 validation against it, avoiding the need to rebuild OpenVINO from source.
