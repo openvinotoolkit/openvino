@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,26 +7,35 @@
 #include "openvino/util/log.hpp"
 #include "itt.hpp"
 
-namespace ov {
-namespace pass {
+#define LARGE_TENSOR_BYTE_SIZE 64
+
+namespace ov::pass {
 
 using BlobCacheKey = std::shared_ptr<ov::Node>;
 
 struct KeyHash {
         std::size_t operator()(const BlobCacheKey& key) const {
-        std::size_t hash_value = 0;
+        std::size_t hash = 0;
 
         auto node = ov::as_type_ptr<op::v0::Constant>(key);
 
         auto type = node->get_output_element_type(0);
         auto shape = node->get_shape();
+        std::size_t size = node->get_byte_size();
+        const char* data = node->get_data_ptr<char>();
 
         for (auto dim : shape) {
-            hash_value ^= std::hash<size_t>{}(dim);
+            hash ^= std::hash<size_t>{}(dim);
         }
 
-        hash_value ^= std::hash<std::string>{}(type.c_type_string());
-        return hash_value;
+        for (std::size_t i = 0; i < size; i++) {
+            hash ^= ((hash << 5) + hash) + data[i];
+        }
+
+        hash ^= type.hash();
+        hash ^= size;
+
+        return hash;
     }
 };
 
@@ -64,23 +73,22 @@ struct KeyEqual {
     }
 };
 
-ConstantsReduce::ConstantsReduce() {}
-
 bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    RUN_ON_MODEL_SCOPE(ConstantsReduce);
+    MATCHER_SCOPE(ConstantsReduce);
 
     std::unordered_map<BlobCacheKey, std::shared_ptr<ov::Node>, KeyHash, KeyEqual> blobMemCache;
 
-    int copies = 0;
+    const auto& ops = m->get_ops();
 
-    const std::vector<std::shared_ptr<ov::Node>> ops = m->get_ops();
+    unsigned int copies = 0;
+
     for (auto& op : ops) {
         if (!ov::is_type<ov::op::v0::Constant>(op)) continue;
 
         auto const_node = ov::as_type_ptr<op::v0::Constant>(op);
 
         // Limit size of node reading to avoid reading large tensors
-        if (const_node->get_byte_size() > 256) continue;
+        if (const_node->get_byte_size() > LARGE_TENSOR_BYTE_SIZE) continue;
 
         const auto cache_key = op;
         auto bufIter = blobMemCache.find(cache_key);
@@ -99,12 +107,10 @@ bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
             }
         }
     }
-
     OPENVINO_DEBUG("Reduced ", copies, " constant node duplications from model");
 
     // Return true if we have made any replacements
     return copies > 0;
 }
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass
