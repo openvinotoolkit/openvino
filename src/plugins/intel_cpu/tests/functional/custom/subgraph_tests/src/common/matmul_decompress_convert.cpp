@@ -6,6 +6,8 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 
 using namespace CPUTestUtils;
 

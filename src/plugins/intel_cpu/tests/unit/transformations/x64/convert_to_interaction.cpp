@@ -6,9 +6,8 @@
 
 #include <string>
 #include <memory>
-
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include <transformations/cpu_opset/x64/op/interaction.hpp>
 #include <transformations/cpu_opset/x64/pass/convert_to_interaction.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
@@ -19,6 +18,13 @@
 #include "ov_ops/type_relaxed.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
