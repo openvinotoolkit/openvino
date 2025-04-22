@@ -65,7 +65,27 @@ struct lora_impl : multi_stage_primitive<lora> {
     }
 
     bool is_optimized_kernel_supported(const lora_inst& instance) {
-        // Add runtime known opt kernel limitations
+        const auto& in_dtype = instance.get_input_layout().data_type;
+        size_t subgroup_size = in_dtype == ov::element::f16 ? 16 : 8;
+
+        const auto& state_a_layout = instance.get_input_layout(2);
+        size_t input_state = state_a_layout.get_shape().back();
+        if (input_state % subgroup_size != 0) {
+            return false;
+        }
+
+        const auto& alpha_layout = instance.get_input_layout(3);
+        size_t lora_rank = alpha_layout.get_shape().back();
+        if (lora_rank % subgroup_size != 0) {
+            return false;
+        }
+
+        const auto& state_b_layout = instance.get_input_layout(4);
+        size_t output_state = state_b_layout.get_shape().front();
+        if (output_state % subgroup_size != 0) {
+            return false;
+        }
+
         return true;
     }
 

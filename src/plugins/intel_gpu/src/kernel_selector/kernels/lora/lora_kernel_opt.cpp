@@ -51,7 +51,7 @@ bool LoRAKernelOpt::Validate(const Params& p) const {
         return false;
     }
     const auto& prim_params = dynamic_cast<const lora_params&>(p);
-    return !prim_params.is_ref_kernel;
+    return !prim_params.is_ref_kernel && prim_params.lora_count == 1;
 }
 
 ParamsKey LoRAKernelOpt::GetSupportedKey() const {
