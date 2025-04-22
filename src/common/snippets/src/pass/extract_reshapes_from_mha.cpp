@@ -7,6 +7,7 @@
 #include <openvino/opsets/opset1.hpp>
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
@@ -148,6 +149,15 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
             first_input = pattern_map.at(eltwise_1_m);
         }
         const auto& eltwise_2 = pattern_map.at(eltwise_2_m).get_node_shared_ptr();
+        const auto& shapes = ov::util::get_node_input_partial_shapes(*eltwise_2);
+        OPENVINO_ASSERT(shapes.size() > 0, "Eltwise node should has at least one input.");
+        auto equal_rank = [&](const PartialShape& p) {
+            return p.size() == shapes[0].size();
+        };
+        if (!std::all_of(shapes.cbegin(), shapes.cend(), equal_rank)) {
+            return false;
+        }
+
         const auto new_eltwise_2 = eltwise_2->clone_with_new_inputs({first_input, reshaped_input2});
 
         const auto& old_reshape = pattern_map.at(reshape_2_m);
