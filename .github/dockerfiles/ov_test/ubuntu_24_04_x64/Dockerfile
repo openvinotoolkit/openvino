@@ -29,6 +29,8 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # to build samples
+        clang \
         # parallel gzip
         pigz \
         # Python
