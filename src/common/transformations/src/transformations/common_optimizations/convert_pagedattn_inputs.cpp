@@ -74,7 +74,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<ov::op::v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
         auto value_cache = ov::as_type_ptr<ov::op::v0::Parameter>(pa_op->get_input_node_shared_ptr(4));
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) && !defined(__APPLE__)
         auto format_cache_precision = [](ov::element::Type cache_precision, ov::element::Type infer_precision) {
             return ov::element::u8;
         };
