@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "transformations_visibility.hpp"
 #include "openvino/pass/matcher_pass.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov::pass {
 
