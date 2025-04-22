@@ -1,0 +1,95 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+
+namespace {
+
+using ov::test::InputShape;
+using ReduceInputParams = std::tuple<
+                            ov::Shape,                // Input shapes
+                            ov::element::Type,        // Input precision
+                            std::vector<int64_t>,     // Reduce Axes
+                            bool>;                    // Keep dims
+
+
+class ReduceSumSqueezeTest : public testing::WithParamInterface<ReduceInputParams>,
+          virtual public ov::test::SubgraphBaseStaticTest {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<ReduceInputParams> obj) {
+        ov::Shape input_shape;
+        ov::element::Type input_precisions;
+        std::vector<int64_t> reduce_axes;
+        bool keep_dims;
+
+        std::tie(input_shape, input_precisions, reduce_axes, keep_dims) = obj.param;
+
+        std::ostringstream result;
+        result << "IS=ReduceSum_";
+        result << ov::test::utils::vec2str(input_shape) << "_";
+        result << "reduce_axes=" << ov::test::utils::vec2str(reduce_axes) << "_";
+        result << "keep_dims=" << keep_dims << "_";
+        result << "input_precision=" << input_precisions;
+        return result.str();
+    }
+
+protected:
+    ov::Shape input_shape;
+    std::vector<int64_t> reduce_axes;
+    bool keep_dims;
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+
+        ov::element::Type input_precision;
+        std::tie(input_shape, input_precision, reduce_axes, keep_dims) = GetParam();
+
+        ov::Shape add_val_shape = {input_shape.begin(), input_shape.end() - 1};
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = -10;
+        in_data.range = 10;
+        auto add_val_tensor = ov::test::utils::create_and_fill_tensor(input_precision, add_val_shape, in_data);
+
+        auto input_node = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shape);
+        auto axes_node = ov::op::v0::Constant::create(ov::element::i64, {1}, reduce_axes);
+        auto reduce_node = std::make_shared<ov::op::v1::ReduceSum>(input_node, axes_node, keep_dims);
+        reduce_node->set_friendly_name("ReduceSum");
+        auto add_val_node = std::make_shared<ov::op::v0::Constant>(add_val_tensor);
+        auto add_node = std::make_shared<ov::op::v1::Add>(reduce_node, add_val_node);
+        auto result = std::make_shared<ov::op::v0::Result>(add_node);
+        function = std::make_shared<ov::Model>(result, ov::ParameterVector{input_node}, "input");
+    }
+
+    void run() override {
+        ov::test::SubgraphBaseStaticTest::run();
+        ov::Shape input_shape;
+        std::tie(input_shape, std::ignore, std::ignore, std::ignore) = GetParam();
+        ASSERT_EQ(inferRequest.get_output_tensor().get_shape().size(), input_shape.size() - 1);
+    }
+};
+
+TEST_P(ReduceSumSqueezeTest, Inference) {
+    run();
+}
+
+const std::vector<ov::Shape> input_shapes = {{{1, 2, 3, 2, 4}}};
+const std::vector<ov::element::Type> input_prec = {ov::element::f16};
+
+INSTANTIATE_TEST_SUITE_P(
+    Smoke_ReduceSumSqueezeTest,
+    ReduceSumSqueezeTest,
+    ::testing::Combine(::testing::ValuesIn(input_shapes),
+                       ::testing::ValuesIn(input_prec),
+                       ::testing::Values(std::vector<int64_t>{4}),
+                       ::testing::Values(false)),
+    ReduceSumSqueezeTest::getTestCaseName);
+
+} // namespace
