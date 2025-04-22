@@ -67,11 +67,6 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
     for (size_t i = 0; i < order.size(); ++i) {
         target_permute_order[order[i]] = i;
     }
-    /*if (original_dims_num < expected_dims_num) {
-        transpose_order.resize(expected_dims_num);
-        std::iota(transpose_order.begin() + original_dims_num, transpose_order.end(), original_dims_num);
-    }*/
-
     if (!cldnn::one_of(target_permute_order, allowed_orders))
         return false;
 
