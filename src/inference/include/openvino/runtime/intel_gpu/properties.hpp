@@ -125,8 +125,10 @@ static constexpr Property<int64_t> available_device_mem{"AVAILABLE_DEVICE_MEM_SI
 static constexpr Property<bool> enable_sdpa_optimization{"GPU_ENABLE_SDPA_OPTIMIZATION"};
 
 /**
- * @brief Turning on this key enables LoRA operation, otherwise the graph will remain in its original form with the decomposed LoRA subgraph.
- * Enabling LoRA operation may provide performance improvements, but has stricter restrictions (LoRA rank must be less than or equal to 256 and divisible by 16).
+ * @brief Turning on this key enables LoRA operation,
+ * otherwise the graph will remain in its original form with the decomposed LoRA subgraph.
+ * Enabling LoRA operation may provide performance improvements, but has stricter restrictions:
+ * LoRA rank must be less than or equal to 256 and divisible by 16.
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<bool> enable_lora_operation{"GPU_ENABLE_LORA_OPERATION"};

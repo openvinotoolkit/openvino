@@ -20,7 +20,7 @@ public:
 
 protected:
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
-    JitConstants GetJitConstants(const lora_params& params) const override;
+    JitConstants GetJitConstants(const lora_params& params) const;
     CommonDispatchData SetDefault(const lora_params& params) const;
 };
 
