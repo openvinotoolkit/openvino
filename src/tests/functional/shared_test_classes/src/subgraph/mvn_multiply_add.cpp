@@ -5,6 +5,9 @@
 #include "shared_test_classes/subgraph/mvn_multiply_add.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
 
 namespace ov {
 namespace test {
