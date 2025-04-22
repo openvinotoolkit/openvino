@@ -128,9 +128,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
     runParallel(
         [&]() {
-            std::filesystem::path fileName;
-            std::string deviceName;
-            std::tie(fileName, deviceName) = getPluginXml();
+            const auto& [fileName, deviceName] = getPluginXml();
             core.register_plugins(fileName.string());
             core.get_versions(deviceName);
             core.unload_plugin(deviceName);
