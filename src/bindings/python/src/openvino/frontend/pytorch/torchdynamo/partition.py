@@ -86,24 +86,24 @@ class Partitioner:
         return False
 
     def capture_gptq_patterns(self, graph_module: GraphModule):
-        const_0_node = PatternNode
+        const_0_node = PatternNode()
         const_0_node.op_types["get_attr"] = None
-        unsqueeze_0_node = PatternNode
+        unsqueeze_0_node = PatternNode()
         unsqueeze_0_node.op_types["call_function:aten.unsqueeze.default"] = [const_0_node]
-        expand_node = PatternNode
+        expand_node = PatternNode()
         expand_node.op_types["call_function:aten.expand.default"] = [unsqueeze_0_node]
-        const_1_node = PatternNode
+        const_1_node = PatternNode()
         const_1_node.op_types["get_attr"] = None
-        unsqueeze_1_node = PatternNode
+        unsqueeze_1_node = PatternNode()
         unsqueeze_1_node.op_types["call_function:aten.unsqueeze.default"] = [const_1_node]
-        bitwise_right_shift_node = PatternNode
+        bitwise_right_shift_node = PatternNode()
         bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor"] = [expand_node, unsqueeze_1_node]
-        to_copy_node = PatternNode
+        to_copy_node = PatternNode()
         to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node]
-        add_or_to_copy_node = PatternNode
+        add_or_to_copy_node = PatternNode()
         add_or_to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node]
         add_or_to_copy_node.op_types["call_function:aten.add.Tensor"] = [to_copy_node]
-        bitwise_and_node = PatternNode
+        bitwise_and_node = PatternNode()
         bitwise_and_node.op_types["call_function:aten.bitwise_and.Scalar"] = [add_or_to_copy_node]
 
         for node in graph_module.graph.nodes:
@@ -115,13 +115,13 @@ class Partitioner:
                         self.supported_ops.enable_by_name(pattern_op)
 
     def capture_nncf_patterns(self, graph_module: GraphModule):
-        const_node = PatternNode
+        const_node = PatternNode()
         const_node.op_types["get_attr"] = None
-        bitwise_right_shift_node = PatternNode
+        bitwise_right_shift_node = PatternNode()
         bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor_Scalar"] = [const_node]
-        bitwise_and_node = PatternNode
+        bitwise_and_node = PatternNode()
         bitwise_and_node.op_types["call_function:aten.bitwise_and.Scalar"] = [const_node]
-        stack_node = PatternNode
+        stack_node = PatternNode()
         stack_node.op_types["call_function:aten.stack.default"] = [bitwise_and_node, bitwise_right_shift_node]
 
         for node in graph_module.graph.nodes:

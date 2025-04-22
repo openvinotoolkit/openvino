@@ -58,7 +58,10 @@ def openvino(subgraph, example_inputs, options=None):
     if _get_aot_autograd(options):
         global openvino_options
         openvino_options = options
-        decompositions = _get_decompositions(options) + get_inf_decomposition_list() + get_aot_decomposition_list()
+        _get_decompos = _get_decompositions(options) or []
+        _get_inf_decompositions = get_inf_decomposition_list() or []
+        _get_aot_decompositions = get_aot_decomposition_list() or []
+        decompositions = _get_decompos + _get_inf_decompositions + _get_aot_decompositions
         return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino, decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
 
@@ -67,6 +70,7 @@ if "openvino" not in torch.compiler.list_backends():
 
 def fx_openvino(subgraph, example_inputs, options=None):
     try:
+        assert isinstance(openvino_options, dict)
         if len(openvino_options) != 0:
             options = openvino_options
         executor_parameters = None
@@ -80,31 +84,34 @@ def fx_openvino(subgraph, example_inputs, options=None):
             example_inputs.reverse()
             inputs_reversed = True
             maybe_fs_cached_name = cached_model_name(model_hash_str + "_fs", _get_device(options), example_inputs, _get_cache_dir(options))
+            assert maybe_fs_cached_name is not None
             if os.path.isfile(maybe_fs_cached_name + ".xml") and os.path.isfile(maybe_fs_cached_name + ".bin"):
                 # Model is fully supported and already cached. Run the cached OV model directly.
                 compiled_model = openvino_compile_cached_model(maybe_fs_cached_name, options, *example_inputs)
 
-                def _call(*args):
+                def _cachecall(*args):
                     res = execute_cached(compiled_model, *args)
                     return res
 
-                return _call
+                return _cachecall
         if inputs_reversed:
             example_inputs.reverse()
 
         preserved_arg_indices = []
         if _get_aot_autograd(options):
+            fw_metadata = None
+            params_flat = None
             if tracing_context := torch._guards.TracingContext.try_get():
                 fw_metadata = tracing_context.fw_metadata
                 params_flat = tracing_context.params_flat
-                assert fw_metadata is not None and params_flat is not None
+            assert fw_metadata is not None and params_flat is not None
             preserved_arg_indices = replace_params_with_constants(subgraph, params_flat, fw_metadata)
             example_inputs = [example_inputs[ind] for ind in preserved_arg_indices]
             model = subgraph
         else:
             from torch._subclasses.fake_tensor import FakeTensorMode
 
-            decompositions = _get_decompositions(options) + get_inf_decomposition_list()
+            decompositions = (_get_decompositions(options) or []) + (get_inf_decomposition_list() or [])
             with FakeTensorMode(allow_non_fake_inputs=True):
                 model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*example_inputs)
 
@@ -136,4 +143,4 @@ def fx_openvino(subgraph, example_inputs, options=None):
 
 
 def reset():
-    clear_caches()
+    clear_caches() #type: ignore

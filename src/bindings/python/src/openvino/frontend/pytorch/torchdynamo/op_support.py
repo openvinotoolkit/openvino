@@ -265,7 +265,6 @@ class OperatorSupport(OpSupport):
         }
 
         self.enabled_op_names = []
-
         for op in _get_disabled_ops(options):
             del support_dict[op]
 

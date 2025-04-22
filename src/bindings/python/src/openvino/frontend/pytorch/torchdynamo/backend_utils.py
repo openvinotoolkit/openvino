@@ -73,7 +73,7 @@ def _get_decompositions(options) -> Optional[Any]:
     return decompositions
 
 
-def _get_disabled_ops(options) -> Optional[Any]:
+def _get_disabled_ops(options) -> list:
     disabled_ops = []
     if options is not None and "disabled_ops" in options:
         disabled_ops = options["disabled_ops"]
