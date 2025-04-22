@@ -4,9 +4,9 @@
 
 #include "transformations/common_optimizations/constants_reduce.hpp"
 
+#include "itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/util/log.hpp"
-#include "itt.hpp"
 
 #define LARGE_TENSOR_BYTE_SIZE 64
 
