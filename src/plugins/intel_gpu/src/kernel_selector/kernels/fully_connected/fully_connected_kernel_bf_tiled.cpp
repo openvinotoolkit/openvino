@@ -845,7 +845,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             // [optional:dyn_quant kernel] | default kernel | [optional:slm kernel]
             int32_t quantize_kernel_idx = (kd.internalBuffers.empty()) ? -1 : 0;
             int32_t default_kernel_idx = quantize_kernel_idx + 1;
-            int32_t slm_kernel_idx = (quantize_kernel_idx >= 0) && kd.kernels.size() == 3 ? 2 : -1;
+            int32_t slm_kernel_idx = (static_cast<int32_t>(kd.kernels.size()) > default_kernel_idx + 1) ? default_kernel_idx + 1 : -1;
 
             // Choose one of the two shape agnostic kernels: N == added kernel number
             // - kd.kernels[N-1] for batches <= 240 (default version)
