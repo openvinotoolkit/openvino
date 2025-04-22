@@ -79,24 +79,24 @@ void set_arguments_impl(ocl_kernel_type& kernel,
         cl_int status = CL_INVALID_ARG_VALUE;
         switch (args[i].t) {
             case args_t::INPUT:
-                if (args[i].index < data.inputs.size() && data.inputs[args[i].index]) {
-                    status = set_kernel_arg(kernel, i, data.inputs[args[i].index]);
-                }
+                OPENVINO_ASSERT(args[i].index < data.inputs.size() && data.inputs[args[i].index],
+                               "The allocated input memory is necessary to set kernel arguments.");
+                status = set_kernel_arg(kernel, i, data.inputs[args[i].index]);
                 break;
             case args_t::INPUT_OF_FUSED_PRIMITIVE:
-                if (args[i].index < data.fused_op_inputs.size() && data.fused_op_inputs[args[i].index]) {
-                    status = set_kernel_arg(kernel, i, data.fused_op_inputs[args[i].index]);
-                }
+                OPENVINO_ASSERT(args[i].index < data.fused_op_inputs.size() && data.fused_op_inputs[args[i].index],
+                                "The allocated fused_op_input memory is necessary to set kernel arguments.");
+                status = set_kernel_arg(kernel, i, data.fused_op_inputs[args[i].index]);
                 break;
             case args_t::INTERNAL_BUFFER:
-                if (args[i].index < data.intermediates.size() && data.intermediates[args[i].index]) {
-                    status = set_kernel_arg(kernel, i, data.intermediates[args[i].index]);
-                }
+                OPENVINO_ASSERT(args[i].index < data.intermediates.size() && data.intermediates[args[i].index],
+                                "The allocated intermediate memory is necessary to set kernel arguments.");
+                status = set_kernel_arg(kernel, i, data.intermediates[args[i].index]);
                 break;
             case args_t::OUTPUT:
-                if (args[i].index < data.outputs.size() && data.outputs[args[i].index]) {
-                    status = set_kernel_arg(kernel, i, data.outputs[args[i].index]);
-                }
+                OPENVINO_ASSERT(args[i].index < data.outputs.size() && data.outputs[args[i].index],
+                                "The allocated output memory is necessary to set kernel arguments.");
+                status = set_kernel_arg(kernel, i, data.outputs[args[i].index]);
                 break;
             case args_t::WEIGHTS:
                 status = set_kernel_arg(kernel, i, data.weights);
@@ -289,7 +289,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     try {
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
     } catch (cl::Error const& err) {
-        ocl::rethrow_or_exit(err, _engine.get_device_info());
+        ocl::rethrow(err, _engine.get_device_info());
     }
 
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);

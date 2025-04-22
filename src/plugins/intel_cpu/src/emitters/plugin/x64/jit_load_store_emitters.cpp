@@ -4,6 +4,7 @@
 
 #include "jit_load_store_emitters.hpp"
 
+#include <memory>
 #include <utility>
 
 #include "utils/bfloat16.hpp"
@@ -230,13 +231,9 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_i
  */
 template <typename Vmm>
 void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int offset, int load_size) const {
-    constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
-    constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
-    constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
-
-    MAYBE_UNUSED(is_xmm);
-    MAYBE_UNUSED(is_ymm);
-    MAYBE_UNUSED(is_zmm);
+    [[maybe_unused]] constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
+    [[maybe_unused]] constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
+    [[maybe_unused]] constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
 
     // Ensure data fits completely inside the Xmm/Ymm/Zmm register
     if (load_size < 0 || load_size > 64) {
@@ -447,13 +444,9 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm& vmm,
                                                      int offset,
                                                      bool is_signed,
                                                      int load_size) const {
-    constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
-    constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
-    constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
-
-    MAYBE_UNUSED(is_xmm);
-    MAYBE_UNUSED(is_ymm);
-    MAYBE_UNUSED(is_zmm);
+    [[maybe_unused]] constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
+    [[maybe_unused]] constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
+    [[maybe_unused]] constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
 
     // Ensure extended double words fit inside Zmm (32 * load_size <= 512)
     // For Ymm register, load capacity is halved (32 * load_size <= 256)
@@ -549,13 +542,9 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
                                                      int offset,
                                                      ov::element::Type prc,
                                                      int load_size) const {
-    constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
-    constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
-    constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
-
-    MAYBE_UNUSED(is_xmm);
-    MAYBE_UNUSED(is_ymm);
-    MAYBE_UNUSED(is_zmm);
+    [[maybe_unused]] constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
+    [[maybe_unused]] constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
+    [[maybe_unused]] constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
 
     bool is_bf16 = (prc == ov::element::bf16);
     bool is_f16 = (prc == ov::element::f16);
@@ -718,7 +707,7 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator* host,
       dst_prc_(dst_prc),
       mode_(mode) {
     prepare_table();
-    uni_vcvtneps2bf16_.reset(new jit_uni_vcvtneps2bf16(host, host_isa));
+    uni_vcvtneps2bf16_ = std::make_shared<jit_uni_vcvtneps2bf16>(host, host_isa);
 }
 
 inline bool jit_store_emitter::is_saturation() const {
@@ -884,13 +873,9 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64& reg_d
  */
 template <typename Vmm>
 void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int store_size) const {
-    constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
-    constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
-    constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
-
-    MAYBE_UNUSED(is_xmm);
-    MAYBE_UNUSED(is_ymm);
-    MAYBE_UNUSED(is_zmm);
+    [[maybe_unused]] constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
+    [[maybe_unused]] constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
+    [[maybe_unused]] constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
 
     // Ensure data fits completely inside the Xmm/Ymm/Zmm register
     if (store_size < 0 || store_size > 64) {
@@ -1054,13 +1039,9 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64& reg,
                                                       int offset,
                                                       bool is_signed,
                                                       int store_num) const {
-    constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
-    constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
-    constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
-
-    MAYBE_UNUSED(is_xmm);
-    MAYBE_UNUSED(is_ymm);
-    MAYBE_UNUSED(is_zmm);
+    [[maybe_unused]] constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
+    [[maybe_unused]] constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
+    [[maybe_unused]] constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
 
     // Ensure data fits completely inside the Xmm/Ymm/Zmm register
     // At most 8 dwords can fit inside the Ymm register
@@ -1224,13 +1205,9 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
     const bool is_f16 = (precision == ov::element::f16);
     const bool is_signed = precision.is_signed();
 
-    constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
-    constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
-    constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
-
-    MAYBE_UNUSED(is_xmm);
-    MAYBE_UNUSED(is_ymm);
-    MAYBE_UNUSED(is_zmm);
+    [[maybe_unused]] constexpr bool is_xmm = std::is_same<Vmm, Xbyak::Xmm>::value;
+    [[maybe_unused]] constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
+    [[maybe_unused]] constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
 
     // Ensure data fits completely inside the Xmm/Ymm/Zmm register
     // At most 4 dwords can fit inside the Xmm register

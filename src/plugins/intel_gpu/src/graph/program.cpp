@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/registry/implementation_manager.hpp"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -34,6 +35,8 @@
 #include "custom_gpu_primitive_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "ctc_loss_inst.hpp"
+#include "group_normalization_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
 #include "depth_to_space_inst.h"
@@ -68,6 +71,7 @@
 #include "reverse_inst.h"
 #include "unique_inst.hpp"
 #include "condition_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 #include "to_string_utils.h"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 
@@ -154,13 +158,13 @@ program::program(engine& engine_ref,
       _is_body_program(is_body_program),
       _compilation_context(compilation_context) {
     init_primitives();
+    _config.finalize(_engine);
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
     prepare_nodes(topology);
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
-        _config.finalize(_engine);
     } else {
         build_program(is_internal);
         if (_is_body_program) {
@@ -226,8 +230,7 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_headers(),
-                                                                      kernel_selector::KernelBase::get_db().get_cm_batch_headers()));
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
 
     _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
 
@@ -745,7 +748,7 @@ void program::prepare_memory_dependencies() {
     if (!_config.get_enable_memory_pool())
         return;
     for (auto& node : get_processing_order()) {
-        node->add_memory_dependency(node->get_unique_id());
+        node->add_memory_dependency(*node);
     }
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
@@ -763,7 +766,7 @@ std::string program::get_memory_dependencies_string() const {
                          .append("(unique_id:")
                          .append(std::to_string(node->get_unique_id()))
                          .append(") restricted list: ");
-        for (auto it : node->get_memory_dependencies())
+        for (const auto& it : node->get_memory_dependencies())
             mem_dep = mem_dep.append(std::to_string(it)).append(",");
         mem_dep = mem_dep.append("\n");
     }
@@ -821,6 +824,8 @@ bool program::contains_state(const std::string& variable_id) {
 }
 
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
+    OPENVINO_ASSERT(prim != nullptr, "Null ptr primitive is added");
+
     auto itr = nodes_map.lower_bound(prim->id);
     if (itr != nodes_map.end() && itr->first == prim->id)
         return *itr->second;
@@ -1142,9 +1147,10 @@ void program::fuse_nodes(program_node &fused_node,
     }
 
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
-    auto fusedPadding = fused_node.get_output_layout().data_padding;
+    auto fused_layout = fused_node.get_output_layout();
+    auto fused_padding = fused_layout.data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
-                                                 fusedPadding);
+                                                 fused_padding);
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
@@ -1155,8 +1161,13 @@ void program::fuse_nodes(program_node &fused_node,
     // Add new dependencies to the fused_node
     size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
-        auto& dep = peer_node.get_dependency(i);
-        if (dep.id() == fused_node.id()) {
+        auto [dep, port] = peer_node.get_dependency_with_port(i);
+        if (dep->id() == fused_node.id()) {
+            if (fused_node.has_fused_primitives()) {
+                local_desc.inputs.emplace_back(FusedInputType::INTERNAL, fused_node.get_fused_primitives().size() - 1, fused_layout.data_type);
+            } else {
+                local_desc.inputs.emplace_back(FusedInputType::ORIGINAL, 0, fused_layout.data_type);
+            }
             deps_idx++;
             continue;
         }
@@ -1185,10 +1196,11 @@ void program::fuse_nodes(program_node &fused_node,
             }
         }
 
-        auto port_idx = fused_node.get_port_from_deps(dep.id());
-        fused_node.dependencies.push_back({&dep, port_idx});
-        local_desc.deps.emplace_back(dep.id(), deps_idx++);
-        dep.users.push_back(&fused_node);
+        auto port_idx = fused_node.get_port_from_deps(dep->id());
+        fused_node.dependencies.push_back({dep, port_idx});
+        local_desc.inputs.emplace_back(FusedInputType::EXTERNAL, fused_node.dependencies.size() - 1, dep->get_output_layout(port).data_type);
+        local_desc.deps.emplace_back(dep->id(), deps_idx++);
+        dep->users.push_back(&fused_node);
     }
     if (local_desc.deps.size()) {
         local_desc.outer_dep_start_idx = orig_fused_node_num_deps;
@@ -1403,7 +1415,6 @@ void program::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
 void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     lo.set_implementation_forcing(_config.get_force_implementations());
 
-
     // first pass to set layout optimization_attributes for topology
     bool can_use_fsv16 = true;
     bool can_use_bs_fs_yx_bsv16_fsv16 = true;
@@ -1520,7 +1531,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::convert_color::type_id() &&
             prim.type() != cldnn::unique_count::type_id() &&
             prim.type() != cldnn::unique_gather::type_id() &&
-            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
+            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id() &&
+            prim.type() != cldnn::scaled_dot_product_attention::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1705,7 +1717,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
                                                                       pool,
                                                                       *node,
                                                                       *node->get_kernel_impl_params(),
-                                                                      node->get_memory_dependencies(),
+                                                                      memory_restricter<uint32_t>(&node->get_memory_dependencies()),
                                                                       0,
                                                                       false,
                                                                       0,
@@ -1848,11 +1860,18 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
 
-    std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr;
+    std::shared_ptr<WeightsMemory> weights_memory = nullptr;
     std::string weights_path = _config.get_weights_path();
-    if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE &&
-        ov::util::validate_weights_path(weights_path)) {
-        mapped_memory = ov::load_mmap_object(weights_path);
+    auto model_ptr = _config.get_model();
+    if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
+        if (model_ptr) {
+            weights_memory = std::make_shared<WeightsMemory>(model_ptr);
+        } else if (!weights_path.empty()) {
+            ov::util::validate_weights_path(weights_path);
+            weights_memory = std::make_shared<WeightsMemory>(ov::load_mmap_object(weights_path));
+        } else {
+            OPENVINO_THROW("Weights path or model is required for cache mode OPTIMIZE_SIZE");
+        }
     }
 
     size_t num_nodes;
@@ -1866,7 +1885,7 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
         if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
-            data_prim->load_weights(ib, mapped_memory);
+            data_prim->load_weights(ib, weights_memory);
         }
         get_or_create(prim);
     }

@@ -9,6 +9,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/reshape.hpp"
 
 namespace {
 using ov::test::InputShape;

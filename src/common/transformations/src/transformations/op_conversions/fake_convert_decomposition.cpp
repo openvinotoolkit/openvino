@@ -5,8 +5,10 @@
 #include "transformations/op_conversions/fake_convert_decomposition.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
@@ -41,11 +43,20 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
             data = decomp_ops.add(data.get_node_shared_ptr());
         }
 
+        // Align with clamp behavior of FakeConvert in ngraph reference
+        const auto lower_bound = fake_convert_node->get_destination_element_type() == ov::element::f8e4m3
+                                     ? static_cast<float>(std::numeric_limits<ov::float8_e4m3>::lowest())
+                                     : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::lowest());
+        const auto upper_bound = fake_convert_node->get_destination_element_type() == ov::element::f8e4m3
+                                     ? static_cast<float>(std::numeric_limits<ov::float8_e4m3>::max())
+                                     : static_cast<float>(std::numeric_limits<ov::float8_e5m2>::max());
+
         std::shared_ptr<Node> result;
         const auto scale = decomp_ops.make<ov::op::v1::Multiply>(data, input_scale);
         if (fake_convert_node->get_input_size() == 2) {
+            const auto clamp = decomp_ops.make<ov::op::v0::Clamp>(scale, lower_bound, upper_bound);
             const auto downconvert =
-                decomp_ops.make<ov::op::v0::Convert>(scale, fake_convert_node->get_destination_element_type());
+                decomp_ops.make<ov::op::v0::Convert>(clamp, fake_convert_node->get_destination_element_type());
             const auto upconvert = decomp_ops.make<ov::op::v0::Convert>(downconvert, input_type);
 
             result = decomp_ops.make<ov::op::v1::Divide>(upconvert, input_scale);
@@ -53,8 +64,9 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
             const Output<Node> input_shift{fake_convert_node->input_value(2)};
             const auto shift = decomp_ops.make<ov::op::v1::Subtract>(scale, input_shift);
 
+            const auto clamp = decomp_ops.make<ov::op::v0::Clamp>(shift, lower_bound, upper_bound);
             const auto downconvert =
-                decomp_ops.make<ov::op::v0::Convert>(shift, fake_convert_node->get_destination_element_type());
+                decomp_ops.make<ov::op::v0::Convert>(clamp, fake_convert_node->get_destination_element_type());
             const auto upconvert = decomp_ops.make<ov::op::v0::Convert>(downconvert, input_type);
 
             const auto deshift = decomp_ops.make<ov::op::v1::Add>(upconvert, input_shift);

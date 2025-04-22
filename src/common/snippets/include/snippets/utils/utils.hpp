@@ -179,6 +179,8 @@ size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx);
 // given shape [a,b,c,d], the stride is [b*c*d, c*d, d, 1]
 int64_t get_stride(size_t dim_idx, const VectorDims& shape);
 
+VectorDims get_planar_layout(size_t rank);
+
 /* ----- Shape `getters` ----- */
 /**
  * @brief Returns a dense shape after applying the order.
@@ -317,6 +319,15 @@ int64_t get_dim_in_stride(const VectorDims& shape, const VectorDims& layout, siz
  * @param idx index of the target dimension starting from the shape's end (default = 1)
  */
 int64_t get_dim_out_stride(const VectorDims& shape, const VectorDims& layout, size_t idx = 1);
+/**
+ * @brief Iniializes strides of shape
+ * @param shape target shape
+ * @param rank target rank
+ * @param data_size scale for offsets
+ * @param start_idx start index of offsets
+ * @param offsets target offsets to be inited
+ */
+void init_strides(const VectorDims& shape, size_t rank, size_t data_size, size_t start_idx, VectorDims& offsets);
 
 /**
  * @brief Traverses path starting from "expr", and calls "func" for each expression.

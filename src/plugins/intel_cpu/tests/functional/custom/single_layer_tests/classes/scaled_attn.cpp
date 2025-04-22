@@ -5,7 +5,7 @@
 #include "scaled_attn.hpp"
 
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "openvino/pass/manager.hpp"
@@ -59,7 +59,12 @@ void ScaledAttnLayerCPUTest::SetUp() {
     }
 
     if (inType == ElementType::bf16) {
-        rel_threshold = 2e-2f;
+        // Issue: 163144
+        if (with_cpu_x86_avx2_vnni_2()) {
+            rel_threshold = 0.2f;
+        } else {
+            rel_threshold = 2e-2f;
+        }
     }
     selectedType = makeSelectedTypeStr(selectedType, inType);
     init_input_shapes(inputShapes);
@@ -133,7 +138,7 @@ TEST_P(ScaledAttnLayerCPUTest, CompareWithRefs) {
     bool has_scale;
     std::string targetDevice;
     std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams) = this->GetParam();
-    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16() && !with_cpu_x86_avx2_vnni_2())
         GTEST_SKIP();
     run();
     CheckPluginRelatedResults(compiledModel, "ScaledAttn");

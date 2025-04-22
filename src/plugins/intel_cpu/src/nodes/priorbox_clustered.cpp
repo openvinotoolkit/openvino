@@ -11,7 +11,8 @@
 
 #include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
 
 namespace ov::intel_cpu::node {
@@ -65,7 +66,7 @@ bool PriorBoxClustered::needShapeInfer() const {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int h = in_data[0];
     const int w = in_data[1];
-    const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
+    const auto output = static_cast<size_t>(4) * h * w * number_of_priors;
 
     return output_shape[1] != output;
 }
@@ -93,7 +94,7 @@ void PriorBoxClustered::createPrimitive() {
     }
 }
 
-void PriorBoxClustered::execute(const dnnl::stream& strm) {
+void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
@@ -109,7 +110,7 @@ void PriorBoxClustered::execute(const dnnl::stream& strm) {
         step_h = static_cast<float>(img_height) / layer_height;
     }
 
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
     const auto& out_shape = getChildEdgeAt(0)->getMemory().getShape().getStaticDims();
 
     size_t var_size = variances.size();

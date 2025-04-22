@@ -161,6 +161,8 @@ public:
     AttributeAdapter(op::MVNEpsMode& value) : EnumAttributeAdapterBase<op::MVNEpsMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::MVNEpsMode>");
+
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

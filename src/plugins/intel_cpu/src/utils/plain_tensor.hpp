@@ -5,11 +5,11 @@
 #pragma once
 
 #include <node.h>
-#include <stdlib.h>
 
 #include <cassert>
 #include <climits>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -104,28 +104,28 @@ struct PlainTensor {
         return m_ptr != nullptr;
     }
 
-    VectorDims shape() const {
+    [[nodiscard]] VectorDims shape() const {
         return VectorDims(m_dims, m_dims + m_rank);
     }
 
-    size_t size(int i) const {
+    [[nodiscard]] size_t size(int i) const {
         if (i < 0) {
             i += m_rank;
         }
         assert(static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_dims[i];
     }
-    size_t stride(int i) const {
+    [[nodiscard]] size_t stride(int i) const {
         assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_strides[i];
     }
 
-    size_t stride_bytes(int i) const {
+    [[nodiscard]] size_t stride_bytes(int i) const {
         return stride(i) * m_element_size;
     }
 
     template <typename T>
-    std::vector<T> get_strides() const {
+    [[nodiscard]] std::vector<T> get_strides() const {
         std::vector<T> strides(m_rank);
         for (size_t i = 0; i < m_rank; i++) {
             strides[i] = static_cast<T>(m_strides[i]);
@@ -169,7 +169,7 @@ struct PlainTensor {
                strides.data());
     }
 
-    ov::element::Type get_precision() const {
+    [[nodiscard]] ov::element::Type get_precision() const {
         return m_dt;
     }
 
@@ -238,7 +238,7 @@ struct PlainTensor {
     }
 
     // slice: return a sub-view (w/o ownership/refcount to original data)
-    PlainTensor slice(int axis, int start, int end, int step = 1) const {
+    [[nodiscard]] PlainTensor slice(int axis, int start, int end, int step = 1) const {
         PlainTensor sub_tensor;
         assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
 
@@ -272,7 +272,7 @@ struct PlainTensor {
         return sub_tensor;
     }
 
-    bool is_dense() const {
+    [[nodiscard]] bool is_dense() const {
         // check if it's dense tensor
         size_t stride = 1;
         for (int i = m_rank - 1; i >= 0; i--) {
@@ -300,7 +300,7 @@ struct PlainTensor {
 
        simplified form is when whole tensor is dense
     */
-    PlainTensor reshape(const VectorDims& target_shape) const {
+[[nodiscard]] PlainTensor reshape(const VectorDims& target_shape) const {
         // only valid for dense memory
         PlainTensor new_tensor_view;
         assert(is_dense());
@@ -312,7 +312,7 @@ struct PlainTensor {
     }
 
     template <class Container = VectorDims>
-    PlainTensor permute(const Container& order) const {
+    [[nodiscard]] PlainTensor permute(const Container& order) const {
         PlainTensor new_tensor_view;
         assert(order.size() == m_rank);
         new_tensor_view.m_capacity = 0;
@@ -385,7 +385,7 @@ struct PlainTensor {
     }
 
     template <int dim>
-    int64_t offset() const {
+    [[nodiscard]] int64_t offset() const {
         return m_offset;
     }
     template <int dim, typename I>
@@ -429,7 +429,7 @@ struct PlainTensor {
         // assign every element to value
         std::vector<size_t> index(m_rank, 0);
         auto* dst = reinterpret_cast<DT*>(m_ptr.get() + m_offset * m_element_size);
-        while (1) {
+        while (true) {
             size_t off = 0;
             for (int i = m_rank - 1; i >= 0; i--) {
                 if (index[i] >= m_dims[i]) {
@@ -487,7 +487,7 @@ struct PlainTensor {
 
     int max_repr_len = 256;
 
-    std::string repr(int max_total_lines = 16, int lines_per_row = 1) const {
+    [[nodiscard]] std::string repr(int max_total_lines = 16, int lines_per_row = 1) const {
         if (!m_ptr) {
             return "{empty}";
         }
@@ -538,7 +538,7 @@ struct PlainTensor {
                 } else if (m_dt == ov::element::Type_t::u8) {
                     ss << (ptr<uint8_t>())[i] << ",";
                 } else if (m_dt == ov::element::Type_t::boolean) {
-                    ss << static_cast<bool>((ptr<uint8_t>())[i]) << ",";
+                    ss << static_cast<int>(static_cast<bool>((ptr<uint8_t>())[i])) << ",";
                 } else {
                     ss << "?,";
                 }

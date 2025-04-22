@@ -34,6 +34,8 @@ public:
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& _port) const override;
 
+    void check_tensors() const override;
+
     /**
      * @brief      Sets the pointer to asynchronous inference request that holds this request
      * @param[in]  asyncRequest Pointer to asynchronous inference request

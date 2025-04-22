@@ -107,11 +107,11 @@ bool CpuBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     const MemoryDesc* pRhs = &rhs;
     if (auto cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*cpuBlkDesc);
-    } else if (auto dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
-        return isCompatible(*dnnlBlkDesc);
-    } else {
-        return false;
     }
+    if (auto dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
+        return isCompatible(*dnnlBlkDesc);
+    }
+    return false;
 }
 
 bool CpuBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
@@ -126,11 +126,11 @@ bool CpuBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask cm
     const BlockedMemoryDesc* pRhs = &rhs;
     if (auto cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*cpuBlkDesc, cmpMask);
-    } else if (auto dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
-        return isCompatible(*dnnlBlkDesc, cmpMask);
-    } else {
-        return false;
     }
+    if (auto dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
+        return isCompatible(*dnnlBlkDesc, cmpMask);
+    }
+    return false;
 }
 
 bool CpuBlockedMemoryDesc::canComputeMemSizeZeroDims() const {
@@ -356,7 +356,7 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
         })) {
         OPENVINO_THROW("Can't compute padded elements count for non undefined blocked dims");
     }
-    return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
+    return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<>());
 }
 
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec) const {

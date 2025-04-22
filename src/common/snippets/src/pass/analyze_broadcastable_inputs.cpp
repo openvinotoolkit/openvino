@@ -55,13 +55,12 @@ bool pass::AnalyzeBroadcastableInputs::run_on_model(const std::shared_ptr<ov::Mo
                                 [](const ov::Input<ov::Node>& in) { return ov::is_type<ov::op::v1::Transpose>(in.get_node()); })) {
                     OPENVINO_ASSERT(consumers.size() == 1, "Incorrect count of outputs of Parameter!");
                     const auto transpose = consumers.begin()->get_node();
-                    std::vector<size_t> order;
+                    VectorDims order;
                     const auto& constant = ov::as_type_ptr<const opset1::Constant>(transpose->get_input_node_shared_ptr(1));
                     OPENVINO_ASSERT(constant, "Unsupported order node of Transpose");
                     order = constant->cast_vector<size_t>();
                     if (order.empty()) {
-                        order.resize(transpose->get_output_partial_shape(0).size());
-                        std::iota(order.rbegin(), order.rend(), 0);
+                        order = utils::get_planar_layout(transpose->get_output_partial_shape(0).size());
                     }
                     // `processing_dim_idx` starts from the end
                     processing_dim_idx = order.size() - 1 - ov::snippets::utils::get_input_dim_idx(order, processing_dim_idx);

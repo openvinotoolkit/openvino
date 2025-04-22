@@ -16,7 +16,7 @@ public:
         : snippets::KernelExecutor<Conf, KernelType>(std::move(c)),
           m_kernel_cache(std::move(kernel_cache)) {}
 
-    void update_kernel(const Conf& config, std::shared_ptr<KernelType>& kernel) const override final {  // NOLINT
+    void update_kernel(const Conf& config, std::shared_ptr<KernelType>& kernel) const override final {
         const auto& cache = m_kernel_cache.lock();
         OPENVINO_ASSERT(cache, "Invalid kernel cache pointer in CPUKernelExecutor::update_kernel()");
         const auto& lookup_result = cache->getOrCreate(Key(config), [this](const Key& k) {
@@ -29,7 +29,7 @@ protected:
     struct Key {
         explicit Key(Conf c) : config{std::move(c)} {}
         const Conf config;
-        size_t hash() const {
+        [[nodiscard]] size_t hash() const {
             return config.hash();
         }
         bool operator==(const Key& rhs) const {

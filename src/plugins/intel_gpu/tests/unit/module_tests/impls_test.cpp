@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/runtime/layout.hpp"
@@ -11,7 +11,7 @@
 #include "openvino/core/except.hpp"
 #include "primitive_inst.h"
 #include "test_utils.h"
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 #include "primitive_type_base.h"
 #include <memory>
 
@@ -110,9 +110,9 @@ struct SomeImplementationManager : public ImplementationManager {
         OPENVINO_ASSERT(node.is_type<some_primitive>());
         auto p = node.as<some_primitive>().get_primitive()->param;
 
-        if (!one_of(p, some_primitive::SomeParameter::SUPPORTED_VALUE_ALL,
-                       some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_1,
-                       some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_2))
+        if (!one_of(p, { some_primitive::SomeParameter::SUPPORTED_VALUE_ALL,
+                         some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_1,
+                         some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_2 }))
             return false;
         return true;
     }
@@ -137,7 +137,7 @@ struct SomeDynamicImplementationManager : public ImplementationManager {
         OPENVINO_ASSERT(node.is_type<some_primitive>());
         auto p = node.as<some_primitive>().get_primitive()->param;
 
-        if (!one_of(p, {some_primitive::SomeParameter::SUPPORTED_VALUE_ALL}))
+        if (!one_of(p, { some_primitive::SomeParameter::SUPPORTED_VALUE_ALL }))
             return false;
         return true;
     }
@@ -173,23 +173,21 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<some_
         OV_GPU_CREATE_INSTANCE_ONEDNN(SomeImplementationManager, shape_types::static_shape,
             [](const program_node& node) {
                 auto p = node.as<some_primitive>().get_primitive()->param;
-                if (one_of(p, {some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_1}))
+                if (one_of(p, { some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_1 }))
                     return true;
                 return false;
         })
         OV_GPU_GET_INSTANCE_OCL(some_primitive, shape_types::static_shape,
             [](const program_node& node) {
                 auto p = node.as<some_primitive>().get_primitive()->param;
-                if (!one_of(p,
-                            {some_primitive::SomeParameter::SUPPORTED_VALUE_ALL,
-                             some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_STATIC}))
+                if (!one_of(p, { some_primitive::SomeParameter::SUPPORTED_VALUE_ALL, some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_STATIC }))
                     return false;
                 return true;
         })
         OV_GPU_CREATE_INSTANCE_ONEDNN(SomeImplementationManager, shape_types::static_shape,
             [](const program_node& node) {
                 auto p = node.as<some_primitive>().get_primitive()->param;
-                if (one_of(p, {some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_2}))
+                if (one_of(p, { some_primitive::SomeParameter::SUPPORTED_VALUE_ONEDNN_2 }))
                     return true;
                 return false;
         })
@@ -197,9 +195,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<some_
         OV_GPU_GET_INSTANCE_OCL(some_primitive, shape_types::dynamic_shape,
             [](const program_node& node) {
                 auto p = node.as<some_primitive>().get_primitive()->param;
-                if (!one_of(p,
-                            {some_primitive::SomeParameter::SUPPORTED_VALUE_ALL,
-                             some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_DYNAMIC}))
+                if (!one_of(p, { some_primitive::SomeParameter::SUPPORTED_VALUE_ALL, some_primitive::SomeParameter::SUPPORTED_VALUE_OCL_DYNAMIC }))
                     return false;
                 return true;
         })

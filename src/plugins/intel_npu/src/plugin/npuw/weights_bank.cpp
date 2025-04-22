@@ -21,8 +21,8 @@ public:
 
 private:
     BankManager() {}
-    BankManager(BankManager const&) = delete;
-    void operator=(BankManager const&) = delete;
+    BankManager(const BankManager&) = delete;
+    void operator=(const BankManager&) = delete;
 
 public:
     // Public API
@@ -114,6 +114,7 @@ void Bank::evaluate_and_allocate() {
             if (device_for_alloc == "CPU") {
                 // No allocation needed
                 device_bank.storage[device_bank.registered_tensors.at(lt)].tensor = transformed_tensor;
+                const_cast<LazyTensor&>(lt).detach();
                 return;
             }
 

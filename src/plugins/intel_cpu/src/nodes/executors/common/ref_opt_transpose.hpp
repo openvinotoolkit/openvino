@@ -17,20 +17,20 @@ public:
               const std::vector<MemoryDescPtr>& dstDescs,
               const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::ref;
     }
 };
 
 class RefOptimizedTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
-    bool isSupported(const TransposeParams& transposeParams,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
+    [[nodiscard]] bool isSupported(const TransposeParams& transposeParams,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs) const override {
         static const std::vector<VectorDims> optimizedOrders = {
-            std::vector<size_t>{0, 3, 1, 2},
-            std::vector<size_t>{0, 4, 1, 2, 3},
-            std::vector<size_t>{0, 5, 1, 2, 3, 4},
+            VectorDims{0, 3, 1, 2},
+            VectorDims{0, 4, 1, 2, 3},
+            VectorDims{0, 5, 1, 2, 3, 4},
         };
         if (srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
             std::find(optimizedOrders.begin(), optimizedOrders.end(), transposeParams.permuteParams.order) !=
@@ -41,7 +41,7 @@ public:
         return false;
     }
 
-    TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<RefOptimizedTransposeExecutor>(context);
     }
 };

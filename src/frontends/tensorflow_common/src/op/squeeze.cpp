@@ -37,7 +37,7 @@ OutputVector translate_squeeze_op(const NodeContext& node) {
 
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_type_mark->input_value(0);
+        input = complex_type_mark->get_data();
 
         auto input_rank = compute_subgraph_scalar_rank(input, element::i32, true);
         auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
@@ -51,7 +51,7 @@ OutputVector translate_squeeze_op(const NodeContext& node) {
         auto squeeze_complex = make_shared<ComplexTypeMark>(squeeze, complex_part_type);
         return {squeeze_complex->output(0)};
     } else if (input.get_element_type() == element::string) {
-        ov::OutputVector unpacked_input = make_shared<v15::StringTensorUnpack>(input)->outputs();
+        auto unpacked_input = pre_translate_string_tensor_input(input);
         auto begins = unpacked_input[0];
         auto ends = unpacked_input[1];
         auto chars = unpacked_input[2];

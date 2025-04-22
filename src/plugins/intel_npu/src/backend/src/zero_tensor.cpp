@@ -4,7 +4,7 @@
 
 #include "zero_tensor.hpp"
 
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -33,7 +33,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     _ptr = data;
 }
 
-void* ZeroTensor::data(const ov::element::Type& element_type) const {
+const void* ZeroTensor::data(const ov::element::Type& element_type) const {
     if (element_type != ov::element::dynamic &&
         (element_type.bitwidth() != get_element_type().bitwidth() ||
          element_type.is_real() != get_element_type().is_real() ||

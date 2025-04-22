@@ -13,7 +13,9 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/lrn.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 namespace ov::intel_cpu::node {
 namespace {
@@ -28,7 +30,7 @@ struct LrnKey {
     float beta;
     dnnl::primitive_attr attr;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const LrnKey& rhs) const;
 };
 
@@ -84,23 +86,23 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
         const auto dataRank = dataDims.size();
         if (axes.size() == 1 && axes[0] == 1) {
             return true;
-        } else {
-            std::vector<bool> norm(dataRank, false);
-            for (auto& axis : axes) {
-                if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
-                    errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
-                    return false;
-                }
-                norm[axis] = true;
+        }
+        std::vector<bool> norm(dataRank, false);
+        for (auto& axis : axes) {
+            if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
+                errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
+                return false;
             }
+            norm[axis] = true;
+        }
 
-            for (size_t i = 2; i < norm.size(); ++i) {
-                if (!norm[i]) {
-                    errorMessage = "Supports only across channels or across spatial reduction";
-                    return false;
-                }
+        for (size_t i = 2; i < norm.size(); ++i) {
+            if (!norm[i]) {
+                errorMessage = "Supports only across channels or across spatial reduction";
+                return false;
             }
         }
+
     } catch (...) {
         return false;
     }
@@ -154,12 +156,11 @@ void Lrn::getSupportedDescriptors() {
 std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
     if (idx > 0) {
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
-    } else {
-        if (getInputShapeAtPort(idx).isDynamic()) {
-            return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
-        }
-        return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
     }
+    if (getInputShapeAtPort(idx).isDynamic()) {
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
+    }
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
 }
 
 void Lrn::prepareParams() {
@@ -203,7 +204,7 @@ void Lrn::prepareParams() {
             return nullptr;
         }
 
-        return std::make_shared<DnnlExecutor>(prim_desc);
+        return std::make_shared<DnnlExecutorLegacy>(prim_desc);
     };
 
     auto cache = context->getParamsCache();
@@ -228,7 +229,8 @@ bool Lrn::created() const {
     return getType() == Type::Lrn;
 }
 
-void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc, const std::vector<MemoryDescPtr>& outputDesc) {
+void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                           [[maybe_unused]] const std::vector<MemoryDescPtr>& outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();

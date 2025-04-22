@@ -52,22 +52,30 @@ public:
     virtual const ov::Strides& get_strides() const = 0;
 
     /**
-     * @brief Provides an access to the underlaying host memory
+     * @brief Provides an access to the underlying host memory
      * @param type Optional type parameter.
      * @note If type parameter is specified, the method throws an exception
      * if specified type's fundamental type does not match with tensor element type's fundamental type
      * @return A host pointer to tensor memory
+     * @{
      */
-    virtual void* data(const element::Type& type = {}) const = 0;
+    virtual void* data(const element::Type& type = {});
+    virtual const void* data(const element::Type& type = {}) const = 0;
+    /// @}
 
     /**
-     * @brief Provides an access to the underlaying host memory casted to type `T`
+     * @brief Provides an access to the underlying host memory casted to type `T`
      * @return A host pointer to tensor memory casted to specified type `T`.
      * @note Throws exception if specified type does not match with tensor element type
      */
     template <typename T, typename datatype = typename std::decay<T>::type>
-    T* data() const {
+    T* data() {
         return static_cast<T*>(data(element::from<datatype>()));
+    }
+
+    template <typename T, typename datatype = typename std::decay<T>::type>
+    const T* data() const {
+        return static_cast<const T*>(data(element::from<datatype>()));
     }
 
     /**

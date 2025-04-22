@@ -6,23 +6,19 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
+#include "ov_ops/rms.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "transformations/utils/utils.hpp"
+#include "intel_gpu/op/kv_cache.hpp"
 
 
 namespace ov::intel_gpu {
@@ -53,7 +49,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::v15::SearchSorted>(op) || ov::is_type<ov::op::v15::STFT>(op))
         return true;
 
-    if (ov::is_type<ov::op::internal::DynamicQuantize>(op))
+    if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
         return true;
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
@@ -81,32 +77,6 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     for (size_t i = 0; i < op->get_input_size(); i++) {
         if (op->get_input_partial_shape(i).size() > 6)
             return true;
-    }
-
-    return false;
-}
-
-bool is_llm(const ov::Model& model) {
-    using namespace ov::pass::pattern;
-
-    auto past = wrap_type<ov::op::v6::ReadValue>();
-    auto convert_past = wrap_type<ov::op::v0::Convert>({past});
-    auto gather_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past});
-    auto beam_idx = wrap_type<ov::op::v0::Parameter>();
-    auto gather_past = wrap_type<ov::op::v8::Gather>({gather_input, beam_idx, wrap_type<ov::op::v0::Constant>()});
-    auto gather_convert = wrap_type<ov::op::v0::Convert>({gather_past});
-    auto concat_past_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past, convert_past, gather_past, gather_convert});
-    auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
-    auto convert_present = wrap_type<ov::op::v0::Convert>({concat});
-    auto present_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{concat, convert_present});
-    auto present = wrap_type<ov::op::v6::Assign>({present_input});
-
-    auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
-
-    for (auto& op : model.get_ordered_ops()) {
-        if (kvcache_matcher->match(op) || ov::is_type<ov::op::PagedAttentionExtension>(op)) {
-            return true;
-        }
     }
 
     return false;
@@ -163,10 +133,13 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 }
 
 void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {
-    apply_rt_info(context, get_rt_info(model), is_llm(model));
+    const auto is_LLM = ov::op::util::is_large_language_model(model) ||
+                        ov::op::util::has_op_with_type<ov::intel_gpu::op::KVCache>(model.shared_from_this());
+    apply_rt_info(context, get_rt_info(model), is_LLM);
 
     const auto& ops = model.get_ops();
 
+    auto is_paged_attention_model = false;
     std::function<void(std::shared_ptr<Node>)> process_op = [&, this](std::shared_ptr<Node> op) {
         if (requires_new_shape_infer(op)) {
             m_allow_new_shape_infer = true;
@@ -183,12 +156,16 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
             m_use_onednn = true;
         }
 
-        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 for (auto& sub_op : sub_graph->get_ops()) {
                     process_op(sub_op);
                 }
             }
+        }
+
+        if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+            is_paged_attention_model = true;
         }
     };
 
@@ -196,6 +173,22 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         process_op(op);
     }
 
+    const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
+    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
+        if (is_paged_attention_model || !info.supports_immad) {
+            // Enable KV-cache compression by default for:
+            // 1) Non-systolic platforms in case of SDPA-based models
+            // 2) For any platforms in case of PagedAttention-based model
+            m_kv_cache_precision = ov::element::i8;
+        } else {
+            m_kv_cache_precision = get_inference_precision();
+        }
+    }
+
+    // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
+    if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
+        m_could_use_flashattn_v2 = false;
+    }
     m_optimize_data = true;
 }
 
@@ -217,15 +210,6 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_queue_type = QueueTypes::in_order;
     }
 
-    if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
-        if (info.supports_immad) {  // MFDNN-11755
-            m_kv_cache_precision = get_inference_precision();
-        } else {
-            // Enable KV-cache compression by default for non-systolic platforms only
-            m_kv_cache_precision = ov::element::i8;
-        }
-    }
-
     // Enable dynamic quantization by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0 && !info.supports_immad) {
         m_dynamic_quantization_group_size = 32;
@@ -233,6 +217,11 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
 
     if (!get_force_implementations().empty()) {
         m_optimize_data = true;
+    }
+
+    // Replace UINT8 KV-cache compression data type with INT8, as plugin is supposed to work with INT8 internally
+    if (get_kv_cache_precision() == ov::element::u8) {
+        m_kv_cache_precision = ov::element::i8;
     }
 
 #ifdef ENABLE_DEBUG_CAPS

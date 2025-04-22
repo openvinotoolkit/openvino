@@ -1,8 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
@@ -13,6 +12,14 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/convert_precision.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace ov;
 
@@ -171,6 +178,37 @@ TEST_F(TransformationTestsF, KeepConstPrecision2BranchesSameShapes) {
         const auto result_right = std::make_shared<opset10::Result>(multiply_right);
 
         model_ref = std::make_shared<Model>(ResultVector{result_right, result_left}, ParameterVector{});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, MarkDequantizationScaleOnTheLeftBranch) {
+    {
+        auto lp_const = std::make_shared<opset10::Constant>(element::u4, Shape{27}, 1);
+        auto scale = opset10::Constant::create(element::i64, Shape{}, {2});
+
+        auto convert_lp = std::make_shared<opset10::Convert>(lp_const, element::f32);
+        auto convert_scale = std::make_shared<opset10::Convert>(scale, element::f32);
+        auto multiply = std::make_shared<opset10::Multiply>(convert_scale, convert_lp);
+        auto stub_op = std::make_shared<opset10::Relu>(multiply);
+        model = std::make_shared<Model>(stub_op, ParameterVector{});
+    }
+
+    manager.register_pass<pass::MarkDequantization>(element::TypeVector{element::u4});
+    manager.register_pass<pass::ConstantFolding>();
+
+    {
+        auto lp_const = std::make_shared<opset10::Constant>(element::u4, Shape{27}, 1);
+        auto scale = opset10::Constant::create(element::f32, Shape{}, {2});
+
+        auto convert_lp = std::make_shared<opset10::Convert>(lp_const, element::f32);
+        auto multiply = std::make_shared<opset10::Multiply>(scale, convert_lp);
+        auto stub_op = std::make_shared<opset10::Relu>(multiply);
+        model_ref = std::make_shared<Model>(stub_op, ParameterVector{});
+
+        mark_as_dequantization_node(multiply);
+        ov::pass::disable_constant_folding(convert_lp);
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);

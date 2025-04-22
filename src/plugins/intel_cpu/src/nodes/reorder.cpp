@@ -148,23 +148,19 @@ void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const M
         if (lhs.hasLayoutType(LayoutType::ncsp) && rhs.hasLayoutType(LayoutType::nspc)) {
             if (rank == 4) {
                 return {{0, 2, 3, 1}, {in[0], in[2], in[3], in[1]}};
-            } else {
-                return {{0, 2, 1}, {in[0], in[2], in[1]}};
             }
-
-        } else if (lhs.hasLayoutType(LayoutType::nspc) && rhs.hasLayoutType(LayoutType::ncsp)) {
+            return {{0, 2, 1}, {in[0], in[2], in[1]}};
+        }
+        if (lhs.hasLayoutType(LayoutType::nspc) && rhs.hasLayoutType(LayoutType::ncsp)) {
             if (rank == 4) {
                 return {{0, 3, 1, 2}, {in[0], in[3], in[1], in[2]}};
-            } else {
-                return {{0, 2, 1}, {in[0], in[2], in[1]}};
             }
-        } else {
-            if (rank == 4) {
-                return {{0, 1, 2, 3}, in};
-            } else {
-                return {{0, 1, 2}, in};
-            }
+            return {{0, 2, 1}, {in[0], in[2], in[1]}};
         }
+        if (rank == 4) {
+            return {{0, 1, 2, 3}, in};
+        }
+        return {{0, 1, 2}, in};
     };
 
     auto order = getOrderAndBlockedDims(*parentDesc, *childDesc);
@@ -327,6 +323,7 @@ void Reorder::createReorderPrimitive(const DnnlMemoryDescPtr& srcDesc, const Dnn
     DEBUG_LOG("CreateReorderPrimitive is called for node", getName(), " src desc: ", src_desc, " dst_desc: ", dst_desc);
     CPU_NODE_ASSERT(src_desc.get_ndims() == dst_desc.get_ndims(),
                     "OneDNN doesn't support reorder with different ranks.");
+
     prim = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
     CPU_NODE_ASSERT(prim, "could not create reorder primitive: unsupported reorder case.");
 

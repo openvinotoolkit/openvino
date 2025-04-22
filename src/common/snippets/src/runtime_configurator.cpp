@@ -342,16 +342,7 @@ std::vector<VectorDims> RuntimeConfigurator::extract_layouts() const {
 }
 
 void RuntimeConfigurator::compute_offsets(const ov::snippets::VectorDims& shape, size_t idx, size_t idx_stride) const {
-    auto& offsets = m_config->io_data_offsets[idx];
-    auto dim_step = m_io_data_sizes[idx];
-
-    offsets.resize(m_config->tensor_rank);
-    std::fill(offsets.begin(), offsets.end(), 0);
-    offsets[offsets.size() - 1] = dim_step;
-    for (int i = static_cast<int>(shape.size()) - 2; i >= 0; i--) {
-        dim_step *= shape[i + 1];
-        offsets[i + idx_stride] = shape[i] != 1 ? dim_step : 0;
-    }
+    utils::init_strides(shape, m_config->tensor_rank, m_io_data_sizes[idx], idx_stride, m_config->io_data_offsets[idx]);
 }
 
 void RuntimeConfigurator::set_kernel_executor_table(std::shared_ptr<KernelExecutorTable> table) const {

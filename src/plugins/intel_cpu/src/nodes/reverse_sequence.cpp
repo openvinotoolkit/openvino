@@ -8,7 +8,8 @@
 #include <vector>
 
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/reverse_sequence.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -183,7 +184,7 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     });
 }
 
-void ReverseSequence::execute(const dnnl::stream& strm) {
+void ReverseSequence::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has no compiled executor");
     }

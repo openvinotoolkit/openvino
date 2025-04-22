@@ -10,7 +10,12 @@
 #include "common/cpu_memcpy.h"
 #include "input.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/slice_scatter.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/opsets/opset15_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
 #include "slice_shape_inference_utils.hpp"
 
@@ -20,8 +25,7 @@ namespace ov::intel_cpu::node {
 
 bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<ov::op::v1::StridedSlice>(op) && !ov::is_type<ov::op::v8::Slice>(op) &&
-            !ov::is_type<ov::op::v15::SliceScatter>(op)) {
+        if (!ov::is_type_any_of<ov::op::v1::StridedSlice, ov::op::v8::Slice, ov::op::v15::SliceScatter>(op)) {
             errorMessage = "Only StridedSlice from opset1, Slice from opset8 and SliceScatter from opset15 operations "
                            "are supported.";
             return false;
@@ -365,7 +369,7 @@ bool StridedSlice::needShapeInfer() const {
     return Node::inputShapesModified() || shapeHasDataDependency;
 }
 
-void StridedSlice::execute(const dnnl::stream& strm) {
+void StridedSlice::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have compiled executor!");
     }
@@ -454,7 +458,7 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     const size_t nDims = std::max(inputRank, outputRank);
 
     auto fillingInParameters = [&](std::vector<int>& parameter, const size_t type, const size_t size, const int value) {
-        const int* ptr = srcMemory[type]->getDataAs<const int32_t>();
+        const auto* ptr = srcMemory[type]->getDataAs<const int32_t>();
         parameter.assign(ptr, ptr + size);
 
         if (type != attrs.AXES_ID && params.attrs.ellipsisMaskCounter == 0 && size < nDims) {
@@ -824,8 +828,8 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculationForOptimized() 
 
 void StridedSlice::StridedSliceCommonExecutor::execStridedSlice(const std::vector<MemoryCPtr>& srcMemory,
                                                                 const std::vector<MemoryCPtr>& dstMemory) {
-    const uint8_t* srcData = srcMemory[0]->getDataAs<const uint8_t>();
-    uint8_t* dstData = dstMemory[0]->getDataAs<uint8_t>();
+    const auto* srcData = srcMemory[0]->getDataAs<const uint8_t>();
+    auto* dstData = dstMemory[0]->getDataAs<uint8_t>();
     const uint8_t* srcShiftedData = srcData + srcShift;
     parallel_nt(nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -839,9 +843,9 @@ void StridedSlice::StridedSliceCommonExecutor::execStridedSlice(const std::vecto
 
 void StridedSlice::StridedSliceCommonExecutor::execSliceScatter(const std::vector<MemoryCPtr>& srcMemory,
                                                                 const std::vector<MemoryCPtr>& dstMemory) {
-    const uint8_t* srcData = srcMemory[0]->getDataAs<const uint8_t>();
-    const uint8_t* srcUpdates = srcMemory[1]->getDataAs<const uint8_t>();
-    uint8_t* dstData = dstMemory[0]->getDataAs<uint8_t>();
+    const auto* srcData = srcMemory[0]->getDataAs<const uint8_t>();
+    const auto* srcUpdates = srcMemory[1]->getDataAs<const uint8_t>();
+    auto* dstData = dstMemory[0]->getDataAs<uint8_t>();
     cpu_parallel_memcpy(dstData, srcData, srcMemory[0]->getSize());
     if (srcMemory[1]->getSize() == 0) {
         // Updates are empty - do not apply

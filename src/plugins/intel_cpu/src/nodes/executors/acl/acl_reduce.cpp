@@ -28,7 +28,7 @@ AclReduceExecutor::AclReduceExecutor(ExecutorContext::CPtr context) : ReduceExec
 bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
                              const std::vector<MemoryDescPtr>& srcDescs,
                              const std::vector<MemoryDescPtr>& dstDescs,
-                             const dnnl::primitive_attr& attr) {
+                             [[maybe_unused]] const dnnl::primitive_attr& attr) {
     if (reduceAttrs.operation != Algorithm::ReduceMax && reduceAttrs.operation != Algorithm::ReduceMin &&
         reduceAttrs.operation != Algorithm::ReduceSum && reduceAttrs.operation != Algorithm::ReduceProd &&
         reduceAttrs.operation != Algorithm::ReduceMean) {
@@ -62,9 +62,8 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
 
     std::function<std::unique_ptr<IFunction>(void)> exec_func;
     std::vector<int> castedAxes;
-    for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
-        int axis =
-            axisCast(reduceAttrs.axes[i], srcDims.size(), hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
+    for (int axe : reduceAttrs.axes) {
+        int axis = axisCast(axe, srcDims.size(), hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
         if (hasSrcNspcLayout && axis == -1) {
             return false;
         }

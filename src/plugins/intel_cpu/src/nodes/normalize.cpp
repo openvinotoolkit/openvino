@@ -4,6 +4,7 @@
 
 #include "normalize.h"
 
+#include <memory>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <utility>
 
@@ -19,7 +20,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
 #include "utils/cpu_utils.hpp"
@@ -44,7 +44,7 @@ struct NormalizeKey {
     dnnl::primitive_attr kernel_attrs;
     VectorDims dims;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const NormalizeKey& rhs) const;
 };
 
@@ -133,13 +133,13 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
             if (isa == cpu::x64::sse41) {
                 hsum_store(vmm_sqr_sum);
             } else if (isa == cpu::x64::avx2) {
-                Xbyak::Ymm ymm_sqr_sum = Xbyak::Ymm(vmm_sqr_sum.getIdx());
+                auto ymm_sqr_sum = Xbyak::Ymm(vmm_sqr_sum.getIdx());
                 vextractf128(xmm_aux1, ymm_sqr_sum, 0);
                 vextractf128(xmm_aux2, ymm_sqr_sum, 1);
                 uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
                 hsum_store(xmm_aux1);
             } else {
-                Xbyak::Zmm zmm_sqr_sum = Xbyak::Zmm(vmm_sqr_sum.getIdx());
+                auto zmm_sqr_sum = Xbyak::Zmm(vmm_sqr_sum.getIdx());
                 vextractf32x4(xmm_aux1, zmm_sqr_sum, 0);
                 vextractf32x4(xmm_aux2, zmm_sqr_sum, 1);
                 uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
@@ -242,7 +242,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
         }
 
         if (mayiuse(avx512_core)) {
-            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
+            uni_vcvtneps2bf16 = std::make_unique<jit_uni_vcvtneps2bf16>(this, isa);
         }
 
         this->preamble();
@@ -582,8 +582,8 @@ private:
     }
 
     inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
-        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
+        auto ymm_dst = Ymm(vmm_dst.getIdx());
+        auto xmm_dst = Xmm(vmm_dst.getIdx());
 
         if (dst_dt == memory::data_type::f32) {
             uni_vmovups(op, vmm_dst);
@@ -755,7 +755,8 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
         const auto isSupportedAxes = [](const std::vector<size_t>& axes, const size_t inputRank) {
             if (axes.size() == 1 && axes[0] == 1) {
                 return true;
-            } else if (axes.size() == inputRank - 1) {
+            }
+            if (axes.size() == inputRank - 1) {
                 auto sortAxes = axes;
                 std::sort(sortAxes.begin(), sortAxes.end());
                 for (size_t i = 0; i < sortAxes.size(); i++) {
@@ -872,7 +873,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
         config.inConfs[1].setMemDesc(std::move(a));
         a = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(DATA));
         config.outConfs[0].setMemDesc(std::move(a));
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     };
 
     impl_desc_type impl_type = impl_desc_type::unknown;
@@ -898,7 +899,9 @@ bool NormalizeL2::canFuse(const NodePtr& node) const {
     return !attrs.cornerCase && canFuseSimpleOperation(node);
 }
 
-void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights) {
+void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs,
+                             const VectorDims& dims,
+                             [[maybe_unused]] bool initWeights) {
     dnnl::post_ops ops;
 
     postOpsDataPtrs.clear();
@@ -995,13 +998,13 @@ void NormalizeL2::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NormalizeL2::execute(const dnnl::stream& strm) {
+void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }
 
-    const uint8_t* src_ptr = getSrcDataAtPortAs<const uint8_t>(DATA);
-    uint8_t* dst_ptr = getDstDataAtPortAs<uint8_t>(DATA);
+    const auto* src_ptr = getSrcDataAtPortAs<const uint8_t>(DATA);
+    auto* dst_ptr = getDstDataAtPortAs<uint8_t>(DATA);
     execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
 }
 
@@ -1011,9 +1014,9 @@ template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2CornerCaseExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
     NormalizeL2CornerCaseExecutor(const VectorDims& dims)
-        : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>())) {}
+        : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())) {}
 
-    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) override {
+    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, [[maybe_unused]] const void** post_ops_data) override {
         normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
     }
 
@@ -1061,16 +1064,18 @@ public:
 
         if (mayiuse(cpu::x64::avx512_core)) {
             blk_size = 16;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_core>(jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx512_core>(jcp, *kernel_attrs.get()));
+            normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_core>>(jcp);
+            normalize_kernel =
+                std::make_shared<jit_uni_normalize_kernel_f32<cpu::x64::avx512_core>>(jcp, *kernel_attrs.get());
         } else if (mayiuse(cpu::x64::avx2)) {
             blk_size = 8;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *kernel_attrs.get()));
+            normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>>(jcp);
+            normalize_kernel = std::make_shared<jit_uni_normalize_kernel_f32<cpu::x64::avx2>>(jcp, *kernel_attrs.get());
         } else if (mayiuse(cpu::x64::sse41)) {
             blk_size = jcp.is_blk ? 8 : 4;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *kernel_attrs.get()));
+            normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>>(jcp);
+            normalize_kernel =
+                std::make_shared<jit_uni_normalize_kernel_f32<cpu::x64::sse41>>(jcp, *kernel_attrs.get());
         } else {
             OPENVINO_THROW("Jit Executor for NormalizeL2 cannot create kernels!");
         }
@@ -1485,7 +1490,7 @@ private:
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         // reinterpret cast from (pointer to const void) to (pointer to const pointer to const float)
-        const float** post_ops_data = reinterpret_cast<const float**>(post_ops_data_);
+        const auto** post_ops_data = reinterpret_cast<const float**>(post_ops_data_);
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
@@ -1581,7 +1586,8 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
     if (attrs.cornerCase) {
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
 #if defined(OPENVINO_ARCH_X86_64)
-    } else if (mayiuse(cpu::x64::sse41)) {
+    }
+    if (mayiuse(cpu::x64::sse41)) {
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
 #endif
     } else if (attrs.layout == LayoutType::ncsp) {

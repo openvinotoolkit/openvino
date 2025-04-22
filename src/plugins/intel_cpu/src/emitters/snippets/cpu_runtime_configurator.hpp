@@ -28,7 +28,7 @@ public:
     };
     RepackingImplType repacking_impl_type = RepackingImplType::NONE;
 
-    std::unordered_map<size_t, RepackedInput> repacked_inputs = {};
+    RepackedInputConfig repacked_input_config = {};
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
 };
 
@@ -44,7 +44,7 @@ public:
 
     // Note: This method is temporarily used only by `BrgemmExternalRepackingAdjuster` to create kernels for repacking.
     //       Please, remove this method when the adjuster is deprecated
-    const ov::intel_cpu::MultiCacheWeakPtr& get_cache() const {
+    [[nodiscard]] const ov::intel_cpu::MultiCacheWeakPtr& get_cache() const {
         return compiled_kernel_cache;
     }
 

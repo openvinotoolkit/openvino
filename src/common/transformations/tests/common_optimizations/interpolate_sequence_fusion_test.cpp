@@ -11,7 +11,13 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -71,7 +77,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion4D1) {
                                                                      snd_axis_node,
                                                                      attributes[1]);
 
-        model = std::make_shared<ov::Model>(NodeVector{snd_interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{snd_interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::InterpolateSequenceFusion>();
     }
     {
@@ -92,7 +98,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion4D1) {
 
         auto interpolate =
             std::make_shared<opset8::Interpolate>(input, cast_mul_result_to_int, scales_node, axes_node, ref_attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -161,7 +167,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion4D2) {
                                                                        third_axis_node,
                                                                        attributes[2]);
 
-        model = std::make_shared<ov::Model>(NodeVector{third_interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{third_interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::InterpolateSequenceFusion>();
     }
     {
@@ -192,7 +198,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion4D2) {
                                                                  snd_scales_node,
                                                                  snd_axis_node,
                                                                  ref_attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -243,7 +249,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion4D3) {
                                                                      snd_axis_node,
                                                                      attributes[1]);
 
-        model = std::make_shared<ov::Model>(NodeVector{snd_interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{snd_interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::InterpolateSequenceFusion>();
     }
     {
@@ -260,7 +266,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion4D3) {
         auto div_node = std::make_shared<opset8::Divide>(sizes_cast, cast_shape_to_float);
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, div_node, axes_node, ref_attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -329,7 +335,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion5D1) {
                                                                        third_axis_node,
                                                                        attributes[2]);
 
-        model = std::make_shared<ov::Model>(NodeVector{third_interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{third_interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::InterpolateSequenceFusion>();
     }
     {
@@ -350,7 +356,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion5D1) {
 
         auto interpolate =
             std::make_shared<opset8::Interpolate>(input, cast_mul_result_to_int, scales_node, axes_node, ref_attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }
 
@@ -419,7 +425,7 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion5D2) {
                                                                        third_axis_node,
                                                                        attributes[2]);
 
-        model = std::make_shared<ov::Model>(NodeVector{third_interpolate}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{third_interpolate}, ParameterVector{input});
         manager.register_pass<ov::pass::InterpolateSequenceFusion>();
     }
     {
@@ -436,6 +442,6 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion5D2) {
         auto div_node = std::make_shared<opset8::Divide>(sizes_cast, cast_shape_to_float);
 
         auto interpolate = std::make_shared<opset8::Interpolate>(input, sizes_node, div_node, axes_node, ref_attrs);
-        model_ref = std::make_shared<ov::Model>(NodeVector{interpolate}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{interpolate}, ParameterVector{input});
     }
 }

@@ -33,7 +33,7 @@ namespace ov::intel_cpu::node {
 struct PagedAttentionKey {
     ov::element::Type rtPrecision;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const PagedAttentionKey& rhs) const;
 };
 
@@ -150,22 +150,39 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
+bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode, const ov::element::Type precision) noexcept {
+    // AUTO means select by primitive
+    // for non-x86 platform, by-channel quantization is disabled
+    bool byChannel = precision.is_integral();
+    if (mode == Config::CacheQuantMode::BY_HIDDEN) {
+        byChannel = false;
+    }
+#if defined(OPENVINO_ARCH_ARM64)
+    byChannel = false;
+#endif
+    return byChannel;
+}
+
 void PagedAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
 
     // in one model, kvCachePrecision could not be changed so no need to care whether it may be changed.
     PagedAttentionKey key = {rtPrecision};
 
-    auto builder = [&](const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
+    auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
         // Since we are quantize only last dim it's safe to use the last dim of KV.
         auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        size_t key_group_size = cpuConfig.keyCacheGroupSize;
-        size_t value_group_size = cpuConfig.valueCacheGroupSize;
-        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, key_group_size, value_group_size);
+        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, kCachePrecision);
+        return make_pa_executor(rtPrecision,
+                                kCachePrecision,
+                                vCachePrecision,
+                                cpuConfig.keyCacheGroupSize,
+                                cpuConfig.valueCacheGroupSize,
+                                byChannel);
 #else
         return nullptr;
 #endif
@@ -179,7 +196,7 @@ void PagedAttention::createPrimitive() {
     m_executor = result.first;
 }
 
-void PagedAttention::execute(const dnnl::stream& strm) {
+void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
     std::vector<MemoryPtr> outputs(m_hasScore ? 2 : 1);
@@ -242,7 +259,7 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                 return false;
             }
         }
-        int orgInput = static_cast<int>(op->get_input_size());
+        auto orgInput = static_cast<int>(op->get_input_size());
         if (op->get_type_name() == std::string("PagedAttentionExtension") &&
             orgInput == PagedAttentionExecutor::ID_SLIDING_WINDOW + 1) {
             return true;

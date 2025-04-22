@@ -3,6 +3,7 @@
 //
 
 #include "conv_maxpool_activ.hpp"
+#include "openvino/op/max_pool.hpp"
 
 namespace ov {
 namespace test {

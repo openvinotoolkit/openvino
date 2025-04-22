@@ -6,6 +6,7 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/experimental_detectron_detection_output.hpp"
 
 namespace ov {
 namespace test {
