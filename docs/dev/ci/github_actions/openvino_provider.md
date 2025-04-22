@@ -50,7 +50,7 @@ in the example above.
 
 
 * `platform` - specifies the operating system for which artifacts should be downloaded. 
-Available options are listed in the input description description
+Available options are listed in the input description
 [here](../../../../.github/actions/openvino_provider/action.yml).
 * `arch` - specifies the target architecture (defaults to x86_64). Valid values are listed 
 in the input description [here](../../../../.github/actions/openvino_provider/action.yml).
