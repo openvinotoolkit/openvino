@@ -289,14 +289,11 @@ public:
     static std::shared_ptr<ICompilationContext> make_compilation_context(const ExecutionConfig& config);
 
     void save(cldnn::BinaryOutputBuffer& ob) const;
-    void load(cldnn::BinaryInputBuffer& ib);
+    void load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr = nullptr);
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
     bool is_new_shape_infer() const { return new_shape_infer; }
     layout_optimizer& get_layout_optimizer() const { return *_layout_optimizer; }
-    void set_model_ptr(std::shared_ptr<const ov::Model> model_ptr) {
-        _model_ptr = model_ptr;
-    }
 
 private:
     uint32_t prog_id = 0;
@@ -330,7 +327,6 @@ private:
     graph_optimizer_info optimizer_passes_info;
 
     std::map<std::string, std::vector<primitive_id>> state_initializers;
-    std::shared_ptr<const ov::Model> _model_ptr;
 
     primitives_info get_current_stage_info() const;
     /*
