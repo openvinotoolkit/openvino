@@ -897,7 +897,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 // WA: OneDNN weight-compressed matmul does not support fusion with quantization
                 bool is_onednn_compressed_weights = supports_immad && desc->compressed_weights;
                 should_fuse |= !is_onednn_compressed_weights && quantize_node.get_scale_shift_opt();
-
             }
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
