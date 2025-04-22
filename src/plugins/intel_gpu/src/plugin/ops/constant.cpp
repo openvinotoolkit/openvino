@@ -88,26 +88,38 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     cldnn::primitive_id constPrimID;
     auto data = op->get_data_ptr<char>();
 
-    cldnn::memory::ptr mem = nullptr;
-    if (constLayout.bytes_count() > 0) {
-            mem = p.get_engine().allocate_memory(constLayout, false);
+    const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0));
+
+    auto bufIter = p.blobMemCache.find(cache_key);
+
+    if (bufIter != p.blobMemCache.end()) {
+        constPrimID = bufIter->second;
+        p.primitive_ids[initialconstPrimID] = constPrimID;
+        p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
-        auto one_dim_layout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
-        auto one_dim_mem = p.get_engine().allocate_memory(one_dim_layout, false);
-        mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
+        cldnn::memory::ptr mem = nullptr;
+        if (constLayout.bytes_count() > 0) {
+            mem = p.get_engine().allocate_memory(constLayout, false);
+        } else {
+            // In the case of empty const data with {0} shape, it has zero byte.
+            // To avoid zero byte memory allocation issue, reinterpret one dimension memory to zero dimension memory.
+            auto one_dim_layout = cldnn::layout(ov::PartialShape({1}), constLayout.data_type, constLayout.format);
+            auto one_dim_mem = p.get_engine().allocate_memory(one_dim_layout, false);
+            mem = p.get_engine().reinterpret_buffer(*one_dim_mem, constLayout);
+        }
+
+        GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
+                        << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
+        auto& stream = p.get_engine().get_service_stream();
+        cldnn::mem_lock<char> lock{mem, stream};
+        auto buf = lock.data();
+        auto bufSize = constLayout.bytes_count();
+
+        std::memcpy(&buf[0], &data[0], bufSize);
+        p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
+        p.blobMemCache[cache_key] = initialconstPrimID;
+        constPrimID = initialconstPrimID;
     }
-
-    GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
-                    << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
-    auto& stream = p.get_engine().get_service_stream();
-    cldnn::mem_lock<char> lock{mem, stream};
-    auto buf = lock.data();
-    auto bufSize = constLayout.bytes_count();
-
-    std::memcpy(&buf[0], &data[0], bufSize);
-    p.add_primitive(*op, cldnn::data(initialconstPrimID, mem));
-    constPrimID = initialconstPrimID;
 }
 
 static bool is_btiwise(Node* node) {
