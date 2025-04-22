@@ -79,7 +79,7 @@ std::shared_ptr<Node> wrap_type(const PatternOps& inputs, const TPredicate& pred
 template <class... Args,
           typename TPredicate,
           typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate> &&
-                                    !std::is_constructible_v<std::vector<PatternOp>, TPredicate>>* = nullptr>
+                                    !std::is_constructible_v<PatternOps, TPredicate>>* = nullptr>
 std::shared_ptr<Node> wrap_type(const TPredicate& pred, const Attributes& attrs = {}) {
     return wrap_type<Args...>(PatternOps{}, op::Predicate(pred), attrs);
 }

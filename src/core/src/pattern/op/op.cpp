@@ -23,14 +23,6 @@ ov::Output<ov::Node> PatternOp::get_output() const {
 PatternOp::PatternOp(const Output<Node>& out) : op(out.get_node_shared_ptr()), output_idx(out.get_index()) {}
 
 PatternOp::PatternOp(const std::shared_ptr<Node>& op) : op(op) {}
-PatternOp::PatternOp(const std::shared_ptr<ov::op::Op>& op) : op(std::dynamic_pointer_cast<ov::Node>(op)) {}
-
-PatternOp::PatternOp(const std::shared_ptr<op::Or>& op) : op(std::dynamic_pointer_cast<ov::Node>(op)) {}
-
-PatternOp::PatternOp(const std::shared_ptr<ov::op::v0::Constant>& op) : op(std::dynamic_pointer_cast<ov::Node>(op)) {
-    // maybe warn developer, that shape, element type and value of this constant won't be compared during
-    // instruct them on how to enable matching with comparison
-}
 
 PatternOp::PatternOp(ov::Rank rank) {
     op = any_input(rank_equals(rank));

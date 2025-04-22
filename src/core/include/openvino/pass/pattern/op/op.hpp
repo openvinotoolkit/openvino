@@ -22,10 +22,11 @@ public:
     ov::Output<ov::Node> get_output() const;
 
     PatternOp(const Output<Node>& out);
+
+    template <typename T, typename std::enable_if_t<std::is_base_of_v<ov::Node, T>>* = nullptr>
+    PatternOp(const std::shared_ptr<T>& op) : op(std::dynamic_pointer_cast<ov::Node>(op)) {}
+
     PatternOp(const std::shared_ptr<Node>& op);
-    PatternOp(const std::shared_ptr<ov::op::Op>& op);
-    PatternOp(const std::shared_ptr<op::Or>& op);
-    PatternOp(const std::shared_ptr<ov::op::v0::Constant>& op);
     PatternOp(ov::Rank rank);
 
     // Constant matching
