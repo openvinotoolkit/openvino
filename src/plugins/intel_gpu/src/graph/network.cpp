@@ -1002,7 +1002,9 @@ void network::allocate_primitive_instance(program_node const& node) {
             }
         }
         const auto& users = node.get_users();
-        is_lora_state = users.front()->is_type<lora>();
+        if (!users.empty()) {
+            is_lora_state = users.front()->is_type<lora>();
+        }
     }
 
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
