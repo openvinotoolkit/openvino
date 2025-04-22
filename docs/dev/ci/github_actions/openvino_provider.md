@@ -54,7 +54,7 @@ Available options are listed in the input description
 [here](../../../../.github/actions/openvino_provider/action.yml).
 * `arch` - specifies the target architecture (defaults to x86_64). Valid values are listed 
 in the input description [here](../../../../.github/actions/openvino_provider/action.yml).
-* `install_dir` - if specified; downloads artifacts to a given local path; otherwise artifacts are getting installed 
+* `install_dir` - if specified, downloads artifacts to a given local path; otherwise artifacts are getting installed 
 to a root of GitHub workspace and then uploaded to GitHub artifacts storage 
 (uploading to GitHub storage is useful when reusing artifacts in multiple different jobs or propagating 
 them to incompatible runners such as Windows or GitHub-hosted ones, where this action cannot run).
