@@ -145,9 +145,7 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
         if (!is_set_by_user(low_level_property)) {
             m_low_level_property.value = m_high_level_property.value;
         }
-#ifdef ENABLE_DEBUG_CAPS
         apply_config_options(device_name, test_config_path);
-#endif
     }
 
     void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override {
