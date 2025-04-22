@@ -44,7 +44,7 @@ A simple example: calling OpenVINO provider in a separate job within a workflow:
   from [storage.openvinotoolkit.org](https://storage.openvinotoolkit.org/repositories/openvino/packages)
 
 
-**Note**: OpenVINO provider execution is supported on Linux GitHub runners only. To download _post-commit_ artifacts, 
+**Note**: OpenVINO provider _execution_ is supported on Linux GitHub runners only; though it can provide build artifacts for Windows as well - they can be propagated to Windows runners via GitHub storage (see [example](https://github.com/openvinotoolkit/openvino_tokenizers/blob/77f7abc0a900b2f189f397576a1f03aa9ffab383/.github/workflows/windows.yml#L98) in openvino_tokenizers). To download _post-commit_ artifacts, 
 the job with the action must run on an [Azure-hosted Linux runner](./runners.md), e.g. `runs-on: aks-linux-medium`
 in the example above.
 
