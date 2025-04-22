@@ -19,8 +19,9 @@ void core_configuration(ov::test::SubgraphBaseTest* test) {
     }
 
     // todo: issue: 123320
-    if (!((inf_prc != config.end() && inf_prc->second == element::undefined)
-        || (inf_prc == config.end() && exec_mode != config.end() && exec_mode->second == hint::ExecutionMode::ACCURACY))) {
+    if (!((inf_prc != config.end() && (inf_prc->second == element::dynamic)) ||
+          (inf_prc == config.end() && exec_mode != config.end() &&
+           exec_mode->second == hint::ExecutionMode::ACCURACY))) {
         test->convert_precisions.insert({ov::element::bf16, ov::element::f32});
         test->convert_precisions.insert({ov::element::f16, ov::element::f32});
     }

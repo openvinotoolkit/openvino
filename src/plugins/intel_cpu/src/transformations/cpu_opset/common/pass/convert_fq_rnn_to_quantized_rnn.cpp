@@ -5,6 +5,7 @@
 #include "convert_fq_rnn_to_quantized_rnn.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -179,7 +180,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
             return false;
         }
 
-        const float* input_scale_ptr = input_scale_constant->get_data_ptr<float>();
+        const auto* input_scale_ptr = input_scale_constant->get_data_ptr<float>();
         if (*input_scale_ptr == 0.f) {
             OPENVINO_THROW("Cannot handle zero input scale");
         }
@@ -204,7 +205,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
         if (input_shift_it != pattern_map.end()) {
             const auto input_shift_constant =
                 ov::as_type_ptr<op::v0::Constant>(input_shift_it->second.get_node_shared_ptr());
-            const float* input_shift_ptr = input_shift_constant->get_data_ptr<float>();
+            const auto* input_shift_ptr = input_shift_constant->get_data_ptr<float>();
             runtime_info["inputShift"] = *input_shift_ptr;
         }
 

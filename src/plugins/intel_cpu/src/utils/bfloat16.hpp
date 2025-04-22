@@ -38,9 +38,9 @@ public:
         return F32{static_cast<uint32_t>(m_value) << 16}.vfloat;
     }
     static constexpr bfloat16_t from_bits(uint16_t bits) {
-        return bfloat16_t(bits, true);
+        return {bits, true};
     }
-    uint16_t to_bits() const {
+    [[nodiscard]] uint16_t to_bits() const {
         return m_value;
     }
 

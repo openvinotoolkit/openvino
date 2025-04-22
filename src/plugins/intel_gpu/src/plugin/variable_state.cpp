@@ -98,6 +98,7 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
 }
 
 void VariableState::update_device_buffer() {
+    OPENVINO_ASSERT(m_context != nullptr, "m_context should not be null.");
     if (m_layout.is_dynamic() || m_layout.bytes_count() == 0) {
         m_shape_predictor->reset();
         m_memory.reset();
@@ -118,7 +119,7 @@ void VariableState::update_device_buffer() {
 }
 
 ov::element::Type VariableState::get_user_specified_type() const {
-    return m_user_specified_type != ov::element::undefined ? m_user_specified_type : ov::element::Type(m_layout.data_type);
+    return m_user_specified_type != ov::element::dynamic ? m_user_specified_type : ov::element::Type(m_layout.data_type);
 }
 
 ov::SoPtr<ov::ITensor> VariableState::get_state() const {

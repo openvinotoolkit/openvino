@@ -7,7 +7,7 @@
  * @variable global value for error info.
  * Don't change its order.
  */
-char const* error_infos[] = {"success",
+const char* error_infos[] = {"success",
                              "general error",
                              "it's not implement",
                              "failed to network",

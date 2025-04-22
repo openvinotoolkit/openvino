@@ -4,13 +4,21 @@
 
 #include "rnn_sequences_optimization.hpp"
 
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
@@ -136,9 +144,8 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
         auto checkSequence = [](const std::shared_ptr<ov::Node>& node) {
             if (auto lstm5 = ov::as_type_ptr<ov::opset5::LSTMSequence>(node)) {
                 return lstm5->get_direction() != ov::op::RecurrentSequenceDirection::BIDIRECTIONAL;
-            } else {
-                return false;
             }
+            return false;
         };
 
         std::shared_ptr<ov::Node> lstmSequence = m.get_match_root();
@@ -149,6 +156,7 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
     this->register_matcher(m, callback);
 }
 
+// NOLINTNEXTLINE(modernize-use-equals-default)
 ov::intel_cpu::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
     ADD_MATCHER_FOR_THIS(OptimizeLSTMSequenceTransposes)
     ADD_MATCHER_FOR_THIS(OptimizeRNNSequenceTransposes)

@@ -4,7 +4,7 @@
 
 #include "impls/onednn/utils.hpp"
 #include "reorder_inst.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <memory>
 namespace cldnn {
@@ -76,7 +76,8 @@ struct ReorderImplementationManager : public ImplementationManager {
         if (input_fmt.dimension() != output_fmt.dimension())
             return false;
 
-        if (in_dt == data_types::i64 || out_dt == data_types::i64)
+        if (in_dt == data_types::u16 || in_dt == data_types::u32 || in_dt == data_types::i16 || in_dt == data_types::i64 || out_dt == data_types::u16
+            || out_dt == data_types::u32 || out_dt == data_types::i16 || out_dt == data_types::i64)
             return false;
 
         // For mixed precision case, oneDNN is slower than clDNN

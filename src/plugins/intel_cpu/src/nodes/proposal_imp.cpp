@@ -43,8 +43,8 @@ static void enumerate_proposals_cpu(const float* bottom4d,
     const float* p_anchors_hp = anchors + 3 * num_anchors;
 
     parallel_for2d(bottom_H, bottom_W, [&](size_t h, size_t w) {
-        const float x = static_cast<float>((swap_xy ? h : w) * feat_stride);
-        const float y = static_cast<float>((swap_xy ? w : h) * feat_stride);
+        const auto x = static_cast<float>((swap_xy ? h : w) * feat_stride);
+        const auto y = static_cast<float>((swap_xy ? w : h) * feat_stride);
 
         const float* p_box = d_anchor4d + h * bottom_W + w;
         const float* p_score = bottom4d + h * bottom_W + w;
@@ -110,7 +110,8 @@ static void enumerate_proposals_cpu(const float* bottom4d,
             p_proposal[5 * anchor + 1] = y0;
             p_proposal[5 * anchor + 2] = x1;
             p_proposal[5 * anchor + 3] = y1;
-            p_proposal[5 * anchor + 4] = (min_box_W <= box_w) * (min_box_H <= box_h) * score;
+            p_proposal[5 * anchor + 4] =
+                static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h) * score;
         }
     });
 }

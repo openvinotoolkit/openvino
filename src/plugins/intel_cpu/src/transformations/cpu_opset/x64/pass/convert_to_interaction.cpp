@@ -5,13 +5,19 @@
 #include "convert_to_interaction.hpp"
 
 #include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "simplify_fakequantize.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
@@ -55,8 +61,8 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
         }
         std::vector<std::shared_ptr<Node>> features_node;
         auto first_feature_shape = dense_feature_node->get_output_partial_shape(0);
-        for (size_t i = 0; i < features_m.size(); i++) {
-            auto old_feature_node = pattern_map.at(features_m[i]).get_node_shared_ptr();
+        for (const auto& i : features_m) {
+            auto old_feature_node = pattern_map.at(i).get_node_shared_ptr();
             auto this_feature_shape = old_feature_node->get_output_partial_shape(0);
             // check whether inputs are all equal
             if (!first_feature_shape.compatible(this_feature_shape)) {
@@ -167,8 +173,8 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
         auto final_concat_node = pattern_map.at(final_concat_m).get_node_shared_ptr();
         std::vector<std::shared_ptr<Node>> features_node;
         auto first_feature_shape = dense_fq_node->get_output_partial_shape(0);
-        for (size_t i = 0; i < features_m.size(); i++) {
-            auto old_feature_node = pattern_map.at(features_m[i]).get_node_shared_ptr();
+        for (const auto& i : features_m) {
+            auto old_feature_node = pattern_map.at(i).get_node_shared_ptr();
             auto this_feature_shape = old_feature_node->get_output_partial_shape(0);
             // check whether inputs are all equal
             if (!first_feature_shape.compatible(this_feature_shape)) {

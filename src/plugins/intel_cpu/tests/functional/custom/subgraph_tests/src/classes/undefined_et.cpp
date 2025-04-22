@@ -27,6 +27,9 @@
 
 #include "custom/subgraph_tests/include/undefined_et.hpp"
 #include "utils/precision_support.h"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/random_uniform.hpp"
 
 namespace ov {
 namespace test {
@@ -149,7 +152,7 @@ TEST_P(UndefinedEtSubgraphTest, CompareWithRefs) {
     }
 
     ASSERT_EQ(compiledModel.get_property(ov::hint::execution_mode), m_mode);
-    ASSERT_EQ(compiledModel.get_property(ov::hint::inference_precision), element::undefined);
+    ASSERT_EQ(compiledModel.get_property(ov::hint::inference_precision), element::dynamic);
 
     size_t rnd_unfm_counter = 0lu;
     size_t logical_not_counter = 0lu;

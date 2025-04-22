@@ -22,9 +22,8 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDim
         ++indexes[j];
         if (indexes[j] < dims[j]) {
             break;
-        } else {
-            indexes[j] = 0;
         }
+        indexes[j] = 0;
     }
 }
 
@@ -42,7 +41,7 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
         dst_dims[0] = mb;
     }
 
-    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<size_t>());
+    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<>());
 
     auto get_idx = [ndims, data_size](const VectorDims& indexes, const VectorDims& strides) {
         size_t idx = 0;
@@ -70,16 +69,16 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
 }
 
 void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    const uint8_t* src_data = src[0]->getDataAs<const uint8_t>();
-    uint8_t* dst_data = dst[0]->getDataAs<uint8_t>();
+    const auto* src_data = src[0]->getDataAs<const uint8_t>();
+    auto* dst_data = dst[0]->getDataAs<uint8_t>();
     const int MB = src[0]->getStaticDims()[0];
     referenceExecute(src_data, dst_data, jcp, MB);
 }
 
 bool RefTransposeExecutor::init(const TransposeParams& transposeParams,
-                                const std::vector<MemoryDescPtr>& srcDescs,
-                                const std::vector<MemoryDescPtr>& dstDescs,
-                                const dnnl::primitive_attr& attr) {
+                                [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
+                                [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
+                                [[maybe_unused]] const dnnl::primitive_attr& attr) {
     jcp = TransposeExecutor::prepareParams(transposeParams.permuteParams);
     return true;
 }

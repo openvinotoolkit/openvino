@@ -27,7 +27,7 @@ public:
                             const ov::Output<Node>& input_zero_points,
                             const ov::Output<Node>& output_scales,
                             const ov::Output<Node>& output_zero_points,
-                            const ov::element::Type output_type = ov::element::undefined);
+                            const ov::element::Type output_type = ov::element::dynamic);
 
     void validate_and_infer_types() override;
 

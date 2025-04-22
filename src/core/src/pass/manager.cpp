@@ -16,6 +16,7 @@
 
 #include "itt.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/env_util.hpp"
@@ -255,7 +256,7 @@ public:
             if (m_visualize.is_bool()) {
                 _visualize();
             } else {
-                const auto& filter_tokens = split_by_delimiter(m_visualize.get_str(), ',');
+                const auto& filter_tokens = ov::util::split_by_delimiter(m_visualize.get_str(), ',');
                 for (const auto& token : filter_tokens) {
                     if (pass_name.find(token) != std::string::npos) {
                         _visualize();
@@ -278,7 +279,7 @@ public:
             if (m_serialize.is_bool()) {
                 _serialize();
             } else {
-                const auto& filter_tokens = split_by_delimiter(m_serialize.get_str(), ',');
+                const auto& filter_tokens = ov::util::split_by_delimiter(m_serialize.get_str(), ',');
                 for (const auto& token : filter_tokens) {
                     if (pass_name.find(token) != std::string::npos) {
                         _serialize();
@@ -299,19 +300,6 @@ private:
 
         name << model_name << std::string("_") << index_str << std::string("_") << pass_name;
         return name.str();
-    }
-
-    static std::vector<std::string> split_by_delimiter(std::string str, char delimiter) {
-        std::vector<std::string> res;
-        size_t pos = 0;
-        while ((pos = str.find(delimiter)) != std::string::npos) {
-            res.push_back(str.substr(0, pos));
-            str.erase(0, pos + 1);
-        }
-        if (pos != str.size() - 1) {
-            res.push_back(str);
-        }
-        return res;
     }
 
     std::unordered_map<std::string, stopwatch> stopwatches;

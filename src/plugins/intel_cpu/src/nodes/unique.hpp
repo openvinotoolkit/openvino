@@ -17,14 +17,14 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override {
+    [[nodiscard]] bool created() const override {
         return getType() == Type::Unique;
     }
 
 protected:
     void executeDynamicImpl(const dnnl::stream& strm) override;
     void prepareParams() override;
-    bool needShapeInfer() const override {
+    [[nodiscard]] bool needShapeInfer() const override {
         return false;
     }
 

@@ -245,6 +245,7 @@ REGISTER_FACTORY(v9, ROIAlign);
 REGISTER_FACTORY(v9, RDFT);
 REGISTER_FACTORY(v9, IRDFT);
 REGISTER_FACTORY(v9, Eye);
+REGISTER_FACTORY(v9, NonMaxSuppression);
 
 // ------------------------------ Supported v10 ops ----------------------------- //
 REGISTER_FACTORY(v10, IsFinite);
@@ -269,12 +270,14 @@ REGISTER_FACTORY(v13, BitwiseOr);
 REGISTER_FACTORY(v13, BitwiseXor);
 REGISTER_FACTORY(v13, FakeConvert);
 
+
 // ------------------------------ Supported v15 ops ----------------------------- //
 REGISTER_FACTORY(v15, ROIAlignRotated);
 REGISTER_FACTORY(v15, BitwiseRightShift);
 REGISTER_FACTORY(v15, BitwiseLeftShift);
 REGISTER_FACTORY(v15, SearchSorted);
 REGISTER_FACTORY(v15, STFT);
+REGISTER_FACTORY(v15, Col2Im);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

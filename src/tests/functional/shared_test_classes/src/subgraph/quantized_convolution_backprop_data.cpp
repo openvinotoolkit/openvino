@@ -6,6 +6,7 @@
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/convolution.hpp"
 
 namespace ov {
 namespace test {
@@ -43,7 +44,7 @@ std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestP
 void QuantConvBackpropDataLayerTest::SetUp() {
     quantConvBackpropDataSpecificParams groupConvBackpropDataParams;
     ov::Shape inputShape;
-    ov::element::Type element_type = ov::element::undefined;
+    ov::element::Type element_type = ov::element::dynamic;
     std::tie(groupConvBackpropDataParams, element_type, inputShape, targetDevice) = this->GetParam();
     ov::op::PadType padType;
     std::vector<size_t> kernel, stride, dilation;

@@ -8,7 +8,7 @@
 
 #include "node.h"
 
-#define MAX_INPUT_INTERPOLATE 8
+enum { MAX_INPUT_INTERPOLATE = 8 };
 
 namespace ov::intel_cpu {
 
@@ -112,10 +112,10 @@ public:
     virtual void exec(const std::vector<MemoryCPtr>& src,
                       const std::vector<MemoryPtr>& dst,
                       const void* post_ops_data_) = 0;
-    virtual impl_desc_type getImplType() const = 0;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
 
     virtual ~InterpolateExecutor() = default;
-    VectorDims getSrcDimPad5d() const {
+    [[nodiscard]] VectorDims getSrcDimPad5d() const {
         return srcDimPad5d;
     }
     const uint8_t* padPreprocess(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst);
@@ -141,8 +141,8 @@ private:
                        float cubicCoeff,
                        InterpolateLayoutType layout);
 
-    float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-    int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+    [[nodiscard]] float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
+    [[nodiscard]] int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
     void linearOnnxCF(int outCoord,
                       float scale,
                       int inShape,
@@ -168,11 +168,11 @@ using InterpolateExecutorCPtr = std::shared_ptr<const InterpolateExecutor>;
 
 class InterpolateExecutorBuilder {
 public:
-    ~InterpolateExecutorBuilder() = default;
-    virtual bool isSupported(const InterpolateAttrs& InterpolateAttrs,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual InterpolateExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    virtual ~InterpolateExecutorBuilder() = default;
+    [[nodiscard]] virtual bool isSupported(const InterpolateAttrs& InterpolateAttrs,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual InterpolateExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using InterpolateExecutorBuilderPtr = std::shared_ptr<InterpolateExecutorBuilder>;

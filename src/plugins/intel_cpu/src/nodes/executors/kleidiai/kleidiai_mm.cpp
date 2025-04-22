@@ -18,7 +18,7 @@
 #include "utils/debug_capabilities.h"
 
 #define FLOAT_MAX 3.4028235e38f
-#define FLOAT_MIN -3.4028235e38f
+#define FLOAT_MIN (-3.4028235e38f)
 
 namespace ov {
 namespace intel_cpu {
@@ -36,7 +36,6 @@ bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
 }
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
-                                               const PostOps& postOps,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context)
     : m_attrs(attrs),
@@ -159,8 +158,9 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
 }
 
 void MatMulKleidiAIExecutor::moveMemToNumaNode(int numaNodeID) {
-    if (curNumaNode == numaNodeID)
+    if (curNumaNode == numaNodeID) {
         return;
+    }
     curNumaNode = numaNodeID;
     mbind_move(packedWeights, numaNodeID);
     if (m_attrs.withBias) {

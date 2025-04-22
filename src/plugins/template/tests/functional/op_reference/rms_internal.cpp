@@ -39,7 +39,7 @@ public:
     void SetUp() override {
         auto params = GetParam();
         const auto output_type =
-            params.expected.type == params.input.type ? ov::element::undefined : params.expected.type;
+            params.expected.type == params.input.type ? ov::element::dynamic : params.expected.type;
         function = CreateFunction(params.input, params.eps, params.scale, output_type);
         if (!params.scale.data) {
             inputData = {params.input.data};
@@ -77,11 +77,11 @@ private:
         if (!scale.data) {
             const auto scale_const = std::make_shared<op::v0::Constant>(input.type, input.shape, 1.0);
             const auto rms_norm = std::make_shared<op::internal::RMS>(in, scale_const, eps, output_type);
-            return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in});
+            return std::make_shared<ov::Model>(OutputVector{rms_norm}, ParameterVector{in});
         }
         const auto scale_param = std::make_shared<op::v0::Parameter>(scale.type, scale.shape);
         const auto rms_norm = std::make_shared<op::internal::RMS>(in, scale_param, eps, output_type);
-        return std::make_shared<ov::Model>(NodeVector{rms_norm}, ParameterVector{in, scale_param});
+        return std::make_shared<ov::Model>(OutputVector{rms_norm}, ParameterVector{in, scale_param});
     }
 };
 

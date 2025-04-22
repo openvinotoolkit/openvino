@@ -306,7 +306,7 @@ public:
 
     // Program node with can_be_optimized true could also allocate from memory pool during runtime, if it cannot be
     // optimized out (with inst_impl.can_be_optimized false).
-    // If it is optimized out, alternatively, it could reuse the memory from its parent (e.g. reshape) or chilren (e.g. concat).
+    // If it is optimized out, alternatively, it could reuse the memory from its parent (e.g. reshape) or children (e.g. concat).
     // The memory dependency pass need consider both situations, by iteratively referencing to all nodes that can_be_optimized until
     // it meets the first node with can_be_optimize==false along the searching path.
     // For example, in such a subgraph like -
@@ -320,11 +320,12 @@ public:
             return;
         }
 
-        if ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized()) {
-            node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+        if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) && ((node->can_be_optimized() && !node->is_runtime_skippable())
+            || !dep->can_be_optimized())) {
+            node->add_memory_dependency(*dep);
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
-                node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+                node->add_memory_dependency(*dep);
             }
 
             for (const auto& subdep : dep->get_dependencies()) {

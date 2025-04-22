@@ -5,9 +5,17 @@
 #include "mha_fusion.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "simplify_fakequantize.hpp"
@@ -403,7 +411,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
             ov::as_type_ptr<ov::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize0).get_node_shared_ptr());
         if (fq0_node) {
             fq0_scale = simplifyToScale(fq0_node);
-            if (!fq0_scale.size()) {
+            if (fq0_scale.empty()) {
                 return false;
             }
         }
@@ -453,7 +461,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
             ov::as_type_ptr<ov::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize1).get_node_shared_ptr());
         if (fq1_node) {
             fq1_scale = simplifyToScale(fq1_node);
-            if (!fq1_scale.size()) {
+            if (fq1_scale.empty()) {
                 return false;
             }
         } else {
@@ -472,7 +480,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
         if (auto fq_node =
                 ov::as_type_ptr<ov::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize2).get_node_shared_ptr())) {
             fq2_scale = simplifyToScale(fq_node);
-            if (!fq2_scale.size()) {
+            if (fq2_scale.empty()) {
                 return false;
             }
         }
@@ -490,8 +498,8 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
             fq0_scale,
             fq1_scale,
             fq2_scale,
-            ov::element::undefined,
-            fq0_node ? fq0_node->get_output_element_type(0) : ov::element::undefined,
+            ov::element::dynamic,
+            fq0_node ? fq0_node->get_output_element_type(0) : ov::element::dynamic,
             fq1_node->get_output_element_type(0),
             transpose3_node->get_output_element_type(0));
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
@@ -623,7 +631,7 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
             ov::as_type_ptr<ov::opset1::FakeQuantize>(pattern_to_output.at(fakeQuantize0).get_node_shared_ptr());
         if (fq0_node) {
             fq0_scale = simplifyToScale(fq0_node);
-            if (!fq0_scale.size()) {
+            if (fq0_scale.empty()) {
                 return false;
             }
         } else {
@@ -644,7 +652,7 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
             if (auto fq_node = ov::as_type_ptr<ov::opset1::FakeQuantize>(
                     pattern_to_output.at(fakeQuantize1).get_node_shared_ptr())) {
                 fq1_scale = simplifyToScale(fq_node);
-                if (!fq1_scale.size()) {
+                if (fq1_scale.empty()) {
                     return false;
                 }
             }
@@ -671,8 +679,8 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
                                                             std::vector<float>(),
                                                             fq1_scale,
                                                             fq0_node->get_output_element_type(0),
-                                                            ov::element::undefined,
-                                                            ov::element::undefined,
+                                                            ov::element::dynamic,
+                                                            ov::element::dynamic,
                                                             transpose3_node->get_output_element_type(0));
         mha->set_friendly_name(m.get_match_root()->get_friendly_name());
         std::vector<std::shared_ptr<Node>> merged = {

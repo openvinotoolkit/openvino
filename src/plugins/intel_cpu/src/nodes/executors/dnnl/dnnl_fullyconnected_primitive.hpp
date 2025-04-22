@@ -25,7 +25,7 @@ class DnnlFCPrimitive {
         bool sparseWeights;
         Config::ModelType modelType;
 
-        size_t hash() const;
+        [[nodiscard]] size_t hash() const;
         bool operator==(const Key& rhs) const;
     };
 
@@ -34,28 +34,27 @@ public:
 
     void execute(const dnnl_primitive_args& primArgs) const;
 
-    const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
-    impl_desc_type implType() const {
+    [[nodiscard]] impl_desc_type implType() const {
         return m_implType;
     }
 
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
-                                                            const PostOps& postOps,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
                                                             const bool cacheWeights);
@@ -70,7 +69,7 @@ public:
 
     static std::shared_ptr<DnnlFCPrimitive> create(const MemoryArgs& memory,
                                                    const FCAttrs& attrs,
-                                                   const ExecutorContext::CPtr context,
+                                                   const ExecutorContext::CPtr& context,
                                                    const DnnlShapeAgnosticDataPtr& shapeAgnosticData);
 
 private:

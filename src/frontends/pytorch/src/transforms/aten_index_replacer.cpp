@@ -4,6 +4,7 @@
 
 #include "aten_index_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 #include "openvino/op/add.hpp"
@@ -76,7 +77,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             }
             auto index_dtype = indicies->get_output_element_type(0);
             if (index_dtype == element::boolean || index_dtype == element::u8) {
-                auto nonzero = rg.make<v3::NonZero>(indicies, element::i32);
+                auto nonzero = rg.make<v3::NonZero>(indicies);
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 auto masked_id = rg.make<v1::Transpose>(nonzero, input_order);
                 auto gather = rg.make<v8::GatherND>(input_node, masked_id);

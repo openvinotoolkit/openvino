@@ -4,7 +4,7 @@
 
 #include "zero_tensor.hpp"
 
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -24,7 +24,7 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
       _strides{},
       _strides_once{},
       _allocator{allocator} {
-    OPENVINO_ASSERT(_element_type != ov::element::undefined && _element_type.is_static());
+    OPENVINO_ASSERT(_element_type.is_static());
     OPENVINO_ASSERT(allocator, "Allocator was not initialized");
     const auto byte_size = ov::element::get_memory_size(_element_type, shape_size(_shape));
     auto data = const_cast<ov::Allocator&>(_allocator).allocate(byte_size);
@@ -33,8 +33,8 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
     _ptr = data;
 }
 
-void* ZeroTensor::data(const ov::element::Type& element_type) const {
-    if (element_type != ov::element::undefined && element_type != ov::element::dynamic &&
+const void* ZeroTensor::data(const ov::element::Type& element_type) const {
+    if (element_type != ov::element::dynamic &&
         (element_type.bitwidth() != get_element_type().bitwidth() ||
          element_type.is_real() != get_element_type().is_real() ||
          (element_type == ov::element::string && get_element_type() != ov::element::string) ||
@@ -121,7 +121,7 @@ void ZeroTensor::set_shape(ov::Shape new_shape) {
     _shape = std::move(new_shape);
 
     if (get_size() > get_capacity()) {
-        if (!_init_structs->getMutableCommandListVersion()) {
+        if (_init_structs->getMutableCommandListExtVersion() < ZE_MAKE_VERSION(1, 0)) {
             OPENVINO_THROW("Re-shaping the tensor with a larger shape is not available using this driver version. "
                            "Please update the driver to the latest version.");
         }

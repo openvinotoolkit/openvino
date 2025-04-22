@@ -7,7 +7,7 @@
 #include <regex>
 #include <string_view>
 
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
@@ -40,7 +40,7 @@ namespace {
 ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
     switch (zeElementType) {
     case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
-        return ov::element::Type_t::undefined;
+        return ov::element::Type_t::dynamic;
     case ZE_GRAPH_ARGUMENT_PRECISION_DYNAMIC:
         return ov::element::Type_t::dynamic;
     case ZE_GRAPH_ARGUMENT_PRECISION_BOOLEAN:
@@ -78,7 +78,7 @@ ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElemen
     case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
         return ov::element::Type_t::u64;
     default:
-        return ov::element::Type_t::undefined;
+        return ov::element::Type_t::dynamic;
     }
 }
 
@@ -162,10 +162,10 @@ void ZeGraphExtWrappers::setGraphArgumentValue(ze_graph_handle_t graphHandle, ui
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("zeGraphSetArgumentValue", result, _zeroInitStruct->getGraphDdiTable());
 }
 
-void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle, const Config& config) const {
+void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const {
     if (_zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8) {
         _logger.debug("Use initialize_graph_through_command_list for ext version smaller than 1.8");
-        initialize_graph_through_command_list(graphHandle, config);
+        initialize_graph_through_command_list(graphHandle, commandQueueGroupOrdinal);
     } else {
         _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
         ze_graph_properties_2_t properties = {};
@@ -179,23 +179,20 @@ void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle, const Co
         }
 
         if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
-            initialize_graph_through_command_list(graphHandle, config);
+            initialize_graph_through_command_list(graphHandle, commandQueueGroupOrdinal);
         }
     }
 }
 
 void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t graphHandle,
-                                                               const Config& config) const {
-    ze_device_properties_t deviceProperties = {};
-    deviceProperties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                zeDeviceGetProperties(_zeroInitStruct->getDevice(), &deviceProperties));
-    auto groupOrdinal = zeroUtils::findGroupOrdinal(_zeroInitStruct->getDevice(), deviceProperties);
-
+                                                               uint32_t commandQueueGroupOrdinal) const {
     _logger.debug("initialize_graph_through_command_list init start - create graph_command_list");
-    CommandList graph_command_list(_zeroInitStruct, groupOrdinal);
+    CommandList graph_command_list(_zeroInitStruct, commandQueueGroupOrdinal);
     _logger.debug("initialize_graph_through_command_list - create graph_command_queue");
-    CommandQueue graph_command_queue(_zeroInitStruct, ZE_COMMAND_QUEUE_PRIORITY_NORMAL, groupOrdinal, false);
+    std::shared_ptr<CommandQueue> graph_command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                                                       ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                                                       commandQueueGroupOrdinal,
+                                                                                       false);
     _logger.debug("initialize_graph_through_command_list - create fence");
     Fence fence(graph_command_queue);
 
@@ -205,7 +202,7 @@ void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t
     graph_command_list.close();
 
     _logger.debug("initialize_graph_through_command_list - performing executeCommandList");
-    graph_command_queue.executeCommandList(graph_command_list, fence);
+    graph_command_queue->executeCommandList(graph_command_list, fence);
     _logger.debug("initialize_graph_through_command_list - performing hostSynchronize");
     fence.hostSynchronize();
     _logger.debug("initialize_graph_through_command_list - hostSynchronize completed");
@@ -521,6 +518,75 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(ze_graph_handle_t graphHandle
     meta.numStreams = 1;
     meta.bindRelatedDescriptors();
     return meta;
+}
+
+std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
+    // Early exit if api is not supported
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
+        return {};
+    }
+    // 1. ask driver for size of compiler supported options list
+    _logger.debug("pfnCompilerGetSupportedOptions - obtain string size");
+    size_t str_size = 0;
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(_zeroInitStruct->getDevice(),
+                                                                                     ZE_NPU_COMPILER_OPTIONS,
+                                                                                     &str_size,
+                                                                                     nullptr);
+    if (result == ZE_RESULT_SUCCESS) {
+        if (str_size > 0) {
+            _logger.debug("pfnCompilerGetSupportedOptions - obtain list");
+            // 2. allocate buffer for it
+            std::vector<char> sup_options_chr(str_size);
+            // 3. ask driver to populate char list
+            auto result =
+                _zeroInitStruct->getGraphDdiTable().pfnCompilerGetSupportedOptions(_zeroInitStruct->getDevice(),
+                                                                                   ZE_NPU_COMPILER_OPTIONS,
+                                                                                   &str_size,
+                                                                                   sup_options_chr.data());
+            if (result == ZE_RESULT_SUCCESS) {
+                // convert received buff to string
+                std::string supported_options_list_str(sup_options_chr.data());
+                // cleanup
+                return supported_options_list_str;
+            } else if (result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) {
+                // cleanup
+                return {};
+            } else {
+                // cleanup
+                THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions",
+                                                result,
+                                                _zeroInitStruct->getGraphDdiTable())
+            }
+        }
+    } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE)) {
+        return {};
+    } else {
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerGetSupportedOptions", result, _zeroInitStruct->getGraphDdiTable())
+    }
+
+    _logger.debug("pfnCompilerGetSupportedOptions - list size 0 - skipping!");
+    return {};
+}
+
+bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
+    // Early exit if api is not supported
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
+        return false;
+    }
+    const char* optname_ch = optname.c_str();
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                                   ZE_NPU_COMPILER_OPTIONS,
+                                                                                   optname_ch,
+                                                                                   nullptr);
+    if (result == ZE_RESULT_SUCCESS) {
+        return true;
+    } else if ((result == ZE_RESULT_ERROR_UNSUPPORTED_FEATURE) || (result == ZE_RESULT_ERROR_DEPENDENCY_UNAVAILABLE) ||
+               (result == ZE_RESULT_ERROR_UNKNOWN)) {
+        return false;
+    } else {
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCompilerIsOptionSupported", result, _zeroInitStruct->getGraphDdiTable());
+    }
+    return false;
 }
 
 }  // namespace intel_npu

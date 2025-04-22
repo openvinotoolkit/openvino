@@ -17,7 +17,7 @@ struct Indexer {
     std::vector<int> dims_;
     int total_{1};
 
-    explicit Indexer(std::vector<int> dims) : dims_(std::move(dims)), total_(1) {
+    explicit Indexer(std::vector<int> dims) : dims_(std::move(dims)) {
         for (const auto dim : dims_) {
             total_ *= dim;
         }
@@ -44,8 +44,6 @@ static void refine_boxes(const float* boxes,
                          float* refined_scores,
                          const int rois_num,
                          const int classes_num,
-                         const float img_H,
-                         const float img_W,
                          const float max_delta_log_wh,
                          float coordinates_offset) {
     Indexer box_idx({rois_num, 4});
@@ -283,7 +281,7 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronDetectionOutput::execute(const dnnl::stream& strm) {
+void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
     assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
@@ -291,14 +289,10 @@ void ExperimentalDetectronDetectionOutput::execute(const dnnl::stream& strm) {
     const auto* boxes = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     const auto* deltas = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
     const auto* scores = getSrcDataAtPortAs<const float>(INPUT_SCORES);
-    const auto* im_info = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
     auto* output_boxes = getDstDataAtPortAs<float>(OUTPUT_BOXES);
     auto* output_scores = getDstDataAtPortAs<float>(OUTPUT_SCORES);
     auto* output_classes = getDstDataAtPortAs<int32_t>(OUTPUT_CLASSES);
-
-    const float img_H = im_info[0];
-    const float img_W = im_info[1];
 
     // Apply deltas.
     std::vector<float> refined_boxes(classes_num_ * rois_num * 4, 0);
@@ -316,8 +310,6 @@ void ExperimentalDetectronDetectionOutput::execute(const dnnl::stream& strm) {
                  &refined_scores[0],
                  rois_num,
                  classes_num_,
-                 img_H,
-                 img_W,
                  max_delta_log_wh_,
                  1.0f);
 
@@ -352,7 +344,7 @@ void ExperimentalDetectronDetectionOutput::execute(const dnnl::stream& strm) {
         for (int i = 0; i < n; ++i) {
             int idx = indices[indices_offset + i];
             float score = refined_scores[refined_score_idx({c, idx})];
-            conf_index_class_map.push_back(std::make_pair(score, std::make_pair(c, idx)));
+            conf_index_class_map.emplace_back(score, std::make_pair(c, idx));
         }
         indices_offset += n;
     }

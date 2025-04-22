@@ -8,7 +8,8 @@
 #include <utility>
 #include <vector>
 
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::MHANode::MHANode(const ov::Output<ov::Node>& in0,
@@ -22,9 +23,9 @@ ov::intel_cpu::MHANode::MHANode(const ov::Output<ov::Node>& in0,
       m_output_type(output_type),
       mul_scales(std::move(mul_scales)),
       is_mul_first(is_mul_first),
-      fq0_output_type(ov::element::undefined),
-      fq1_output_type(ov::element::undefined),
-      fq2_output_type(ov::element::undefined) {
+      fq0_output_type(ov::element::dynamic),
+      fq1_output_type(ov::element::dynamic),
+      fq2_output_type(ov::element::dynamic) {
     validate_and_infer_types();
 }
 
@@ -107,12 +108,7 @@ void ov::intel_cpu::MHANode::validate_and_infer_types() {
     std::vector<ov::PartialShape> matmul1_output_shapes = shape_infer(matmul1.get(), matmul1_input_shapes);
 
     const auto output_shape = transpose(matmul1_output_shapes[0].get_shape(), {0, 2, 1, 3});
-
-    set_output_type(0,
-                    m_output_type == ov::element::undefined || m_output_type == ov::element::dynamic
-                        ? get_input_element_type(0)
-                        : m_output_type,
-                    output_shape);
+    set_output_type(0, m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type, output_shape);
 }
 
 bool ov::intel_cpu::MHANode::visit_attributes(ov::AttributeVisitor& visitor) {

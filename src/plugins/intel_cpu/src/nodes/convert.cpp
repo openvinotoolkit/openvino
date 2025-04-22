@@ -6,7 +6,8 @@
 
 #include "common/blocked_desc_creator.h"
 #include "dnnl_extension_utils.h"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
@@ -77,7 +78,7 @@ void Convert::getSupportedDescriptors() {
 }
 
 bool Convert::isSupportedDesc(const MemoryDesc& desc) {
-    bool isSupported = desc.getType() & MemoryDescType::Blocked;
+    bool isSupported = (desc.getType() & MemoryDescType::Blocked) != 0;
     if (desc.getType() == MemoryDescType::DnnlBlocked) {
         isSupported &= desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData();
     }
@@ -177,7 +178,7 @@ void Convert::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Convert::execute(const dnnl::stream& strm) {
+void Convert::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
 

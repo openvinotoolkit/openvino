@@ -40,9 +40,8 @@ bool DnnlMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     if (MemoryDescType::Dnnl & rhs.getType()) {
         auto* dnnMemDesc = rhs.as<DnnlMemoryDesc>();
         return isCompatible(*dnnMemDesc);
-    } else {
-        return false;
     }
+    return false;
 }
 
 bool DnnlMemoryDesc::isCompatible(const DnnlMemoryDesc& rhs) const {
@@ -126,7 +125,7 @@ bool DnnlMemoryDesc::isDefinedImp() const {
     return wrappedThis.offset0() != DNNL_RUNTIME_DIM_VAL;
 }
 
-MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) const {
+MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp([[maybe_unused]] const VectorDims& dims) const {
     OPENVINO_THROW("Unexpected: Cannot clone non blocked oneDNN desc with new dims");
 }
 

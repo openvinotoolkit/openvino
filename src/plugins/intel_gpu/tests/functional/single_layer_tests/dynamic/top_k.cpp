@@ -178,32 +178,32 @@ std::vector<ov::test::InputShape> input_shapesDynamic = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_TopK_constant_dynamic, TopKLayerGPUTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(k),
-        ::testing::ValuesIn(axes),
-        ::testing::ValuesIn(modes),
-        ::testing::ValuesIn(sortTypes),
-        ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::ValuesIn(input_shapesDynamic),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::Values(ov::test::utils::InputLayerType::CONSTANT)),
-    TopKLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_constant_dynamic,
+                         TopKLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(k),
+                                            ::testing::ValuesIn(axes),
+                                            ::testing::ValuesIn(modes),
+                                            ::testing::ValuesIn(sortTypes),
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::ValuesIn(input_shapesDynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT)),
+                         TopKLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TopK_parameter_dynamic, TopKLayerGPUTest,
-    ::testing::Combine(
-        ::testing::Values(1),
-        ::testing::ValuesIn(axes),
-        ::testing::ValuesIn(modes),
-        ::testing::ValuesIn(sortTypes),
-        ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::element::undefined),
-        ::testing::Values(ov::element::undefined),
-        ::testing::ValuesIn(input_shapesDynamic),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::Values(ov::test::utils::InputLayerType::PARAMETER)),
-    TopKLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_parameter_dynamic,
+                         TopKLayerGPUTest,
+                         ::testing::Combine(::testing::Values(1),
+                                            ::testing::ValuesIn(axes),
+                                            ::testing::ValuesIn(modes),
+                                            ::testing::ValuesIn(sortTypes),
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::ValuesIn(input_shapesDynamic),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(ov::test::utils::InputLayerType::PARAMETER)),
+                         TopKLayerGPUTest::getTestCaseName);
 
 } // namespace

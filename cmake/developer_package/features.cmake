@@ -4,7 +4,7 @@
 
 include(options)
 include(target_flags)
-include(compile_flags/os_flags)
+include(compile_flags/functions)
 
 if(WIN32)
     set (CPACK_GENERATOR "ZIP" CACHE STRING "Cpack generator for OpenVINO")
@@ -44,6 +44,8 @@ ov_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_COMPILER_
 
 ov_dependent_option (ENABLE_API_VALIDATOR "Enables API Validator usage" ON "WIN32" OFF)
 
+ov_dependent_option (ENABLE_PDB_IN_RELEASE "Enables PDB files for Release build" OFF "WIN32" OFF)
+
 # Defines CPU capabilities
 
 ov_dependent_option (ENABLE_SSE42 "Enable SSE4.2 optimizations" ON "X86_64 OR (X86 AND NOT EMSCRIPTEN)" OFF)
@@ -72,13 +74,19 @@ else()
     set(STYLE_CHECKS_DEFAULT ON)
 endif()
 
+if(NOT CMAKE_CROSSCOMPILING AND NOT WIN32 AND (X86 OR X86_64))
+    set(TIDY_CHECKS_DEFAULT ON)
+else()
+    set(TIDY_CHECKS_DEFAULT OFF)
+endif()
+
 ov_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ${STYLE_CHECKS_DEFAULT})
 
 ov_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 
 ov_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${STYLE_CHECKS_DEFAULT})
 
-ov_option (ENABLE_CLANG_TIDY "Enable clang-tidy checks during the build" ${STYLE_CHECKS_DEFAULT})
+ov_option (ENABLE_CLANG_TIDY "Enable clang-tidy checks during the build" ${TIDY_CHECKS_DEFAULT})
 
 ov_option (ENABLE_NCC_STYLE "Enable ncc style check" ${STYLE_CHECKS_DEFAULT})
 
@@ -116,6 +124,6 @@ if(ENABLE_SVE)
     ov_check_compiler_supports_sve("-march=armv8-a+sve")
 
     if(NOT CXX_HAS_SVE)
-        set(ENABLE_SVE OFF CACHE BOOL "" FORCE)
+        set(ENABLE_SVE OFF CACHE BOOL "Enables ARM64 SVE support" FORCE)
     endif()
 endif()

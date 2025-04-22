@@ -169,8 +169,8 @@ bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, boo
                 wei_scale_values[j] *= scale[j];
             }
         } else {
-            for (size_t j = 0; j < wei_scale_values.size(); j++) {
-                wei_scale_values[j] *= scale[0];
+            for (float& wei_scale_value : wei_scale_values) {
+                wei_scale_value *= scale[0];
             }
         }
 
@@ -217,9 +217,9 @@ bool DnnlPostOpsComposerLegacy::appendLinear(const std::vector<float>& scale,
     if (scale.size() == 1 && shift.size() == 1) {
         if (shift[0] == 0.0f) {
             return appendScale(scale, isLastPostOp, allowBinary);
-        } else {
-            appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
         }
+        appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
+
     } else {
         // return before committing any changes
         if (!allowBinary && shift.size() > 1) {
@@ -246,21 +246,21 @@ void DnnlPostOpsComposerLegacy::appendClip(const std::vector<float>& low, const 
     } else if (low.size() == 1) {
         OPENVINO_ASSERT(high.size() == OC);
         appendEltwise(dnnl::algorithm::eltwise_clip, low[0], std::numeric_limits<float>::max());
-        if (high.size() > 0) {
+        if (!high.empty()) {
             appendBinary(dnnl::algorithm::binary_min, high);
         }
     } else if (high.size() == 1) {
         OPENVINO_ASSERT(low.size() == OC);
         appendEltwise(dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), high[0]);
-        if (low.size() > 0) {
+        if (!low.empty()) {
             appendBinary(dnnl::algorithm::binary_max, low);
         }
     } else {
-        if (low.size() > 0) {
+        if (!low.empty()) {
             OPENVINO_ASSERT(low.size() == OC);
             appendBinary(dnnl::algorithm::binary_max, low);
         }
-        if (high.size() > 0) {
+        if (!high.empty()) {
             OPENVINO_ASSERT(high.size() == OC);
             appendBinary(dnnl::algorithm::binary_min, high);
         }

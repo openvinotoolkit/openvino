@@ -56,7 +56,7 @@ struct scaled_dot_product_attention_impl : multi_stage_primitive<scaled_dot_prod
     }
 
 protected:
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         // Look for the first sdpa_opt kernel entry. Currently, it can be used as default sdpa, indirect sdpa, or for both default
         // and indirect cases. All of sdpa_opt kernels use the same internal buffers, so we can find the first sdpa_opt and
         // use its` internal buffers configuration. The following scenarios are possible:
@@ -71,24 +71,22 @@ protected:
         //    _kernels_data[1] - sdpa_opt (indirect)
         //   => use internal buffers from [1] kernel
         size_t kernel_idx = _kernels_data.size();
-        if (_kernels_data.size() >= 1 && !_kernels_data[0].internalBufferSizes.empty()) {
+        if (_kernels_data.size() >= 1 && !_kernels_data[0].internalBuffers.empty()) {
             kernel_idx = 0;
-        } else if (_kernels_data.size() >= 2 && !_kernels_data[1].internalBufferSizes.empty()) {
+        } else if (_kernels_data.size() >= 2 && !_kernels_data[1].internalBuffers.empty()) {
             kernel_idx = 1;
         }
 
-        std::vector<layout> layouts;
+        std::vector<BufferDescriptor> internal_buffers;
         if (kernel_idx < _kernels_data.size()) {
             auto dtype = from_data_type(_kernels_data[kernel_idx].internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
-            for (auto size : _kernels_data[kernel_idx].internalBufferSizes) {
-                layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                        {1, 1, 1, (tensor::value_type)(size / bpp)}};
-                layouts.push_back(inbuf_layout);
+            for (const auto& buffer : _kernels_data[kernel_idx].internalBuffers) {
+                internal_buffers.emplace_back(buffer.byte_count / bpp, dtype, buffer.lockable);
             }
         }
 
-        return layouts;
+        return internal_buffers;
     }
 
     static size_t get_beam_table_id(std::shared_ptr<const scaled_dot_product_attention> primitive) {
@@ -102,12 +100,21 @@ protected:
 
     kernel_arguments_data get_arguments(const scaled_dot_product_attention_inst& instance, size_t stage) const override {
         kernel_arguments_data args;
+        const auto desc = instance.get_node().as<scaled_dot_product_attention>().get_primitive();
 
         auto inputs_num = instance.inputs_memory_count();
         if (instance.has_indirect_inputs() && stage == default_sdpa)
             inputs_num--;
 
+        const size_t attn_mask_idx = 3;
+        const size_t scale_idx = 4;
         for (size_t i = 0; i < inputs_num; i++) {
+            if (i == attn_mask_idx && desc->attn_mask_val.has_value()) {
+                continue;
+            }
+            if (i == scale_idx && desc->scale_val.has_value()) {
+                continue;
+            }
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
 
@@ -254,7 +261,7 @@ protected:
         if (query_shape[num_heads_dim].is_static() && key_shape[num_heads_dim].is_static() && value_shape[num_heads_dim].is_static()) {
             if (query_shape[num_heads_dim].get_length() > key_shape[num_heads_dim].get_length()) {
                 config.broadcast_axis = desc->input_k_transpose_order[num_heads_dim];
-                config.group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
+                config.kv_group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
             }
         }
 
@@ -262,6 +269,20 @@ protected:
             config.head_size = query_shape[query_shape.size() - 1].get_length();
 
         config.is_causal = desc->is_causal;
+
+        if (desc->scale_val.has_value()) {
+            config.has_const_scale_val = true;
+            config.scale_val = desc->scale_val.value();
+        } else {
+            config.has_const_scale_val = false;
+        }
+
+        if (desc->attn_mask_val.has_value()) {
+            config.has_const_attn_mask_val = true;
+            config.attn_mask_val = desc->attn_mask_val.value();
+        } else {
+            config.has_const_attn_mask_val = false;
+        }
 
         if (desc->is_kv_compressed) {
             const auto& group_sizes = desc->quantization_attributes.group_sizes;
@@ -287,6 +308,13 @@ public:
         if (has_indirect_inputs(impl_param))
             data_inputs_num--;
 
+        if (desc->scale_val.has_value()) {
+            data_inputs_num--;
+        }
+        if (desc->attn_mask_val.has_value()) {
+            data_inputs_num--;
+        }
+
         auto has_zp_input_buffers = desc->get_compression_zp_inputs_num() > 0;
         if (desc->is_kv_compressed) {
             data_inputs_num -= 2; // key and value compression scales are handled separately
@@ -298,6 +326,13 @@ public:
         params.inputs.resize(data_inputs_num);
         for (size_t i = 0; i < data_inputs_num; i++) {
             params.inputs[i] = convert_data_tensor(impl_param.get_input_layout(i));
+        }
+
+        if (desc->scale_val.has_value()) {
+            data_inputs_num++;
+        }
+        if (desc->attn_mask_val.has_value()) {
+            data_inputs_num++;
         }
 
         params.conf = get_sdpa_configuration(impl_param);
@@ -348,6 +383,8 @@ public:
         if (indirect && has_indirect_inputs(impl_param)) {
             params.beam_table.SetDynamicShapeOffset(in_offsets_map.at(get_beam_table_id(desc)));
         }
+
+        params.could_use_flashattn_v2 = impl_param.get_program().get_config().get_could_use_flashattn_v2();
 
         return params;
     }
