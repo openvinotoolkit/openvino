@@ -890,7 +890,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
+            if (input_data.is_type<fully_connected>()) {
+                // Do not allow quantization fusion
+                auto& fc = input_data.as<fully_connected>();
+                auto desc = fc.get_primitive();
+                // WA: OneDNN weight-compressed matmul does not support fusion with quantization
+                bool is_onednn_compressed_weights = supports_immad && desc->compressed_weights;
+                should_fuse |= !is_onednn_compressed_weights && quantize_node.get_scale_shift_opt();
+
+            }
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
