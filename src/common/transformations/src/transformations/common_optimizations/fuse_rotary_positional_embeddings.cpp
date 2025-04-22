@@ -277,8 +277,7 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
         } else if (pattern_map.at(x_or_cos2) == pattern_map.at(x)) {
             v_cos = pattern_map.at(x_or_cos1);
         } else {
-            // not a RoPE
-            return false;
+            return false; // not a RoPE
         }
 
         auto symbols = m.get_symbols();
