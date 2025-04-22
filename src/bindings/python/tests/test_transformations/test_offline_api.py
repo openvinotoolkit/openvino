@@ -214,7 +214,7 @@ def test_serialize_pass_v2(request, tmp_path, is_path_xml, is_path_bin, path_suf
 @pytest.mark.parametrize("path_suffix", [r"test", r"晚安_пут"])
 def test_serialize_pass_v2_path_as_bytes(request, tmp_path, path_suffix):
     model, xml_path, bin_path = prepare_test_model_for_serialize(request, tmp_path / path_suffix, False, False)
-    serialize(model, xml_path, bin_path)
+    serialize(model, xml_path.encode("utf-8"), bin_path.encode("utf-8"))
     compare_models_and_finalize_after_test(model, xml_path, bin_path)
 
 
