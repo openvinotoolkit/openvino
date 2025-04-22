@@ -9,6 +9,9 @@
 #include "common_test_utils/node_builders/lstm_cell.hpp"
 #include "common_test_utils/node_builders/gru_cell.hpp"
 #include "common_test_utils/node_builders/rnn_cell.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace ov {
 namespace test {
