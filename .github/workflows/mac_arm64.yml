@@ -32,6 +32,7 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
+  NODEJS_VERSION: '21'
 
 jobs:
   Smart_CI:
@@ -75,7 +76,7 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
-      INSTALL_DIR_JS: ${{ github.workspace }}/openvino_install/js
+      INSTALL_DIR_JS: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       BUILD_DIR: ${{ github.workspace }}/build
@@ -129,6 +130,12 @@ jobs:
 
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
+
+      - name: Setup NodeJS
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: ${{ env.NODEJS_VERSION }}
 
       #
       # Build
@@ -248,20 +255,29 @@ jobs:
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_js_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR_JS }}
 
+      - name: Pack openvino_node_npm_package
+        id: openvino_node_npm_package
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        run: |
+          npm i
+          ARCHIVE_NAME=$(npm pack --silent --pack-destination ${{ env.BUILD_DIR }})
+          echo "archive_name=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
+        working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
+
       #
       # Upload build artifacts
       #
 
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
           
       - name: Upload OpenVINO wheels
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
@@ -269,7 +285,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -277,10 +293,18 @@ jobs:
 
       - name: Upload OpenVINO js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_js_package
           path: ${{ env.BUILD_DIR }}/openvino_js_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload openvino-node NPM package
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openvino_node_npm_package
+          path: ${{ env.BUILD_DIR }}/${{ steps.openvino_node_npm_package.outputs.archive_name }}
           if-no-files-found: 'error'
 
   Samples:

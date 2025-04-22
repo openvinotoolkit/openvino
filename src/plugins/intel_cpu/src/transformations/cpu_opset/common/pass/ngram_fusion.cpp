@@ -6,14 +6,21 @@
 
 #include <openvino/core/dimension.hpp>
 #include <openvino/core/graph_util.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 
 using namespace ov::pass::pattern;
