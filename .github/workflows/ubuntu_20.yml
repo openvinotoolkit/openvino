@@ -78,26 +78,6 @@ jobs:
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
-  Test_Job_wo_Docker:
-    name: Test Job w/o Docker
-    needs: [Docker]
-    timeout-minutes: 150
-    runs-on: 'aks-linux-16-cores-32gb'
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        timeout-minutes: 15
-
-      - name: Who am I
-        run: |
-          whoami
-          id
-          ls -laR /runner
-
-
   Build:
     needs: [Docker, Smart_CI]
     uses: ./.github/workflows/job_build_linux.yml
