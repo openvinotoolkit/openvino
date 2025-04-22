@@ -841,24 +841,24 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
             size_t quantize_grp_size = get_dynamic_quantize_group_size(prim_params);
             size_t output_batch = get_output_aligned_bf_size(prim_params, false).first;
-
             // Get index of the added shape-agnostic kernel
-            int kernel_offset = 0;
-            if (kd.kernels.size() == 3)
-                kernel_offset = 1;  // quantize kernel exists
+            // [optional:dyn_quant kernel] | default kernel | [optional:slm kernel]
+            int32_t quantize_kernel_idx = (kd.internalBuffers.empty()) ? -1 : 0;
+            int32_t default_kernel_idx = quantize_kernel_idx + 1;
+            int32_t slm_kernel_idx = (quantize_kernel_idx >= 0) && kd.kernels.size() == 3 ? 2 : -1;
 
             // Choose one of the two shape agnostic kernels: N == added kernel number
             // - kd.kernels[N-1] for batches <= 240 (default version)
             // - kd.kernels[N] for batches >= 256 (slm version)
             const auto default_alignment = 16;
             // We can use SLM version if `output_batch + default_alignment > min_slm_size(256)` because memory and batch are aligned (whether 16 or 64 elements)
-            const auto execute_type = (output_batch + default_alignment > min_slm_size) ? KernelType::SLM : KernelType::DEFAULT;
-            const auto execute_kernel_idx = ((execute_type == KernelType::SLM) ? 1 : 0) + kernel_offset;
-            const auto skip_kernel_idx = ((execute_type == KernelType::SLM) ? 0 : 1) + kernel_offset;
-
+            const auto execute_type = ((slm_kernel_idx >= 0) && (output_batch + default_alignment > min_slm_size)) ? KernelType::SLM : KernelType::DEFAULT;
+            const auto execute_kernel_idx = (execute_type == KernelType::SLM) ? slm_kernel_idx : default_kernel_idx;
+            const auto skip_kernel_idx = (execute_type == KernelType::SLM) ? default_kernel_idx : slm_kernel_idx;
 
             // Check default or SLM version FC, and disable remain version
-            kd.kernels[skip_kernel_idx].skip_execution = true;
+            if (skip_kernel_idx >= 0)
+                kd.kernels[skip_kernel_idx].skip_execution = true;
 
             GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (execute_type == KernelType::SLM ? "SLM" : "Default") << " shape-agnostic kernel version "
                                     << "will be used for batch size = " << output_batch << "\n";
@@ -874,12 +874,12 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             else
                 OPENVINO_ASSERT(input.Feature().pad.Total(true) == 0, "[GPU] Invalid padding in f axis observed in FC bf tiled.");
 
-            if (!kd.internalBuffers.empty()) {
+            if (quantize_kernel_idx >= 0) {
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
                 if (execute_type == KernelType::DEFAULT) {
-                    kd.kernels[0].skip_execution = true;
+                    kd.kernels[quantize_kernel_idx].skip_execution = true;
                 } else {
-                    kd.kernels[0].skip_execution = false;
+                    kd.kernels[quantize_kernel_idx].skip_execution = false;
                     size_t input_f = get_input_bf_size(prim_params).second;
                     size_t input_size = input_f * dispatchData.tile_m * dispatchData.gws[2];
                     OPENVINO_ASSERT(quantize_grp_size != 0, "Error: quantize_grp_size is zero.");
