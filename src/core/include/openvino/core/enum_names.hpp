@@ -63,6 +63,13 @@ typename std::enable_if<std::is_convertible<Value, std::string>::value, Type>::t
     return EnumNames<Type>::as_enum(value);
 }
 
+namespace op
+{
+    enum class BroadcastType;
+} // namespace op
+
+extern template ov::op::BroadcastType as_enum<ov::op::BroadcastType, const char*>(const char* const&);
+
 /// Returns the string matching the enum value
 template <typename Value>
 const std::string& as_string(Value value) {
