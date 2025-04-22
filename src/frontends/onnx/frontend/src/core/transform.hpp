@@ -16,7 +16,6 @@ using ::ONNX_NAMESPACE::ModelProto;
 static const std::vector<std::string> onnx_functions_to_expand = {"AffineGrid",
                                                                   "Bernoulli",
                                                                   "CenterCropPad",
-                                                                  "NegativeLogLikelihoodLoss",
                                                                   "SoftmaxCrossEntropyLoss"};
 
 /// \brief Replace nodes with expanded body of ONNX functions
