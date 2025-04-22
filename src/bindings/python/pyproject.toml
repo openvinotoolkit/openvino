@@ -10,7 +10,6 @@ exclude = [
     "src/openvino/utils/decorators.py",
     "src/openvino/frontend/frontend.py",
     "src/openvino/_ov_api.py",
-#    "src/openvino/_op_base.py",
     "src/openvino/utils/node_factory.py",
     "src/openvino/frontend/tensorflow",
     "src/openvino/frontend/pytorch",
