@@ -75,7 +75,7 @@ struct KeyEqual {
 };
 
 bool ConstantsReduce::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    MATCHER_SCOPE(ConstantsReduce);
+    RUN_ON_FUNCTION_SCOPE(ConstantsReduce);
 
     std::unordered_map<BlobCacheKey, std::shared_ptr<ov::Node>, KeyHash, KeyEqual> blobMemCache;
 
