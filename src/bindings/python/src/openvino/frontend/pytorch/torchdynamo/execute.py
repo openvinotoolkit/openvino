@@ -95,7 +95,7 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
         compiled = compiled_cache[partition_id]
         req = req_cache[partition_id]
     else:
-        assert isinstance(model_hash_str,str)
+        assert isinstance(model_hash_str, str)
         compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str, options=options)
         compiled_cache[partition_id] = compiled
         req = compiled.create_infer_request()

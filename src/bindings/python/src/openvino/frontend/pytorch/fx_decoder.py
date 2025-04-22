@@ -218,7 +218,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
             if self._nodes is not None:
                 self._outputs = [("", self._nodes.index(pt_module))]
- 
             self.input_types = []
             for arg in pt_module.args:
                 if isinstance(arg, torch.fx.Node):
@@ -255,7 +254,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return cls(gm, dynamic_shapes=True)
 
     @staticmethod
-    def get_found_shape(value) -> str|None:
+    def get_found_shape(value) -> str | None:
         # If input is a tensor, read the shape from meta data
         if hasattr(value, "meta"):
             if ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
@@ -265,7 +264,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return None
 
     @staticmethod
-    def get_found_dtype(value) -> str|None|OVAny:
+    def get_found_dtype(value) -> str | None | OVAny:
         # If input is a tensor, read the data type from meta data
         if hasattr(value, "meta") and ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
             return OVAny(pt_to_ov_type_map[str(value.meta["tensor_meta"].dtype)])

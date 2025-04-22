@@ -135,7 +135,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             return res
 
         if _get_aot_autograd(options):
-            _call._boxed_call = True  # type: ignore[attr-defined]
+            _call._boxed_call = True  # type: ignore
         return _call
     except Exception as e:
         logger.debug(f"Failed in OpenVINO execution: {e}")
@@ -143,4 +143,4 @@ def fx_openvino(subgraph, example_inputs, options=None):
 
 
 def reset():
-    clear_caches() #type: ignore
+    clear_caches() # type: ignore

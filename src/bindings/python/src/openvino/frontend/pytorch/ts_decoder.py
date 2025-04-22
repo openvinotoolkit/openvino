@@ -368,7 +368,7 @@ class TorchScriptPythonDecoder(Decoder):
                 # type ConversionExtension that translates that particular
                 # temporary name to custom graph. But providing conversion code
                 # as a callable `target` is more convenient.
-                return target #type: ignore
+                return target  # type: ignore
         return self.graph_element.kind()
 
     def get_schema(self) -> str:
@@ -442,13 +442,13 @@ class TorchScriptPythonDecoder(Decoder):
                 dilation = pt_value.dilation()
                 groups = pt_value.groups()
                 res += ivalue_to_constant(stride,
-                                          shared_memory=self._shared_memory) # type: ignore
+                                          shared_memory=self._shared_memory)  # type: ignore
                 res += ivalue_to_constant(padding,
-                                          shared_memory=self._shared_memory) # type: ignore
+                                          shared_memory=self._shared_memory)  # type: ignore
                 res += ivalue_to_constant(dilation,
-                                          shared_memory=self._shared_memory) # type: ignore
+                                          shared_memory=self._shared_memory)  # type: ignore
                 res += ivalue_to_constant(groups,
-                                          shared_memory=self._shared_memory) # type: ignore
+                                          shared_memory=self._shared_memory)  # type: ignore
             except Exception as e:
                 logging.debug("Failed to get conv params", exc_info=e)
             return res
@@ -550,7 +550,7 @@ class TorchScriptPythonDecoder(Decoder):
             # AliasDB::may_contain_alias sometimes return True for tensors produced by convolution or matmul, we have to workaround that
             return False
         try:
-            return self.alias_db.may_contain_alias(self._raw_input(in_index), self._raw_output(out_index)) #type: ignore
+            return self.alias_db.may_contain_alias(self._raw_input(in_index), self._raw_output(out_index))  # type: ignore
         except Exception as e:
             # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
             logging.debug("Failed to get alias information", exc_info=e)
