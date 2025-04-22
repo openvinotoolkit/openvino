@@ -143,6 +143,8 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
         input_2_shape.erase(input_2_shape.begin());
         const auto target_shape = ov::opset1::Constant::create(ov::element::i32, {input_2_shape.size()}, input_2_shape);
         const auto reshaped_input2 = std::make_shared<ov::opset1::Reshape>(input_2, target_shape, true);
+        const auto& reshape_1 = pattern_map.at(reshape_1_m).get_node_shared_ptr();
+        ov::copy_runtime_info(reshape_1, reshaped_input2);
 
         auto first_input = pattern_map.at(matmul_m);
         if (pattern_map.count(eltwise_1_m)) {
