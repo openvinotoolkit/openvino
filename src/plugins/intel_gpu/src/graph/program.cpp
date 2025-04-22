@@ -1884,7 +1884,7 @@ void program::load(cldnn::BinaryInputBuffer& ib) {
 
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
-        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get()))  {
+        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             data_prim->load_weights(ib, weights_memory);
         }
         get_or_create(prim);
