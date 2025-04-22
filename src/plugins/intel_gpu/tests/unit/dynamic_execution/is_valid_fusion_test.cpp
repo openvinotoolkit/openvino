@@ -21,6 +21,11 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
     // is_valid_fusion() should work properly when conv->add->prelu case
     auto& engine = get_test_engine();
 
+    // convolution with padded input layout is not allowed oneDNN.
+    if (engine.get_device_info().supports_immad) {
+        GTEST_SKIP();
+    }
+
     layout weight_layout = layout{ov::PartialShape{1, 3, 3, 3}, data_types::f16, format::bfyx};
     auto weights = engine.allocate_memory(weight_layout);
     set_values<ov::float16>(weights, {
