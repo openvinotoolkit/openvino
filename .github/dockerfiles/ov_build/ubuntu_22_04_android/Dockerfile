@@ -67,8 +67,5 @@ RUN echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --in
 # Change ownership of the home directory to the non-root user
 RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
 
-# Change ownership of node to the non-root user
-RUN chown -R ${USER_NAME}:${USER_NAME} ${NVM_DIR}
-
 # Switch to the non-root user
 USER ${USER_NAME}
