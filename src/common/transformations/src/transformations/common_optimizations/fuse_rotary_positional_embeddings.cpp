@@ -23,7 +23,12 @@
 #include "transformations/utils/utils.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
+#include "openvino/pass/visualize_tree.hpp"
+#include <variant>
+#include "openvino/util/common_util.hpp"
+
 using namespace ov::gen_pattern;
+using namespace ov::pass;
 
 ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {
 }
@@ -173,6 +178,60 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     this->register_matcher(m, callback);
 }
 
+using symbol_variant = std::variant<int64_t, std::string>;
+
+static std::shared_ptr<ov::Node> NewGenConst(std::vector<symbol_variant> values) {
+    std::vector<std::string> symbol_strings;
+    symbol_strings.reserve(values.size());
+    for (auto &value : values) {
+        if (std::holds_alternative<int64_t>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<int64_t>(value)));
+        } else {
+            symbol_strings.push_back(std::get<std::string>(value));
+        }
+    }
+
+    return ov::pass::pattern::wrap_type<ov::opset1::Constant>(ov::pass::pattern::value_matches(ov::util::join(symbol_strings)));
+}
+
+static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
+                                             symbol_variant start, 
+                                             symbol_variant stop,
+                                             symbol_variant step,
+                                             size_t axis) {
+
+    auto slice_start = NewGenConst({start});
+    auto slice_stop = NewGenConst({stop});
+    auto slice_step = NewGenConst({step});
+    auto slice_axis = NewGenConst({static_cast<int64_t>(axis)});
+
+    auto opt1 = pattern::wrap_type<ov::opset8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
+
+    std::vector<symbol_variant> vbegin(axis + 1, 0);
+    std::vector<symbol_variant> vend(axis + 1, 0);
+    std::vector<symbol_variant> vstride(axis + 1, 1);
+
+    vbegin[axis] = start;
+    vend[axis] = stop;
+    vstride[axis] = step;
+
+    auto begin = NewGenConst(vbegin);
+    auto end = NewGenConst(vend);
+    auto stride = NewGenConst(vstride);
+
+    std::vector<int64_t> begin_mask(axis + 1, 1);
+    std::vector<int64_t> end_mask(axis + 1, 1);
+
+    begin_mask[axis] = 0;
+    end_mask[axis] = 0;
+
+    auto opt2 = pattern::wrap_type<ov::opset1::StridedSlice>({data, begin, end, stride},
+                                                             {{"begin_mask", begin_mask},
+                                                              {"end_mask", end_mask}});
+
+    return opt1 | opt2;
+}
+
 ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     MATCHER_SCOPE(RoPEFusionGPTNEOX);
 
@@ -185,36 +244,29 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     // branch.
     // so here we use a WA, only match the path of rotate_hal(x)*sin and check the x*cos path
     // in the callback
-    auto x = makePattern(ov::Rank(4));
-    auto x_or_cos1 = makePattern(ov::Rank(4));
-    auto x_or_cos2 = makePattern(ov::Rank(4));
-    auto t_sin = makePattern(ov::Rank(4));
+    auto x = pattern::any_input(pattern::rank_equals(4));
+    auto x_or_cos1 = pattern::any_input(pattern::rank_equals(4));
+    auto x_or_cos2 = pattern::any_input(pattern::rank_equals(4));
+    auto t_sin = pattern::any_input(pattern::rank_equals(4));
 
-    auto half_ndims = ov::gen_pattern::Symbol("half_ndims");
-
-    auto varsplit = makePattern<opset1::VariadicSplit>({x, 3, {half_ndims, ov::gen_pattern::Symbol("end")}});
+    auto varsplit = pattern::wrap_type<opset1::VariadicSplit>({x, NewGenConst({int64_t(3)}), NewGenConst({"half_ndims", "?"})});
     varsplit->set_output_size(2);
 
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
     // rotate half : [-x2, x1]
-    auto x2 = GenSlice(x, half_ndims, int32_max, 1, 3);
-    auto x2neg = makePattern<opset1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
-    auto x1 = GenSlice(x, 0, half_ndims, 1, 3);
-    auto x_rotate_half = makePattern<opset1::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
+    auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, 3);
+    auto x2neg = pattern::wrap_type<opset1::Multiply>({x2 | varsplit->output(1), FLOAT_CONSTANT_WITH_PREDICATE(value == std::vector<float>{-1.0f})}, {{"auto_broadcast", "numpy"}});
+    auto x1 = NewGenSlice(x, 0, "half_ndims", 1, 3);
+    auto x_rotate_half = pattern::wrap_type<opset1::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1l}});
 
-    auto mul_cos = makePattern<opset1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
-    auto mul_sin = makePattern<opset1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
+    auto mul_cos = pattern::wrap_type<opset1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
+    auto mul_sin = pattern::wrap_type<opset1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
 
     // [x1, x2]*cos + [-x2, x1]*sin
-    auto result = makePattern<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
+    auto result = pattern::wrap_type<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -229,9 +281,15 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
             return false;
         }
 
+        auto symbols = m.get_symbols();
+        auto half_ndims = symbols["half_ndims"];
+        if (!half_ndims.is_static()) {
+            return false;
+        }
+
         op::internal::RoPE::Config config;
         OutputVector new_args;
-        config.rotary_ndims = 2ul * static_cast<size_t>(validator["half_ndims"]);
+        config.rotary_ndims = 2ul * static_cast<size_t>(half_ndims.i());
 
         new_args.push_back(pattern_map.at(x));
         new_args.push_back(v_cos);
@@ -795,24 +853,24 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     MATCHER_SCOPE(RoPEFusionQwen);
 
     // rotary_emb_cos & rotary_emb_sin are sliced by present kv-length (past-kv-length + cur_len)
-    auto rotary_emb_cos = makePattern("[1,?,1,?]");  // [1,..4096,1,128]
-    auto rotary_emb_sin = makePattern("[1,?,1,?]");  // [1,..4096,1,128]
-    auto qkv_proj = makePattern("[?,?,?]");          // [?,?,12288]
-    auto position_ids = makePattern();
+    auto rotary_emb_cos = pattern::any_input(pattern::shape_matches("[1,?,1,?]"));  // [1,..4096,1,128]
+    auto rotary_emb_sin = pattern::any_input(pattern::shape_matches("[1,?,1,?]"));  // [1,..4096,1,128]
+    auto qkv_proj = pattern::any_input(pattern::shape_matches("[?,?,?]"));          // [?,?,12288]
+    auto position_ids = pattern::any_input();
 
     auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
     auto head_size = ov::gen_pattern::Symbol("head_size");
 
     auto ListUnpack_410_VariadicSplit =
-        makePattern<opset1::VariadicSplit>({qkv_proj, 2, {head_cnt * head_size, head_cnt * head_size, -1}});
+        pattern::wrap_type<opset1::VariadicSplit>({qkv_proj, NewGenConst({2}), NewGenConst({"head_cnt_*_head_size", "head_cnt_*_head_size", -1})});
     ListUnpack_410_VariadicSplit->set_output_size(3);
     // B,L,H,S
-    auto view_Reshape_424 = makePattern<opset1::Reshape>(
-        {ListUnpack_410_VariadicSplit->output(split_output_id), {0, 0, head_cnt, head_size}},
+    auto view_Reshape_424 = pattern::wrap_type<opset1::Reshape>(
+        {ListUnpack_410_VariadicSplit->output(split_output_id), NewGenConst({0, 0, "head_cnt", "head_size"})},
         {{"special_zero", true}});
-    auto slice_Slice_543 = GenSlice(view_Reshape_424, 0, head_size, 1, 3);  //  tensor_array<f32[?,?,32,128]>
+    auto slice_Slice_543 = NewGenSlice(view_Reshape_424, 0, "head_size", 1, 3);
 
-    auto hidden_states = makePattern();  //
+    auto hidden_states = makePattern();
     auto ShapeOf_485735 = makePattern<opset1::ShapeOf>({hidden_states}, {});
     auto Multiply_567524 = makePattern<opset1::Multiply>({ShapeOf_485735, {-1}}, {{"auto_broadcast", "numpy"}});
     auto Gather_377635 = makePattern<opset8::Gather>({Multiply_567524, {1}, 0}, {{"batch_dims", 0}});
@@ -890,14 +948,15 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     auto gather_sin_by_pos_ids = makePattern<opset8::Gather>({rotary_emb_sin, position_ids, 1}, {{"batch_dims", 0}});
     auto reshape_sin_to_expected_layout =
         makePattern<opset8::Reshape>({gather_sin_by_pos_ids, {-1, 1, 1, 128}}, {{"special_zero", false}});
-    auto mul_Multiply_594 = makePattern<opset1::Multiply>(
+    auto mul_Multiply_594 = pattern::wrap_type<opset1::Multiply>(
         {cat_Concat_593, slice_StridedSlice_470 | slice_Slice_470 | reshape_sin_to_expected_layout},
-        {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,?,32,128]>
-    auto add_Add_597 = makePattern<opset1::Add>({mul_Multiply_552, mul_Multiply_594},
-                                                {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,?,32,128]>
+        {{"auto_broadcast", "numpy"}});
+    auto add_Add_597 = pattern::wrap_type<opset1::Add>({mul_Multiply_552, mul_Multiply_594},
+                                                       {{"auto_broadcast", "numpy"}});
 
     auto result = add_Add_597;
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        std::cout << "RoPEFusionQwen start" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
@@ -974,6 +1033,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
+    std::cout << "end RoPEFusionQwen" << std::endl;
 }
 
 /*
