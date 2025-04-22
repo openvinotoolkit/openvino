@@ -379,14 +379,15 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::value_cache_group_size) {
         return static_cast<decltype(ov::value_cache_group_size)::value_type>(config.valueCacheGroupSize);
-    } else if (name == ov::weights_path) {
+    }
+    if (name == ov::weights_path) {
         return static_cast<decltype(ov::weights_path)::value_type>("");
     }
     OPENVINO_THROW("Unsupported property: ", name);
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
-    ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt);
+    ModelSerializer serializer(modelStream, m_cfg.cacheEncrypt, m_cfg.m_cache_mode == ov::CacheMode::OPTIMIZE_SIZE);
     serializer << m_model;
 }
 

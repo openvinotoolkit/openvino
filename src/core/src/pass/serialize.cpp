@@ -216,7 +216,8 @@ void ngfunction_2_ir(pugi::xml_node& node,
                      const ov::Model& model,
                      ConstantWriter& constant_write_handler,
                      int64_t version,
-                     bool deterministic);
+                     bool deterministic,
+                     const bool skip_weightless_constants = false);
 
 namespace rt_info {
 static const std::vector<std::string> list_of_names{
@@ -330,7 +331,7 @@ class XmlSerializer : public ov::AttributeVisitor {
     bool m_compress_to_fp16;
     ov::element::Type m_output_element_type;
     bool m_data_is_temporary;
-    bool m_weightless_const;
+    bool m_skip_weightless_constants;
 
     template <typename T>
     std::string create_atribute_list(ov::ValueAccessor<std::vector<T>>& adapter) {
@@ -451,7 +452,7 @@ public:
                   bool compress_to_fp16 = false,
                   ov::element::Type output_element_type = ov::element::dynamic,
                   bool data_is_temporary = false,
-                  bool weightless_const = false)
+                  bool skip_weightless_constants = false)
         : m_xml_node(data),
           m_node_type_name(node_type_name),
           m_constant_write_handler(constant_write_handler),
@@ -460,7 +461,7 @@ public:
           m_compress_to_fp16(compress_to_fp16),
           m_output_element_type(output_element_type),
           m_data_is_temporary(data_is_temporary),
-          m_weightless_const(weightless_const) {}
+          m_skip_weightless_constants(skip_weightless_constants) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
@@ -595,7 +596,7 @@ public:
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-                const size_t size = m_weightless_const ? 0lu : a->get()->size();
+                const size_t size = m_skip_weightless_constants ? 0lu : a->get()->size();
                 size_t new_size = 0lu;
                 int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
                                                                 size,
@@ -690,11 +691,21 @@ public:
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
-            ngfunction_2_ir(xml_body, *adapter.get(), m_constant_write_handler, m_version, m_deterministic);
+            ngfunction_2_ir(xml_body,
+                            *adapter.get(),
+                            m_constant_write_handler,
+                            m_version,
+                            m_deterministic,
+                            m_skip_weightless_constants);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
         } else if (name == "net") {
-            ngfunction_2_ir(m_xml_node, *adapter.get(), m_constant_write_handler, m_version, m_deterministic);
+            ngfunction_2_ir(m_xml_node,
+                            *adapter.get(),
+                            m_constant_write_handler,
+                            m_version,
+                            m_deterministic,
+                            m_skip_weightless_constants);
         } else {
             OPENVINO_THROW("Unsupported Model name.");
         }
@@ -1009,7 +1020,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                      const ov::Model& model,
                      ConstantWriter& constant_node_write_handler,
                      int64_t version,
-                     bool deterministic) {
+                     bool deterministic,
+                     const bool skip_weightless_constants) {
     // If determinism is not required, include auto-generated names into xml
     // model name is not critical for hash computing
     if (!deterministic) {
@@ -1075,9 +1087,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
-        bool weightless_const = false;
 
-        auto append_runtime_info = [&weightless_const](pugi::xml_node& node, ov::RTMap& attributes) {
+        auto append_runtime_info = [&skip_weightless_constants](pugi::xml_node& node,
+                                                                ov::RTMap& attributes,
+                                                                bool& weightless_const) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
             for (auto& item : attributes) {
@@ -1092,7 +1105,8 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                         rt_node.remove_child(attribute_node);
                     } else {
                         has_attrs = true;
-                        if (strcmp(type_info.name, ov::WeightlessCacheAttribute::get_type_info_static().name) == 0) {
+                        if (skip_weightless_constants &&
+                            strcmp(type_info.name, ov::WeightlessCacheAttribute::get_type_info_static().name) == 0) {
                             weightless_const = true;
                         }
                     }
@@ -1103,8 +1117,9 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             }
         };
 
+        bool weightless_const = false;
         if (version >= 11) {
-            append_runtime_info(layer, node->get_rt_info());
+            append_runtime_info(layer, node->get_rt_info(), weightless_const);
         }
 
         int port_id = 0;
@@ -1135,8 +1150,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                             .set_value(std::to_string(d.get_length()).c_str());
                     }
                 }
-                if (version >= 11)
-                    append_runtime_info(port, i.get_rt_info());
+                if (version >= 11) {
+                    bool weightless_const_tmp = false;
+                    append_runtime_info(port, i.get_rt_info(), weightless_const_tmp);
+                }
             }
 
             if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
@@ -1192,8 +1209,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                                 .set_value(std::to_string(d.get_length()).c_str());
                         }
                     }
-                    if (version >= 11)
-                        append_runtime_info(port, o.get_rt_info());
+                    if (version >= 11) {
+                        bool weightless_const_tmp = false;
+                        append_runtime_info(port, o.get_rt_info(), weightless_const_tmp);
+                    }
                 }
                 if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
                     layer.insert_move_after(output, layer.first_child());
@@ -1288,7 +1307,8 @@ void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
                    std::shared_ptr<ov::Model> model,
                    ov::pass::Serialize::Version ver,
-                   bool deterministic = false) {
+                   bool deterministic = false,
+                   bool skip_weightless_constants = false) {
     auto version = static_cast<int64_t>(ver);
 
     auto& rt_info = model->get_rt_info();
@@ -1310,7 +1330,15 @@ void serializeFunc(std::ostream& xml_file,
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(bin_file);
-    XmlSerializer visitor(net_node, name, constant_write_handler, version, deterministic);
+    XmlSerializer visitor(net_node,
+                          name,
+                          constant_write_handler,
+                          version,
+                          deterministic,
+                          false,
+                          ov::element::dynamic,
+                          false,
+                          skip_weightless_constants);
     visitor.on_attribute(name, model);
 
     xml_doc.save(xml_file);
@@ -1334,7 +1362,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             disable_fp16_compression(node);
 
     if (m_xmlFile && m_binFile) {
-        serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
+        serializeFunc(*m_xmlFile, *m_binFile, model, m_version, false, m_skip_weightless_constants);
     } else {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         const auto& xmlPath_ref = ov::util::string_to_wstring(m_xmlPath);
@@ -1359,7 +1387,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         OPENVINO_ASSERT(xml_file, message_xml);
 
         try {
-            serializeFunc(xml_file, bin_file, model, m_version);
+            serializeFunc(xml_file, bin_file, model, m_version, false, m_skip_weightless_constants);
         } catch (const ov::AssertFailure&) {
             // optimization decision was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
@@ -1376,28 +1404,38 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
+pass::Serialize::Serialize(std::ostream& xmlFile,
+                           std::ostream& binFile,
+                           pass::Serialize::Version version,
+                           bool weightless_cache)
     : m_xmlFile{&xmlFile},
       m_binFile{&binFile},
       m_xmlPath{},
       m_binPath{},
-      m_version{version} {}
+      m_version{version},
+      m_skip_weightless_constants{weightless_cache} {}
 
-pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
+pass::Serialize::Serialize(const std::string& xmlPath,
+                           const std::string& binPath,
+                           pass::Serialize::Version version,
+                           bool weightless_cache)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
-      m_version{version} {}
+      m_version{version},
+      m_skip_weightless_constants{weightless_cache} {}
 
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
                                        const std::function<std::string(const std::string&)>& cache_encrypt,
-                                       Serialize::Version version)
+                                       Serialize::Version version,
+                                       bool skip_weightless_constants)
     : m_stream(stream),
       m_custom_data_serializer(custom_data_serializer),
       m_cache_encrypt(cache_encrypt),
-      m_version(version) {
+      m_version(version),
+      m_skip_weightless_constants(skip_weightless_constants) {
     if (version != Serialize::Version::UNSPECIFIED && version != Serialize::Version::IR_V10 &&
         version != Serialize::Version::IR_V11) {
         OPENVINO_THROW("Unsupported version");
@@ -1447,7 +1485,15 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(m_stream);
-    XmlSerializer visitor(net_node, name, constant_write_handler, version);
+    XmlSerializer visitor(net_node,
+                          name,
+                          constant_write_handler,
+                          version,
+                          false,
+                          false,
+                          ov::element::dynamic,
+                          false,
+                          m_skip_weightless_constants);
     std::shared_ptr<ov::Model> fun = model;
     visitor.on_attribute(name, fun);
 

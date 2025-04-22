@@ -843,10 +843,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         cacheContent.model = model;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
 
-        const auto& rt_info = model->get_rt_info();
-        auto weights_path = rt_info.find("__weights_path");
-        if (weights_path != rt_info.end()) {
-            parsed._config[ov::weights_path.name()] = weights_path->second;
+        const auto& cache_mode_it = config.find(cache_mode.name());
+        if (cache_mode_it != config.end() && cache_mode_it->second == CacheMode::OPTIMIZE_SIZE) {
+            const auto& rt_info = model->get_rt_info();
+            auto weights_path = rt_info.find("__weights_path");
+            if (weights_path != rt_info.end()) {
+                parsed._config[ov::weights_path.name()] = weights_path->second;
+            }
         }
 
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {

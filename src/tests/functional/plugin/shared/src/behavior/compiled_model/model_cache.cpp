@@ -67,8 +67,7 @@ void WeightlessCacheAccuracy::run() {
     auto core = ov::test::utils::PluginCache::get().core();
     ov::pass::Serialize(m_xml_path, m_bin_path).run_on_model(m_model);
 
-    ov::CompiledModel compiled_model;
-    compiled_model = core->compile_model(m_xml_path, m_target_device, config);
+    auto compiled_model = core->compile_model(m_xml_path, m_target_device, config);
 
     if (!m_use_compile_model_api) {
         auto ofstr = std::ofstream(m_cache_path, std::ofstream::binary);

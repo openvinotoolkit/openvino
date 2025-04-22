@@ -404,6 +404,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return static_cast<decltype(ov::key_cache_group_size)::value_type>(engConfig.keyCacheGroupSize);
     } else if (name == ov::value_cache_group_size) {
         return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
+    } else if (name == ov::weights_path) {
+        return decltype(ov::weights_path)::value_type(std::string(""));
     }
     return get_ro_property(name, options);
 }

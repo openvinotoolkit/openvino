@@ -430,15 +430,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ", ov::cache_encryption_callbacks.name());
             }
-        } else if (key == ov::internal::caching_with_mmap.name()) {
-        } else if (key == ov::weights_path.name()) {
         } else if (key == ov::cache_mode.name()) {
             try {
                 m_cache_mode = val.as<ov::CacheMode>();
             } catch (...) {
                 OPENVINO_THROW("Wrong value for property key ", ov::cache_mode.name());
             }
-        } else if (key == ov::hint::model.name()) {
+        } else if (key == ov::hint::model.name() || key == ov::internal::caching_with_mmap.name() ||
+                   key == ov::weights_path.name()) {
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }

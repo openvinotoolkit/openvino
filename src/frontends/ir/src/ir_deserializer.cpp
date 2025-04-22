@@ -278,12 +278,32 @@ void convert_dt(ov::element::Type to_dt, ov::element::Type from_dt, char* dst, c
         ov::reference::convert(reinterpret_cast<const int8_t*>(src), reinterpret_cast<int32_t*>(dst), el_num);
     } else if (from_dt == ov::element::u8 && to_dt == ov::element::f32) {
         ov::reference::convert(reinterpret_cast<const uint8_t*>(src), reinterpret_cast<float*>(dst), el_num);
+    } else if (from_dt == ov::element::u8 && to_dt == ov::element::f16) {
+        ov::reference::convert(reinterpret_cast<const uint8_t*>(src), reinterpret_cast<ov::float16*>(dst), el_num);
     } else if (from_dt == ov::element::i8 && to_dt == ov::element::f32) {
         ov::reference::convert(reinterpret_cast<const int8_t*>(src), reinterpret_cast<float*>(dst), el_num);
+    } else if (from_dt == ov::element::i8 && to_dt == ov::element::f16) {
+        ov::reference::convert(reinterpret_cast<const int8_t*>(src), reinterpret_cast<ov::float16*>(dst), el_num);
     } else if (from_dt == ov::element::f32 && to_dt == ov::element::f16) {
         ov::reference::convert(reinterpret_cast<const float*>(src), reinterpret_cast<ov::float16*>(dst), el_num);
     } else if (from_dt == ov::element::f32 && to_dt == ov::element::bf16) {
         ov::reference::convert(reinterpret_cast<const float*>(src), reinterpret_cast<ov::bfloat16*>(dst), el_num);
+    } else if (from_dt == ov::element::u4 && to_dt == ov::element::f32) {
+        ov::reference::convert(reinterpret_cast<const ov::element_type_traits<ov::element::u4>::value_type*>(src),
+                               reinterpret_cast<float*>(dst),
+                               el_num);
+    } else if (from_dt == ov::element::u4 && to_dt == ov::element::f16) {
+        ov::reference::convert(reinterpret_cast<const ov::element_type_traits<ov::element::u4>::value_type*>(src),
+                               reinterpret_cast<ov::float16*>(dst),
+                               el_num);
+    } else if (from_dt == ov::element::i4 && to_dt == ov::element::f32) {
+        ov::reference::convert(reinterpret_cast<const ov::element_type_traits<ov::element::i4>::value_type*>(src),
+                               reinterpret_cast<float*>(dst),
+                               el_num);
+    } else if (from_dt == ov::element::i4 && to_dt == ov::element::f16) {
+        ov::reference::convert(reinterpret_cast<const ov::element_type_traits<ov::element::i4>::value_type*>(src),
+                               reinterpret_cast<ov::float16*>(dst),
+                               el_num);
     } else {
         OPENVINO_THROW("Unsupported element types conversion from ", from_dt, " to ", to_dt);
     }
@@ -403,7 +423,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
             a->set(buffer);
         } else if (name == "value" && type == "Const") {
             OPENVINO_ASSERT(m_weights != nullptr || m_origin_weights != nullptr,
-                "Empty weights data in bin file or bin file cannot be found!");
+                            "Empty weights data in bin file or bin file cannot be found!");
             std::vector<int64_t> shape;
             std::string el_type_str;
 
@@ -438,12 +458,13 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                                 if (original_dt == el_type) {
                                     weights_buf = m_origin_weights;
                                 } else {
-                                    std::shared_ptr<char[]> new_buf(new char[actual_size]);
+                                    std::shared_ptr<char> new_buf(new char[actual_size], [](char* p) {
+                                        delete[] p;
+                                    });
                                     data = new_buf.get();
-                                    weights_buf =
-                                        std::make_shared<ov::SharedBuffer<std::shared_ptr<char[]>>>(data,
-                                                                                                    actual_size,
-                                                                                                    new_buf);
+                                    weights_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<char>>>(data,
+                                                                                                            actual_size,
+                                                                                                            new_buf);
                                     convert_dt(el_type,
                                                original_dt,
                                                data,
