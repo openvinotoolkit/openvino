@@ -97,6 +97,8 @@ public:
     std::vector<cldnn::primitive_id> profiling_ids;
 
     std::map<size_t, cldnn::layout> inputLayouts;
+    using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type>;
+    std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
 
     std::shared_ptr<cldnn::program> get_compiled_program() const;
     std::shared_ptr<cldnn::topology> get_topology() const { return m_topology; }
