@@ -4,6 +4,8 @@
 
 #include "snippets/conv_eltwise.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace test {

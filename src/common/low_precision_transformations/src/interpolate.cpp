@@ -11,12 +11,12 @@
 
 #include "itt.hpp"
 #include "openvino/util/log.hpp"
-
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/interpolate.hpp"
 
 using namespace ov;
 using namespace ov::pass;
