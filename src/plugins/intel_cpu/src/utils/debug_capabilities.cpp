@@ -428,7 +428,7 @@ public:
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
-        append_attribute(name.c_str(), std::to_string(adapter.get()).c_str());
+        append_attribute(name.c_str(), std::to_string(static_cast<int>(adapter.get())).c_str());
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
@@ -471,7 +471,8 @@ public:
     void append_attribute(const char* name, const char* value) {
         os << " " << name << "=" << value;
     }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+    void on_adapter(const std::string& name,
+                    [[maybe_unused]] ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         append_attribute(name.c_str(), "Model");
     }
 

@@ -145,7 +145,7 @@ private:
                                                                   params.poolingRatio,
                                                                   params.spatialScale,
                                                                   params.poolingMode);
-        auto f = std::make_shared<Model>(NodeVector{roi_align}, ParameterVector{featureMap});
+        auto f = std::make_shared<Model>(OutputVector{roi_align}, ParameterVector{featureMap});
         return f;
     }
 };
@@ -200,7 +200,7 @@ private:
                                                                   params.spatialScale,
                                                                   pooling_mode,
                                                                   aligned_mode);
-        auto f = std::make_shared<Model>(NodeVector{roi_align}, ParameterVector{featureMap});
+        auto f = std::make_shared<Model>(OutputVector{roi_align}, ParameterVector{featureMap});
         return f;
     }
 };

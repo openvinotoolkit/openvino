@@ -62,9 +62,9 @@ LinuxCpuMapTestCase freq_2sockets_112cores_hyperthreading = {
     2,    // param[expected out]: total 2 numa nodes on this simulated platform
     2,    // param[expected out]: total 2 sockets on this simulated platform
     112,  // param[expected out]: total 112 CPU cores on this simulated platform
-    {{224, 112, 0, 112, -1, -1},
-     {112, 56, 0, 56, 0, 0},
-     {112, 56, 0, 56, 1, 1}},  // param[expected out]: The proc_type_table of this simulated platform
+    {{224, 112, 0, 0, 112, -1, -1},
+     {112, 56, 0, 0, 56, 0, 0},
+     {112, 56, 0, 0, 56, 1, 1}},  // param[expected out]: The proc_type_table of this simulated platform
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},       {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},       {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -263,7 +263,7 @@ LinuxCpuMapTestCase freq_2sockets_56cores_hyperthreading = {
     2,
     2,
     56,
-    {{110, 56, 0, 54, -1, -1}, {54, 28, 0, 26, 0, 0}, {56, 28, 0, 28, 1, 1}},
+    {{110, 56, 0, 0, 54, -1, -1}, {54, 28, 0, 0, 26, 0, 0}, {56, 28, 0, 0, 28, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -445,7 +445,7 @@ LinuxCpuMapTestCase freq_2sockets_48cores_hyperthreading = {
     2,
     2,
     48,
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -533,11 +533,11 @@ LinuxCpuMapTestCase freq_2sockets_48cores_hyperthreading_1 = {
     4,
     2,
     48,
-    {{96, 48, 0, 48, -1, -1},
-     {24, 12, 0, 12, 0, 0},
-     {24, 12, 0, 12, 1, 0},
-     {24, 12, 0, 12, 2, 1},
-     {24, 12, 0, 12, 3, 1}},
+    {{96, 48, 0, 0, 48, -1, -1},
+     {24, 12, 0, 0, 12, 0, 0},
+     {24, 12, 0, 0, 12, 1, 0},
+     {24, 12, 0, 0, 12, 2, 1},
+     {24, 12, 0, 0, 12, 3, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -626,7 +626,7 @@ LinuxCpuMapTestCase freq_2sockets_24cores_hyperthreading = {
     2,
     2,
     24,
-    {{48, 24, 0, 24, -1, -1}, {24, 12, 0, 12, 0, 0}, {24, 12, 0, 12, 1, 1}},
+    {{48, 24, 0, 0, 24, -1, -1}, {24, 12, 0, 0, 12, 0, 0}, {24, 12, 0, 0, 12, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 1, 1, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 1, 1, 3, HYPER_THREADING_PROC, 3, -1},
@@ -677,7 +677,11 @@ LinuxCpuMapTestCase freq_2sockets_24cores_hyperthreading_1 = {
     4,
     2,
     24,
-    {{48, 24, 0, 24, -1, -1}, {12, 6, 0, 6, 0, 0}, {12, 6, 0, 6, 1, 0}, {12, 6, 0, 6, 2, 1}, {12, 6, 0, 6, 3, 1}},
+    {{48, 24, 0, 0, 24, -1, -1},
+     {12, 6, 0, 0, 6, 0, 0},
+     {12, 6, 0, 0, 6, 1, 0},
+     {12, 6, 0, 0, 6, 2, 1},
+     {12, 6, 0, 0, 6, 3, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 2, 1, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 2, 1, 3, HYPER_THREADING_PROC, 3, -1},
@@ -730,7 +734,7 @@ LinuxCpuMapTestCase freq_2sockets_20cores_hyperthreading = {
     2,
     2,
     20,
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -772,7 +776,7 @@ LinuxCpuMapTestCase freq_2sockets_20cores_hyperthreading_1 = {
     2,
     2,
     20,
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -814,7 +818,7 @@ LinuxCpuMapTestCase freq_2sockets_20cores = {
     2,
     2,
     20,
-    {{20, 20, 0, 0, -1, -1}, {10, 10, 0, 0, 0, 0}, {10, 10, 0, 0, 1, 1}},
+    {{20, 20, 0, 0, 0, -1, -1}, {10, 10, 0, 0, 0, 0, 0}, {10, 10, 0, 0, 0, 1, 1}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},    {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -841,7 +845,7 @@ LinuxCpuMapTestCase freq_1sockets_32cores_hyperthreading = {
     1,
     1,
     32,
-    {{64, 32, 0, 32, 0, 0}},
+    {{64, 32, 0, 0, 32, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -901,7 +905,7 @@ LinuxCpuMapTestCase freq_1sockets_16cores_hyperthreading = {
     1,
     1,
     16,
-    {{24, 8, 8, 8, 0, 0}},
+    {{24, 8, 8, 0, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},   {3, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -931,7 +935,7 @@ LinuxCpuMapTestCase freq_1sockets_16cores = {
     1,
     1,
     16,
-    {{16, 8, 8, 0, 0, 0}},
+    {{16, 8, 8, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -975,7 +979,7 @@ LinuxCpuMapTestCase freq_1sockets_16cores_1_hyperthreading = {
     1,
     1,
     16,
-    {{22, 6, 10, 6, 0, 0}},
+    {{22, 6, 10, 0, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},   {3, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -1004,7 +1008,7 @@ LinuxCpuMapTestCase freq_1sockets_12cores_hyperthreading = {
     1,
     1,
     12,
-    {{14, 2, 10, 2, 0, 0}},
+    {{14, 2, 10, 0, 2, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1044,7 +1048,7 @@ LinuxCpuMapTestCase freq_1sockets_8cores_hyperthreading = {
     1,
     1,
     8,
-    {{16, 8, 0, 8, 0, 0}},
+    {{16, 8, 0, 0, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1088,7 +1092,7 @@ LinuxCpuMapTestCase freq_1sockets_8cores_hyperthreading_1 = {
     1,
     1,
     8,
-    {{16, 8, 0, 8, 0, 0}},
+    {{16, 8, 0, 0, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
@@ -1132,7 +1136,7 @@ LinuxCpuMapTestCase freq_1sockets_4cores = {
     1,
     1,
     4,
-    {{4, 4, 0, 0, 0, 0}},
+    {{4, 4, 0, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},

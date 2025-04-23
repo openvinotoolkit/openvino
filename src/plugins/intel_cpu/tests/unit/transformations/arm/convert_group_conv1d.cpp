@@ -4,20 +4,25 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset7.hpp>
+#include <openvino/pass/manager.hpp>
+#include <ov_ops/type_relaxed.hpp>
+#include <string>
 #include <transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <openvino/pass/manager.hpp>
-#include <ov_ops/type_relaxed.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
@@ -35,7 +40,7 @@ static std::shared_ptr<ov::Model> createInitGraph(ov::Shape param_shape, ov::Sha
                                         is1Dinput ? ov::CoordinateDiff{0} : ov::CoordinateDiff{0, 0},
                                         is1Dinput ? ov::Strides{1} :        ov::Strides{1, 1});
 
-        return std::make_shared<ov::Model>(ov::NodeVector{ conv }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{param});
 }
 
 template <class T>
@@ -59,7 +64,7 @@ static std::shared_ptr<ov::Model> createTransformedGraph(ov::Shape param_shape, 
 
         auto reshape = std::make_shared<ov::opset1::Squeeze>(conv2d,
             ov::opset1::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
-        return std::make_shared<ov::Model>(ov::NodeVector{ reshape }, ov::ParameterVector{ param });
+        return std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{param});
 }
 
 TEST(TransformationTests, CheckConvertConv1DIsAppliedFor1DShapes) {

@@ -6,6 +6,12 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/slice.hpp"
 
 using namespace ov::test::utils;
 

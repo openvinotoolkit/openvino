@@ -37,7 +37,10 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         if (one_of(data_types::i64, {in0_dt, wei_dt}))
             return false;
 
-        if (!everyone_is(format::bfyx, in_layout.format, out_layout.format) && !everyone_is(format::any, in_layout.format, out_layout.format))
+        if (!everyone_is(format::bfyx, in_layout.format, out_layout.format) &&
+            !everyone_is(format::bfzyx, in_layout.format, out_layout.format) &&
+            !everyone_is(format::bfwzyx, in_layout.format, out_layout.format) &&
+            !everyone_is(format::any, in_layout.format, out_layout.format))
             return false;
 
         if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout))
@@ -63,18 +66,6 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                     (decompression_zp_dt != ov::element::Type_t::u8 && decompression_zp_dt != ov::element::Type_t::i8)) {
                     return false;
                 }
-            }
-        }
-
-        const auto& output_layout = fc_node.get_output_layout();
-        const auto& ps = output_layout.get_partial_shape();
-        size_t non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
-        size_t rank = ps.size();
-
-        // OneDnn doesn't support spatial dimensions for output
-        for (auto i = non_spatial_count; i < rank; i++) {
-            if (ps[i].is_dynamic() || ps[i] != 1) {
-                return false;
             }
         }
 
