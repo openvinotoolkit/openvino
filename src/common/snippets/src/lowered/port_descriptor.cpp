@@ -42,7 +42,7 @@ void PortDescriptor::validate_arguments() {
 }
 
 const VectorDims& PortDescriptor::get_shape() const {
-    OPENVINO_ASSERT(m_tensor_shape, "Failed to get_shape: Tensor Shape is nullptr");
+    assert(m_tensor_shape && "Failed to get_shape: Tensor Shape is nullptr");
     return *m_tensor_shape;
 }
 

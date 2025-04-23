@@ -8,6 +8,8 @@
  */
 #pragma once
 
+#include <cassert>
+
 #include "snippets/emitter.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -156,12 +158,12 @@ inline size_t dimension_to_size_t(const ov::Dimension& dim) {
 
 // dim_idx starts from the layout end: dim_idx = 0 -> last element in layout (layout.back())
 inline size_t get_input_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
-    OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
+    assert(dim_idx < layout.size() && "Incorrect dim_idx");
     return *(layout.rbegin() + dim_idx);
 }
 // dim_idx starts from the layout end: dim_idx = 0 -> last index in layout (layout.size() - 1)
 inline size_t get_output_dim_idx(const std::vector<size_t>& layout, size_t dim_idx) {
-    OPENVINO_ASSERT(dim_idx < layout.size(), "Incorrect dim_idx");
+    assert(dim_idx < layout.size() && "Incorrect dim_idx");
     return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 1 - dim_idx));
 }
 

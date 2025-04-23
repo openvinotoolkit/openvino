@@ -154,7 +154,7 @@ size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx) {
 }
 
 int64_t get_stride(size_t dim_idx, const VectorDims& shape) {
-    OPENVINO_ASSERT(dim_idx < shape.size(), "dim_idx should be in range of [0, shape.size()) in get_stride");
+    assert(dim_idx < shape.size() && "dim_idx should be in range of [0, shape.size()) in get_stride");
     int64_t stride = 1;
     for (size_t i = dim_idx + 1; i < shape.size(); ++i) {
         if (utils::is_dynamic_value(shape[i])) {
@@ -199,11 +199,11 @@ VectorDims get_preordered_vdims(const VectorDims& shape, const std::vector<size_
 }
 
 VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port) {
-    OPENVINO_ASSERT(expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Input, "get_planar_vdims expects Expression Input port");
+    assert(expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Input && "get_planar_vdims expects Expression Input port");
     return get_planar_vdims(expr_port.get_descriptor_ptr()->get_shape(), expr_port.get_descriptor_ptr()->get_layout());
 }
 VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_port) {
-    OPENVINO_ASSERT(expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Output, "get_preordered_vdims expects Expression Output port");
+    assert(expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Output && "get_preordered_vdims expects Expression Output port");
     return get_preordered_vdims(expr_port.get_descriptor_ptr()->get_shape(), expr_port.get_descriptor_ptr()->get_layout());
 }
 

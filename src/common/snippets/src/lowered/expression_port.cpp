@@ -20,21 +20,21 @@ std::shared_ptr<ExpressionPort> ExpressionPort::clone_with_new_expr(const std::s
 
 std::shared_ptr<Expression> ExpressionPort::get_expr() const {
     const auto expr_ptr = m_expr.lock();
-    OPENVINO_ASSERT(expr_ptr != nullptr, "ExpressionPort has invalid expression pointer");
+    assert(expr_ptr != nullptr && "ExpressionPort has invalid expression pointer");
     return expr_ptr;
 }
 
 const PortDescriptorPtr& ExpressionPort::get_descriptor_ptr() const {
     const auto& descs = m_type == Type::Input ? get_expr()->m_input_port_descriptors
                                               : get_expr()->m_output_port_descriptors;
-    OPENVINO_ASSERT(m_port_index < descs.size(), "Incorrect index of port");
+    assert(m_port_index < descs.size() && "Incorrect index of port");
     return descs[m_port_index];
 }
 
 const std::shared_ptr<PortConnector>& ExpressionPort::get_port_connector_ptr() const {
     const auto& connectors = m_type == Type::Input ? get_expr()->m_input_port_connectors
                                                    : get_expr()->m_output_port_connectors;
-    OPENVINO_ASSERT(m_port_index < connectors.size(), "Incorrect index of port");
+    assert(m_port_index < connectors.size() && "Incorrect index of port");
     return connectors[m_port_index];
 }
 
