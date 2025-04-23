@@ -127,7 +127,7 @@ ov::pass::activations_scaling::ScaleDownSingleLayer::ScaleDownSingleLayer(float 
         size_t bias_index = 1;
         {
             if (scaled_op->get_output_target_inputs(0).size() == 1 && ov::is_type<ov::op::v1::Add>(child_node)) {
-                bias_index = (child_node->get_input_node_shared_ptr(0) == scaled_op) ? 1 : 0;
+                bias_index = (child_node->input_value(0).get_node_shared_ptr() == scaled_op) ? 1 : 0;
                 const auto& bias_pshape = child_node->get_input_partial_shape(bias_index);
                 if (bias_pshape.is_static()) {
                     const auto& bias_shape = bias_pshape.get_shape();
