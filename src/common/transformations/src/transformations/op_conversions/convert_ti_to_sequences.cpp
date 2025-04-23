@@ -490,7 +490,7 @@ bool check_lstm_cell_pattern(
                 return false;
             }
             const auto& hidden_state_result = body_results[merged_desc->m_body_value_index];
-            if ((hidden_state_result->get_input_node_shared_ptr(0) != lstm_cell_node) ||
+            if ((hidden_state_result->input_value(0).get_node_shared_ptr() != lstm_cell_node) ||
                 (hidden_state_result->input_value(0).get_index() != 0)) {
                 return false;
             }
@@ -502,7 +502,7 @@ bool check_lstm_cell_pattern(
                 return false;
             }
             const auto& cell_state_result = body_results[merged_desc->m_body_value_index];
-            if ((cell_state_result->get_input_node_shared_ptr(0) != lstm_cell_node) ||
+            if ((cell_state_result->input_value(0).get_node_shared_ptr() != lstm_cell_node) ||
                 (cell_state_result->input_value(0).get_index() != 1)) {
                 return false;
             }
@@ -1348,16 +1348,16 @@ public:
 
             const auto shapeof_gather = pattern_map.at(shapeof_gather_label).get_node_shared_ptr();
             const auto shapeof_gather_indexes_node =
-                ov::as_type_ptr<op::v0::Constant>(shapeof_gather->get_input_node_shared_ptr(1));
+                ov::as_type_ptr<op::v0::Constant>(shapeof_gather->input_value(1).get_node_shared_ptr());
             auto shapeof_gather_indexes = shapeof_gather_indexes_node->cast_vector<int64_t>();
             if (shapeof_gather_indexes.size() != 3)
                 return false;
             const auto shapeof_gather2 = pattern_map.at(shapeof_gather2_label).get_node_shared_ptr();
             int64_t shapeof_gather2_index = -1;
             int64_t shapeof_gather2_axis = -1;
-            if (!get_constant_value(shapeof_gather2->get_input_node_shared_ptr(1), shapeof_gather2_index))
+            if (!get_constant_value(shapeof_gather2->input_value(1).get_node_shared_ptr(), shapeof_gather2_index))
                 return false;
-            if (!get_constant_value(shapeof_gather2->get_input_node_shared_ptr(2), shapeof_gather2_axis) ||
+            if (!get_constant_value(shapeof_gather2->input_value(2).get_node_shared_ptr(), shapeof_gather2_axis) ||
                 shapeof_gather2_axis != 0)
                 return false;
             const auto reshape = pattern_map.at(reshape_label).get_node_shared_ptr();
@@ -1367,13 +1367,13 @@ public:
             const auto range = pattern_map.at(range_label).get_node_shared_ptr();
             int64_t range_start = -1;
             int64_t range_step = -1;
-            if (!get_constant_value(range->get_input_node_shared_ptr(0), range_start) || range_start != 0)
+            if (!get_constant_value(range->input_value(0).get_node_shared_ptr(), range_start) || range_start != 0)
                 return false;
-            if (!get_constant_value(range->get_input_node_shared_ptr(2), range_step) || range_step != 1)
+            if (!get_constant_value(range->input_value(2).get_node_shared_ptr(), range_step) || range_step != 1)
                 return false;
 
             int64_t gather_axis = -1;
-            if (!get_constant_value(gather->get_input_node_shared_ptr(2), gather_axis) ||
+            if (!get_constant_value(gather->input_value(2).get_node_shared_ptr(), gather_axis) ||
                 gather_axis != shapeof_gather_indexes[shapeof_gather2_index])
                 return false;
 
@@ -1415,7 +1415,7 @@ ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
         const auto& data = pattern_map.at(data_label);
         const auto second_transpose = pattern_map.at(second_transpose_label).get_node_shared_ptr();
         const auto second_transpose_perm =
-            ov::as_type_ptr<op::v0::Constant>(second_transpose->get_input_node_shared_ptr(1));
+            ov::as_type_ptr<op::v0::Constant>(second_transpose->input_value(1).get_node_shared_ptr());
         auto lstm = ov::as_type_ptr<op::v5::LSTMSequence>(pattern_map.at(lstm_label).get_node_shared_ptr());
         if (lstm->get_direction() != op::v5::LSTMSequence::direction::FORWARD)
             return false;
@@ -1492,7 +1492,7 @@ ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
         if (squeeze->input_value(0) != lstm->output(0))
             return false;
         int64_t squeeze_axis = -1;
-        if (!get_constant_value(squeeze->get_input_node_shared_ptr(1), squeeze_axis) || squeeze_axis != 1)
+        if (!get_constant_value(squeeze->input_value(1).get_node_shared_ptr(), squeeze_axis) || squeeze_axis != 1)
             return false;
         auto new_squeeze = node_registry.make<op::v0::Squeeze>(new_lstm->output(0), squeeze->input_value(1));
         const auto match_root = m.get_match_root();
@@ -1609,7 +1609,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
         if (squeeze_forward->input_value(0) != lstm_forward->output(0))
             return false;
         int64_t squeeze_forward_axis = -1;
-        if (!get_constant_value(squeeze_forward->get_input_node_shared_ptr(1), squeeze_forward_axis) ||
+        if (!get_constant_value(squeeze_forward->input_value(1).get_node_shared_ptr(), squeeze_forward_axis) ||
             squeeze_forward_axis != 1)
             return false;
 
@@ -1617,7 +1617,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
         if (squeeze_reverse->input_value(0) != lstm_reverse->output(0))
             return false;
         int64_t squeeze_reverse_axis = -1;
-        if (!get_constant_value(squeeze_reverse->get_input_node_shared_ptr(1), squeeze_reverse_axis) ||
+        if (!get_constant_value(squeeze_reverse->input_value(1).get_node_shared_ptr(), squeeze_reverse_axis) ||
             squeeze_reverse_axis != 1)
             return false;
 
@@ -1667,17 +1667,17 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
             auto gather_forward = pattern_map.at(gather_forward_label);
             int64_t gather_index = -1;
             int64_t gather_axis = -1;
-            if (!get_constant_value(gather_forward->get_input_node_shared_ptr(1), gather_index) || gather_index != 0)
+            if (!get_constant_value(gather_forward->input_value(1).get_node_shared_ptr(), gather_index) || gather_index != 0)
                 return false;
-            if (!get_constant_value(gather_forward->get_input_node_shared_ptr(2), gather_axis) || gather_axis != 0)
+            if (!get_constant_value(gather_forward->input_value(2).get_node_shared_ptr(), gather_axis) || gather_axis != 0)
                 return false;
 
             auto gather_reverse = pattern_map.at(gather_reverse_label);
             gather_index = -1;
             gather_axis = -1;
-            if (!get_constant_value(gather_reverse->get_input_node_shared_ptr(1), gather_index) || gather_index != 0)
+            if (!get_constant_value(gather_reverse->input_value(1).get_node_shared_ptr(), gather_index) || gather_index != 0)
                 return false;
-            if (!get_constant_value(gather_reverse->get_input_node_shared_ptr(2), gather_axis) || gather_axis != 0)
+            if (!get_constant_value(gather_reverse->input_value(2).get_node_shared_ptr(), gather_axis) || gather_axis != 0)
                 return false;
 
             from.push_back(max_sequence_len_forward);

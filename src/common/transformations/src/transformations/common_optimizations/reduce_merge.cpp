@@ -44,7 +44,7 @@ bool fuse_reduce_operations(const std::shared_ptr<Node>& node) {
         return false;
     }
 
-    const auto top_reduce = as_type_ptr<T>(bottom_reduce->get_input_node_shared_ptr(0));
+    const auto top_reduce = as_type_ptr<T>(bottom_reduce->input_value(0).get_node_shared_ptr());
     if (!top_reduce) {
         return false;
     }

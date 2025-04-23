@@ -24,7 +24,7 @@ bool can_eliminate_broadcast(const ov::Output<ov::Node>& eltwise,
     // Check that eltwise_input is the same input which comes to ShapeOf which comes
     // to Broadcast operation as a output shape target. In this case we can eliminate
     // Broadcast since eltwise_input will broadcast another eltwise input automatically.
-    auto broadcast_input = broadcast.get_node()->get_input_node_shared_ptr(1);
+    auto broadcast_input = broadcast.get_node()->input_value(1).get_node_shared_ptr();
     if ((ov::is_type<ov::op::v3::ShapeOf>(broadcast_input) || ov::is_type<ov::op::v0::ShapeOf>(broadcast_input)) &&
         broadcast_input->input_value(0) == eltwise_input) {
         return true;

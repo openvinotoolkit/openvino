@@ -30,10 +30,10 @@ ov::pass::HardSigmoidDecomposition::HardSigmoidDecomposition() {
             return false;
         }
 
-        auto alpha_constant = hard_sigmoid_node->get_input_node_shared_ptr(1);
+        auto alpha_constant = hard_sigmoid_node->input_value(1).get_node_shared_ptr();
         auto multiply = std::make_shared<ov::op::v1::Multiply>(hard_sigmoid_node->input_value(0), alpha_constant);
 
-        auto betta_constant = hard_sigmoid_node->get_input_node_shared_ptr(2);
+        auto betta_constant = hard_sigmoid_node->input_value(2).get_node_shared_ptr();
         auto add = std::make_shared<ov::op::v1::Add>(multiply, betta_constant);
 
         auto input_type = hard_sigmoid_node->input_value(0).get_element_type();

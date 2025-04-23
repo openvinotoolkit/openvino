@@ -47,7 +47,7 @@ TSReductionForward::TSReductionForward() {
                                                             const TransposeInputsInfo& transpose_info) -> bool {
         auto keep_dims = get_keep_dims(main_node);
         auto transpose_order = transpose_info.transpose_const;
-        auto reduction_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
+        auto reduction_axes = as_type_ptr<ov::op::v0::Constant>(main_node->input_value(1).get_node_shared_ptr());
         if (!transpose_order || !reduction_axes)
             return false;
 
@@ -110,8 +110,8 @@ TSReductionBackward::TSReductionBackward() {
 
         auto keep_dims = get_keep_dims(main_node);
 
-        auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
-        auto reduction_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
+        auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
+        auto reduction_axes = as_type_ptr<ov::op::v0::Constant>(main_node->input_value(1).get_node_shared_ptr());
         if (!transpose_order || !reduction_axes)
             return false;
 
