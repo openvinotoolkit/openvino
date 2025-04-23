@@ -20,12 +20,7 @@ RUN dnf update -y && dnf install -y \
     git \
     curl \
     python3 \
-    # Compiler \
-    clang-18 \
-    # Static analyzer
-    clang-tidy-18 \
-    # clang-tidy uses clang-format as a dependency
-    clang-format-18 \
+    clang \
     # To build Python from source
     openssl-devel \
     sqlite-devel \
