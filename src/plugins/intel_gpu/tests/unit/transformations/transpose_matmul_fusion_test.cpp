@@ -184,7 +184,7 @@ TEST_F(TransformationTestsF, TranposeMatmulFusion6) {
 
     model = std::make_shared<ov::Model>(ov::NodeVector{ tranpose_c }, ov::ParameterVector{ input_a, input_b });
 
-    const auto supports_immad = true;
+    const auto supports_immad = false;
     manager.register_pass<TransposeFusion>(supports_immad);
 
     model_ref = model->clone();
