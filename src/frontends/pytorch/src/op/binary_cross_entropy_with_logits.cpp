@@ -9,6 +9,8 @@
 #include "openvino/op/log.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
