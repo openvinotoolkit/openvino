@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/sdpa_scale_fusion.hpp>
 #include <transformations/utils/utils.hpp>
