@@ -2144,3 +2144,25 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved)
     test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_value);
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_reducemean_i8) {
+    const auto model = convert_model("com.microsoft/qlinear_reducemean_i8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data{-10, 0, 10, -20, 20, 30};
+    const std::vector<float> data_scale{0.1f};
+    const std::vector<int8_t> data_zero_point{0};
+    const std::vector<float> reduced_scale{0.05f};
+    const std::vector<int8_t> reduced_zero_point{5};
+
+    const std::vector<int8_t> expected_output{5, 25};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data);
+    test_case.add_input<float>(Shape{1}, data_scale);
+    test_case.add_input<int8_t>(Shape{1}, data_zero_point);
+    test_case.add_input<float>(Shape{1}, reduced_scale);
+    test_case.add_input<int8_t>(Shape{1}, reduced_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 1}, expected_output);
+    test_case.run();
+}
