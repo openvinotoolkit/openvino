@@ -21,7 +21,7 @@ class TestStack2D(PytorchLayerTest):
 
             def forward(self, x, y):
                 inputs = [x, y]
-                if(self.dim is None):
+                if self.dim is None:
                     return torch.stack(inputs)
                 return torch.stack(inputs, self.dim)
 
@@ -47,8 +47,6 @@ class TestStack2D(PytorchLayerTest):
             np.random.randn(*input_shape).astype(np.float32),
             np.random.randn(*input_shape).astype(np.float32),
         ]
-        if(dim is None):
-            self._test(*self.create_model(), ie_device, precision, ir_version)
         self._test(*self.create_model(dim), ie_device, precision, ir_version)
 
 
@@ -66,7 +64,7 @@ class TestStack3D(PytorchLayerTest):
 
             def forward(self, x, y, z):
                 inputs = [x, y, z]
-                if(self.dim is None):
+                if self.dim is None:
                     return torch.stack(inputs)
                 return torch.stack(inputs, self.dim)
 
@@ -93,6 +91,4 @@ class TestStack3D(PytorchLayerTest):
             np.random.randn(*input_shape).astype(np.float32),
             np.random.randn(*input_shape).astype(np.float32)
         ]
-        if(dim is None):
-            self._test(*self.create_model(), ie_device, precision, ir_version)
         self._test(*self.create_model(dim), ie_device, precision, ir_version)
