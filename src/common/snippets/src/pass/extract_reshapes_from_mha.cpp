@@ -137,6 +137,15 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
         if (!ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(matmul_node) ||
             transformation_callback(matmul_node))
             return false;
+        const auto& eltwise_2 = pattern_map.at(eltwise_2_m).get_node_shared_ptr();
+        const auto& shapes = ov::util::get_node_input_partial_shapes(*eltwise_2);
+        OPENVINO_ASSERT(shapes.size() > 0, "Eltwise node should has at least one input.");
+        auto equal_rank = [&](const PartialShape& p) {
+            return p.size() == shapes[0].size();
+        };
+        if (!std::all_of(shapes.cbegin(), shapes.cend(), equal_rank)) {
+            return false;
+        }
 
         const auto& input_2 = pattern_map.at(input_2_m);
         auto input_2_shape = input_2.get_shape();
@@ -150,20 +159,11 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
         if (pattern_map.count(eltwise_1_m)) {
             first_input = pattern_map.at(eltwise_1_m);
         }
-        const auto& eltwise_2 = pattern_map.at(eltwise_2_m).get_node_shared_ptr();
-        const auto& shapes = ov::util::get_node_input_partial_shapes(*eltwise_2);
-        OPENVINO_ASSERT(shapes.size() > 0, "Eltwise node should has at least one input.");
-        auto equal_rank = [&](const PartialShape& p) {
-            return p.size() == shapes[0].size();
-        };
-        if (!std::all_of(shapes.cbegin(), shapes.cend(), equal_rank)) {
-            return false;
-        }
 
-        const auto new_eltwise_2 = eltwise_2->clone_with_new_inputs({first_input, reshaped_input2});
-
+        OutputVector new_args({first_input, reshaped_input2});
+        eltwise_2->set_arguments(new_args);
         const auto& old_reshape = pattern_map.at(reshape_2_m);
-        return ov::replace_output_update_name(old_reshape, new_eltwise_2);
+        return ov::replace_output_update_name(old_reshape, eltwise_2);
     };
 
     auto m = std::make_shared<pattern::Matcher>(reshape_2_m, matcher_name);
