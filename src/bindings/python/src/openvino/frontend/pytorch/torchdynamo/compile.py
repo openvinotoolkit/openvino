@@ -128,7 +128,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str, options=None):
             om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
         else:
             om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx]))) # type: ignore
+            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))  # type: ignore
 
     om.validate_nodes_and_infer_types()
 

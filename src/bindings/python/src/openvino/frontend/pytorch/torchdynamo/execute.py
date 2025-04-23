@@ -178,9 +178,10 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
                 signature = signature + "_" + str(idx) + ":" + type(input_data).__name__ + ":val(" + str(input_data) + ")"
 
     if signature not in partitioned_modules:
+        model_hash_str = str(model_hash_str) if model_hash_str is not None else "default_hash"
         assert isinstance(model_hash_str, str)
         partitioned_modules[signature] = partition_graph(gm, use_python_fusion_cache=use_python_fusion_cache,
-                                                         model_hash_str=model_hash_str, options=options)
+                                                     model_hash_str=model_hash_str, options=options)
     return partitioned_modules[signature](*args)
 
 

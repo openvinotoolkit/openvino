@@ -8,6 +8,7 @@ import logging
 import inspect
 import torch
 
+from typing import Union, Optional
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino import PartialShape, Type as OVType, OVAny, Shape
@@ -254,7 +255,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return cls(gm, dynamic_shapes=True)
 
     @staticmethod
-    def get_found_shape(value) -> str | None:
+    def get_found_shape(value) -> Union[str, None]:
         # If input is a tensor, read the shape from meta data
         if hasattr(value, "meta"):
             if ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
@@ -264,7 +265,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return None
 
     @staticmethod
-    def get_found_dtype(value) -> str | None | OVAny:
+    def get_found_dtype(value) -> Union[str, None, OVAny]:
         # If input is a tensor, read the data type from meta data
         if hasattr(value, "meta") and ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
             return OVAny(pt_to_ov_type_map[str(value.meta["tensor_meta"].dtype)])

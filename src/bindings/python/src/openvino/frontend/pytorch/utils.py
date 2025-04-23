@@ -103,7 +103,7 @@ def ivalue_to_constant(ivalue, shared_memory=True):
         assert len(ivalue) > 0, "Can't deduce type for empty list"
         ov_type = get_type_from_py_type(ivalue[0])
         assert ov_type.is_static(), "Can't deduce type for list"
-        return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs() # type: ignore
+        return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()  # type: ignore
 
     if isinstance(ivalue, torch.Tensor):
         return torch_tensor_to_ov_const(ivalue, shared_memory=shared_memory).outputs()
