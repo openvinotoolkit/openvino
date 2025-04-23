@@ -12,7 +12,7 @@ torchvision==0.17.2; platform_system == "Darwin" and platform_machine == "x86_64
 torchaudio==2.6.0; platform_system != "Darwin" or platform_machine != "x86_64"
 torchaudio==2.2.2; platform_system == "Darwin" and platform_machine == "x86_64"
 # before updating transformers version, make sure no tests (esp. sdpa2pa) are failing
-transformers==4.47.1
+transformers==4.51.3
 pytest==7.0.1; python_version < '3.10'
 pytest==7.2.0; python_version >= '3.10'
 pytest-html==4.1.1
