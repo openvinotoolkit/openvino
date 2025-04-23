@@ -21,6 +21,7 @@
 #include "primitive_inst.h"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
+#include "cm/utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -572,6 +573,31 @@ protected:
     }
 };
 
+class MoeExpertOptMLPReduceCM : public cm::KernelGenerator {
+public:
+    MoeExpertOptMLPReduceCM() : KernelGenerator("moe_expert_mlp", "reduce_cm") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_expert>();
+        add_common_consts(params, jit, false);
+        jit.make("KERNEL_NAME", get_entry_point(params));
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
 dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& dim, dnnl::memory::format_tag tag, int offset = 0) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("convert2dnnl"));
     return ptr->get_onednn_memory(dnnl::memory::desc(dnnl::memory::dims(dim), convert_data_type(ptr->get_layout().data_type), tag), offset);
@@ -585,6 +611,7 @@ public:
     Stage::Ptr mlp_gate_up = make_stage<MoeExpertOptMLPGateUp>();
     Stage::Ptr mlp_down = make_stage<MoeExpertOptMLPDown>();
     Stage::Ptr mlp_reduce = make_stage<MoeExpertOptMLPReduce>();
+    Stage::Ptr cm_mlp_reduce = make_stage<MoeExpertOptMLPReduceCM>();
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -642,6 +669,7 @@ public:
         add_stage(mlp_gate_up, params);
         add_stage(mlp_down, params);
         add_stage(mlp_reduce, params);
+        add_stage(cm_mlp_reduce, params);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -739,14 +767,28 @@ public:
                       {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
                       {1, subgroup_size, SUBGROUP_NUM});
         // final = sum(scratch.y)
-        return execute_stage({},
-                             instance,
-                             *mlp_reduce,
-                             {scratch.y},
-                             {final_hidden_states_mem_ptr},
-                             {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
-                             {1, 1024},
-                             instance.needs_completion_event());
+        event::ptr ret;
+        if (cm_mlp_reduce) {
+            // global: [1, HIDDEN_SIZE/SUBGROUP_SIZE], local: [1, SUBGROUP_NUM]
+            ret = execute_stage({},
+                                instance,
+                                *cm_mlp_reduce,
+                                {scratch.y},
+                                {final_hidden_states_mem_ptr},
+                                {static_cast<size_t>(1), static_cast<size_t>(_hidden_size / subgroup_size)},
+                                {1, SUBGROUP_NUM},
+                                instance.needs_completion_event());
+        } else {
+            ret = execute_stage({},
+                                instance,
+                                *mlp_reduce,
+                                {scratch.y},
+                                {final_hidden_states_mem_ptr},
+                                {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
+                                {1, 1024},
+                                instance.needs_completion_event());
+        }
+        return ret;
     }
 
     struct onednn_kernel {

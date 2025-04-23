@@ -1,0 +1,35 @@
+/*******************************************************************************
+ * Copyright (c) 2022-2025 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+namespace KERNEL_NAME {
+
+_GENX_MAIN_ void KERNEL_NAME(
+        TYPE *x [[type("svmptr_t")]],                // [MAX_TOPK, HIDDEN_SIZE/SUBGROUP_SIZE]
+        TYPE *y [[type("svmptr_t")]]) {              // [1, HIDDEN_SIZE/SUBGROUP_SIZE]
+    // global: [1, HIDDEN_SIZE/SUBGROUP_SIZE], local: [1, SUBGROUP_NUM]
+    uint n = (cm_group_id(1) * SUBGROUP_NUM + cm_local_id(1)) * SUBGROUP_SIZE;
+    vector<float, SUBGROUP_SIZE> sum = 0;
+    for (int i = 0; i < MAX_TOPK; i++) {
+        vector<TYPE, SUBGROUP_SIZE> src;
+        cm_svm_block_read((svmptr_t)(x + n), src);
+        sum += src;
+        x += HIDDEN_SIZE;
+    }
+    //printf("start:%d cm_group_id(1)=%d cm_local_id(1)=%d vec[0]=%f\n", n, cm_group_id(1), cm_local_id(1), sum[0]);
+    cm_svm_block_write((svmptr_t)(y + n), vector<TYPE, SUBGROUP_SIZE>(sum));
+}
+
+}
