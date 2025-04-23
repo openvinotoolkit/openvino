@@ -532,33 +532,6 @@ bool DFT::created() const {
     return getType() == Type::DFT;
 }
 
-void DFT::prepareParams() {
-    if (!outputShapesDefined() || !m_is_axes_size_const) {
-        if (mayiuse(cpu::x64::sse41)) {
-            createJITKernels(true, true);
-        }
-        return;
-    }
-
-    bool hasDFT = false;
-    bool hasFFT = false;
-
-    axes = getAxes();
-    const auto outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
-
-    for (auto axis : axes) {
-        size_t nComplex = outputShape[axis];
-        if (!IsPowerOfTwo(nComplex)) {
-            hasDFT = true;
-        } else {
-            hasFFT = true;
-        }
-    }
-    if (mayiuse(cpu::x64::sse41)) {
-        createJITKernels(hasDFT, hasFFT);
-    }
-}
-
 std::vector<int32_t> DFT::getAxes() const {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
     const auto* axesStartPtr = axesEdge->getMemoryPtr()->getDataAs<const int32_t>();
@@ -614,4 +587,37 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
 bool DFT::needShapeInfer() const {
     return !m_is_axes_size_const || !m_is_signal_size_const || Node::needShapeInfer();
 }
+
+bool DFT::needPrepareParams() const {
+    return false;
+}
+
+void DFT::createPrimitive() {
+    if (!outputShapesDefined() || !m_is_axes_size_const) {
+        if (mayiuse(cpu::x64::sse41)) {
+            createJITKernels(true, true);
+        }
+        return;
+    }
+
+    bool hasDFT = false;
+    bool hasFFT = false;
+
+    axes = getAxes();
+    const auto outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
+
+    for (auto axis : axes) {
+        size_t nComplex = outputShape[axis];
+        if (!IsPowerOfTwo(nComplex)) {
+            hasDFT = true;
+        } else {
+            hasFFT = true;
+        }
+    }
+    if (mayiuse(cpu::x64::sse41)) {
+        createJITKernels(hasDFT, hasFFT);
+    }
+    Node::createPrimitive();
+}
+
 }  // namespace ov::intel_cpu::node

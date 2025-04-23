@@ -21,8 +21,9 @@ public:
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
     bool created() const override;
-    void prepareParams() override;
+    void createPrimitive() override;
     bool needShapeInfer() const override;
+    bool needPrepareParams() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
