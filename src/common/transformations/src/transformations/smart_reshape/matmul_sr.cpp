@@ -128,7 +128,7 @@ ov::pass::TransposeMatMul::TransposeMatMul() {
             const auto& input_rank = input->get_output_partial_shape(0).rank();
             if (input_rank.is_static() && input_rank.get_length() >= 2) {
                 if (auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(input)) {
-                    if (auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1))) {
+                    if (auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr())) {
                         const auto& order_vector = order->cast_vector<int64_t>();
                         std::vector<int64_t> fusable_order(input_rank.get_length());
                         std::iota(fusable_order.begin(), fusable_order.end(), 0);
