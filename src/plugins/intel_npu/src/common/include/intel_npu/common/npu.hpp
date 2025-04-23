@@ -34,8 +34,6 @@ public:
     virtual uint32_t getGraphExtVersion() const;
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
-    /** @brief Backend has support for concurrency batching */
-    virtual bool isBatchingSupported() const = 0;
     /** @brief Backend has support for workload type */
     virtual bool isCommandQueueExtSupported() const = 0;
     /** @brief Backend has support for LUID info */
