@@ -300,7 +300,7 @@ struct PlainTensor {
 
        simplified form is when whole tensor is dense
     */
-[[nodiscard]] PlainTensor reshape(const VectorDims& target_shape) const {
+    [[nodiscard]] PlainTensor reshape(const VectorDims& target_shape) const {
         // only valid for dense memory
         PlainTensor new_tensor_view;
         assert(is_dense());
