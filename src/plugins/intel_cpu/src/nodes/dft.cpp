@@ -445,7 +445,11 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     std::vector<float> outputBuffer(dataLength);
     const size_t nComplex = dataLength / 2;
     const float reciprocalNComplex = 1.0f / nComplex;
-    const auto& twiddles = twiddlesMapDFT.find(nComplex)->second;
+    auto twiddlesIter = twiddlesMapDFT.find(nComplex);
+    if (twiddlesIter == twiddlesMapDFT.end()) {
+        THROW_CPU_NODE_ERR("Twiddles for nComplex=", nComplex, " not found");
+    }
+    const auto& twiddles = twiddlesIter->second;
 
     std::function<void(size_t)> blockIteration;
     if (dftKernel != nullptr) {
