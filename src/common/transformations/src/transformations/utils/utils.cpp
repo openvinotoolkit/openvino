@@ -20,6 +20,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
@@ -489,21 +490,21 @@ bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int6
     return false;
 }
 
-bool is_on_constant_path(const ov::Output<ov::Node>& output,
-                         const std::unordered_set<std::type_index>& break_node_types) {
+bool is_on_constant_path(const ov::Output<ov::Node>& output) {
     auto status = true;
-    std::deque<ov::Node*> nodes_to_calculate = {output.get_node()};
+
+    auto root_node = output.get_node();
+    if (!root_node || root_node->get_output_size() == 0) {
+        return false;
+    }
+    std::deque<ov::Node*> nodes_to_calculate = {root_node};
 
     while (status && !nodes_to_calculate.empty()) {
         auto current_node = nodes_to_calculate.front();
         nodes_to_calculate.pop_front();
-
-        // Check if the current node matches any type in break_node_types
-        if (!break_node_types.empty()) {
-            std::type_index current_type(typeid(*current_node));
-            if (break_node_types.find(current_type) != break_node_types.end()) {
-                return false;
-            }
+        // RandomUniform output changes during runtime, so we should not consider it as a constant
+        if (current_node->get_type_info() == ov::op::v8::RandomUniform::get_type_info_static()) {
+            return false;
         }
 
         if (current_node->get_input_size() == 0 && !ov::is_type<ov::op::v0::Constant>(current_node)) {
