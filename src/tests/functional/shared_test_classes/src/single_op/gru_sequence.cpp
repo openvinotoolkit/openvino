@@ -159,8 +159,6 @@ void GRUSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputS
         ov::Tensor tensor;
         if (i == 2) {
             in_data.range = max_seq_lengths;
-        } else {
-            in_data.range = 100;
         }
 
         tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);

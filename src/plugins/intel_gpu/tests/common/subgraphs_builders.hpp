@@ -335,13 +335,14 @@ inline std::shared_ptr<ov::Model> makeLBRGRUSequence(ov::element::Type_t model_t
     auto axis = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
     auto seq_lengths = std::make_shared<ov::op::v1::Gather>(shape_of, indices, axis);
 
-    auto w_val = std::vector<float>(4 * H * I, 0);
-    auto r_val = std::vector<float>(4 * H * H, 0);
+    auto w_val = std::vector<float>(3 * H * I, 0);
+    auto r_val = std::vector<float>(3 * H * H, 0);
     auto b_val = std::vector<float>(4 * H, 0);
-    auto W = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H, I}, w_val);
-    auto R = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H, H}, r_val);
+    auto W = ov::op::v0::Constant::create(model_type, ov::Shape{N, 3 * H, I}, w_val);
+    auto R = ov::op::v0::Constant::create(model_type, ov::Shape{N, 3 * H, H}, r_val);
     auto B = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H}, b_val);
-
+    auto default_activations = std::vector<std::string>{"sigmoid", "tanh"};
+    std::vector<float> empty_activations;
     auto rnn_sequence = std::make_shared<ov::op::v5::GRUSequence>(X,
         Y,
         seq_lengths,
@@ -349,8 +350,13 @@ inline std::shared_ptr<ov::Model> makeLBRGRUSequence(ov::element::Type_t model_t
         R,
         B,
         128,
-        seq_direction);
-    rnn_sequence->set_linear_before_reset(true);
+        seq_direction,
+        default_activations,
+        empty_activations,
+        empty_activations,
+        0.f,
+        true);
+
     auto Y_out = std::make_shared<ov::op::v0::Result>(rnn_sequence->output(0));
     auto Ho = std::make_shared<ov::op::v0::Result>(rnn_sequence->output(1));
     Y_out->set_friendly_name("Y_out");

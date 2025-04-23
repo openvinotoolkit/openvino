@@ -23,6 +23,7 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const InputGenerateData& inGenData) {
     auto tensor = ov::Tensor(element_type, shape);
     auto size = shape_size(shape);
+
 #define CASE(X)                                                  \
     case X:                                                      \
         fill_data_random(tensor.data<fundamental_type_for<X>>(), \
