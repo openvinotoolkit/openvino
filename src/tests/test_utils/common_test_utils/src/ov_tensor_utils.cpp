@@ -23,7 +23,6 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const InputGenerateData& inGenData) {
     auto tensor = ov::Tensor(element_type, shape);
     auto size = shape_size(shape);
-
 #define CASE(X)                                                  \
     case X:                                                      \
         fill_data_random(tensor.data<fundamental_type_for<X>>(), \
@@ -569,7 +568,6 @@ void compare(const ov::Tensor& expected,
     for (size_t i = 0; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
-        std::cout << "on i " << actual_value << " vs " << expected_value << std::endl;
         if (!tensor_comparation::is_value_suitable_for_comparation<ExpectedT, ActualT>(expected_value, actual_value)) {
             continue;
         }

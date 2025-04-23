@@ -226,8 +226,8 @@ public:
             auto attr = impl_params.attrs_onednn;
             auto direction = arg.direction();
             auto prim_desc = get_gru_primitive_descriptor(impl_params, engine, *attr, direction);
-            auto wr = get_weights_reorder(impl_params, *prim_desc);
-            return std::make_unique<gru_seq_onednn>(engine, config, attr, *prim_desc, wr);
+            //auto wr = get_weights_reorder(impl_params, *prim_desc);
+            return std::make_unique<gru_seq_onednn>(engine, config, attr, *prim_desc);
     }
 };
 
