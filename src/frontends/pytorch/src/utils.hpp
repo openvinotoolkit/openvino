@@ -102,8 +102,7 @@ void align_eltwise_input_types(const NodeContext& context,
                                const bool& ir_rhs_python_scalar = false);
 void align_output_types(const NodeContext& context, OutputVector& outputs);
 
-std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start,
-                                             bool unsqueeze_for_concat = false);
+std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool unsqueeze_for_concat = false);
 
 void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
                                 ov::NodeVector to,

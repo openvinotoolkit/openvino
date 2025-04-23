@@ -130,13 +130,13 @@ OutputVector translate_stack_fx(const NodeContext& context) {
     int64_t axis = 0;
     std::deque<Output<Node>> list_elems;
     auto num_elements = context.get_input_size();
-    
+
     if (!context.get_input_type(num_elements - 1).is<type::List>()) {
         axis = context.const_input<int64_t>(num_elements - 1);
     }
 
     auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {axis}));
-    
+
     list_elems = get_list_as_outputs(context.get_input(0));
 
     OutputVector stack_inputs(list_elems.begin(), list_elems.end());
