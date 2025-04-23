@@ -52,9 +52,8 @@ class NodeFactory(object):
         if attributes is None:
             attributes = {}
 
-        assert arguments is not None  # Questa asserzione aiuta Pyright a capire che arguments non è None
+        assert arguments is not None
 
-        # Qui uso cast per dichiarare esplicitamente il tipo del risultato
         output_args = self._arguments_as_outputs(arguments)
         node = self.factory.create(op_type_name, output_args, attributes)
 
@@ -132,10 +131,9 @@ class NodeFactory(object):
         """
         outputs: List[Output] = []
         for argument in arguments:
-            if isinstance(argument, Output):  # Usa isinstance invece di issubclass(type())
-                outputs.append(cast(Output, argument))  # Cast esplicito
+            if isinstance(argument, Output):
+                outputs.append(cast(Output, argument))
             else:
-                # Se non è un Output, deve essere un Node
                 node_outputs = cast(Node, argument).outputs()
                 outputs.extend(node_outputs)
         return outputs
