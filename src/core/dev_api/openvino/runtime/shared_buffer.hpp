@@ -32,14 +32,7 @@ private:
 ///  Can return ptr to shared memory and its size
 class SharedStreamBuffer : public std::streambuf {
 public:
-    SharedStreamBuffer(char* data, size_t size) : m_data(data), m_size(size), m_offset(0) {
-        setg(data, data, data + size);
-        setp(data, data + size, data + size);
-    }
-
-    void swap(std::streambuf& other) {
-        std::streambuf::swap(other);
-    }
+    SharedStreamBuffer(char* data, size_t size) : m_data(data), m_size(size), m_offset(0) {}
 
 protected:
     // override std::streambuf methods

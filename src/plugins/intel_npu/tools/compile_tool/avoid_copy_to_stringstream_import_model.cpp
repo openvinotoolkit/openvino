@@ -165,7 +165,7 @@ std::shared_ptr<ov::Model> make_conv_pool_relu() {
 
 int main(int argc, char* argv[]) {
     ov::Core core;
-    auto tensor = ov::read_tensor_data("large_3gb_blob.blob");  // if we don't test this, uncomment lines 171 and 196
+    auto tensor = ov::read_tensor_data("C:\\Work\\VPUX\\vpux-large-models\\Networks\\Llama2\\openvino2024_3\\llama2_7B_chat_4SymW16A_kvcache_staticshape_eager\\openvino_model.blob");  // if we don't test this, uncomment lines 171 and 196
     ov::SharedStreamBuffer streambuf(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
     {
         // auto compiledModel = core.compile_model(make_conv_pool_relu(), "NPU", {});
@@ -175,10 +175,10 @@ int main(int argc, char* argv[]) {
 
         // below code needed by sstream.str(), std::stringstream implementation has its own std::stringbuf, other than
         // std::streambuf which is found in std::ios
-        ov::SharedStreamBuffer copyStreamBuf(streambuf);
+        /* ov::SharedStreamBuffer copyStreamBuf(streambuf);
         std::stringbuf strbuf;
         copyStreamBuf.swap(*dynamic_cast<std::streambuf*>(&strbuf));
-        sstream.rdbuf()->swap(strbuf);
+        sstream.rdbuf()->swap(strbuf); */
 
         // below code needed by operator>> str whitespaces fix
         auto& f = std::use_facet<std::iostream::_Ctype>(sstream.getloc());
@@ -192,10 +192,10 @@ int main(int argc, char* argv[]) {
                                                 ov::intel_npu::defer_weights_load(true),
                                                 ov::hint::compiled_blob(tensor)});
 
-        std::ofstream outputCryptedBlob("crypted_blob.blob", std::ios::out | std::ios::binary);
+        // std::ofstream outputCryptedBlob("crypted_blob.blob", std::ios::out | std::ios::binary);
         // compiledModel.export_model(sstream);
         auto cryptedBlob = ov::util::codec_xor(sstream.str());
-        outputCryptedBlob.write(cryptedBlob.c_str(), cryptedBlob.size());
+        // outputCryptedBlob.write(cryptedBlob.c_str(), cryptedBlob.size());
     }
 
     {
@@ -220,10 +220,10 @@ int main(int argc, char* argv[]) {
 
         // below code needed by sstream.str(), std::stringstream implementation has its own std::stringbuf, other than
         // std::streambuf which is found in std::ios
-        ov::SharedStreamBuffer copyStreamBuf(streambuf);
+        /* ov::SharedStreamBuffer copyStreamBuf(streambuf);
         std::stringbuf strbuf;
         copyStreamBuf.swap(*dynamic_cast<std::streambuf*>(&strbuf));
-        sstream.rdbuf()->swap(strbuf);
+        sstream.rdbuf()->swap(strbuf); */
 
         // needed by operator>> str whitespaces fix
         auto& f = std::use_facet<std::iostream::_Ctype>(sstream.getloc());
@@ -250,7 +250,7 @@ int main(int argc, char* argv[]) {
         sstream >> str;
         // because whitespaces were eliminated, operator>> will set sstream state to 1 (eof), need to clear this flag
         sstream.clear(sstream.rdstate() & ~std::ios::eofbit);
-        sstream.seekg(0, std::ios::beg);
+        sstream.seekg(-sstream.tellg(), std::ios::cur);
         size_t size = str.size();
         str.resize(0);
         str.shrink_to_fit();
@@ -258,7 +258,7 @@ int main(int argc, char* argv[]) {
         // Test #2 sstream.read() is used
         str = std::string(size, '\0');
         sstream.read(str.data(), str.size());
-        sstream.seekg(0, std::ios::beg);
+        sstream.seekg(-sstream.tellg(), std::ios::cur);
         str.resize(0);
         str.shrink_to_fit();
 
@@ -270,6 +270,7 @@ int main(int argc, char* argv[]) {
 
         // Test #4 write to stringstream works
         char c = 'Y';
+        // write won't work unless `overflow` method is overriden
         sstream.write(&c, 1);  // for large blobs > 2GB this won't work due to INT_MAX = 2GB in `overflow` function
         // can be fixed in a custom streambuf as `overflow` function is virtual
         sstream.seekg(-1, std::ios::end);
