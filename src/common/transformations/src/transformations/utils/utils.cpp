@@ -257,6 +257,7 @@ bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<N
     if (const auto& seq_len_const = ov::as_type_ptr<op::v0::Constant>(seq_len_input)) {
         const auto& seq_len_values = seq_len_const->cast_vector<int64_t>();
         return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len_val](const int64_t val) {
+            std::cout << "comparing " << val << " with " << max_seq_len_val << std::endl;
             return val != max_seq_len_val;
         });
     }

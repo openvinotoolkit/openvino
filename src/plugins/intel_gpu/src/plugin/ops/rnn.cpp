@@ -109,7 +109,7 @@ static void CreateGRUSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
             || op->get_input_shape(4).size() != 3 || op->get_input_shape(5).size() != 2)
             OPENVINO_THROW("Wrong input shapes for GRUSequence op ", op->get_friendly_name());
     auto direction = op->get_direction();
-
+    std::cout << "direction is " << static_cast<int>(direction);
     OPENVINO_ASSERT(p.use_new_shape_infer());
     cldnn::gru_seq prim(layerName,  inputs[0], inputs[1], cldnn::input_info(""), inputs[3], inputs[4], inputs[5], inputs[2],
         clip, false, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, static_cast<int>(op->get_output_size()));

@@ -93,28 +93,6 @@ protected:
         return args;
     }
 
-    static cldnn::layout get_reorder_layout(const kernel_impl_params& impl_params, size_t layout_nr) {
-        auto weights_shape = impl_params.get_input_layout(layout_nr).get_shape();
-        auto target_weights_layout = impl_params.get_input_layout(layout_nr);
-        target_weights_layout.format = cldnn::format::bfzyx;
-        auto layout = target_weights_layout.clone_with_other_shape(ov::Shape{weights_shape[0], weights_shape[1], 1, weights_shape[2], weights_shape[3]});
-        return layout;
-    }
-
-    static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
-        const auto weights_layout_idx = 3;
-        auto source_weights_layout = impl_params.get_input_layout(weights_layout_idx);
-        auto target_weights_layout = get_reorder_layout(impl_params, weights_layout_idx);
-        auto W_desc = onednn::layout_to_memory_desc(source_weights_layout);
-        auto grouped_weights = format::is_grouped(source_weights_layout.format);
-
-        return std::make_shared<WeightsReorderParamsOneDNN>(source_weights_layout,
-                                                            target_weights_layout,
-                                                            W_desc,
-                                                            W_desc,
-                                                            false,
-                                                            grouped_weights);
-    }
     static std::shared_ptr<dnnl::lbr_gru_forward::primitive_desc> get_gru_primitive_descriptor(const kernel_impl_params& impl_params, cldnn::engine& engine,
                                                                                              const dnnl::primitive_attr& attr,
                                                                                              ov::op::RecurrentSequenceDirection direction) {
@@ -147,7 +125,7 @@ protected:
         auto out_shape = impl_params.get_output_layout().get_shape();
         out_shape = {out_shape[2], out_shape[0], num_dir*out_shape[3], 1};
         auto output_md = onednn::layout_to_memory_desc(impl_params.get_output_layout().clone_with_other_shape(out_shape), dnnl::memory::format_tag::abc);
-        auto output1_md = onednn::layout_to_memory_desc(impl_params.get_output_layout().clone_with_other_shape(initial_hidden_shape_mod));
+        auto output1_md = onednn::layout_to_memory_desc(impl_params.get_output_layout(1).clone_with_other_shape(initial_hidden_shape_mod));
         OPENVINO_ASSERT(input_md.get_format_kind() != dnnl::memory::format_kind::any,
                         "[GPU] The format kind of the input memory descriptor of onednn gru_seq cannot be 'any'.");
         OPENVINO_ASSERT(output_md.get_format_kind() != dnnl::memory::format_kind::any,
@@ -199,7 +177,7 @@ public:
         auto R_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(3));
         auto B_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(4));
         auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
-        auto output2_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
+        auto output1_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
 
         auto prim_desc = std::make_shared<dnnl::gru_forward::primitive_desc>(
             ib.get_engine().get_onednn_engine(),
@@ -211,7 +189,7 @@ public:
             R_md,
             B_md,
             output_md,
-            output2_md);
+            output1_md);
         _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;
@@ -226,8 +204,7 @@ public:
             auto attr = impl_params.attrs_onednn;
             auto direction = arg.direction();
             auto prim_desc = get_gru_primitive_descriptor(impl_params, engine, *attr, direction);
-            auto wr = get_weights_reorder(impl_params, *prim_desc);
-            return std::make_unique<gru_seq_onednn>(engine, config, attr, *prim_desc, wr);
+            return std::make_unique<gru_seq_onednn>(engine, config, attr, *prim_desc);
     }
 };
 

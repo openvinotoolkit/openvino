@@ -101,6 +101,7 @@ void GRUSequenceTest::SetUp() {
         auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, targetStaticShapes[0][2], in_data);
         seq_lengths_node = std::make_shared<ov::op::v0::Constant>(tensor);
     } else {
+        std::cout << "seq len is " << seq_lengths << std::endl;
         std::vector<int64_t> lengths(batch, seq_lengths);
         seq_lengths_node = std::make_shared<ov::op::v0::Constant>(ov::element::i64, targetStaticShapes[0][2], lengths);
     }
@@ -158,11 +159,13 @@ void GRUSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputS
     for (size_t i = 0; i < func_inputs.size(); ++i) {
         ov::Tensor tensor;
         if (i == 2) {
+            in_data.start_from = 0;
             in_data.range = max_seq_lengths;
         } else {
-            in_data.range = 1000;
+            in_data.start_from = i*100;
+            in_data.range = 100 + i*100;
         }
-        in_data.seed = 131 + i;
+        in_data.seed = 131 + i*1000;
         tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
         inputs.insert({func_inputs[i].get_node_shared_ptr(), tensor});
     }
