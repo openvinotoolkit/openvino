@@ -129,7 +129,7 @@ InferRequest CompiledModel::create_infer_request() {
 }
 
 void CompiledModel::export_model(std::ostream& networkModel) {
-    _impl->export_model(networkModel);
+    OV_COMPILED_MODEL_CALL_STATEMENT(_impl->export_model(networkModel));
 }
 
 void CompiledModel::set_property(const AnyMap& config) {
