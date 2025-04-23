@@ -147,7 +147,6 @@
 #include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #include "transformations/cpu_opset/arm/pass/mish_decomposition.hpp"
-#include "transformations/cpu_opset/arm/pass/permute_nchw_as_nhwc_interpolate.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
@@ -552,7 +551,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_ARM(manager, ConvertConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConv1D);
     CPU_REGISTER_PASS_ARM(manager, ConvertGroupConvolution);
-    CPU_REGISTER_PASS_ARM(manager, PermuteNCHWAsNHWCInterpolate);
     // The plugin computes Divide in floating point precision.
     // To preserve correct math for integer division we need to insert explicit Floor operation.
     CPU_REGISTER_PASS_ARM(manager, DecomposeIntegerDivide);

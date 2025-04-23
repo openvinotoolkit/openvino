@@ -36,6 +36,14 @@ struct InterpolateAttrs {
     InterpolateLayoutType layout;
     std::vector<float> dataScales;
     bool hasPad = false;
+    // Some FEs or preprocessing step resize spatial dimension for tensor with NHWC layout memory,
+    // but imported as planar layout[abcd] with axis[1,2] for convenience. In this case, for pillow modes without pad
+    // for now, nhwc layout path and the kernel(nhwc layout executor) can be used for this planar layout and axis
+    // settings(NCHWAsNHWC is true) to get higher perf with
+    // 1. logical shape alignment [abcd-nhwc] to [adbc-nchw].
+    // 2. axis alignment [1,2] to [2,3].
+    // 3. config planar layout support and treated it as channel_first layout.
+    bool NCHWAsNHWC = false;
 };
 
 inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
