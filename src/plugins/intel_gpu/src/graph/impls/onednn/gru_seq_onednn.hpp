@@ -43,7 +43,7 @@ struct GRUSeqImplementationManager : public ImplementationManager {
                 in_fmts[idx] = format::get_default_format(out_rank);
             }
         }
-        out_fmts[0] = format::ybfx;
+        out_fmts[0] = format::yfbx;
         out_fmts[1] = format::bfyx;
 
         return {in_fmts, out_fmts};

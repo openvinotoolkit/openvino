@@ -27,13 +27,13 @@ std::vector<layout> gru_seq_inst::calc_output_layouts(gru_seq_node const& node, 
     const auto& gru_hidden_size = input_pshape_hidden[2];
 
     auto first_out_fmt = cldnn::format::bfyx;
-    auto second_out_fmt = cldnn::format::bfyx;
+    auto second_out_fmt = input_layout.format;
     if (node.get_preferred_output_fmt() != format::any) {
         first_out_fmt = node.get_preferred_output_fmt();
         second_out_fmt = node.get_preferred_output_fmt(1);
     }
     auto num_directions = desc->num_directions();
-    std::cout << "num dir" << num_directions << std::endl;
+
     return {cldnn::layout{ShapeType{gru_batch_size, num_directions, gru_seq_length, gru_hidden_size}, input_layout.data_type, first_out_fmt},
             cldnn::layout{ShapeType{gru_batch_size, num_directions, gru_hidden_size}, input_layout.data_type, second_out_fmt}};
 }

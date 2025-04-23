@@ -35,7 +35,7 @@ KERNEL (reorder_data)(
     const uint b = get_global_id(GWS_BATCH);
     const uint f = get_global_id(GWS_FEATURE);
 #endif
-//printf("%d %d %d\n", GWS_BATCH, GWS_FEATURE, GWS_YX);
+
 #if   INPUT0_DIMS == 2
     const uint y = 0;
     const uint x = 0;
@@ -126,9 +126,7 @@ KERNEL (reorder_data)(
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, f, v, u, w, z, y, x);
     const uint input_idx  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, v, u, w, z, y, x);
     const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s0, ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6, ov.s7);
-    printf("PITCHESIN %d %d %d %d\n", INPUT0_BATCH_PITCH, INPUT0_FEATURE_PITCH, INPUT0_Y_PITCH, INPUT0_X_PITCH);  
-    printf("PITCHESOUT %d %d %d %d\n", OUTPUT_BATCH_PITCH, OUTPUT_FEATURE_PITCH, OUTPUT_Y_PITCH, OUTPUT_X_PITCH);  
-    printf("%d %d %d %d inputsizes %d %d %d %d is output sizes %d %d %d %d is input_idx %u vs outputidx %u\n", INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X, OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Y, OUTPUT_SIZE_X, b, f, y, x, input_idx, output_idx);
+
 #if defined MEAN_SUBTRACT_INSIDE_PARAMS
     float res = TO_MEAN_TYPE(input[input_idx]);
     res = MEAN_OP(res, VALUE_TO_SUBTRACT[f % VALUE_TO_SUBTRACT_SIZE]);
@@ -228,6 +226,7 @@ KERNEL (reorder_data)(
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
     #else
+        printf("input idx %d output idx %d   %f vs %f\n", input_idx, output_idx, input[input_idx], input[output_idx]);
         output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
     #endif
 #undef __TO_OUTPUT_REORDER_TYPE

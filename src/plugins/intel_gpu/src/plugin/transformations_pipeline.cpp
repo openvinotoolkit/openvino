@@ -561,7 +561,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         pass_config->set_callback<ov::pass::BidirectionalGRUSequenceDecomposition>(
             [&](const_node_ptr &node) -> bool {
-                return true;
                 const auto& data = node->input(0);
                 const auto& data_pshape = data.get_partial_shape();
                 auto max_seq_len = data_pshape[1];
