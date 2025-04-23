@@ -356,11 +356,11 @@ struct GroupDetails {
     }
 };
 
-const PatternSymbolValue& get_element(const std::vector<PatternSymbolValue>& values, size_t idx) {
+const PatternSymbolValue& get_element(const std::vector<PatternSymbolValue>& values, int64_t idx) {
     if (idx < 0)
         idx += values.size();
     OPENVINO_ASSERT(idx < values.size(), "Unexpected index");
-    return values[idx];
+    return values[static_cast<size_t>(idx)];
 }
 
 }  // namespace
