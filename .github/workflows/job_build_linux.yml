@@ -116,13 +116,6 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
-      - name: Who am I
-        run: |
-          whoami
-          id
-          echo ${HOME}
-          ls -la /mount
-
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
         if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_20_04' }} # GPU tests are enabled only on U20
