@@ -79,26 +79,11 @@ Napi::Function AsyncInferQueue::get_class(Napi::Env env) {
     return DefineClass(env,
                        "AsyncInferQueue",
                        {
-                           InstanceMethod("getIdleRequestId", &AsyncInferQueue::get_idle_request_id),
-                           //    InstanceMethod("waitAll", &AsyncInferQueue::wait_all),
                            InstanceMethod("setCallback", &AsyncInferQueue::set_custom_callbacks),
                            InstanceMethod("startAsync", &AsyncInferQueue::start_async),
                        });
 }
 
-Napi::Value AsyncInferQueue::get_idle_request_id(const Napi::CallbackInfo& info) {
-    // TODO make it async method in js
-    std::unique_lock<std::mutex> lock(m_mutex);
-    m_cv.wait(lock, [this] {
-        return !(m_idle_handles.empty());
-    });
-    size_t idle_handle = m_idle_handles.front();
-    // wait for request to make sure it returned from callback
-    m_requests[idle_handle].wait();
-    if (m_errors.size() > 0)
-        throw m_errors.front();
-    return Napi::Number::New(info.Env(), idle_handle);
-}
 
 int AsyncInferQueue::check_idle_request_id() {
     std::unique_lock<std::mutex> lock(m_mutex);
@@ -112,16 +97,6 @@ int AsyncInferQueue::check_idle_request_id() {
     if (m_errors.size() > 0)
         throw m_errors.front();  // TODO simulate such error
     return idle_handle;
-}
-
-void AsyncInferQueue::wait_all(const Napi::CallbackInfo& info) {
-    // TODO does not work. Not needed now.
-    for (auto& request : m_requests) {
-        request.wait();
-    }
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_errors.size() > 0)
-        throw m_errors.front();
 }
 
 void AsyncInferQueue::set_default_callbacks() {

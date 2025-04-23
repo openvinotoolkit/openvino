@@ -18,9 +18,8 @@ public:
     ~AsyncInferQueue();
     static Napi::Function get_class(Napi::Env env);
 
-    Napi::Value get_idle_request_id(const Napi::CallbackInfo& info);
+
     int check_idle_request_id();
-    void wait_all(const Napi::CallbackInfo& info);
     void set_custom_callbacks(const Napi::CallbackInfo& info);
 
     Napi::Value start_async(const Napi::CallbackInfo& info);
