@@ -4,7 +4,7 @@
 
 
 from functools import singledispatchmethod
-from typing import Any, Dict, List, Optional, Union, cast, Sequence, TypeVar
+from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
 
 from openvino._pyopenvino import NodeFactory as _NodeFactory
@@ -54,8 +54,8 @@ class NodeFactory(object):
 
         assert arguments is not None
 
-        output_args = self._arguments_as_outputs(arguments)
-        node = self.factory.create(op_type_name, output_args, attributes)
+        outputs = self._arguments_as_outputs(arguments)
+        node = self.factory.create(op_type_name, outputs, attributes)
 
         return node
 
