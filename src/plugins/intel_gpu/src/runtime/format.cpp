@@ -31,7 +31,6 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(fybx,                  1, 1, 2, 0, {1, 2, 0, 3},             "fybx",     "bfxy",     {},                     {}),  // NOLINT
         FMT_TRAITS(xbfy,                  1, 1, 2, 0, {3, 0, 1, 2},             "xbfy",     "bfxy",     {},                     {}),  // NOLINT
         FMT_TRAITS(ybfx,                  1, 1, 2, 0, {2, 0, 1, 3},             "ybfx",     "bfxy",     {},                     {}),  // NOLINT
-        FMT_TRAITS(yfbx,                  1, 1, 2, 0, {2, 1, 0, 3},             "yfbx",     "bfxy",     {},                     {}),  // NOLINT
         FMT_TRAITS(byfx,                  1, 1, 2, 0, {0, 2, 1, 3},             "byfx",     "bfxy",     {},                     {}),  // NOLINT
         FMT_TRAITS(bxfy,                  1, 1, 2, 0, {0, 3, 1, 2},             "bxfy",     "bfxy",     {},                     {}),  // NOLINT
         FMT_TRAITS(b_fs_yx_fsv2,          1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {{1, 2}},               {{1, 2}}),  // NOLINT
