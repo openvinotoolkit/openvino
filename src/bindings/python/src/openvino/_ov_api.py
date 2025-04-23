@@ -603,8 +603,6 @@ class Core(CoreBase):
                 super().compile_model(model, device_name, {} if config is None else config),
             )
         else:
-            if device_name is None:
-                raise ValueError("Device name must be specified when weights are provided.")
             return CompiledModel(
                     super().compile_model(model, device_name, {} if config is None else config), # added device_name("") in place of weights
                     weights=weights,
