@@ -269,7 +269,10 @@ public:
           m_allocator{allocator} {}
 
     ~AllocatedTensor() {
-        destroy_memory();
+        try {
+            destroy_memory();
+        } catch (const ov::Exception&) {
+        }
     }
 
     void set_shape(ov::Shape new_shape) override {
