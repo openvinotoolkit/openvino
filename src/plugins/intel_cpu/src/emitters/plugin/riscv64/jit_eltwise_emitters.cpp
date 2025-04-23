@@ -179,6 +179,41 @@ std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precision
     return {{element::f32, element::f32}};
 }
 
+/// Equal ///
+jit_equal_emitter::jit_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                     const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+jit_equal_emitter::jit_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                     const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_equal_emitter::get_inputs_num() const {
+    return 2;  // Equal operation requires two inputs
+}
+
+void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src0 = VReg(in_vec_idxs[0]);
+    VReg src1 = VReg(in_vec_idxs[1]);
+    VReg dst = VReg(out_vec_idxs[0]);
+
+    // Use the RISC-V vector instruction for equality comparison
+    h->vmseq_vv(dst, src0, src1);  // Set dst[i] = 1 if src0[i] == src1[i], else 0
+}
+
+std::set<std::vector<element::Type>> jit_equal_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};  // Support fp32 precision
+}
+
 /// Exp ///
 jit_exp_emitter::jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                  const std::shared_ptr<ov::Node>& node, const ov::element::Type exec_prc)
