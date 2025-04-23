@@ -1594,8 +1594,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_avg_pool) {
     test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsigmoid) {
-    const auto model = convert_model("com.microsoft/q_linear_sigmoid.onnx");
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_sigmoid) {
+    const auto model = convert_model("com.microsoft/qlinear_sigmoid.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<int8_t> data_X{-50, -25, 0, 25, 50, 75};
@@ -1605,7 +1605,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsigmoid) {
     const std::vector<float> y_scale{0.2f};
     const std::vector<int8_t> y_zero_point{0};
 
-    const std::vector<int8_t> expected_output{0, 0, 2, 4, 4, 4};
+    const std::vector<int8_t> expected_output{0, 0, 2, 5, 5, 5};
 
     test_case.add_input<int8_t>(Shape{2, 3}, data_X);
     test_case.add_input<float>(Shape{1}, x_scale);
@@ -1617,8 +1617,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsigmoid) {
     test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearleakyrelu) {
-    const auto model = convert_model("com.microsoft/q_linear_leaky_relu.onnx");
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_leakyrelu) {
+    const auto model = convert_model("com.microsoft/qlinear_leaky_relu.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<int8_t> data_X{-50, -25, 0, 25, 50, 75};
@@ -1628,7 +1628,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearleakyrelu) {
     const std::vector<float> y_scale{0.2f};
     const std::vector<int8_t> y_zero_point{0};
 
-    const std::vector<int8_t> expected_output{-2, -1, 0, 12, 25, 37};
+    const std::vector<int8_t> expected_output{-2, -1, 0, 12, 25, 38};
 
     test_case.add_input<int8_t>(Shape{2, 3}, data_X);
     test_case.add_input<float>(Shape{1}, x_scale);
@@ -1641,37 +1641,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearleakyrelu) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_add) {
-    const auto model = convert_model("com.microsoft/q_linear_add.onnx");
+    const auto model = convert_model("com.microsoft/qlinear_add.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
 
-    const std::vector<int8_t> data_A{10, 20, 30, 40};
-    const std::vector<int8_t> data_B{1, 2, 3, 4};
+   const std::vector<uint8_t> data_A{160, 170, 180, 190};
+    const std::vector<uint8_t> data_B{140, 150, 160, 170};
 
-    const std::vector<float> a_scale{0.1f};
-    const std::vector<float> b_scale{0.2f};
-    const std::vector<float> c_scale{0.3f};
+    const std::vector<uint8_t> expected_output{123, 134, 144, 155};
 
-    const std::vector<int8_t> a_zero_point{5};
-    const std::vector<int8_t> b_zero_point{3};
-    const std::vector<int8_t> c_zero_point{2};
+    test_case.add_input<uint8_t>(Shape{2, 2}, data_A);
+    test_case.add_input<uint8_t>(Shape{2, 2}, data_B);
 
-    const std::vector<int8_t> expected_output{2, 6, 10, 14};
-
-    test_case.add_input<int8_t>(Shape{2, 2}, data_A);
-    test_case.add_input<float>(Shape{1}, a_scale);
-    test_case.add_input<int8_t>(Shape{1}, a_zero_point);
-    test_case.add_input<int8_t>(Shape{2, 2}, data_B);
-    test_case.add_input<float>(Shape{1}, b_scale);
-    test_case.add_input<int8_t>(Shape{1}, b_zero_point);
-    test_case.add_input<float>(Shape{1}, c_scale);
-    test_case.add_input<int8_t>(Shape{1}, c_zero_point);
-
-    test_case.add_expected_output<int8_t>(Shape{2, 2}, expected_output);
+    test_case.add_expected_output<uint8_t>(Shape{2, 2}, expected_output);
     test_case.run();
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_mul) {
-    const auto model = convert_model("com.microsoft/q_linear_mul.onnx");
+    const auto model = convert_model("com.microsoft/qlinear_mul.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
 
     const std::vector<int8_t> data_A{10, 20, 30, 40};
@@ -1685,7 +1671,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_mul) {
     const std::vector<int8_t> b_zero_point{3};
     const std::vector<int8_t> c_zero_point{2};
 
-    const std::vector<int8_t> expected_output{1, 2, 3, 6};
+    const std::vector<int8_t> expected_output{2, 2, 4, 7};
 
     test_case.add_input<int8_t>(Shape{2, 2}, data_A);
     test_case.add_input<float>(Shape{1}, a_scale);
