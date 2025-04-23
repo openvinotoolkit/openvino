@@ -183,7 +183,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     decomp->add_matcher<SoftmaxDecomposition, false>();
     ADD_MATCHER(decomp, SoftSignDecomposition)
     ADD_MATCHER(decomp, DropoutWithRandomUniformReplacer)
-    ADD_MATCHER(decomp, TransposeReshapeEliminationForMatmul)
     ADD_MATCHER(decomp, EyeDecomposition)
     ADD_MATCHER(decomp, UniqueDecomposition)
     decomp->set_name("ov::pass::CommonDecompositions");
