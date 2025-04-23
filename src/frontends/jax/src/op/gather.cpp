@@ -22,7 +22,7 @@ OutputVector translate_gather(const NodeContext& context) {
     Output<Node> inputs = context.get_input(0);
     Output<Node> indices = context.get_input(1);
 
-    indices = context.mark_node(std::make_shared<ov::op::v0::Convert>(indices, element::i64));
+    indices = context.mark_node(std::make_shared<v0::Convert>(indices, element::i64));
 
     int64_t axis_val;
 
