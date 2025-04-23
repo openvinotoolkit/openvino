@@ -296,7 +296,9 @@ std::pair<std::vector<std::pair<int64_t, std::string>>, int64_t> parse_notation(
             idx_to_name.emplace_back(i, dimension);
             continue;
         }
-        idx_to_name.emplace_back((ellipsis_visited ? i - static_cast<int64_t>(parsed.size()) : i), dimension);
+        auto to_implace = (ellipsis_visited ? i - static_cast<int64_t>(parsed.size()) : i);
+        std::cout << "to_implace: " << to_implace << " -> dimension: " << dimension << std::endl;
+        idx_to_name.emplace_back(to_implace, dimension);
     }
     return {idx_to_name, (ellipsis_visited ? -2 : idx_to_name.size())};
 }
@@ -330,19 +332,19 @@ struct GroupDetails {
     }
 };
 
-ov::Any get_element(const ov::Any& values, size_t idx) {
+ov::Any get_element(const ov::Any& values, int idx) {
     if (values.is<std::vector<int64_t>>()) {
         const auto& vec = values.as<std::vector<int64_t>>();
         if (idx < 0)
             idx += vec.size();
-        OPENVINO_ASSERT(idx < vec.size(), "Unexpected index");
+        OPENVINO_ASSERT(static_cast<size_t>(idx) < vec.size(), "Unexpected index");
         return {vec[idx]};
     }
     if (values.is<std::vector<double>>()) {
         const auto& vec = values.as<std::vector<double>>();
         if (idx < 0)
             idx += vec.size();
-        OPENVINO_ASSERT(idx < vec.size(), "Unexpected index");
+        OPENVINO_ASSERT(static_cast<size_t>(idx) < vec.size(), "Unexpected index");
         return {vec[idx]};
     }
     OPENVINO_ASSERT(false, "Unreachable");
@@ -533,10 +535,8 @@ op::Predicate value_matches(const std::string& value_notation) {
                         if (recorded_value.is_integer()) {
                             if (!this_el.is<int64_t>() || this_el.as<int64_t>() != recorded_value.i())
                                 return false;
-                        }
-                        if (recorded_value.is_double()) {
-                            if (!this_el.is<double>() ||
-                                this_el.as<double>() != recorded_value.d())  // TODO: double cmp
+                        } else if (recorded_value.is_double()) {
+                            if (!this_el.is<double>() || this_el.as<double>() != recorded_value.d())  // TODO: double cmp
                                 return false;
                         } else {
                             return false;
