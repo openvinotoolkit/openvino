@@ -45,7 +45,7 @@ public:
     MOCKTESTMACRO std::vector<auto_plugin::DeviceInformation> parse_meta_devices(const std::string & devices_requests_cfg,
                                                                                  const ov::AnyMap& properties) const;
 
-    MOCKTESTMACRO std::string get_device_list(const ov::AnyMap& properties,
+    MOCKTESTMACRO std::string get_device_list(ov::AnyMap& properties,
                                               const std::shared_ptr<const ov::Model>& model = nullptr,
                                               const std::string& model_path = {}) const;
 

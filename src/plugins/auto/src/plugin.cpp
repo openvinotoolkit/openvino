@@ -459,8 +459,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         }
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
-    auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
-    auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
+    auto_s_context->m_startup_fallback =
+        full_property.count(ov::intel_auto::enable_startup_fallback.name())
+            ? full_property.at(ov::intel_auto::enable_startup_fallback.name()).as<bool>()
+            : load_config.get_property(ov::intel_auto::enable_startup_fallback);
+    auto_s_context->m_runtime_fallback =
+        full_property.count(ov::intel_auto::enable_runtime_fallback.name())
+            ? full_property.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
+            : load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
     auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
     auto_s_context->m_model_path = model_path;
@@ -698,7 +704,7 @@ void Plugin::register_priority(const unsigned int& priority, const std::string& 
     }
 }
 
-std::string Plugin::get_device_list(const ov::AnyMap& properties,
+std::string Plugin::get_device_list(ov::AnyMap& properties,
                                     const std::shared_ptr<const ov::Model>& model,
                                     const std::string& model_path) const {
     std::string all_devices;
@@ -720,6 +726,9 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties,
     bool enable_runtime_cpu = properties.count(ov::intel_auto::enable_runtime_fallback.name())
                                   ? properties.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
                                   : true;
+    properties.erase(ov::intel_auto::enable_startup_fallback.name());
+    properties.erase(ov::intel_auto::enable_runtime_fallback.name());
+
     bool is_cumulative_tput =
         get_device_name() != "AUTO" ||
         (properties.count(ov::hint::performance_mode.name()) &&
@@ -816,10 +825,16 @@ std::string Plugin::get_device_list(const ov::AnyMap& properties,
                 std::vector<std::string> device_list = {};
                 try {
                     if (parsed.get_device_name().find("CPU") != std::string::npos) {
-                        // Enable CPU device if runtime fallback is enabled or
-                        // if no blob files found with startup fallback enabled
-                        if ((!enable_startup_cpu || num_blob_files) && !enable_runtime_cpu)
+                        // Disable CPU if any blob files found
+                        if (num_blob_files) {
+                            properties[ov::intel_auto::enable_startup_fallback.name()] = false;
+                            properties[ov::intel_auto::enable_runtime_fallback.name()] = false;
                             continue;
+                        }
+                        // Disable CPU if enable_startup_cpu and enable_runtime_cpu are both disabled
+                        if (!enable_startup_cpu && !enable_runtime_cpu) {
+                            continue;
+                        }
                     }
                     auto device_id_list = get_core()
                                               ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})
