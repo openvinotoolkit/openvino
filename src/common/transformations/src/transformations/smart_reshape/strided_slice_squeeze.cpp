@@ -25,8 +25,8 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
 
     matcher_pass_callback callback = [](pattern::Matcher& m) -> bool {
         const auto& squeeze = m.get_match_root();
-        const auto& const_axes = ov::as_type_ptr<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
-        auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(squeeze->get_input_node_shared_ptr(0));
+        const auto& const_axes = ov::as_type_ptr<ov::op::v0::Constant>(squeeze->input_value(1).get_node_shared_ptr());
+        auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(squeeze->input_value(0).get_node_shared_ptr());
         if (!const_axes || !slice)
             return false;
 
@@ -125,8 +125,8 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(m.get_match_root());
         if (!slice)
             return false;
-        auto squeeze = slice->get_input_node_shared_ptr(0);
-        const auto& const_axes = ov::as_type_ptr<ov::op::v0::Constant>(squeeze->get_input_node_shared_ptr(1));
+        auto squeeze = slice->input_value(0).get_node_shared_ptr();
+        const auto& const_axes = ov::as_type_ptr<ov::op::v0::Constant>(squeeze->input_value(1).get_node_shared_ptr());
         if (!const_axes)
             return false;
 
@@ -176,7 +176,7 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         }
 
         auto new_slice = std::make_shared<ov::op::v1::StridedSlice>(
-            slice->get_input_node_shared_ptr(0)->input_value(0),
+            slice->input_value(0).get_node_shared_ptr()->input_value(0),
             ov::op::v0::Constant::create(element::i64, {begin_vec.size()}, begin_vec),
             ov::op::v0::Constant::create(element::i64, {end_vec.size()}, end_vec),
             ov::op::v0::Constant::create(element::i64, {strides_vec.size()}, strides_vec),

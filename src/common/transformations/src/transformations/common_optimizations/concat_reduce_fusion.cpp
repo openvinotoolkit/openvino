@@ -52,7 +52,7 @@ ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
 
         size_t eltwise_inputs_size = eltwise->get_input_size();
         for (size_t input_index = 0; input_index < eltwise_inputs_size; ++input_index) {
-            const auto input_node = eltwise->get_input_node_shared_ptr(input_index);
+            const auto input_node = eltwise->input_value(input_index).get_node_shared_ptr();
             // check that we will able to fuse propagated squeeze in NopElimination pass
             if (!is_type<ov::op::v0::Constant>(input_node) && !is_type<ov::op::v0::Unsqueeze>(input_node) &&
                 !is_type<ov::op::v1::Reshape>(input_node)) {

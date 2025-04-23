@@ -258,7 +258,7 @@ bool ov::batch_util::detach_detection_output(const std::shared_ptr<ov::Model>& f
     for (auto& result_node : f->get_results()) {
         auto do_node = result_node->input_value(0).get_node_shared_ptr();
         if (ov::is_type<ov::op::v0::Convert>(do_node))  // cases with do->convert->result
-            do_node = do_node->get_input_node_shared_ptr(0);
+            do_node = do_node->input_value(0).get_node_shared_ptr();
         if (ov::is_type<ov::op::v0::DetectionOutput>(do_node) || ov::is_type<ov::op::v8::DetectionOutput>(do_node)) {
             for (auto& new_result_src : do_node->input_values()) {
                 auto new_result = std::make_shared<ov::op::v0::Result>(new_result_src);

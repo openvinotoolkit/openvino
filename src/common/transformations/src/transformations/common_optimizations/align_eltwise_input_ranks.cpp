@@ -57,7 +57,7 @@ ov::pass::AlignEltwiseInputRanks::AlignEltwiseInputRanks() {
                 Shape new_shape = const_shape;
                 new_shape.insert(new_shape.begin(), diff, 1);
                 auto new_const = std::make_shared<ov::op::v0::Constant>(*const_node, new_shape);
-                copy_runtime_info(node->get_input_node_shared_ptr(i), new_const);
+                copy_runtime_info(node->input_value(i).get_node_shared_ptr(), new_const);
                 node->input(i).replace_source_output(new_const);
             }
         }
