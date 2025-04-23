@@ -106,7 +106,6 @@
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/op_conversions/einsum_decomposition.hpp"
-#include "transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp"
 #include "transformations/common_optimizations/reshape_transpose_symbolic_optimization.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
