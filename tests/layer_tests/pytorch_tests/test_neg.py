@@ -9,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class neg_model(torch.nn.Module):
     def forward(self, x):
-        return x.shape[-1].__neg__() * x
+        return x * (-x.shape[-1])
 
 
 class TestNeg(PytorchLayerTest):
