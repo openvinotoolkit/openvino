@@ -118,18 +118,19 @@ void ScaledAttnLayerGPUTest::SetUp() {
         inputParams_transpose.push_back(inputParams[i]);
     }
     if (input_transpose.size() != 0) {
+        auto rank = input_transpose[0].size();
         // deal with transpose.
-        auto tranpose_a_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, input_transpose[0]);
+        auto tranpose_a_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, input_transpose[0]);
         auto tranpose_a = std::make_shared<ov::op::v1::Transpose>(inputParams[0], tranpose_a_const);
         tranpose_a->set_friendly_name("tranpose_a");
         inputParams_transpose[0] = tranpose_a;
 
-        auto tranpose_b_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, input_transpose[1]);
+        auto tranpose_b_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, input_transpose[1]);
         auto tranpose_b = std::make_shared<ov::op::v1::Transpose>(inputParams[1], tranpose_b_const);
         tranpose_b->set_friendly_name("tranpose_b");
         inputParams_transpose[1] = tranpose_b;
 
-        auto tranpose_c_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, input_transpose[2]);
+        auto tranpose_c_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, input_transpose[2]);
         auto tranpose_c = std::make_shared<ov::op::v1::Transpose>(inputParams[2], tranpose_c_const);
         tranpose_c->set_friendly_name("tranpose_c");
         inputParams_transpose[2] = tranpose_c;
@@ -253,6 +254,36 @@ TEST_P(ScaledAttnLayerGPUTest, CompareWithRefs) {
     std::tie(inType, inputShapes, is_causal, has_attn, has_scale, input_transpose) = this->GetParam();
     run();
 }
+
+const std::vector<std::vector<InputShape>> dynamic_shapes_3D {
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 80},
+            {ov::Shape{16, 128, 80}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 80},
+            {ov::Shape{16, 128, 80}}}
+        },
+        // attn shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, -1},
+            {ov::Shape{1, 128, 128}}}
+        },
+    },
+};
+
+const std::vector<std::vector<int64_t>> transpose_all_3D{{1, 0, 2}, {1, 0, 2}, {1, 0, 2}};
+const auto dynamic_shape_params_3D = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
+                                                      testing::ValuesIn(dynamic_shapes_3D),
+                                                      testing::Values(false),
+                                                      testing::Values(true),
+                                                      testing::Values(false),
+                                                      testing::ValuesIn({transpose_all_3D}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnDynamic3D_GPU,
+                         ScaledAttnLayerGPUTest,
+                         dynamic_shape_params_3D,
+                         ScaledAttnLayerGPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> shapes {
     // normal case, shapes of q,k,v are same
