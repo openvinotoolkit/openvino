@@ -33,9 +33,12 @@ def sanitize_file(file_path):
 
     # Sort imports
     imports = [line for line in content if line.startswith("from ") or line.startswith("import ")]
-    non_imports = [line for line in content if not (line.startswith("from ") or line.startswith("import "))]
+    # Separate non-import lines from the content
+    non_imports = [
+        line for line in content
+        if not (line.startswith("from ") or line.startswith("import ") or line.strip() == "# type: ignore")
+    ]
     sorted_imports = sorted(imports)
-
     sorted_imports.insert(0, "# type: ignore\n")
 
     with open(file_path, 'w') as file:
@@ -73,8 +76,10 @@ def main():
     if pyi_file.exists():
         with open(pyi_file, 'r+') as file:
             content = file.readlines()
-            content.insert(1, "import typing\n")
-            content.insert(2, "import pathlib\n")
+            if "import typing\n" not in content:
+                content.insert(1, "import typing\n")
+            if "import pathlib\n" not in content:
+                content.insert(2, "import pathlib\n")
             file.seek(0)
             file.writelines(content)
     else:

@@ -1,6 +1,5 @@
 # type: ignore
 from . import frontend
-from . import tensorflow
 from __future__ import annotations
 from openvino._pyopenvino import ConversionExtension
 from openvino._pyopenvino import DecoderTransformationExtension
@@ -23,5 +22,5 @@ from openvino.frontend.frontend import FrontEndManager
 Package: openvino
 Low level wrappers for the FrontEnd C++ API.
 """
-__all__ = ['ConversionExtension', 'DecoderTransformationExtension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InitializationFailure', 'InputModel', 'NodeContext', 'NotImplementedFailure', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Place', 'ProgressReporterExtension', 'TelemetryExtension', 'frontend', 'get_version', 'tensorflow']
+__all__ = ['ConversionExtension', 'DecoderTransformationExtension', 'FrontEnd', 'FrontEndManager', 'GeneralFailure', 'InitializationFailure', 'InputModel', 'NodeContext', 'NotImplementedFailure', 'OpConversionFailure', 'OpExtension', 'OpValidationFailure', 'Place', 'ProgressReporterExtension', 'TelemetryExtension', 'frontend', 'get_version']
 __version__: str = 'version_string'
