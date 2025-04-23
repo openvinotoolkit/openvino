@@ -2463,7 +2463,8 @@ void Interpolate::prepareParams() {
 
     std::vector<float> dataScales =
         getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
-    if (!interpAttrs.NCHWAsNHWC && (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
+    if (!interpAttrs.NCHWAsNHWC &&
+        (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
         THROW_CPU_NODE_ERR("only supports resize on spatial dimensions(depth, height and width)");
     }
 
@@ -4081,14 +4082,13 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
 }
 
 void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
-                                                    uint8_t* out_ptr_,
-                                                    int B,
-                                                    int C,
-                                                    int IH,
-                                                    int IW,
-                                                    int OH,
-                                                    int OW) {
-
+                                                              uint8_t* out_ptr_,
+                                                              int B,
+                                                              int C,
+                                                              int IH,
+                                                              int IW,
+                                                              int OH,
+                                                              int OW) {
     size_t offset = 0;
     int filterLenX = auxTable[offset];
     int filterLenY = auxTable[offset + 1];
@@ -4120,7 +4120,8 @@ void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_
                 size_t threadsIdx = parallel_get_thread_num();
                 auto buffer_size = static_cast<size_t>(IH) * OW * C;
                 xpass_out_ptr_b = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
-                ypass_in_ptr_b = static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
+                ypass_in_ptr_b =
+                    static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
             }
         } else if (xPass && !yPass) {
             xpass_out_ptr_b = out_ptr_b;
@@ -4143,11 +4144,13 @@ void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_
                     for (size_t c = 0; c < static_cast<size_t>(C); c++) {
                         result = 0.f;
                         for (f = 0; f < filterL; f++) {
-                            float pixel = getValue(in_ptr_b, ((ih * IW + (f + filterS)) * C + c) * srcDataSize, inputPrec);
+                            float pixel =
+                                getValue(in_ptr_b, ((ih * IW + (f + filterS)) * C + c) * srcDataSize, inputPrec);
                             result += pixel * weight[f];
                         }
                         if (!isFloatCompatible(outputPrec)) {
-                            result = static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5f : result - 0.5f));
+                            result =
+                                static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5f : result - 0.5f));
                         }
                         setValue(xpass_out_ptr_b, ((ih * OW + ow) * C + c) * dstDataSize, result, outputPrec);
                     }
@@ -4164,11 +4167,13 @@ void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_
                     for (size_t c = 0; c < static_cast<size_t>(C); c++) {
                         result = 0.f;
                         for (f = 0; f < filterL; f++) {
-                            float pixel = getValue(ypass_in_ptr_b, (((f + filterS) * OW + ow) * C + c) * srcDataSize, inputPrec);
+                            float pixel =
+                                getValue(ypass_in_ptr_b, (((f + filterS) * OW + ow) * C + c) * srcDataSize, inputPrec);
                             result += pixel * weight[f];
                         }
                         if (!isFloatCompatible(outputPrec)) {
-                            result = static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5f : result - 0.5f));
+                            result =
+                                static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5f : result - 0.5f));
                         }
                         setValue(out_ptr_b, ((oh * OW + ow) * C + c) * dstDataSize, result, outputPrec);
                     }

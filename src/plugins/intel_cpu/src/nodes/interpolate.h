@@ -308,7 +308,8 @@ private:
                                  int kernel_width,
                                  bool antialias);
         void pillowRef(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
-        void pillowRefNCHWAsNHWC(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+        void
+        pillowRefNCHWAsNHWC(const uint8_t* in_ptr_, uint8_t* out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
 
         static float getValue(const uint8_t* base, size_t offset, ov::element::Type prec);
         static void setValue(uint8_t* base, size_t offset, float value, ov::element::Type prec);
