@@ -1,17 +1,16 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "primitive_inst.h"
 #include "registry.hpp"
-#include "intel_gpu/primitives/gru_seq.hpp"
+#include "intel_gpu/primitives/rnn.hpp"
 
 #if OV_GPU_WITH_ONEDNN
     #include "impls/onednn/gru_seq_onednn.hpp"
 #endif
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 using namespace cldnn;
 
@@ -23,5 +22,4 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<gru_s
     return impls;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

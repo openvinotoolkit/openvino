@@ -142,7 +142,6 @@ std::shared_ptr<ICompilationContext> program::make_compilation_context(const Exe
                                                                  "Task executor config for CompilationContext in GPU plugin", _num_async_build_threads));
 }
 
-
 program::program(engine& engine_ref,
                  topology const& topology,
                  const ExecutionConfig& config,

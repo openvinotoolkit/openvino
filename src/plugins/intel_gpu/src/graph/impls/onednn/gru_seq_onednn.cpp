@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,7 +99,6 @@ protected:
         auto prim = impl_params.typed_desc<gru_seq>();
         auto num_dir = static_cast<size_t>(prim->num_directions());
         assert(prim->linear_before_reset);
-        std::cout << "get gru" << num_dir << std::endl;
         const auto& src_shape = impl_params.get_input_layout(0).get_shape();
         auto mod_src_shape = src_shape;
         std::swap(mod_src_shape[0], mod_src_shape[1]);
@@ -172,30 +171,51 @@ void save(BinaryOutputBuffer& ob) const override {
         parent::load(ib);
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
-        unsigned int num_dir = 1;
+        ov::op::RecurrentSequenceDirection direction;
+        int dir;
+        ib >> dir;
+        direction = static_cast<ov::op::RecurrentSequenceDirection>(dir);
+        dnnl::rnn_direction gru_desc_dir;
+        unsigned long num_dir = 1;
+        if (direction == ov::op::RecurrentSequenceDirection::FORWARD) {
+            gru_desc_dir = dnnl::rnn_direction::unidirectional_left2right;
+        } else if (direction == ov::op::RecurrentSequenceDirection::REVERSE) {
+            gru_desc_dir = dnnl::rnn_direction::unidirectional_right2left;
+        } else {
+            gru_desc_dir = dnnl::rnn_direction::bidirectional_concat;
+            num_dir = 2;
+        }
         auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0));
-        auto initial_hidden_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1));
+        auto initial_hidden_shape_mod = impl_params->get_input_layout(1).get_shape();
+        initial_hidden_shape_mod = {1, num_dir, initial_hidden_shape_mod[1], initial_hidden_shape_mod[2]};
+        auto initial_hidden_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1).clone_with_other_shape(initial_hidden_shape_mod));
         auto W_shape_mod = impl_params->get_input_layout(2).get_shape();
         W_shape_mod = {1, num_dir, W_shape_mod[1], 3, W_shape_mod[2]/3};
         auto w_layout = impl_params->get_input_layout(3).clone_with_other_shape(W_shape_mod);
         w_layout.format = cldnn::format::bfzyx;
         auto W_md = onednn::layout_to_memory_desc(w_layout);
-        auto R_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(3));
+        auto R_shape_mod = impl_params->get_input_layout(4).get_shape();
+        R_shape_mod = {1, num_dir, R_shape_mod[1], 3, R_shape_mod[2]/3};
+        auto r_layout = impl_params->get_input_layout(4).clone_with_other_shape(R_shape_mod);
+        r_layout.format = cldnn::format::bfzyx;
+        auto R_md = onednn::layout_to_memory_desc(r_layout);
         auto B_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(4));
-        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
-        auto output2_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
+        auto out_shape = impl_params->get_output_layout().get_shape();
+        out_shape = {out_shape[2], out_shape[0], out_shape[3]*num_dir};
+        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout().clone_with_other_shape(out_shape), dnnl::memory::format_tag::abc);
+        auto output1_md = onednn::layout_to_memory_desc(impl_params->get_output_layout(1).clone_with_other_shape(initial_hidden_shape_mod));
 
         auto prim_desc = std::make_shared<dnnl::gru_forward::primitive_desc>(
             ib.get_engine().get_onednn_engine(),
             dnnl::prop_kind::forward_inference,
-            dnnl::rnn_direction::undef,
+            gru_desc_dir,
             input_md,
             initial_hidden_md,
             W_md,
             R_md,
             B_md,
             output_md,
-            output2_md);
+            output1_md);
         _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;
@@ -223,3 +243,4 @@ std::unique_ptr<primitive_impl> GRUSeqImplementationManager::create_impl(const p
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::gru_seq_onednn)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gru_seq)

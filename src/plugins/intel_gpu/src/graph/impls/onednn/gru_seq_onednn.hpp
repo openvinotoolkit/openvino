@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ struct GRUSeqImplementationManager : public ImplementationManager {
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
     bool validate_impl(const program_node& node) const override {
-        //assert(node.is_type<gru_seq>());
+        assert(node.is_type<gru_seq>());
         return true;// node.get_input_layout(0).format == cldnn::format::bfyx || node.get_input_layout(0).format == cldnn::format::fbyx;
     }
 

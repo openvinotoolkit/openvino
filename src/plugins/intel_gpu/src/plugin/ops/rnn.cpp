@@ -14,7 +14,6 @@
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/lstm_cell.hpp"
-#include "intel_gpu/primitives/gru_seq.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/data.hpp"
@@ -87,8 +86,7 @@ void GetGRUActivationParams(const std::shared_ptr<T>& op,
     auto op_a = op->get_activations_alpha();
     auto op_b = op->get_activations_beta();
     if (!op_a.empty()) {
-        if (op_a.size() != 2 || op_b.size() != 2)
-            OPENVINO_THROW("Wrong number of activation parameters for GRU op ", op->get_friendly_name());
+        OPENVINO_ASSERT(op_a.size() == 2 && op_b.size() == 2);
         for (int i = 0; i < 2; i++) {
             cldnn::activation_additional_params params = { op_a[i], op_b[i] };
             activation_params.push_back(cldnn::activation_additional_params(params));

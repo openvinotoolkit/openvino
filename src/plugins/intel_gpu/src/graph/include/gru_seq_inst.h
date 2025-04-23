@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include "intel_gpu/primitives/gru_seq.hpp"
+#include "intel_gpu/primitives/rnn.hpp"
 #include "primitive_inst.h"
 
 #include <string>

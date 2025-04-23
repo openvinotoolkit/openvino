@@ -226,7 +226,6 @@ KERNEL (reorder_data)(
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
     #else
-        printf("input idx %d output idx %d   %f vs %f\n", input_idx, output_idx, input[input_idx], input[output_idx]);
         output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
     #endif
 #undef __TO_OUTPUT_REORDER_TYPE
