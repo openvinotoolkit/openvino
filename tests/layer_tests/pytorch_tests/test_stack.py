@@ -11,7 +11,7 @@ class TestStack2D(PytorchLayerTest):
     def _prepare_input(self):
         return self.input_tensors
 
-    def create_model(self, dim):
+    def create_model(self, dim=None):
         import torch
 
         class aten_stack(torch.nn.Module):
@@ -21,6 +21,8 @@ class TestStack2D(PytorchLayerTest):
 
             def forward(self, x, y):
                 inputs = [x, y]
+                if(self.dim is None):
+                    return torch.stack(inputs)
                 return torch.stack(inputs, self.dim)
 
         ref_net = None
@@ -34,7 +36,7 @@ class TestStack2D(PytorchLayerTest):
         [8, 1, 1, 9]
     ])
     @pytest.mark.parametrize("dim", ([
-        0, 1, 2,
+        0, 1, 2, None
     ]))
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -45,6 +47,8 @@ class TestStack2D(PytorchLayerTest):
             np.random.randn(*input_shape).astype(np.float32),
             np.random.randn(*input_shape).astype(np.float32),
         ]
+        if(dim is None):
+            self._test(*self.create_model(), ie_device, precision, ir_version)
         self._test(*self.create_model(dim), ie_device, precision, ir_version)
 
 
@@ -62,6 +66,8 @@ class TestStack3D(PytorchLayerTest):
 
             def forward(self, x, y, z):
                 inputs = [x, y, z]
+                if(self.dim is None):
+                    return torch.stack(inputs)
                 return torch.stack(inputs, self.dim)
 
         ref_net = None
@@ -87,4 +93,6 @@ class TestStack3D(PytorchLayerTest):
             np.random.randn(*input_shape).astype(np.float32),
             np.random.randn(*input_shape).astype(np.float32)
         ]
+        if(dim is None):
+            self._test(*self.create_model(), ie_device, precision, ir_version)
         self._test(*self.create_model(dim), ie_device, precision, ir_version)

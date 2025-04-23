@@ -614,10 +614,10 @@ std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const Node
     return std::make_tuple(lhs, rhs);
 }
 
-std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool unsqueeze_for_concat, int64_t axis) {
+std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool unsqueeze_for_concat) {
     std::deque<Output<Node>> res;
     auto current_output = start;
-    auto zero = v0::Constant::create(element::i32, Shape{}, {axis});  // Default axis is 0
+    auto zero = v0::Constant::create(element::i32, Shape{}, {0});
     while (const auto& input_fw_node =
                ov::as_type_ptr<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
         const auto& attrs = input_fw_node->get_attrs();
