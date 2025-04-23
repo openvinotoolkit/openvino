@@ -110,6 +110,9 @@ class CustomOpWithAttribute(Op):
     def evaluate(self, outputs, inputs):
         inputs[0].copy_to(outputs[0])
         return True
+    
+    def has_evaluate(self):
+        return True
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request

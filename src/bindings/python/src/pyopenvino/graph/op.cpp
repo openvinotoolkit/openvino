@@ -49,7 +49,9 @@ const ov::op::Op::type_info_t& PyOp::get_type_info() const {
 }
 
 bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
+    std::cout << "evaluate" << std::endl;
     PYBIND11_OVERRIDE(bool, ov::op::Op, evaluate, output_values, input_values);
+    std::cout << "after evaluate" << std::endl;
 }
 
 bool PyOp::has_evaluate() const {
@@ -64,7 +66,9 @@ bool PyOp::has_evaluate() const {
     //     return true;
     // }
     // return false;
+    std::cout << "has evaluate" << std::endl;
     PYBIND11_OVERRIDE(bool, ov::op::Op, has_evaluate);
+    std::cout << "after has evaluate" << std::endl;
 }
 
 void PyOp::update_type_info() {
