@@ -273,7 +273,7 @@ int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     }
 }
 
-dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten) {
+dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten, bool has_strides) {
     dnnl::memory::dims dims;
     if (target_fmt == dnnl::memory::format_tag::ab && flatten) {
         dims = flatten_tensor(l.get_tensor());
@@ -322,8 +322,8 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     // Do not apply strides for blocked format cases.
     // When strides are inserted into the memory descriptor for blocked format data, oneDNN interprets it as planar format.
     // For blocked format, oneDNN calculates memory location based on the format information without using strides.
-    if (format::is_default_format(l.format)
-        && (dt == dnnl::memory::data_type::s4 || dt == dnnl::memory::data_type::u4)
+    if (has_strides
+        && format::is_default_format(l.format)
         && l.data_padding) {
         dnnl::memory::dims strides;
         OPENVINO_ASSERT(flatten == false, "The padded layout cannot be flattened.");

@@ -168,21 +168,31 @@ protected:
         // Transform weights_layout according to input layout
         {
             ov::PartialShape new_weights_pshape;
+            std::vector<int32_t> lower_sizes;
+            std::vector<int32_t> upper_sizes;
 
             for (size_t i = 0; i < (prim_input_size - prim_weights_rank); i++) {
                 new_weights_pshape.push_back(1);
+                lower_sizes.push_back(0);
+                upper_sizes.push_back(0);
             }
 
             for (size_t i = 0; i < prim_weights_rank; i++) {
                 new_weights_pshape.push_back(weights_layout.get_partial_shape()[i]);
+                lower_sizes.push_back(weights_layout.data_padding._lower_size[i]);
+                upper_sizes.push_back(weights_layout.data_padding._upper_size[i]);
             }
 
             weights_layout.set_partial_shape(new_weights_pshape);
+            weights_layout.data_padding = cldnn::padding(lower_sizes, upper_sizes);
             weights_layout.format = input_layout.format;
         }
 
+        bool has_strides = weights_layout.data_padding
+                            && (weights_layout.data_type == data_types::i4 || weights_layout.data_type == data_types::u4);
+
         dnnl::memory::desc input_md = onednn::layout_to_memory_desc(input_layout, target_fmt, false);
-        dnnl::memory::desc weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt, false);
+        dnnl::memory::desc weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt, false, has_strides);
         dnnl::memory::desc output_md = onednn::layout_to_memory_desc(output_layout, target_fmt, false);
 
         if (has_bias) {
