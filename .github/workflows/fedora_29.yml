@@ -1,12 +1,12 @@
 name: Fedora 29 (RHEL 8.4), Python 3.9
 on:
   workflow_dispatch:
-#  pull_request:
-#  merge_group:
-#  push:
-#    branches:
-#      - master
-#      - 'releases/**'
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+      - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -161,7 +161,7 @@ jobs:
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'fedora_29'
   
