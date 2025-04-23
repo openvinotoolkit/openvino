@@ -197,14 +197,25 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
 void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
 
-    if (info.Length() != 1 || !info[0].IsObject()) {
-        Napi::TypeError::New(env, "The copyTo method requires one argument of type Tensor.")
-            .ThrowAsJavaScriptException();
+    // Versione precedente con controlli manuali
+    // if (info.Length() != 1 || !info[0].IsObject()) {
+    //    Napi::TypeError::New(env, "The copyTo method requires one argument of type Tensor.")
+    //        .ThrowAsJavaScriptException();
+    //    return;
+    // }
+    // if (!info[0].InstanceOf(TensorWrap::get_class(env))) {
+    //    Napi::TypeError::New(env, "Argument must be an instance of Tensor.").ThrowAsJavaScriptException();
+    //    return;
+    // }
+
+
+    if (info.Length() != 1) {
+        reportError(env, "The copyTo method requires one argument of type Tensor.");
         return;
     }
-
-    if (!info[0].InstanceOf(TensorWrap::get_class(env))) {
-        Napi::TypeError::New(env, "Argument must be an instance of Tensor.").ThrowAsJavaScriptException();
+    
+    if (!info[0].IsObject() || !info[0].InstanceOf(TensorWrap::get_class(env))) {
+        reportError(env, "Argument must be an instance of Tensor.");
         return;
     }
 
@@ -212,14 +223,14 @@ void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
     ov::Tensor& otherTensor = otherTensorWrap->_tensor;
 
     if (_tensor.get_element_type() != otherTensor.get_element_type()) {
-        Napi::TypeError::New(env, "Tensors must have the same element type to copy data.").ThrowAsJavaScriptException();
+        reportError(env, "Tensors must have the same element type to copy data.");
         return;
     }
 
     if (_tensor.get_shape() != otherTensor.get_shape()) {
-        Napi::TypeError::New(env, "Tensors must have the same shape to copy data.").ThrowAsJavaScriptException();
+        reportError(env, "Tensors must have the same shape to copy data.");
         return;
     }
 
-    _tensor.data() = otherTensor.data();
+    std::memcpy(_tensor.data(), otherTensor.data(), _tensor.get_byte_size());
 }

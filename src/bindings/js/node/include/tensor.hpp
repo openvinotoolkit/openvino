@@ -63,11 +63,12 @@ public:
      * @brief Getter to check if tensor is continuous
      * @return Napi::Boolean
     */
-    Napi::Value is_continuous(const Napi::CallbackInfo& info);    /**
+    Napi::Value is_continuous(const Napi::CallbackInfo& info);    
+    /**
      * Copies the data of one tensor to another tensor.
      * The tensors must have the same element type and shape.
      * @param info The arguments passed to the function (should be one Tensor object).
-     */
+    */
 
     void copy_to(const Napi::CallbackInfo& info);
 
