@@ -43,7 +43,7 @@ class ModelMeta(type):
 class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if not args and not kwargs:
-            raise ValueError("Cannot initialize Model with no arguments.")
+            raise ValueError("The following argument types are supported")
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
                 self.__model = ModelBase(args[0])
