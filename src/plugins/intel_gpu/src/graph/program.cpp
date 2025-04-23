@@ -1857,12 +1857,11 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 }
 
-void program::load(cldnn::BinaryInputBuffer& ib) {
+void program::load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr) {
     init_program();
 
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
     std::string weights_path = _config.get_weights_path();
-    auto model_ptr = _config.get_model();
     if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
         if (model_ptr) {
             weights_memory = std::make_shared<WeightsMemory>(model_ptr);

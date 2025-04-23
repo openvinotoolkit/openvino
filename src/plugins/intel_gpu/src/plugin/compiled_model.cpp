@@ -162,6 +162,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
     }
+    m_config.set_user_property({ov::hint::model(std::shared_ptr<const ov::Model>(nullptr))});
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
