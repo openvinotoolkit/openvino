@@ -28,10 +28,10 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
                                    MemType mem_type,
                                    const void* mem)
     : _context(context),
+      _init_structs(init_structs),
       _element_type(element_type),
       _shape(shape),
       _capacity(shape),
-      _init_structs(init_structs),
       _logger("ZeroRemoteContext", Logger::global().level()),
       _tensor_type(tensor_type),
       _mem_type(mem_type),
