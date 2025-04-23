@@ -499,9 +499,14 @@ bool is_on_constant_path(const ov::Output<ov::Node>& output) {
     }
     std::deque<ov::Node*> nodes_to_calculate = {root_node};
 
+    std::unordered_set<ov::Node*> visited;
     while (status && !nodes_to_calculate.empty()) {
         auto current_node = nodes_to_calculate.front();
         nodes_to_calculate.pop_front();
+        if (visited.count(current_node)) {
+            continue;
+        }
+        visited.insert(current_node);
         // RandomUniform output changes during runtime, so we should not consider it as a constant
         if (current_node->get_type_info() == ov::op::v8::RandomUniform::get_type_info_static()) {
             return false;
@@ -513,7 +518,9 @@ bool is_on_constant_path(const ov::Output<ov::Node>& output) {
             // not a leaf - continue to search
             for (const auto& input_value : current_node->input_values()) {
                 const auto& input_node = input_value.get_node();
-                nodes_to_calculate.push_front(input_node);
+                if (!visited.count(input_node)) {
+                    nodes_to_calculate.push_front(input_node);
+                }
             }
         }
     }
