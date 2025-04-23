@@ -1,25 +1,8 @@
-type SupportedTypedArray =
-  | Int8Array
-  | Uint8Array
-  | Int16Array
-  | Uint16Array
-  | Int32Array
-  | Uint32Array
-  | Float32Array
-  | Float64Array;
+type SupportedTypedArray =|Int8Array|Uint8Array|Int16Array|Uint16Array|
+    Int32Array|Uint32Array|Float32Array|Float64Array;
 
 type elementTypeString =
-  | 'u8'
-  | 'u32'
-  | 'u16'
-  | 'u64'
-  | 'i8'
-  | 'i64'
-  | 'i32'
-  | 'i16'
-  | 'f64'
-  | 'f32'
-  | 'string';
+    |'u8'|'u32'|'u16'|'u64'|'i8'|'i64'|'i32'|'i16'|'f64'|'f32'|'string';
 
 /**
  * Core represents an OpenVINO runtime Core entity.
@@ -45,11 +28,9 @@ interface Core {
    * @param config An object with the key-value pairs
    * (property name, property value): relevant only for this load operation.
    */
-  compileModel(
-    model: Model,
-    deviceName: string,
-    config?: { [propertyName: string]: string }
-  ): Promise<CompiledModel>;
+  compileModel(model: Model, deviceName: string,
+               config
+               ?: {[propertyName: string]: string}): Promise<CompiledModel>;
   /**
    * Asynchronously reads a model and creates a compiled model
    * from the IR/ONNX/PDPD file.
@@ -64,29 +45,21 @@ interface Core {
    * @param config An object with the key-value pairs
    * (property name, property value): relevant only for this load operation.
    */
-  compileModel(
-    modelPath: string,
-    deviceName: string,
-    config?: { [propertyName: string]: string }
-  ): Promise<CompiledModel>;
+  compileModel(modelPath: string, deviceName: string,
+               config
+               ?: {[propertyName: string]: string}): Promise<CompiledModel>;
   /**
    * A synchronous version of {@link Core.compileModel}.
    * It creates a compiled model from a source model object.
    */
-  compileModelSync(
-    model: Model,
-    deviceName: string,
-    config?: { [propertyName: string]: string }
-  ): CompiledModel;
+  compileModelSync(model: Model, deviceName: string,
+                   config?: {[propertyName: string]: string}): CompiledModel;
   /**
    * A synchronous version of {@link Core.compileModel}.
    * It reads a model and creates a compiled model from the IR/ONNX/PDPD file.
    */
-  compileModelSync(
-    modelPath: string,
-    deviceName: string,
-    config?: { [propertyName: string]: string }
-  ): CompiledModel;
+  compileModelSync(modelPath: string, deviceName: string,
+                   config?: {[propertyName: string]: string}): CompiledModel;
   /**
    * It returns a list of available inference devices.
    * Core objects go over all registered plugins.
@@ -101,7 +74,7 @@ interface Core {
    * It gets the properties dedicated to device behaviour.
    * @param propertyName A property name.
    */
-  getProperty(propertyName: string): string | number | boolean;
+  getProperty(propertyName: string): string|number|boolean;
 
   /**
    * It gets the properties dedicated to device behaviour.
@@ -109,9 +82,9 @@ interface Core {
    * @param propertyName Property name.
    */
   getProperty(
-    deviceName: string,
-    propertyName: string,
-  ): string | number | boolean;
+      deviceName: string,
+      propertyName: string,
+      ): string|number|boolean;
   /**
    * It returns information on the version of device plugins.
    * @param deviceName A device name to identify a plugin.
@@ -124,7 +97,8 @@ interface Core {
   };
   /**
    * It imports a previously exported compiled model.
-   * @param modelStream The input stream that contains a model, previously exported
+   * @param modelStream The input stream that contains a model, previously
+   *     exported
    * with the {@link CompiledModel.exportModelSync} method.
    * @param device The name of a device, for which you import a compiled model.
    * Note, if the device name was not used to compile the original model,
@@ -132,16 +106,15 @@ interface Core {
    * @param config An object with the key-value pairs
    * (property name, property value): relevant only for this load operation.
    */
-  importModelSync(
-    modelStream: Buffer,
-    device: string,
-    config?: { [key: string]: string | number | boolean }
-  ): CompiledModel;
+  importModelSync(modelStream: Buffer, device: string,
+                  config
+                  ?: {[key: string]: string|number|boolean}): CompiledModel;
   /**
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
    * @param modelPath The path to a model
    * in the IR / ONNX / PDPD / TF or TFLite format.
-   * @param weightsPath The path to a data file for the IR format (.bin): if the path
+   * @param weightsPath The path to a data file for the IR format (.bin): if the
+   *     path
    * is empty, it tries to read the bin file with the same name as xml and if
    * the bin file with the same name was not found, it loads IR without weights.
    * For the ONNX format (.onnx), the weights parameter is not used.
@@ -157,8 +130,8 @@ interface Core {
    * in the IR / ONNX / PDPD / TF or TFLite format.
    * @param weightsBuffer Binary data with tensor data.
    */
-  readModel(
-    modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
+  readModel(modelBuffer: Uint8Array,
+            weightsBuffer?: Uint8Array): Promise<Model>;
   /**
    * A synchronous version of {@link Core.readModel}.
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
@@ -173,16 +146,16 @@ interface Core {
    * It sets the properties.
    * @param properties An object with the property name - property value pairs.
    */
-  setProperty(properties: { [key: string]: string | number | boolean }): void;
+  setProperty(properties: {[key: string]: string|number|boolean}): void;
   /**
    * It sets the properties for a device.
    * @param deviceName The name of a device.
    * @param properties An object with the property name - property value pairs.
    */
   setProperty(
-    deviceName: string,
-    properties: { [key: string]: string | number | boolean },
-  ): void;
+      deviceName: string,
+      properties: {[key: string]: string|number|boolean},
+      ): void;
 }
 interface CoreConstructor {
   new(): Core;
@@ -246,7 +219,7 @@ interface Model {
    * shape.
    */
   isDynamic(): boolean;
-    /**
+  /**
    * It gets the output of the model.
    * If a model has more than one output, this method throws an exception.
    */
@@ -300,7 +273,7 @@ interface CompiledModel {
    * @param propertyName A string to get the property value.
    * @returns The property value.
    */
-  getProperty(propertyName: string): string | number | boolean;
+  getProperty(propertyName: string): string|number|boolean;
   /**
    * It creates an inference request object used to infer the compiled model.
    * @return {InferRequest}
@@ -349,15 +322,14 @@ interface CompiledModel {
    * @returns {Output} A compiled model input.
    */
   input(name: string): Output;
-   /**
+  /**
    * It sets properties for the current compiled model. Properties
    * can be retrieved via {@link CompiledModel.getProperty}.
    * @param property An object with the key-value pairs.
    * (property name, property value)
    */
-   setProperty(properties: {
-      [propertyName: string]: string | number | boolean
-    }): void;
+  setProperty(properties: {[propertyName: string]: string|number|boolean}):
+      void;
 }
 
 /**
@@ -371,12 +343,12 @@ interface Tensor {
    *
    * Its getter returns a subclass of TypedArray that corresponds to the
    * tensor element type, e.g. Float32Array corresponds to float32. The
-   * content of the TypedArray subclass is a copy of the tensor underlaying 
+   * content of the TypedArray subclass is a copy of the tensor underlaying
    * memory.
    *
    * Its setter fills the underlaying tensor memory by copying the binary data
-   * buffer from the TypedArray subclass. An exception will be thrown if the size
-   * or type of array does not match the tensor.
+   * buffer from the TypedArray subclass. An exception will be thrown if the
+   * size or type of array does not match the tensor.
    */
   data: SupportedTypedArray;
   /**
@@ -404,28 +376,28 @@ interface Tensor {
  *
  * @remarks
  * The tensor memory is shared with the TypedArray. That is,
- * the responsibility for maintaining the reference to the TypedArray lies with 
+ * the responsibility for maintaining the reference to the TypedArray lies with
  * the user. Any action performed on the TypedArray will be reflected in this
  * tensor memory.
  */
 interface TensorConstructor {
   /**
-   * It constructs a tensor using the element type and shape. The new tensor data
-   * will be allocated by default.
+   * It constructs a tensor using the element type and shape. The new tensor
+   * data will be allocated by default.
    * @param type The element type of the new tensor.
    * @param shape The shape of the new tensor.
    */
-  new(type: element | elementTypeString, shape: number[]): Tensor;
+  new(type: element|elementTypeString, shape: number[]): Tensor;
   /**
-   * It constructs a tensor using the element type and shape. The new tensor wraps
-   * allocated host memory.
+   * It constructs a tensor using the element type and shape. The new tensor
+   * wraps allocated host memory.
    * @param type The element type of the new tensor.
    * @param shape The shape of the new tensor.
    * @param tensorData A subclass of TypedArray that will be wrapped
    * by a {@link Tensor}.
    */
-  new(type: element | elementTypeString, shape: number[],
-    tensorData: SupportedTypedArray): Tensor;
+  new(type: element|elementTypeString, shape: number[],
+      tensorData: SupportedTypedArray): Tensor;
 }
 
 /**
@@ -441,33 +413,33 @@ interface InferRequest {
    * Inputs have to be specified earlier using {@link InferRequest.setTensor}
    * or {@link InferRequest.setInputTensor}
    */
-  infer(): { [outputName: string] : Tensor};
+  infer(): {[outputName: string]: Tensor};
   /**
    * It infers specified input(s) in the synchronous mode.
    * @param inputData An object with the key-value pairs where the key is the
    * input name and value can be either a tensor or a TypedArray. TypedArray
-   * will be wrapped into Tensor underneath using the input shape and element type
-   * of the deployed model.
+   * will be wrapped into Tensor underneath using the input shape and element
+   * type of the deployed model.
    */
-  infer(inputData: { [inputName: string]: Tensor | SupportedTypedArray})
-    : { [outputName: string] : Tensor};
+  infer(inputData: {[inputName: string]: Tensor|SupportedTypedArray}):
+      {[outputName: string]: Tensor};
   /**
    * It infers specified input(s) in the synchronous mode.
    * @param inputData An array with tensors or TypedArrays. TypedArrays will be
    * wrapped into Tensors underneath using the input shape and element type
-   * of the deployed model. If the model has multiple inputs, the Tensors 
+   * of the deployed model. If the model has multiple inputs, the Tensors
    * and TypedArrays must be passed in the correct order.
    */
-  infer(inputData: Tensor[] | SupportedTypedArray[])
-    : { [outputName: string] : Tensor};
+  infer(inputData: Tensor[]|
+        SupportedTypedArray[]): {[outputName: string]: Tensor};
   /**
    * It infers specified input(s) in the asynchronous mode.
    * @param inputData An object with the key-value pairs where the key is the
-   * input name and value is a tensor or an array with tensors. If the model has  
+   * input name and value is a tensor or an array with tensors. If the model has
    * multiple inputs, the Tensors must be passed in the correct order.
    */
-  inferAsync(inputData: { [inputName: string]: Tensor}
-    | Tensor[] ): Promise<{ [outputName: string] : Tensor}>;
+  inferAsync(inputData: {[inputName: string]: Tensor}|
+             Tensor[]): Promise<{[outputName: string] : Tensor}>;
   /**
    * It gets the compiled model used by the InferRequest object.
    */
@@ -491,7 +463,7 @@ interface InferRequest {
    * an exception is thrown.
    */
   getOutputTensor(): Tensor;
- /**
+  /**
    * It gets the output tensor for inference.
    * @param idx An index of the tensor to get.
    * @returns A tensor at the specified index. If the tensor with the specified
@@ -506,12 +478,12 @@ interface InferRequest {
    * is thrown.
    * @param nameOrOutput The name of the tensor or output object.
    */
-  getTensor(nameOrOutput: string | Output): Tensor;
+  getTensor(nameOrOutput: string|Output): Tensor;
   /**
    * It sets the input tensor to infer models with a single input.
    * @param tensor The input tensor. The element type and shape of the tensor
-   * must match the type and size of the model's input element. If the model has several
-   * inputs, an exception is thrown.
+   * must match the type and size of the model's input element. If the model has
+   * several inputs, an exception is thrown.
    */
   setInputTensor(tensor: Tensor): void;
   /**
@@ -525,8 +497,8 @@ interface InferRequest {
   /**
    * It sets the output tensor to infer models with a single output.
    * @param tensor The output tensor. The element type and shape of the tensor
-   * must match the output element type and size of the model. If the model has several
-   * outputs, an exception is thrown.
+   * must match the output element type and size of the model. If the model has
+   * several outputs, an exception is thrown.
    */
   setOutputTensor(tensor: Tensor): void;
   /**
@@ -545,7 +517,7 @@ interface InferRequest {
   setTensor(name: string, tensor: Tensor): void;
 }
 
-type Dimension = number | [number, number];
+type Dimension = number|[number, number];
 
 interface Output {
   anyName: string;
@@ -557,17 +529,17 @@ interface Output {
 }
 
 interface InputTensorInfo {
-  setElementType(elementType: element | elementTypeString ): InputTensorInfo;
+  setElementType(elementType: element|elementTypeString): InputTensorInfo;
   setLayout(layout: string): InputTensorInfo;
   setShape(shape: number[]): InputTensorInfo;
 }
 
 interface OutputTensorInfo {
-  setElementType(elementType: element | elementTypeString ): InputTensorInfo;
+  setElementType(elementType: element|elementTypeString): InputTensorInfo;
   setLayout(layout: string): InputTensorInfo;
 }
 interface PreProcessSteps {
-  resize(algorithm: resizeAlgorithm | string): PreProcessSteps;
+  resize(algorithm: resizeAlgorithm|string): PreProcessSteps;
 }
 
 interface InputModelInfo {
@@ -586,8 +558,8 @@ interface OutputInfo {
 
 interface PrePostProcessor {
   build(): PrePostProcessor;
-  input(idxOrTensorName?: number | string): InputInfo;
-  output(idxOrTensorName?: number | string): OutputInfo;
+  input(idxOrTensorName?: number|string): InputInfo;
+  output(idxOrTensorName?: number|string): OutputInfo;
 }
 interface PrePostProcessorConstructor {
   new(model: Model): PrePostProcessor;
@@ -624,18 +596,16 @@ declare enum resizeAlgorithm {
 }
 
 export interface NodeAddon {
-  Core: CoreConstructor,
-  Tensor: TensorConstructor,
-  PartialShape: PartialShapeConstructor,
+  Core: CoreConstructor, Tensor: TensorConstructor,
+      PartialShape: PartialShapeConstructor,
 
-  preprocess: {
-    resizeAlgorithm: typeof resizeAlgorithm,
-    PrePostProcessor: PrePostProcessorConstructor,
-  },
-  element: typeof element,
+      preprocess: {
+        resizeAlgorithm: typeof resizeAlgorithm,
+        PrePostProcessor: PrePostProcessorConstructor,
+      },
+      element: typeof element,
 }
 
 export default
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require('../bin/ov_node_addon.node') as
-    NodeAddon;
+    require('../bin/ov_node_addon.node') as NodeAddon;

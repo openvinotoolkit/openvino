@@ -2,10 +2,10 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const { addon: ov } = require('../..');
+const {addon : ov} = require('../..');
 const assert = require('assert');
-const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, getModelPath, isModelAvailable } = require('./utils.js');
+const {describe, it, before, beforeEach} = require('node:test');
+const {testModels, getModelPath, isModelAvailable} = require('./utils.js');
 
 describe('ov.Model tests', () => {
   let testXml = null;
@@ -18,9 +18,7 @@ describe('ov.Model tests', () => {
     core = new ov.Core();
   });
 
-  beforeEach(() => {
-    model = core.readModelSync(testXml);
-  });
+  beforeEach(() => { model = core.readModelSync(testXml); });
 
   describe('Model.isDynamic()', () => {
     it('should return a boolean value type', () => {
@@ -34,9 +32,7 @@ describe('ov.Model tests', () => {
 
     it('should not accept any arguments', () => {
       assert.throws(
-          () => {
-            model.isDynamic('unexpected argument');
-          },
+          () => { model.isDynamic('unexpected argument'); },
           /^Error: isDynamic\(\) does not accept any arguments\.$/,
           'Expected isDynamic to throw an error when called with arguments',
       );
@@ -108,14 +104,13 @@ describe('ov.Model tests', () => {
     });
 
     it('should not accept any arguments', () => {
-      assert.throws(() => {
-        model.getOutputSize('unexpected argument');
-      }, /^Error: getOutputSize\(\) does not accept any arguments\.$/);
+      assert.throws(
+          () => { model.getOutputSize('unexpected argument'); },
+          /^Error: getOutputSize\(\) does not accept any arguments\.$/);
     });
 
-    it('should return 1 for the default model', () => {
-      assert.strictEqual(model.getOutputSize(), 1);
-    });
+    it('should return 1 for the default model',
+       () => { assert.strictEqual(model.getOutputSize(), 1); });
   });
 
   describe('Model.getOutputElementType()', () => {
@@ -126,33 +121,25 @@ describe('ov.Model tests', () => {
 
     it('should accept a single integer argument', () => {
       assert.throws(
-          () => {
-            model.getOutputElementType();
-          },
+          () => { model.getOutputElementType(); },
           /'getOutputElementType' method called with incorrect parameters/,
           'Should throw when called without arguments',
       );
 
       assert.throws(
-          () => {
-            model.getOutputElementType('unexpected argument');
-          },
+          () => { model.getOutputElementType('unexpected argument'); },
           /'getOutputElementType' method called with incorrect parameters/,
           'Should throw on non-number argument',
       );
 
       assert.throws(
-          () => {
-            model.getOutputElementType(0, 1);
-          },
+          () => { model.getOutputElementType(0, 1); },
           /'getOutputElementType' method called with incorrect parameters/,
           'Should throw on multiple arguments',
       );
 
       assert.throws(
-          () => {
-            model.getOutputElementType(3.14);
-          },
+          () => { model.getOutputElementType(3.14); },
           /'getOutputElementType' method called with incorrect parameters/,
           'Should throw on non-integer number',
       );
@@ -168,9 +155,8 @@ describe('ov.Model tests', () => {
 
     it('should throw an error for out-of-range index', () => {
       const outputSize = model.getOutputSize();
-      assert.throws(() => {
-        model.getOutputElementType(outputSize);
-      }, /^Error: /);
+      assert.throws(() => { model.getOutputElementType(outputSize); },
+                    /^Error: /);
     });
   });
 
@@ -200,7 +186,8 @@ describe('ov.Model tests', () => {
       assert(Array.isArray(result), 'getOps should return an array');
       assert(result.length > 0, 'getOps should return a non-empty array');
       result.forEach(op => {
-        assert.strictEqual(typeof op.getName, 'function', 'each item should have getName method');
+        assert.strictEqual(typeof op.getName, 'function',
+                           'each item should have getName method');
       });
     });
 
@@ -214,9 +201,12 @@ describe('ov.Model tests', () => {
         "Transpose",
       ];
 
-      assert.strictEqual(modelOperators.length, expectedOpsCount, `Expected ${expectedOpsCount} operations in the model`);
+      assert.strictEqual(
+          modelOperators.length, expectedOpsCount,
+          `Expected ${expectedOpsCount} operations in the model`);
       expectedOps.forEach(op => {
-        assert(modelOperators.includes(op), `Expected operation ${op} to be in the model`);
+        assert(modelOperators.includes(op),
+               `Expected operation ${op} to be in the model`);
       });
     });
   });
