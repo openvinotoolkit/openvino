@@ -2160,11 +2160,11 @@ TEST(reorder_weights_gpu_i32, reorder_weights_in_dynamic_convolution)
     tests::random_generator rg(GET_SUITE_NAME);
 
     auto weights = engine.allocate_memory(layout(ov::PartialShape{ 192, 1, 1 }, data_types::f32, format::bfyx));
-    auto weights_values = rg.generate_random_1d<float>(weights->count(), -0.1, 0.1);
+    auto weights_values = rg.generate_random_1d<float>(weights->count(), -1, 1);
     set_values(weights, weights_values);
 
     auto constant_1 = engine.allocate_memory(layout(ov::PartialShape{ 1, 192, 1 }, data_types::f32, format::bfyx));
-    auto constant_1_values = rg.generate_random_1d<float>(constant_1->count(), -0.1, 0.1);
+    auto constant_1_values = rg.generate_random_1d<float>(constant_1->count(), -1, 1);
     set_values(constant_1, constant_1_values);
 
     auto input = engine.allocate_memory(layout(ov::PartialShape{ 1, 192, 91 }, data_types::f32, format::bfyx));
@@ -2172,7 +2172,7 @@ TEST(reorder_weights_gpu_i32, reorder_weights_in_dynamic_convolution)
     set_values(input, input_values);
 
     auto constant_0 = engine.allocate_memory(layout(ov::PartialShape{ 1, 1, 91 }, data_types::f32, format::bfyx));
-    auto constant_0_values = rg.generate_random_1d<float>(constant_0->count(), -0.1, 0.1);
+    auto constant_0_values = rg.generate_random_1d<float>(constant_0->count(), -1, 1);
     set_values(constant_0, constant_0_values);
 
     topology topology;
