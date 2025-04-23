@@ -577,8 +577,6 @@ void ov::CoreImpl::register_compile_time_plugins() {
 }
 
 void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
-    std::lock_guard<std::mutex> lock(get_mutex());
-
     using namespace ov::util;
     auto parse_result = pugixml::parse_xml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
@@ -589,6 +587,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
+
+    std::lock_guard<std::mutex> lock(get_mutex());
 
     FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
         std::string deviceName = pugixml::get_str_attr(pluginNode, "name");
