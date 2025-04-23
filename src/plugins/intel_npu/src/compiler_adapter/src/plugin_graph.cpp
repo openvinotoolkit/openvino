@@ -40,8 +40,8 @@ size_t PluginGraph::export_blob(std::ostream& stream) const {
     if (_logger.level() >= ov::log::Level::INFO) {
         std::uint32_t result = 1171117u;
         for (const uint8_t* it = reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr());
-            it != reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()) + _blobPtr->size();
-            ++it) {
+             it != reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()) + _blobPtr->size();
+             ++it) {
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
