@@ -17,12 +17,12 @@ namespace jax {
 namespace op {
 
 OutputVector translate_gather(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
+    num_inputs_check(context, 2);
 
     Output<Node> inputs = context.get_input(0);
     Output<Node> indices = context.get_input(1);
 
-    indices = context.mark_node(std::make_shared<v0::Convert>(indices, element::i64));
+    indices = context.mark_node(std::make_shared<v1::Convert>(indices, element::i64));
 
     int64_t axis_val;
 
@@ -30,8 +30,7 @@ OutputVector translate_gather(const NodeContext& context) {
         axis_val = context.const_named_param<int64_t>("axis");
     } catch (const ov::Exception& e) {
         // Fallback: get axis from start_index_map
-        auto gather_attrs = context.get_attrs();
-        auto start_index_map = gather_attrs["start_index_map"].as<std::vector<int64_t>>();
+        auto start_index_map = context.get_attribute<std::vector<int64_t>>("start_index_map");
         FRONT_END_GENERAL_CHECK(start_index_map.size() == 1,
                                 "Only single-axis gather is supported in fallback.");
         axis_val = start_index_map[0];
