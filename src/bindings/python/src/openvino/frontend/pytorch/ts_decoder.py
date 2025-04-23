@@ -355,6 +355,7 @@ class TorchScriptPythonDecoder(Decoder):
             if isinstance(target_extension, ModuleExtension):
                 target_op = target_extension.target_op
                 if callable(target_op):
+                    assert trampoline is not None
                     target = target_op(trampoline.original_module)
                 elif isinstance(target_op, str):
                     target = target_op
@@ -367,7 +368,7 @@ class TorchScriptPythonDecoder(Decoder):
                 # type ConversionExtension that translates that particular
                 # temporary name to custom graph. But providing conversion code
                 # as a callable `target` is more convenient.
-                return target
+                return target # type: ignore
         return self.graph_element.kind()
 
     def get_schema(self) -> str:
@@ -428,10 +429,12 @@ class TorchScriptPythonDecoder(Decoder):
                 else:
                     b_res = ivalue_to_constant(bias)
                     self._add_name_to_const_and_cache(b_res, b_name)
+                    assert isinstance(b_res, list)
                     res += b_res
             else:
-                res += ops.convert_like(ivalue_to_constant(torch.zeros(1))
-                                        [0], res[0]).outputs()
+                zero_const = ivalue_to_constant(torch.zeros(1))
+                if zero_const is not None:
+                    res += ops.convert_like(zero_const[0], res[0]).outputs()
             try:
                 # these params exist only for conv params
                 stride = pt_value.stride()
@@ -439,13 +442,13 @@ class TorchScriptPythonDecoder(Decoder):
                 dilation = pt_value.dilation()
                 groups = pt_value.groups()
                 res += ivalue_to_constant(stride,
-                                          shared_memory=self._shared_memory)
+                                          shared_memory=self._shared_memory) # type: ignore
                 res += ivalue_to_constant(padding,
-                                          shared_memory=self._shared_memory)
+                                          shared_memory=self._shared_memory) # type: ignore
                 res += ivalue_to_constant(dilation,
-                                          shared_memory=self._shared_memory)
+                                          shared_memory=self._shared_memory) # type: ignore
                 res += ivalue_to_constant(groups,
-                                          shared_memory=self._shared_memory)
+                                          shared_memory=self._shared_memory) # type: ignore
             except Exception as e:
                 logging.debug("Failed to get conv params", exc_info=e)
             return res
@@ -482,6 +485,7 @@ class TorchScriptPythonDecoder(Decoder):
             return ivalue_to_constant(gen.initial_seed(), shared_memory=self._shared_memory)
         const = ivalue_to_constant(
             pt_value.toIValue(), shared_memory=self._shared_memory)
+        assert isinstance(const, list)
         if len(const) > 0:
             # set name corresponding to state_dict name
             const[0].get_node().set_friendly_name(
@@ -546,7 +550,7 @@ class TorchScriptPythonDecoder(Decoder):
             # AliasDB::may_contain_alias sometimes return True for tensors produced by convolution or matmul, we have to workaround that
             return False
         try:
-            return self.alias_db.may_contain_alias(self._raw_input(in_index), self._raw_output(out_index))
+            return self.alias_db.may_contain_alias(self._raw_input(in_index), self._raw_output(out_index)) # type: ignore
         except Exception as e:
             # Sometimes pytorch fails to get result with IndexError exception while these indexes exist in node
             logging.debug("Failed to get alias information", exc_info=e)

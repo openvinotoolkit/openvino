@@ -214,13 +214,15 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         elif isinstance(pt_module, torch.fx.Node):
             self._nodes = nodes  # passed from outer context
 
-            # FIXME: Quadratic complexity nodes*nodes considering the outer loop over all nodes
-            self._outputs = [("", self._nodes.index(pt_module))]
+            # FIXME: Quadratic complexity nodes*nodes considerxing the outer loop over all nodes
+            if self._nodes is not None:
+                self._outputs = [("", self._nodes.index(pt_module))]
 
             self.input_types = []
             for arg in pt_module.args:
                 if isinstance(arg, torch.fx.Node):
-                    self._inputs.append(self._nodes.index(arg))
+                    if self._nodes is not None:
+                        self._inputs.append(self._nodes.index(arg))
                 else:
                     # Not a node, consider it inlined
                     self._inputs.append(InlinedInput(arg))
@@ -252,7 +254,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return cls(gm, dynamic_shapes=True)
 
     @staticmethod
-    def get_found_shape(value) -> str:
+    def get_found_shape(value) -> str | None:
         # If input is a tensor, read the shape from meta data
         if hasattr(value, "meta"):
             if ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
@@ -262,7 +264,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return None
 
     @staticmethod
-    def get_found_dtype(value) -> str:
+    def get_found_dtype(value) -> str | None | OVAny:
         # If input is a tensor, read the data type from meta data
         if hasattr(value, "meta") and ("tensor_meta" in value.meta.keys()) and value.meta["tensor_meta"]:
             return OVAny(pt_to_ov_type_map[str(value.meta["tensor_meta"].dtype)])
@@ -342,12 +344,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if name in self.pt_module.kwargs:
             arg = self.pt_module.kwargs[name]
             if isinstance(arg, torch.fx.Node):
-                return self._nodes.index(arg)
+                if self._nodes is not None:
+                    return self._nodes.index(arg)
         raise RuntimeError("This input is not a Node")
 
     def visit_subgraph(self, node_visitor):
         # make sure topological order is satisfied
-        for node in self._nodes:
+        for node in self._nodes or []:
             if node.op in {"placeholder", "output"}:
                 continue  # skipping non-operational nodes
             if node.op == "call_function" and str(node.target) in ["aten._assert_async.msg"]:
@@ -378,12 +381,14 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return [o[1] for o in self._outputs]
 
     def _raw_outputs(self):
-        return [self._nodes[x[1]] for x in self._outputs]
+        assert self._nodes is not None, "Nodes list is None"
+        return [self._nodes[x[1]] for x in self._outputs if x is not None]
 
     def _raw_output(self, index):
         return self._raw_outputs()[index]
 
     def _raw_inputs(self):
+        assert self._nodes is not None, "Nodes list is None"
         return [self._nodes[x] if not isinstance(x, InlinedInput) and x < len(self._nodes) else x.data for x in self._inputs]
 
     def _raw_input(self, index):
@@ -445,6 +450,7 @@ class InlinedInputDecoder (BaseFXDecoder):
         self.is_const = not (isinstance(inlined_input.data, (list, tuple)) and any(
             isinstance(a, torch.fx.Node) for a in inlined_input.data))
         if not self.is_const:
+            assert nodes is not None
             self._inputs = [nodes.index(x) if isinstance(
                 x, torch.fx.Node) else InlinedInput(x) for x in inlined_input.data]
 

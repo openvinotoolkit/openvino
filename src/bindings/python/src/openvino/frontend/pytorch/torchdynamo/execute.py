@@ -72,7 +72,7 @@ def execute_cached(compiled_model, *args):
     return result
 
 
-def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition_id, options):
+def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition_id=None, options=None):
 
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 
@@ -85,6 +85,7 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
     model_hash_str = executor_parameters.get("model_hash_str", None)
     if model_hash_str is not None:
         fully_supported = False
+        assert isinstance(model_hash_str, str)
         if len(model_hash_str) > 3 and model_hash_str[-3:] == "_fs":
             fully_supported = True
         if not fully_supported:
@@ -94,6 +95,7 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
         compiled = compiled_cache[partition_id]
         req = req_cache[partition_id]
     else:
+        assert isinstance(model_hash_str, str)
         compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str, options=options)
         compiled_cache[partition_id] = compiled
         req = compiled.create_infer_request()
@@ -113,7 +115,7 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
 
 
 class OpenVINOGraphModule(torch.nn.Module):
-    def __init__(self, gm, partition_id, use_python_fusion_cache, model_hash_str: str = None, options=None):
+    def __init__(self, gm, partition_id, use_python_fusion_cache, model_hash_str: str, options=None):
         super().__init__()
         self.gm = gm
         self.partition_id = partition_id
@@ -136,7 +138,7 @@ class OpenVINOGraphModule(torch.nn.Module):
         return result
 
 
-def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_str: str = None, options=None):
+def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_str: str, options=None):
     global max_openvino_partitions
     partition_id = max_openvino_partitions
     for node in gm.graph.nodes:
@@ -176,6 +178,7 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
                 signature = signature + "_" + str(idx) + ":" + type(input_data).__name__ + ":val(" + str(input_data) + ")"
 
     if signature not in partitioned_modules:
+        assert isinstance(model_hash_str, str)
         partitioned_modules[signature] = partition_graph(gm, use_python_fusion_cache=use_python_fusion_cache,
                                                          model_hash_str=model_hash_str, options=options)
     return partitioned_modules[signature](*args)

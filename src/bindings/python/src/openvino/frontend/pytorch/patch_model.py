@@ -86,7 +86,7 @@ def __make_16bit_traceable(model: torch.nn.Module,
     """
     supported = {torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2}
     if patch_condition is None:
-        def patch_condition(module):
+        def _patch_condition(module):
             dtype_to_patch = {torch.float32, *supported}
             weight = getattr(module, "weight", None)
             return weight is not None and weight.dtype in dtype_to_patch

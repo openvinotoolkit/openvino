@@ -79,7 +79,7 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
     return compiled_model
 
 
-def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None):
+def openvino_compile(gm: GraphModule, *args, model_hash_str: str, options=None):
     core = Core()
 
     device = _get_device(options)
@@ -128,7 +128,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
         else:
             om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
+            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx]))) # type: ignore
 
     om.validate_nodes_and_infer_types()
 
@@ -136,6 +136,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
     if model_hash_str is not None:
         if not _is_cache_dir_in_config(options):
+            assert config is not None, "config is none type"
             config["CACHE_DIR"] = cache_root
 
     compiled = core.compile_model(om, device, config)
