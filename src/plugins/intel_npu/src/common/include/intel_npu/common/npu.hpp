@@ -11,8 +11,6 @@
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "openvino/runtime/intel_npu/remote_properties.hpp"
-#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace intel_npu {
@@ -80,22 +78,6 @@ public:
         const Config& config) = 0;
 
     virtual void updateInfo(const Config& config) = 0;
-
-    virtual ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(
-        std::shared_ptr<ov::IRemoteContext> context,
-        const ov::element::Type& element_type,
-        const ov::Shape& shape,
-        const Config& config,
-        ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
-        ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
-        void* mem = nullptr);
-
-    virtual ov::SoPtr<ov::ITensor> createHostTensor(
-        std::shared_ptr<ov::IRemoteContext> context,
-        const ov::element::Type& element_type,
-        const ov::Shape& shape,
-        const Config& config,
-        ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED);
 
 protected:
     virtual ~IDevice() = default;
