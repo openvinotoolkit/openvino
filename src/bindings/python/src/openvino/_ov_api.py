@@ -62,7 +62,7 @@ class Model(object, metaclass=ModelMeta):
         return getattr(self.__model, name)
 
     def clone(self) -> "Model":
-        if self.__model is None: # added checks to see before clonning
+        if self.__model is None:  # added checks to see before clonning
             raise ValueError("Cannot clone a None object")
         return Model(self.__model.clone())
 
@@ -603,10 +603,9 @@ class Core(CoreBase):
                 super().compile_model(model, device_name, {} if config is None else config),
             )
         else:
-            return CompiledModel(
-                    super().compile_model(model, device_name, {} if config is None else config), # added device_name("") in place of weights
-                    weights=weights,
-                )
+            if device_name is None:
+                raise ValueError("device_name must be provided when weights are specified.")
+
             return CompiledModel(
                 super().compile_model(model, weights, device_name, {} if config is None else config),
                 weights=weights,
