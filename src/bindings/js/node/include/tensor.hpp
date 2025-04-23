@@ -65,7 +65,7 @@ public:
     */
     Napi::Value is_continuous(const Napi::CallbackInfo& info);
     /**
-     *@brief Sets the shape of the tensor
+     * @brief Sets the shape of the tensor
      * @param info The contents of the parameters passed by the JS function.
      * @return `null` if successful, otherwise returns an error.
      */

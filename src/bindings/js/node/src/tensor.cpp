@@ -195,20 +195,22 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
 
 void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-
-    if (!info[0].IsArray()) {
-        Napi::TypeError::New(env, "The argument to setShape() must be an array.").ThrowAsJavaScriptException();
-        return;
-    }
-
-    ov::Shape shape;
-    try {
-        shape = js_to_cpp<ov::Shape>(info, 0);
-    } catch (const std::exception& e) {
-        Napi::TypeError::New(env, std::string("Invalid shape parameter: ") + e.what()).ThrowAsJavaScriptException();
-        return;
-    }
-
+    
+    // if (!info[0].IsArray()) {
+    //    Napi::TypeError::New(env, "The argument to setShape() must be an array.").ThrowAsJavaScriptException();
+    //    return;
+    // }
+    
+    // ov::Shape shape;
+    // try {
+    //    shape = js_to_cpp<ov::Shape>(info, 0);
+    // } catch (const std::exception& e) {
+    //    Napi::TypeError::New(env, std::string("Invalid shape parameter: ") + e.what()).ThrowAsJavaScriptException();
+    //    return;
+    // }
+    
+    auto shape = js_to_cpp<ov::Shape>(info, 0);
+    
     size_t new_size = ov::shape_size(shape);
     size_t current_capacity = ov::shape_size(_tensor.get_shape());
 
@@ -224,6 +226,7 @@ void TensorWrap::set_shape(const Napi::CallbackInfo& info) {
         }
         return;
     }
+    
     try {
         _tensor.set_shape(shape);
     } catch (const std::exception& e) {
