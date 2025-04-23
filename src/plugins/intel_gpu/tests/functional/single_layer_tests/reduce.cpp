@@ -9,6 +9,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
 namespace {
@@ -48,7 +49,7 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-
+        core->set_property(targetDevice, ov::enable_profiling(true));
         ov::element::Type input_precision;
         std::tie(input_shape, input_precision, reduce_axes, keep_dims) = GetParam();
 
@@ -64,15 +65,20 @@ protected:
         reduce_node->set_friendly_name("ReduceSum");
         auto add_val_node = std::make_shared<ov::op::v0::Constant>(add_val_tensor);
         auto add_node = std::make_shared<ov::op::v1::Add>(reduce_node, add_val_node);
-        auto result = std::make_shared<ov::op::v0::Result>(add_node);
-        function = std::make_shared<ov::Model>(result, ov::ParameterVector{input_node}, "input");
+        auto mul_val_node = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, 1.5f);
+        auto mul_node = std::make_shared<ov::op::v1::Multiply>(add_node, mul_val_node);
+        auto result = std::make_shared<ov::op::v0::Result>(mul_node);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input_node}, "input");
     }
 
     void run() override {
         ov::test::SubgraphBaseStaticTest::run();
         ov::Shape input_shape;
         std::tie(input_shape, std::ignore, std::ignore, std::ignore) = GetParam();
-        ASSERT_EQ(inferRequest.get_output_tensor().get_shape().size(), input_shape.size() - 1);
+        auto profile_info = inferRequest.get_profiling_info();
+        auto num_executed = std::count_if(profile_info.begin(), profile_info.end(),
+            [](const ov::ProfilingInfo& p) { return p.status == ov::ProfilingInfo::Status::EXECUTED; });
+        ASSERT_EQ(num_executed, 3);
     }
 };
 
