@@ -89,18 +89,18 @@ protected:
     AT& m_ref;
 };
 
-extern template class DirectValueAccessor<std::vector<std::string>>;
-extern template class DirectValueAccessor<std::vector<signed char>>;
-extern template class DirectValueAccessor<std::vector<unsigned short>>;
-extern template class DirectValueAccessor<std::vector<unsigned int>>;
-extern template class DirectValueAccessor<std::vector<unsigned char>>;
-extern template class DirectValueAccessor<std::vector<short>>;
-extern template class DirectValueAccessor<std::vector<double>>;
-extern template class DirectValueAccessor<std::vector<float>>;
-extern template class DirectValueAccessor<std::vector<int>>;
-extern template class DirectValueAccessor<std::vector<long>>;
-extern template class DirectValueAccessor<std::vector<unsigned long>>;
-extern template class DirectValueAccessor<std::set<std::string>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<std::string>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<signed char>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<unsigned short>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<unsigned int>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<unsigned char>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<short>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<double>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<float>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<int>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<long>>;
+extern template class OPENVINO_API DirectValueAccessor<std::vector<unsigned long>>;
+extern template class OPENVINO_API DirectValueAccessor<std::set<std::string>>;
 
 template <typename AT, typename VAT>
 class IndirectScalarValueAccessor : public ValueAccessor<VAT> {
@@ -253,18 +253,18 @@ namespace element {
 enum class Type_t;
 }
 
-extern template class EnumAttributeAdapterBase<op::PadMode>;
-extern template class EnumAttributeAdapterBase<op::FillMode>;
-extern template class EnumAttributeAdapterBase<op::PadType>;
-extern template class EnumAttributeAdapterBase<op::RoundingType>;
-extern template class EnumAttributeAdapterBase<op::AutoBroadcastType>;
-extern template class EnumAttributeAdapterBase<op::BroadcastType>;
-extern template class EnumAttributeAdapterBase<op::EpsMode>;
-extern template class EnumAttributeAdapterBase<op::TopKSortType>;
-extern template class EnumAttributeAdapterBase<op::TopKMode>;
-extern template class EnumAttributeAdapterBase<op::PhiloxAlignment>;
-extern template class EnumAttributeAdapterBase<op::RecurrentSequenceDirection>;
-extern template class EnumAttributeAdapterBase<element::Type_t>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::PadMode>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::FillMode>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::PadType>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::RoundingType>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::AutoBroadcastType>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::BroadcastType>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::EpsMode>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::TopKSortType>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::TopKMode>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::PhiloxAlignment>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<op::RecurrentSequenceDirection>;
+extern template class OPENVINO_API EnumAttributeAdapterBase<element::Type_t>;
 
 /// Adapters will see visitor
 class VisitorAdapter : public ValueAccessor<void> {
