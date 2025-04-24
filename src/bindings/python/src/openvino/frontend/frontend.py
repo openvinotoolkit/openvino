@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Union, Optional, cast, TYPE_CHECKING
+from typing import Union, Optional, cast
 
 from openvino._pyopenvino import FrontEnd as FrontEndBase
 from openvino._pyopenvino import FrontEndManager as FrontEndManagerBase
