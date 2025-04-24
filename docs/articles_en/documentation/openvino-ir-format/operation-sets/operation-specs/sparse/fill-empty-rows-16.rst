@@ -47,7 +47,7 @@ This operator also returns a boolean vector indicating which rows were filled wi
 * **1**: ``output_indices`` 2D tensor of type *T_IDX* indicating the positions at which ``output_values`` are placed in the sparse tensor.
     It is of shape ``[M', 2]``, where:
 
-    * ``M`` is the length of the updated ``output_values``.
+    * ``M'`` is the length of the updated ``output_values``.
     * The second dimension is always 2, as only 2D sparse tensors are supported.
 
 * **2**: ``output_values`` 1D tensor containing the values of type *T* to be inserted at the specified indices.
