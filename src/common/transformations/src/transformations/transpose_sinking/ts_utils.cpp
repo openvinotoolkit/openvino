@@ -91,7 +91,7 @@ TransposeInputsInfo GetFirstTransposeInput(
     }
 
     for (const auto& input_idx : indices_to_check) {
-        NodePtr input_node = node->input_value(input_idx).get_node_shared_ptr();
+        NodePtr input_node = node->get_input_node_shared_ptr(input_idx);
         auto transpose_node = as_type_ptr<ov::op::v1::Transpose>(input_node);
         if (!transpose_node)
             continue;

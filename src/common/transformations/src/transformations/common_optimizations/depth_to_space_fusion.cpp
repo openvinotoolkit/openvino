@@ -137,12 +137,12 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
             return false;
         }
 
-        auto permute = ov::as_type_ptr<ov::op::v1::Transpose>(reshape_after->input_value(0).get_node_shared_ptr());
+        auto permute = ov::as_type_ptr<ov::op::v1::Transpose>(reshape_after->get_input_node_shared_ptr(0));
         if (!permute) {
             return false;
         }
 
-        auto reshape_before = ov::as_type_ptr<ov::op::v1::Reshape>(permute->input_value(0).get_node_shared_ptr());
+        auto reshape_before = ov::as_type_ptr<ov::op::v1::Reshape>(permute->get_input_node_shared_ptr(0));
         if (!reshape_before) {
             return false;
         }
@@ -173,7 +173,7 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
         }
 
         ov::AxisVector permutation;
-        if (auto input_const = ov::as_type_ptr<ov::op::v0::Constant>(permute->input_value(1).get_node_shared_ptr())) {
+        if (auto input_const = ov::as_type_ptr<ov::op::v0::Constant>(permute->get_input_node_shared_ptr(1))) {
             permutation = input_const->get_axis_vector_val();
         } else {
             return false;

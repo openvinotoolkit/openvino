@@ -39,17 +39,17 @@ ov::pass::SplitSqueezeConcatFusion::SplitSqueezeConcatFusion(bool use_shapes) {
         int64_t split_axis = 0;
 
         for (size_t i = 0; i < concat->get_input_size(); i++) {
-            auto squeeze_node = concat->input_value(i).get_node_shared_ptr();
+            auto squeeze_node = concat->get_input_node_shared_ptr(i);
             if (!ov::is_type<ov::op::v0::Squeeze>(squeeze_node) && !ov::is_type<ov::op::v1::Reshape>(squeeze_node))
                 return false;
-            auto split_to_check = ov::as_type_ptr<ov::op::v1::Split>(squeeze_node->input_value(0).get_node_shared_ptr());
+            auto split_to_check = ov::as_type_ptr<ov::op::v1::Split>(squeeze_node->get_input_node_shared_ptr(0));
             if (!split_to_check)
                 return false;
 
             if (i == 0) {
                 nodes_to_delete.push_back(split_to_check);
                 split = split_to_check;
-                auto split_axis_node = ov::as_type_ptr<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
+                auto split_axis_node = ov::as_type_ptr<ov::op::v0::Constant>(split->get_input_node_shared_ptr(1));
                 if (!split_axis_node)
                     return false;
                 auto axis_vec = split_axis_node->cast_vector<int64_t>();
@@ -156,7 +156,7 @@ bool is_axis_squeezed_by_node(const std::shared_ptr<ov::Node>& squeeze_node, int
             }
         } else {
             // The second Squeeze input has explicit axes
-            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(squeeze_node->input_value(1).get_node_shared_ptr());
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(squeeze_node->get_input_node_shared_ptr(1));
             if (!constant)
                 return false;
             if (ov::shape_size(constant->get_shape()) != 1)

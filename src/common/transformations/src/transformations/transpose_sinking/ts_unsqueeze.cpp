@@ -123,7 +123,7 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
 
     auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
                                                             const TransposeInputsInfo& transpose_info) -> bool {
-        auto unsqueeze_axes = as_type_ptr<ov::op::v0::Constant>(main_node->input_value(1).get_node_shared_ptr());
+        auto unsqueeze_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
         if (!unsqueeze_axes) {
             return false;
         }
@@ -214,8 +214,8 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
             return false;
         }
 
-        auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
-        auto unsqueeze_axes = ov::as_type_ptr<ov::op::v0::Constant>(main_node->input_value(1).get_node_shared_ptr());
+        auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto unsqueeze_axes = ov::as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
         if (!transpose_order || !unsqueeze_axes)
             return false;
 

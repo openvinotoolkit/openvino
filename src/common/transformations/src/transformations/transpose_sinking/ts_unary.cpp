@@ -111,7 +111,7 @@ TSUnaryBackward::TSUnaryBackward() {
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
-        auto unary = transpose->input_value(0).get_node_shared_ptr();
+        auto unary = transpose->get_input_node_shared_ptr(0);
         if (transformation_callback(unary)) {
             return false;
         }

@@ -68,7 +68,7 @@ GLUFusion::GLUFusion() {
             glu_type = ov::op::internal::GLU::GluType::Swish;
             split_to_glu_idx = swish->input_value(0).get_index();
 
-            size_t split_in_idx = ov::is_type<ov::op::v4::Swish>(mul->input_value(0).get_node_shared_ptr()) ? 1 : 0;
+            size_t split_in_idx = ov::is_type<ov::op::v4::Swish>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
             if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
         } else if (isGeGLU) {
@@ -78,7 +78,7 @@ GLUFusion::GLUFusion() {
                            : ov::op::internal::GLU::GluType::Gelu_Tanh;
             split_to_glu_idx = gelu->input_value(0).get_index();
 
-            size_t split_in_idx = ov::is_type<ov::op::v7::Gelu>(mul->input_value(0).get_node_shared_ptr()) ? 1 : 0;
+            size_t split_in_idx = ov::is_type<ov::op::v7::Gelu>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
             if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
                 return false;
         } else {
