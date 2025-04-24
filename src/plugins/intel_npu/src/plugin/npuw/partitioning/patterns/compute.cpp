@@ -186,18 +186,18 @@ DQMatMulGQi4::DQMatMulGQi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
             if (fake_convert_iter != node_to_output.end()) {
                 auto matched_fake_convert = fake_convert_iter->second.get_node_shared_ptr();
                 node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
-            }
 
-            auto transpose_iter = node_to_output.find(transpose);
-            if (transpose_iter != node_to_output.end()) {
-                auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
-                node_to_gptr->at(matched_transpose)->isolate(isol_tag);
-            }
+                auto transpose_iter = node_to_output.find(transpose);
+                if (transpose_iter != node_to_output.end()) {
+                    auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
+                    node_to_gptr->at(matched_transpose)->isolate(isol_tag);
+                }
 
-            auto reshape_iter = node_to_output.find(reshape);
-            if (reshape_iter != node_to_output.end()) {
-                auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
-                node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+                auto reshape_iter = node_to_output.find(reshape);
+                if (reshape_iter != node_to_output.end()) {
+                    auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
+                    node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+                }
             }
         }
 
@@ -261,18 +261,18 @@ DQMatMulCWi4::DQMatMulCWi4(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
             if (fake_convert_iter != node_to_output.end()) {
                 auto matched_fake_convert = fake_convert_iter->second.get_node_shared_ptr();
                 node_to_gptr->at(matched_fake_convert)->isolate(isol_tag);
-            }
 
-            auto transpose_iter = node_to_output.find(transpose);
-            if (transpose_iter != node_to_output.end()) {
-                auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
-                node_to_gptr->at(matched_transpose)->isolate(isol_tag);
-            }
+                auto transpose_iter = node_to_output.find(transpose);
+                if (transpose_iter != node_to_output.end()) {
+                    auto matched_transpose = transpose_iter->second.get_node_shared_ptr();
+                    node_to_gptr->at(matched_transpose)->isolate(isol_tag);
+                }
 
-            auto reshape_iter = node_to_output.find(reshape);
-            if (reshape_iter != node_to_output.end()) {
-                auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
-                node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+                auto reshape_iter = node_to_output.find(reshape);
+                if (reshape_iter != node_to_output.end()) {
+                    auto matched_reshape = reshape_iter->second.get_node_shared_ptr();
+                    node_to_gptr->at(matched_reshape)->isolate(isol_tag);
+                }
             }
         }
 
