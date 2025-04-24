@@ -38,6 +38,17 @@ public:
     const std::vector<PatternSymbolValue>& g() const;
 
     bool operator==(const PatternSymbolValue& other) const;
+    bool operator!=(const PatternSymbolValue& other) const;
+
+    template <typename T>
+    static std::vector<PatternSymbolValue> make_value_vector(const std::vector<T>& values) {
+        std::vector<PatternSymbolValue> return_values;
+        return_values.reserve(values.size());
+        for (const auto& i : values) {
+            return_values.push_back({i});
+        }
+        return return_values;
+    }
 
 private:
     bool is_valid() const;

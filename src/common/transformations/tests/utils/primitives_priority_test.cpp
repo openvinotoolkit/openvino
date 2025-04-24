@@ -13,7 +13,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 using namespace ov;
@@ -35,7 +37,7 @@ TEST(TransformationTests, ConvBiasFusion) {
         auto add = std::make_shared<opset1::Add>(conv, bias);
         add->set_friendly_name("add");
 
-        f = std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input1});
+        f = std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{input1});
     }
 
     std::unordered_map<std::string, std::string> pp;
