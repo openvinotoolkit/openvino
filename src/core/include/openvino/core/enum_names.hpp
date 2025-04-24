@@ -68,7 +68,7 @@ namespace op
     enum class BroadcastType;
 } // namespace op
 
-extern template ov::op::BroadcastType as_enum<ov::op::BroadcastType, const char*>(const char* const&);
+extern template OPENVINO_API ov::op::BroadcastType as_enum<ov::op::BroadcastType, const char*>(const char* const&);
 
 /// Returns the string matching the enum value
 template <typename Value>
