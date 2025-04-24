@@ -69,7 +69,8 @@ public:
         }
     }
     ov::Any get_as_any() override {
-        return {get()};
+        VAT obj = get();
+        return {obj};
     }
 };
 
