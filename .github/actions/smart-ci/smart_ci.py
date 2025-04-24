@@ -253,7 +253,7 @@ def main():
     # if skip_workflow:
     if True:
         logger.info(f"All changes are marked for skip, workflow may be skipped")
-        set_github_output("skip_workflow", str(skip_workflow))
+        set_github_output("skip_workflow", str(True))
 
     # Syntactic sugar for easier use in GHA pipeline
     affected_components_output = {name: {s: True for s in scope} for name, scope in affected_components.items()}

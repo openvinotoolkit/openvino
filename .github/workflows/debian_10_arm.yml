@@ -50,7 +50,6 @@ jobs:
   Docker:
     needs: Smart_CI
     if: "!needs.smart_ci.outputs.skip_workflow"
-    # if: ${{ 'false' }}
     runs-on: aks-linux-4-cores-8gb-arm-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
@@ -73,15 +72,9 @@ jobs:
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
-  dummy_job:
-    name: Dummy job
-    needs: [Docker, Smart_CI]
-    uses: ./.github/workflows/job_dummy.yml
-
   Build:
     needs: [dummy_job]
-    # if: "!needs.smart_ci.outputs.skip_workflow"
-    if: ${{ 'false' }}
+    if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
