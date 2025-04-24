@@ -62,6 +62,7 @@ describe('Tests for AsyncInferQueue.', () => {
     }
 
     assert.strictEqual(jobsDone.filter(job => job.finished).length, jobs);
+    inferQueue.release();
   });
 
   it('test Promise.all() ~ infer_queue.wait_all()', async () => {
@@ -97,6 +98,7 @@ describe('Tests for AsyncInferQueue.', () => {
 
     await Promise.all(promises);
     assert.strictEqual(jobsDone.filter(job => job.finished).length, jobs);
+    inferQueue.release();
   });
 
 });

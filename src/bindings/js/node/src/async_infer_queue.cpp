@@ -56,7 +56,6 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
         m_user_inputs.reserve(jobs);
 
         for (size_t handle = 0; handle < jobs; handle++) {
-            // TODO ? Extend InferRequestWrapper to keep model inputs and outputs.
             m_requests.emplace_back(ocm.create_infer_request());
             m_user_ids.push_back(std::make_pair(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 2),
                                                 Napi::Promise::Deferred::New(env)));
@@ -70,9 +69,16 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
 }
 
 AsyncInferQueue::~AsyncInferQueue() {
-    std::cout << "AsyncInferQueue destructor\n";
     m_requests.clear();
-    this->tsfn.Release();  // release tsfn when all BlockingCalls are done
+}
+
+void AsyncInferQueue::release(const Napi::CallbackInfo& info) {
+    const auto status = this->tsfn.Release();
+    if (status == napi_invalid_arg) {
+        reportError(info.Env(), "Failed to release AsyncInferQueue thread-safe function. Its thread-count is zero.");
+    } else if (status != napi_ok) {
+        reportError(info.Env(), "Failed to release AsyncInferQueue thread-safe function.");
+    }
 }
 
 Napi::Function AsyncInferQueue::get_class(Napi::Env env) {
@@ -81,9 +87,9 @@ Napi::Function AsyncInferQueue::get_class(Napi::Env env) {
                        {
                            InstanceMethod("setCallback", &AsyncInferQueue::set_custom_callbacks),
                            InstanceMethod("startAsync", &AsyncInferQueue::start_async),
+                           InstanceMethod("release", &AsyncInferQueue::release),
                        });
 }
-
 
 int AsyncInferQueue::check_idle_request_id() {
     std::unique_lock<std::mutex> lock(m_mutex);
@@ -106,7 +112,7 @@ void AsyncInferQueue::set_default_callbacks() {
                 std::lock_guard<std::mutex> lock(m_mutex);
                 m_idle_handles.push(handle);
             }
-            m_cv.notify_one();
+            // m_cv.notify_one();
             try {
                 if (exception_ptr) {
                     std::rethrow_exception(exception_ptr);
@@ -137,11 +143,8 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                         auto promise = m_user_ids[*handle].second;
                         promise.Resolve(m_user_ids[*handle].first.Value());  // resolves promise, goes back here (does
                                                                              // not wait for promise.then() completion)
-                        {
-                            std::lock_guard<std::mutex> lock(m_mutex);
-                            m_idle_handles.push(*handle);
-                        }
-                        m_cv.notify_one();  // TODO
+
+                        // m_cv.notify_one();  // TODO
                         {
                             // check if any requests are waiting
                             std::lock_guard<std::mutex> lock(m_mutex);
@@ -152,6 +155,8 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                                                        std::get<0>(request).Value(),
                                                        std::get<1>(request).Value());
                                 awaiting_requests.pop();
+                            } else {
+                                m_idle_handles.push(*handle);
                             }
                         }
                         delete handle;
