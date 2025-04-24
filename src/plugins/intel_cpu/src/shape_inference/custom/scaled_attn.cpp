@@ -57,20 +57,20 @@ public:
                 const auto& cache_k_dims = input_shapes[5].get();
                 const auto& cache_v_dims = input_shapes[6].get();
                 OPENVINO_THROW("attention_mask do not match q and k,",
-                        " query_dims:",
-                        ov::intel_cpu::vec2str(query_dims),
-                        " cur_k_dims:",
-                        ov::intel_cpu::vec2str(cur_k_dims),
-                        " cur_v_dims:",
-                        ov::intel_cpu::vec2str(cur_v_dims),
-                        " attn_mask_dims:",
-                        ov::intel_cpu::vec2str(attn_mask_dims),
-                        " beam_idx_dims:",
-                        ov::intel_cpu::vec2str(beam_idx_dims),
-                        " cache_k_dims:",
-                        ov::intel_cpu::vec2str(cache_k_dims),
-                        " cache_v_dims:",
-                        ov::intel_cpu::vec2str(cache_v_dims));
+                               " query_dims:",
+                               ov::intel_cpu::vec2str(query_dims),
+                               " cur_k_dims:",
+                               ov::intel_cpu::vec2str(cur_k_dims),
+                               " cur_v_dims:",
+                               ov::intel_cpu::vec2str(cur_v_dims),
+                               " attn_mask_dims:",
+                               ov::intel_cpu::vec2str(attn_mask_dims),
+                               " beam_idx_dims:",
+                               ov::intel_cpu::vec2str(beam_idx_dims),
+                               " cache_k_dims:",
+                               ov::intel_cpu::vec2str(cache_k_dims),
+                               " cache_v_dims:",
+                               ov::intel_cpu::vec2str(cache_v_dims));
             }
         }
 

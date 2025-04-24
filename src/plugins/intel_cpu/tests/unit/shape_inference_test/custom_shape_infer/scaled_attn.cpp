@@ -202,8 +202,8 @@ INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
                          ValuesIn(wrongAttnmaskParams()),
                          SDPACpuShapeInferenceThrowExceptionTest::getTestCaseName);
 
-using SDPACpuShapeInferenceCorretAttnMaskTest = SDPACpuShapeInferenceTest;
-TEST_P(SDPACpuShapeInferenceCorretAttnMaskTest, shape_inference) {
+using SDPACpuShapeInferenceCorrectAttnMaskTest = SDPACpuShapeInferenceTest;
+TEST_P(SDPACpuShapeInferenceCorrectAttnMaskTest, shape_inference) {
     ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
     config.is_causal = causal;
     config.permute_axes = permute_axes;
@@ -251,9 +251,9 @@ auto correctAttnmaskParams = []() -> std::vector<SDPATestParams> {
     return params;
 };
 INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
-                         SDPACpuShapeInferenceCorretAttnMaskTest,
+                         SDPACpuShapeInferenceCorrectAttnMaskTest,
                          ValuesIn(correctAttnmaskParams()),
-                         SDPACpuShapeInferenceCorretAttnMaskTest::getTestCaseName);
+                         SDPACpuShapeInferenceCorrectAttnMaskTest::getTestCaseName);
 }  // namespace cpu_shape_infer
 }  // namespace unit_test
 }  // namespace intel_cpu
