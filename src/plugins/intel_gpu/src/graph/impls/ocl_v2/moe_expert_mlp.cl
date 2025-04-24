@@ -398,15 +398,18 @@ KERNEL (mlp_down)(
 }
 
 #else
-//__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
+__attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL (mlp_reduce)(const __global TYPE* x,                // [MAX_TOPK, HIDDEN_SIZE]
     __global TYPE* y) {                                    // [1, HIDDEN_SIZE]
     int n = get_global_id(1);
-    float sum = 0;
+    half sum[MAX_TOPK] = {0};
+    __attribute__((opencl_unroll_hint(MAX_TOPK)))
     for (int i = 0; i < MAX_TOPK; i++) {
-        sum += x[n];
-        x += HIDDEN_SIZE;
+        sum[i] = as_half(intel_sub_group_block_read_us((const __global ushort*)(x + i*HIDDEN_SIZE + n)));
     }
-    y[n] = sum;
+    for (int i = 1; i < MAX_TOPK; i++) {
+        sum[0] += sum[i];
+    }
+    intel_sub_group_block_write_us((const __global ushort*)(y + n), as_ushort(sum[0]));
 }
 #endif

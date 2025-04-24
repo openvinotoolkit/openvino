@@ -745,7 +745,7 @@ public:
                              {scratch.y},
                              {final_hidden_states_mem_ptr},
                              {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
-                             {1, 128},
+                             {1, 1024},
                              instance.needs_completion_event());
     }
 
