@@ -94,7 +94,7 @@ protected:
     }
 
     static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
-        const auto weights_layout_idx = 3;
+        const auto weights_layout_idx = 2;
         auto source_weights_layout = impl_params.get_input_layout(weights_layout_idx);
         auto target_weights_layout = impl_params.get_input_layout(weights_layout_idx);
         auto W_desc = onednn::layout_to_memory_desc(source_weights_layout);

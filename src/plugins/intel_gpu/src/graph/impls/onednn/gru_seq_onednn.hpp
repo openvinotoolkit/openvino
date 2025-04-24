@@ -30,14 +30,7 @@ struct GRUSeqImplementationManager : public ImplementationManager {
 
         size_t out_rank = node.get_output_layout().get_rank();
         for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-            //if (node.get_dependency(idx).is_constant())
-            //    continue;
-
-            if (idx == 0) {
-                in_fmts[idx] = format::fbyx;
-            } else {
-                in_fmts[idx] = format::get_default_format(out_rank);
-            }
+            in_fmts[idx] = format::get_default_format(out_rank);
         }
         out_fmts[0] = format::ybfx;
         out_fmts[1] = format::bfyx;
