@@ -250,7 +250,8 @@ def main():
             logger.debug(f"matched files only: {matched_files_only}")
             skip_workflow = matched_files_only
 
-    if skip_workflow:
+    # if skip_workflow:
+    if True:
         logger.info(f"All changes are marked for skip, workflow may be skipped")
         set_github_output("skip_workflow", str(skip_workflow))
 
