@@ -1192,14 +1192,16 @@ void Transformations::MainSnippets() {
     const auto is_LLM = ov::op::util::is_large_language_model(*model.get()) ||
                         ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model);
 
-    // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM
+    // CPU Plugin Subgraph supports f32, bf16, quantized and fp16 BRGEMM
     const auto is_infer_prc_supported_by_brgemm =
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
          one_of(config.inferencePrecision, ov::element::f32, element::dynamic)) ||
-        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+        ((dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
+          dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) &&
          one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::dynamic)) ||
-        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
-         one_of(config.inferencePrecision, ov::element::f16));
+        ((dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) ||
+          dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) &&
+         one_of(config.inferencePrecision, ov::element::f16, ov::element::f32, element::dynamic));
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #else
     const bool isMHASupported = false;
@@ -1250,10 +1252,12 @@ void Transformations::MainSnippets() {
         }
         if (is_bf16) {
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
         }
         if (is_fp16) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
         }
         return false;
     };
