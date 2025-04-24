@@ -69,21 +69,30 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     case BRGEMM_TYPE::STAND_ALONE:
         return {{element::f32, element::f32}};
     case BRGEMM_TYPE::REPACKING_ONLY: {
-        std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
-                                                                {element::bf16, element::bf16},
-                                                                {element::f32, element::f32}};
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
+        std::set<std::vector<element::Type>> supported_types = {{element::f32, element::f32}};
+        if (mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) || mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
+            supported_types.insert({element::bf16, element::bf16});
+        }
+        if (mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
+            supported_types.insert({element::f16, element::f16});
             supported_types.insert({element::i8, element::i8});
+        }
+        if (mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) || mayiuse(dnnl::impl::cpu::x64::avx2_vnni)) {
+            supported_types.insert({element::u8, element::i8});
         }
         return supported_types;
     }
     case BRGEMM_TYPE::WITH_COMPENSATIONS:
         return {{element::i8, element::i8, element::f32}};
-    case BRGEMM_TYPE::WITH_AMX:
-        return {{element::i8, element::i8, element::u8},
-                {element::u8, element::i8, element::u8},
-                {element::bf16, element::bf16, element::u8},
-                {element::f16, element::f16, element::u8}};
+    case BRGEMM_TYPE::WITH_AMX: {
+        std::set<std::vector<element::Type>> supported_types = {{element::i8, element::i8, element::u8},
+                                                                {element::u8, element::i8, element::u8},
+                                                                {element::bf16, element::bf16, element::u8}};
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+            supported_types.insert({element::f16, element::f16, element::u8});
+        }
+        return supported_types;
+    }
     default:
         OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
     }

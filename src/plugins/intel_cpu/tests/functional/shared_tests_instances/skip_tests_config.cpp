@@ -630,7 +630,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 92895
         // on platforms which do not support AMX, we are disabling I8 input tests
         retVector.emplace_back(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*i8.*)");
-    if (!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16()) {
+    if (!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16() && !CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
         // ignored for not supported bf16 platforms
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
@@ -642,8 +642,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke.*(AUGRUCellCPUTest|GRUCellCPUTest|RNNCellCPUTest|LSTMCellLayerCPUTest).CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)");
         retVector.emplace_back(R"(nightly.*bf16.*(AUGRUSequenceCPUTest|GRUSequenceCPUTest|LSTMSequenceCPUTest).CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)");
     }
-    // MHA FP16 precision is only supported on amx_fp16 platform
-    if (!ov::with_cpu_x86_avx512_core_amx_fp16()) {
+    // MHA FP16 precision is only supported on amx_fp16 and avx2_vnni_2 platform
+    if (!ov::with_cpu_x86_avx512_core_amx_fp16() && !CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*FP16.*)");
     }
 

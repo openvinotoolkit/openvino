@@ -137,10 +137,11 @@ void BrgemmCPU::validate_with_scratchpad() const {
 void BrgemmCPU::validate_inputs() const {
     OPENVINO_ASSERT(
         implication(one_of(m_type, BRGEMM_TYPE::STAND_ALONE, BRGEMM_TYPE::REPACKING_ONLY), get_input_size() == 2),
-        "BrgemmCPU expects 2 inputs in cases, when input precisions are f32|f32, u8|i8 or bf16|bf16 (non-AMX system)");
+        "BrgemmCPU expects 2 inputs in cases, when input precisions are f32|f32, u8|i8, bf16|bf16 or f16|f16 (non-AMX "
+        "system)");
     OPENVINO_ASSERT(
         implication(one_of(m_type, BRGEMM_TYPE::WITH_COMPENSATIONS, BRGEMM_TYPE::WITH_AMX), get_input_size() == 3),
-        "BrgemmCPU expects 3 inputs with input precisions i8|i8 and bf16|bf16 on AMX system");
+        "BrgemmCPU expects 3 inputs with input precisions i8|i8, bf16|bf16 or f16|f16 on AMX system");
 }
 
 std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {

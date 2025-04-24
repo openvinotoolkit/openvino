@@ -1157,10 +1157,12 @@ void Transformations::MainSnippets() {
     const auto is_infer_prc_supported_by_MHA =
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
          one_of(config.inferencePrecision, ov::element::f32, element::dynamic)) ||
-        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+        ((dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
+          dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) &&
          one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::dynamic)) ||
-        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
-         one_of(config.inferencePrecision, ov::element::f16));
+        ((dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) ||
+          dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) &&
+         one_of(config.inferencePrecision, ov::element::f16, ov::element::f32, element::dynamic));
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_MHA;
 #else
     const bool isMHASupported = false;
@@ -1201,10 +1203,12 @@ void Transformations::MainSnippets() {
         }
         if (is_bf16) {
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
         }
         if (is_fp16) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
         }
         return false;
     };
