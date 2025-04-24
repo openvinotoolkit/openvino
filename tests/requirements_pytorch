@@ -43,7 +43,7 @@ PyYAML==6.0.2
 kornia==0.7.3
 super-image==0.1.7
 # huggingface-hub required for super-image
-huggingface-hub==0.25.2
+huggingface-hub==0.30.2
 
 # For now, we decided to pin a specific working version of optimum-intel.
 # It will be discussed in the future how to manage versioning of the components properly.
