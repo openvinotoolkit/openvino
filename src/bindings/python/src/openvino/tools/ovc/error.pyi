@@ -1,6 +1,7 @@
 # type: ignore
 from __future__ import annotations
 import re as re
+# type: ignore
 __all__ = ['BasicError', 'Error', 'FrameworkError', 'InternalError', 'classify_error_type', 're']
 class BasicError(Exception):
     """

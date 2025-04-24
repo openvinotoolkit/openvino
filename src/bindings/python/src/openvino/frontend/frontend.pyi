@@ -9,6 +9,8 @@ import openvino._pyopenvino
 # type: ignore
 # type: ignore
 # type: ignore
+# type: ignore
+# type: ignore
 __all__ = ['FrontEnd', 'FrontEndBase', 'FrontEndManager', 'FrontEndManagerBase', 'InputModel', 'Model']
 class FrontEnd(openvino._pyopenvino.FrontEnd):
     def __init__(self, fe: openvino._pyopenvino.FrontEnd) -> None:

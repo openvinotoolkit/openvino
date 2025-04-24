@@ -5,6 +5,7 @@ from builtins import module as ModuleType
 from typing import Any
 import sys as sys
 import typing
+# type: ignore
 __all__ = ['Any', 'BuiltinFunctionType', 'ModuleType', 'Property', 'sys']
 class Property(str):
     """

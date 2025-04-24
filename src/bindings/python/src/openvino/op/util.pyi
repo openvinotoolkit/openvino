@@ -16,6 +16,8 @@ from openvino._pyopenvino.op.util import VariableInfo
 # type: ignore
 # type: ignore
 # type: ignore
+# type: ignore
+# type: ignore
 """
 
 Package: openvino.op.util

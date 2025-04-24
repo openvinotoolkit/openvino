@@ -25,6 +25,7 @@ import numpy as np
 import openvino._pyopenvino
 import typing
 import warnings as warnings
+# type: ignore
 """
 Factory functions for all openvino ops.
 """

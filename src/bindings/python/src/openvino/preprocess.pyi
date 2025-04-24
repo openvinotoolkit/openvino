@@ -16,6 +16,8 @@ from openvino._pyopenvino.preprocess import ResizeAlgorithm
 # type: ignore
 # type: ignore
 # type: ignore
+# type: ignore
+# type: ignore
 """
 
 Package: openvino

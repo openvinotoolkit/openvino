@@ -23,6 +23,7 @@ import numpy as np
 import openvino._pyopenvino
 import openvino.utils.decorators
 import typing
+# type: ignore
 """
 Factory functions for ops added to openvino opset13.
 """
@@ -35,7 +36,7 @@ def bitwise_and(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     
         :param left_node: Tensor of integer or boolean datatype providing data.
         :param right_node: Tensor of integer or boolean datatype providing data.
-        :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to ‚ÄúNUMPY‚Äù.
+        :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to ìNUMPYî.
         :param name: The optional new name for output node.
         :return: The node performing bitwise AND operation on input nodes corresponding elements.
         
@@ -59,7 +60,7 @@ def bitwise_or(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     
         :param left_node: Tensor of integer or boolean datatype providing data.
         :param right_node: Tensor of integer or boolean datatype providing data.
-        :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to ‚ÄúNUMPY‚Äù.
+        :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to ìNUMPYî.
         :param name: The optional new name for output node.
         :return: The node performing bitwise OR operation on input nodes corresponding elements.
         
@@ -72,7 +73,7 @@ def bitwise_xor(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     
         :param left_node: Tensor of integer or boolean datatype providing data.
         :param right_node: Tensor of integer or boolean datatype providing data.
-        :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to ‚ÄúNUMPY‚Äù.
+        :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors. Defaults to ìNUMPYî.
         :param name: The optional new name for output node.
         :return: The node performing bitwise XOR operation on input nodes corresponding elements.
         

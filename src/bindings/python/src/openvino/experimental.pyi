@@ -7,6 +7,8 @@ from openvino._pyopenvino.experimental import set_tensor_type
 # type: ignore
 # type: ignore
 # type: ignore
+# type: ignore
+# type: ignore
 """
 
 Package: openvino

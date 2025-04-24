@@ -14,6 +14,7 @@ from openvino.package_utils import deprecated
 from openvino.package_utils import deprecatedclassproperty
 from openvino.package_utils import get_cmake_path
 from openvino.utils.postponed_constant import make_postponed_constant
+# type: ignore
 """
 Generic utilities. Factor related functions out to separate files.
 """

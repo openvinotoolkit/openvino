@@ -21,6 +21,8 @@ from openvino.frontend.frontend import FrontEndManager
 # type: ignore
 # type: ignore
 # type: ignore
+# type: ignore
+# type: ignore
 """
 
 Package: openvino

@@ -8,6 +8,8 @@ import openvino._pyopenvino
 # type: ignore
 # type: ignore
 # type: ignore
+# type: ignore
+# type: ignore
 __all__ = ['Shape', 'Type', 'np', 'pack_data', 'unpack_data']
 def pack_data(array: numpy.ndarray, type: openvino._pyopenvino.Type) -> numpy.ndarray:
     """

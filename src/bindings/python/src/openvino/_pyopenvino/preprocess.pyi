@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy
 import openvino._pyopenvino
 import typing
+# type: ignore
 """
 Package openvino.preprocess that wraps ov::preprocess
 """
@@ -354,7 +355,7 @@ class PreProcessSteps:
                     :type pads_begin: 1D tensor of type T_INT.
                     :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
                     :type pads_end: 1D tensor of type T_INT.
-                    :param value: All new elements are populated with this value or with 0 if input not provided. Shouldnâ€™t be set for other pad_mode values.
+                    :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
                     :type value: scalar tensor of type T.
                     :param mode: pad_mode specifies the method used to generate new element values.
                     :type mode: string
@@ -370,7 +371,7 @@ class PreProcessSteps:
                     :type pads_begin: 1D tensor of type T_INT.
                     :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
                     :type pads_end: 1D tensor of type T_INT.
-                    :param value: All new elements are populated with this value or with 0 if input not provided. Shouldnâ€™t be set for other pad_mode values.
+                    :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
                     :type value: scalar tensor of type T.
                     :param mode: pad_mode specifies the method used to generate new element values.
                     :type mode: string

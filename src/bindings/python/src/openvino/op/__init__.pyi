@@ -13,6 +13,8 @@ from openvino._pyopenvino.op import tensor_iterator
 # type: ignore
 # type: ignore
 # type: ignore
+# type: ignore
+# type: ignore
 """
 
 Package: openvino.op

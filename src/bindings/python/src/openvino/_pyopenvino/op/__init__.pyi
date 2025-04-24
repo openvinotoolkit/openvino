@@ -4,6 +4,7 @@ from __future__ import annotations
 import numpy
 import openvino._pyopenvino
 import typing
+# type: ignore
 """
 Package ngraph.impl.op that wraps ov::op
 """

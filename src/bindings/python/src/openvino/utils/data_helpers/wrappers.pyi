@@ -10,6 +10,7 @@ import numpy
 import numpy as np
 import openvino._pyopenvino
 import typing
+# type: ignore
 __all__ = ['ConstOutput', 'InferRequestBase', 'Mapping', 'OVDict', 'Tensor', 'np', 'singledispatchmethod', 'tensor_from_file']
 class OVDict(collections.abc.Mapping):
     """

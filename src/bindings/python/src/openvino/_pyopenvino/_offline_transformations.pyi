@@ -2,6 +2,7 @@
 from __future__ import annotations
 import openvino._pyopenvino.op
 import typing
+# type: ignore
 """
 openvino._offline_transformations is a private module contains different offline passes.
 """

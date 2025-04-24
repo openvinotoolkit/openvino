@@ -2,6 +2,7 @@
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+# type: ignore
 __all__ = ['ConversionExtensionTensorflow', 'OpExtensionTensorflow']
 class ConversionExtensionTensorflow(_ConversionExtensionTensorflow):
     def __init__(self, arg0: str, arg1: typing.Callable[[openvino._pyopenvino.NodeContext], list[openvino._pyopenvino.Output]]) -> None:
