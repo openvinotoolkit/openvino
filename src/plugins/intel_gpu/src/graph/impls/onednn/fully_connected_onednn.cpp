@@ -188,11 +188,12 @@ protected:
             weights_layout.format = input_layout.format;
         }
 
-        bool has_strides = weights_layout.data_padding
-                            && (weights_layout.data_type == data_types::i4 || weights_layout.data_type == data_types::u4);
+        bool use_strides_for_weight_md = weights_layout.data_padding
+                                        && format::is_default_format(weights_layout.format)
+                                        && (weights_layout.data_type == data_types::i4 || weights_layout.data_type == data_types::u4);
 
         dnnl::memory::desc input_md = onednn::layout_to_memory_desc(input_layout, target_fmt, false);
-        dnnl::memory::desc weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt, false, has_strides);
+        dnnl::memory::desc weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt, false, use_strides_for_weight_md);
         dnnl::memory::desc output_md = onednn::layout_to_memory_desc(output_layout, target_fmt, false);
 
         if (has_bias) {
