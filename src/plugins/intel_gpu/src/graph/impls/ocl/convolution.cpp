@@ -278,7 +278,26 @@ public:
 
 std::unique_ptr<primitive_impl> ConvolutionImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     OPENVINO_ASSERT(node.is_type<convolution>());
-    return typed_primitive_impl_ocl<convolution>::create<convolution_impl>(static_cast<const convolution_node&>(node), params);
+    auto impl = typed_primitive_impl_ocl<convolution>::create<convolution_impl>(static_cast<const convolution_node&>(node), params);
+
+    if (auto weights_reorder_params = impl->get_weights_reorder_params()) {
+        auto input_layout = params.get_input_layout(0);
+        if (input_layout.get_partial_shape().size() == 3) {
+            auto weights_input_layout = weights_reorder_params->get_input_layout();
+            weights_input_layout.set_partial_shape(ov::PartialShape{weights_input_layout.batch(),
+                                                                    weights_input_layout.feature(),
+                                                                    weights_input_layout.spatial(1) * weights_input_layout.spatial(0)});
+            weights_reorder_params->set_input_layout(weights_input_layout);
+
+            auto weights_output_layout = weights_reorder_params->get_output_layout();
+            weights_output_layout.set_partial_shape(ov::PartialShape{weights_output_layout.batch(),
+                                                                     weights_output_layout.feature(),
+                                                                     weights_output_layout.spatial(1) * weights_output_layout.spatial(0)});
+            weights_reorder_params->set_output_layout(weights_output_layout);
+        }
+    }
+
+    return impl;
 }
 
 }  // namespace ocl

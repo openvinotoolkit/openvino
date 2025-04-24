@@ -174,7 +174,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
 }
 
 template<typename ShapeType>
-std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& node, const kernel_impl_params& impl_param) {
+std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<reorder>();
     auto input_layout = impl_param.get_input_layout();
 
@@ -188,16 +188,7 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& node, 
             onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(input_layout);
         }
 #endif // ENABLE_ONEDNN_FOR_GPU
-        if (node.get_users().size() != 0 && node.have_user_with_type<convolution>()) {
-            auto input_layout = node.get_users().front()->get_dependency(0).get_output_layout();
-            auto weights_layout = desc->weights_reorder_params->get_output_layout();
-            auto expected_shape = input_layout.get_partial_shape().size() == 3
-                ? ov::PartialShape{weights_layout.batch(), weights_layout.feature(), weights_layout.spatial(1) * weights_layout.spatial(0)}
-                : weights_layout.get_shape();
-            return { layout(expected_shape, weights_layout.data_type, weights_layout.format, weights_layout.data_padding) };
-        } else {
-            return { desc->weights_reorder_params->get_output_layout() };
-        }
+        return { desc->weights_reorder_params->get_output_layout() };
     } else {
         return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
     }
