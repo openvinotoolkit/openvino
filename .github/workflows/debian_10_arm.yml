@@ -164,6 +164,11 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
+      - name: Display Job statuses
+        run: |
+          echo Job statuses: ${{ toJSON(needs) }}
+          echo Job statuses: ${{ toJSON(needs.*.result) }}
+
       - name: Check status of all jobs
         if: >-
           ${{
