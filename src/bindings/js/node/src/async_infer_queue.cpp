@@ -97,11 +97,9 @@ int AsyncInferQueue::check_idle_request_id() {
         return -1;
     }
     int idle_handle = static_cast<int>(m_idle_handles.front());
+    // wait for request to make sure it returned from callback
+    m_requests[idle_handle].wait();
     m_idle_handles.pop();
-    // m_requests[idle_handle].wait(); // TODO request waits only for C++ callback to finish, not for js callback to
-    // complete. Should work cause request is added to m_idle_handles after js callback is finished.
-    if (m_errors.size() > 0)
-        throw m_errors.front();  // TODO simulate such error
     return idle_handle;
 }
 
@@ -112,7 +110,6 @@ void AsyncInferQueue::set_default_callbacks() {
                 std::lock_guard<std::mutex> lock(m_mutex);
                 m_idle_handles.push(handle);
             }
-            // m_cv.notify_one();
             try {
                 if (exception_ptr) {
                     std::rethrow_exception(exception_ptr);
@@ -128,25 +125,19 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
     // TODO add js::validate for function
     if (info[0].IsFunction()) {
         Napi::Function f_callback = info[0].As<Napi::Function>();
-        this->tsfn =
-            Napi::ThreadSafeFunction::New(info.Env(), f_callback, "AsyncInferQueueCallback", 0, 1, [](Napi::Env env) {
-                std::cout << "Running tsfn finalizer callback\n";
-            });
+        this->tsfn = Napi::ThreadSafeFunction::New(info.Env(), f_callback, "AsyncInferQueueCallback", 0, 1);
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
             m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
                 if (exception_ptr == nullptr) {
-                    auto callback = [this](Napi::Env env, Napi::Function jsCallback, int* handle) {
-                        // std::cout << "tsfn callback" << *handle << "\n";
+                    auto ov_callback = [this](Napi::Env env, Napi::Function jsCallback, int* handle) {
                         Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[*handle]);
-                        jsCallback.Call(
-                            {js_ir, m_user_ids[*handle].first.Value()});  // performs whole callback and goes back here
-                        auto promise = m_user_ids[*handle].second;
-                        promise.Resolve(m_user_ids[*handle].first.Value());  // resolves promise, goes back here (does
-                                                                             // not wait for promise.then() completion)
+                        jsCallback.Call({js_ir, m_user_ids[*handle].first.Value()});
+                        const auto promise = m_user_ids[*handle].second;
+                        promise.Resolve(m_user_ids[*handle].first.Value());
+                        // returns before the promise's .then() is completed
 
-                        // m_cv.notify_one();  // TODO
                         {
-                            // check if any requests are waiting
+                            // Start async inference on the next request or add idle handle to queue
                             std::lock_guard<std::mutex> lock(m_mutex);
                             if (awaiting_requests.size() > 0) {
                                 auto& request = awaiting_requests.front();
@@ -161,8 +152,8 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                         }
                         delete handle;
                     };
-                    // "callback" will be performed when main event loop is free
-                    tsfn.BlockingCall(new int(handle), callback);
+                    // The ov_callback will execute when the main event loop becomes idle
+                    tsfn.BlockingCall(new int(handle), ov_callback);
                 }
                 try {
                     if (exception_ptr) {
