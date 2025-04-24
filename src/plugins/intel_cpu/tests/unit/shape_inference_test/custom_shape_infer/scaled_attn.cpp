@@ -161,7 +161,7 @@ TEST_P(SDPACpuShapeInferenceThrowExceptionTest, wrong_attention_mask) {
 }
 
 auto wrongAttnmaskParams = []() -> std::vector<SDPATestParams> {
-    unit_test::ShapeVector attn_mask_vec = {{1, 1, 47, 47}, {47}, {1}, {9, 47, 94}, {3, 1, 47, 94}};
+    unit_test::ShapeVector attn_mask_vec = {{1, 1, 47, 47}, {47}, {1}, {9, 47, 94}, {3, 1, 47, 94}, {1, 1, 1, 1, 1}};
     auto tuple = std::make_tuple(
             unit_test::ShapeVector{{1, 16, 47, 56},
             {1, 8, 47, 56},

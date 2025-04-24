@@ -38,13 +38,14 @@ public:
             const auto& attn_mask_dims = input_shapes[3].get();
             bool attn_mask_ok = true;
             auto attn_mask_dims_size = attn_mask_dims.size();
-            if (attn_mask_dims_size >= 2) {
+            auto weight_dims = output_dims;
+            auto weight_dims_size = weight_dims.size();
+            if (attn_mask_dims_size >= 2 && attn_mask_dims_size <= weight_dims_size) {
                 auto check_broadcast = [](const size_t& target, const size_t& to) -> bool {
                     return (target != to && target != 1) ? false : true;
                 };
-                auto weight_dims = output_dims;
                 weight_dims[3] = present_v_dims[length_index];
-                auto offset = weight_dims.size() - attn_mask_dims_size;
+                auto offset = weight_dims_size - attn_mask_dims_size;
                 for (int i = attn_mask_dims_size - 1; i >= 0; i--) {
                     attn_mask_ok = attn_mask_ok && check_broadcast(attn_mask_dims[i], weight_dims[i + offset]);
                 }
@@ -77,13 +78,13 @@ public:
         // normal and fast path
         if (present_v_dims[3] == query_dims[3]) {
             return {{output_dims, present_v_dims, present_v_dims}, ShapeInferStatus::success};
-        } else {
-            // diff kv feature size
-            output_dims[3] = present_v_dims[3];
-            auto present_k_dims = present_v_dims;
-            present_k_dims[3] = query_dims[3];
-            return {{output_dims, present_k_dims, present_v_dims}, ShapeInferStatus::success};
         }
+
+        // diff kv feature size
+        output_dims[3] = present_v_dims[3];
+        auto present_k_dims = present_v_dims;
+        present_k_dims[3] = query_dims[3];
+        return {{output_dims, present_k_dims, present_v_dims}, ShapeInferStatus::success};
     }
 
     [[nodiscard]] port_mask_t get_port_mask() const override {
