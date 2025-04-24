@@ -140,7 +140,9 @@ jobs:
     steps:
       - name: Skip workflow
         run: |
-          echo "${{ needs.Smart_CI.outputs.skip_workflow }}"
+          echo "${{ needs.smart_ci.outputs.skip_workflow }}"
+          echo "${{ fromJson(needs.smart_ci.outputs.skip_workflow) }}"
+          echo "${{ toJSON(needs.smart_ci.outputs.skip_workflow) }}"
 
       - name: Display Job statuses
         run: |
