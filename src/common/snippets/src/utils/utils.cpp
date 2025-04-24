@@ -214,9 +214,9 @@ VectorDims get_projected_subtensor(const snippets::lowered::ExpressionPort& expr
                            : get_preordered_vdims(expr_port);
     auto subtensor = desc->get_subtensor();
     for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
-        auto& dim = subtensor[subtensor.size() - i];
-        if (utils::is_full_dim_value(dim))
-            dim = shape[shape.size() - i];
+        if (const auto& dim = subtensor[subtensor.size() - i]; utils::is_full_dim_value(dim)) {
+            subtensor[subtensor.size() - i] = shape[shape.size() - i];
+        }
     }
     return subtensor;
 }
