@@ -10,6 +10,7 @@
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
 #include "lstm_seq_inst.h"
+#include "gru_seq_inst.h"
 #include "intel_gpu/runtime/format.hpp"
 #include "permute_inst.h"
 #include "crop_inst.h"
@@ -30,6 +31,12 @@ template <>
 post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const lstm_seq_node& node) {
     const int W_idx = 3;
     return weights_bias_offset(W_idx, 3);
+}
+
+template <>
+post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const gru_seq_node& node) {
+    const int W_idx = 2;
+    return weights_bias_offset(W_idx, 2);
 }
 
 // function which prepares given primitive for weights optimization
@@ -124,6 +131,13 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                     }
                     auto& weights_reorder_node = node.get_dependency(i);
                     weights_reorder_node.get_output_layout(false);
+                } else if (node.type() == gru_seq::type_id()) {
+                    program_node& prev_node = node.get_dependency(i);
+                    if (i == 2 || i == 3) {
+                        add_gru_weights_reorder(prev_node.id(), weights_reorder_params, p, prev_node, node, i);
+                    }
+                    auto& weights_reorder_node = node.get_dependency(i);
+                    weights_reorder_node.get_output_layout(false);
                 } else {
                     auto weights_reorder = _rf.get_weights_reorder(prev_node.id(), weights_reorder_params);
                     // insert new weights reorder node to topology
@@ -149,6 +163,23 @@ void post_optimize_weights::select_implementation(program& p, program_node& node
         auto params = node.get_kernel_impl_params();
         p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
     }
+}
+
+void post_optimize_weights::add_gru_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
+    cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
+    OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
+    std::string permute_id = input_id + "_permute" + to_string(i);
+    std::vector<uint16_t> ord{0, 2, 1};
+    auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{input_id}, ord);
+    auto& permute_node = p.get_or_create(permute);
+    p.add_intermediate(permute_node, node, prev,  true);
+    auto set_implementation_and_output = [this, &p](program_node& node) {
+        node.get_output_layout(false);
+        select_implementation(p, node);
+        p.mark_if_constant(node);
+        node.recalc_output_layout(false);
+    };
+    set_implementation_and_output(permute_node);
 }
 
 void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
@@ -259,6 +290,8 @@ void post_optimize_weights::run(program& p) {
         } else if (node->is_type<lstm_seq>()) {
             optimize_weights(node->as<lstm_seq>(), p);
             found_lstm = true;
+        } else if (node->is_type<gru_seq>()) {
+            optimize_weights(node->as<gru_seq>(), p);
         }
     }
     if (found_lstm)
