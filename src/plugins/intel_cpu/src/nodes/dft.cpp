@@ -602,8 +602,7 @@ void DFT::createPrimitive() {
         const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
         hasDFT = hasFFT = false;
         for (auto axis : axes) {
-            size_t nComplex = outputShape[axis];
-            if (IsPowerOfTwo(nComplex)) {
+            if (IsPowerOfTwo(outputShape[axis])) {
                 hasFFT = true;
             } else {
                 hasDFT = true;
