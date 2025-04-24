@@ -134,7 +134,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         out_fmt = node.get_preferred_output_fmt();
     }
 
-    if (!node.get_program().is_new_shape_infer() && desc->with_output_size) {
+    if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined output spatial X",
                                        desc->output_size.spatial[0],
