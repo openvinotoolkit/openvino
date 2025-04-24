@@ -138,19 +138,15 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
-      - name: Skip workflow
-        run: |
-          echo "${{ needs.smart_ci.outputs.skip_workflow }}"
-
-      - name: Display Job statuses
-        run: |
-          echo "Job statuses: ${{ toJSON(needs) }}"
-          echo "Job statuses: ${{ toJSON(needs.*.result) }}"
+      - name: Check if all jobs should be skipped
+        if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
+        run: exit 0
 
       - name: Check status of all jobs
         if: >-
           ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
+            (contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')) &&
+            !needs.smart_ci.outputs.skip_workflow
           }}
         run: exit 1
