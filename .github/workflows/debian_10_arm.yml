@@ -73,7 +73,7 @@ jobs:
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
 
   Build:
-    needs: [dummy_job]
+    needs: [Smart_CI, Docker]
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
