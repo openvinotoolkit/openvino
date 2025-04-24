@@ -21,7 +21,7 @@ from openvino.frontend.jax.utils import jax_array_to_ov_const, get_ov_type_for_v
 
 import numpy as np
 
-from typing import List
+from typing import List, Union, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -108,8 +108,9 @@ class JaxprPythonDecoder(Decoder):
     def get_input_signature_name(self, index) -> str:
         return "jaxpr_invar_" + str(index)
 
-    def get_input_type(self, index) -> OVType:
-        return get_ov_type_for_value(self.jaxpr.invars[index])
+    def get_input_type(self, index) -> Union[OVType, OVAny]:
+        result = get_ov_type_for_value(self.jaxpr.invars[index])
+        return result if result is not None else OVType.undefined
 
     def get_named_param(self, name):
         '''
@@ -135,8 +136,9 @@ class JaxprPythonDecoder(Decoder):
         '''
         return list(self.params.keys())
 
-    def get_output_type(self, index) -> OVType:
-        return get_ov_type_for_value(self.jaxpr.outvars[index])
+    def get_output_type(self, index) -> Union[OVType, OVAny]:
+        result = get_ov_type_for_value(self.jaxpr.outvars[index])
+        return result if result is not None else OVType.undefined
 
     def get_output_name(self, index) -> str:
         return "jaxpr_outvar_" + str(index)
@@ -151,9 +153,10 @@ class JaxprPythonDecoder(Decoder):
             self.m_decoders.append(decoder)
             node_visitor(decoder)
         for idx, node in enumerate(self.jaxpr.constvars):
+            name_prefix = "" if self.name is None else (self.name + "/")
             decoder = self.convert_literal_to_constant_node(
                 literal=self.literals[idx],
-                name=self.name + "/" + f"const({id(node)})",
+                name=name_prefix + "/" + f"const({id(node)})",
                 output_id=id(node)
             )
             self.m_decoders.append(decoder)
@@ -166,7 +169,8 @@ class JaxprPythonDecoder(Decoder):
                     literal_decoder = self.convert_literal_to_constant_node(inp)
                     literal_decoders.append(literal_decoder)
                     node_visitor(literal_decoder)
-            decoder = JaxprPythonDecoder(node, name=self.name + "/" + node.primitive.name, literals=literal_decoders)
+            name_prefix = "" if self.name is None else (self.name + "/")
+            decoder = JaxprPythonDecoder(node, name=name_prefix + "/" + node.primitive.name, literals=literal_decoders)
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
@@ -271,16 +275,19 @@ class _JaxprPythonConstantDecoder(Decoder):
         '''
         return []
 
-    def get_output_type(self, index) -> OVType:
-        assert len(self.constant) == 1
-        return OVAny(self.constant[0].element_type)
+    def get_output_type(self, index) -> Union[OVType, OVAny]:
+        if self.constant is not None and len(self.constant) > 0:
+            return OVAny(self.constant[0].element_type)
+        return OVType.undefined
+        
 
     def get_output_name(self, index) -> str:
         return "jaxpr_outvar_" + str(index)
 
     def get_output_shape(self, index):
-        assert len(self.constant) == 1
-        return PartialShape(self.constant[0].shape)
+        if self.constant is not None and len(self.constant) > 0:
+            return OVAny(self.constant[0].element_type)
+        return OVType.undefined
 
     def visit_subgraph(self, node_visitor) -> None:
         return

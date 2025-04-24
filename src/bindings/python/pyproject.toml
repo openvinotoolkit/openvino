@@ -14,7 +14,6 @@ exclude = [
     "src/openvino/utils/node_factory.py",
     "src/openvino/frontend/tensorflow",
     "src/openvino/frontend/pytorch",
-    "src/openvino/frontend/jax",
 ]
 reportInvalidTypeForm = false
 reportMissingModuleSource = false

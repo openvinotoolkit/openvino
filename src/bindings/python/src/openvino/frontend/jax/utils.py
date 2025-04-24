@@ -182,7 +182,8 @@ def ivalue_to_constant(ivalue, shared_memory=True):
 
     ov_dtype_value = get_ov_type_from_jax_type(ivalue)
     if ov_dtype_value is not None:
-        return op.Constant(OVType.i64, Shape([]), [ov_type_to_int_map[ov_dtype_value]]).outputs()
+        ov_type = ov_dtype_value.element_type
+        return op.Constant(OVType.i64, Shape([]), [ov_type_to_int_map[ov_type]]).outputs()
 
     return None
 
