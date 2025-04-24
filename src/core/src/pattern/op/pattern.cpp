@@ -410,35 +410,23 @@ op::Predicate shape_matches(const std::string& shape_notation) {
                 return false;
             PatternSymbolMap local_m;
             GroupDetails group;
-<<<<<<< HEAD
-            for (const auto& [this_dim_idx, name] : idx_to_name) {
-                if (!group.name.empty() && this_dim_idx < group.end)
-                    group.end = this_dim_idx;
-                if (name == "?" || name == "...")
-=======
             for (const auto& [position, expected_as_string] : position_to_name) {
                 if (!group.name.empty() && position < group.end)
                     // placement is intentional -- record end of the group even if ? is placed after the group
                     // after epsilon all positions are negative (python style)
                     group.end = position;
                 if (expected_as_string == "?" || expected_as_string == "...")
->>>>>>> jane-intel/attribute_pattern_matching
                     continue;
                 if (ends_with(expected_as_string, "...")) {  // named group detected
                     group.name = {expected_as_string.substr(0, expected_as_string.size() - 3)};
                     group.begin = position;
                     continue;
                 }
-<<<<<<< HEAD
-                const auto& this_dim = shape[this_dim_idx];
-                const auto& [conversion_failed, converted_int] = str2int(name);
-=======
 
                 const auto& actual_dim = shape[position];
                 const auto& actual_value = actual_dim.is_static() ? PatternSymbolValue(actual_dim.get_length())
                                                                   : PatternSymbolValue(actual_dim.get_symbol());
                 const auto& [conversion_failed, converted_int] = str2int(expected_as_string);
->>>>>>> jane-intel/attribute_pattern_matching
                 if (conversion_failed) {  // failed the conversion -- this is a name
                     const auto& name = expected_as_string;
                     if (m.count(name) || local_m.count(name)) {

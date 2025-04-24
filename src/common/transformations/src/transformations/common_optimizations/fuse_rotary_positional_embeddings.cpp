@@ -118,16 +118,16 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     auto t_sin = pattern::any_input(pattern::rank_equals(4));
 
     auto x1 = pattern::wrap_type<opset1::Reshape>({x, pattern::any_input()}, pattern::shape_matches("[PRESERVED_DIMS..., ?, 2]"));
-    auto split = pattern::wrap_type<opset1::Split>({x1, INT_CONSTANT_WITH_PREDICATE(value == std::vector<int64_t>{-1})}, {{"num_splits", 2l}});
+    auto split = pattern::wrap_type<opset1::Split>({x1, -1}, {{"num_splits", 2}});
     split->set_output_size(2);
 
     // 3 versions of mulitply by -1 depending on transformations execution prior to this pass
-    auto opt_squeeze = pattern::optional<opset1::Squeeze>({split->output(1), INT_CONSTANT_WITH_PREDICATE(value == std::vector<int64_t>{-1})});
-    auto x1_1_neg = pattern::wrap_type<opset1::Multiply>({opt_squeeze, FLOAT_CONSTANT_WITH_PREDICATE(value == std::vector<float>{-1})}, {{"auto_broadcast", "numpy"}});
-    auto opt_squeeze_1 = pattern::optional<opset1::Squeeze>({x1_1_neg, INT_CONSTANT_WITH_PREDICATE(value == std::vector<int64_t>{-1})});
-    auto opt_unsqueeze = pattern::optional<opset1::Unsqueeze>({opt_squeeze_1, INT_CONSTANT_WITH_PREDICATE(value == std::vector<int64_t>{-1})});
+    auto opt_squeeze = pattern::optional<opset1::Squeeze>({split->output(1), -1});
+    auto x1_1_neg = pattern::wrap_type<opset1::Multiply>({opt_squeeze, -1}, {{"auto_broadcast", "numpy"}});
+    auto opt_squeeze_1 = pattern::optional<opset1::Squeeze>({x1_1_neg, -1});
+    auto opt_unsqueeze = pattern::optional<opset1::Unsqueeze>({opt_squeeze_1, -1});
 
-    auto x2 = pattern::wrap_type<opset1::Concat>({opt_unsqueeze, split->output(0)}, {{"axis", -1l}});
+    auto x2 = pattern::wrap_type<opset1::Concat>({opt_unsqueeze, split->output(0)}, {{"axis", -1}});
     auto x3 = pattern::wrap_type<opset1::Reshape>({x2, pattern::any_input()}, pattern::shape_matches("[PRESERVED_DIMS..., head_size]"));
 
     auto y1 = pattern::wrap_type<opset1::Multiply>({x, t_cos}, {{"auto_broadcast", "numpy"}});
@@ -174,8 +174,6 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
 
         // this new node may match following additional matchers
         register_new_node(new_node);
-        std::cout << "END OF RoPEFusionFlux" << std::endl;
-
         return true;
     };
 
