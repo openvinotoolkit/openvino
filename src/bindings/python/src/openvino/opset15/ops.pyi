@@ -13,6 +13,7 @@ import numpy as np
 import openvino._pyopenvino
 import openvino.utils.decorators
 import typing
+# type: ignore
 """
 Factory functions for ops added to openvino opset15.
 """

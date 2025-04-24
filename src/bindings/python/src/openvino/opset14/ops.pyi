@@ -10,6 +10,7 @@ from openvino.utils.types import as_nodes
 import functools
 import openvino._pyopenvino
 import typing
+# type: ignore
 """
 Factory functions for ops added to openvino opset14.
 """

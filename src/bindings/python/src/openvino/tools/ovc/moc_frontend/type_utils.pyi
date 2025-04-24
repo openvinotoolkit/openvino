@@ -4,6 +4,7 @@ from openvino._pyopenvino import Type
 import numpy as np
 import openvino as ov
 import sys as sys
+# type: ignore
 __all__ = ['Type', 'is_type', 'np', 'ov', 'sys', 'to_ov_type']
 def is_type(val):
     ...

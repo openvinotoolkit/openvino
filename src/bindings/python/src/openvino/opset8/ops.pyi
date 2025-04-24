@@ -17,6 +17,7 @@ import functools
 import numpy as np
 import openvino._pyopenvino
 import typing
+# type: ignore
 """
 Factory functions for all openvino ops.
 """

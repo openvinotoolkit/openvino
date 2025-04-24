@@ -2,6 +2,7 @@
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+# type: ignore
 __all__ = ['OpExtension']
 class OpExtension(openvino._pyopenvino._ConversionExtension):
     @typing.overload

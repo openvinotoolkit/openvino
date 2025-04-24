@@ -13,6 +13,7 @@ from openvino._pyopenvino.preprocess import PostProcessSteps
 from openvino._pyopenvino.preprocess import PrePostProcessor
 from openvino._pyopenvino.preprocess import PreProcessSteps
 from openvino._pyopenvino.preprocess import ResizeAlgorithm
+# type: ignore
 """
 
 Package: openvino

@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy
 import openvino._pyopenvino
 import typing
+# type: ignore
 """
 Package openvino.preprocess that wraps ov::preprocess
 """

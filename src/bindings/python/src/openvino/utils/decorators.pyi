@@ -11,6 +11,7 @@ from typing import get_args
 from typing import get_origin
 import openvino._pyopenvino
 import typing
+# type: ignore
 __all__ = ['Any', 'MultiMethod', 'Node', 'NodeInput', 'Output', 'as_node', 'as_nodes', 'binary_op', 'custom_preprocess_function', 'get_args', 'get_origin', 'nameable_op', 'overloading', 'registry', 'signature', 'unary_op', 'wraps']
 class MultiMethod:
     def __call__(self, *args, **kwargs) -> typing.Any:

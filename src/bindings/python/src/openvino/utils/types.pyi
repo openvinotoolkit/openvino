@@ -12,6 +12,7 @@ import numpy as np
 import openvino._pyopenvino
 import openvino._pyopenvino.op
 import typing
+# type: ignore
 """
 Functions related to converting between Python and numpy types and openvino types.
 """

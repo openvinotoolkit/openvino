@@ -18,6 +18,7 @@ from openvino._pyopenvino import get_version
 from openvino._pyopenvino.frontend import OpExtension
 from openvino.frontend.frontend import FrontEnd
 from openvino.frontend.frontend import FrontEndManager
+# type: ignore
 """
 
 Package: openvino
