@@ -46,8 +46,13 @@ ov::pass::HardSigmoidDecomposition::HardSigmoidDecomposition() {
         max->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(hard_sigmoid_node,
                               {alpha_constant.get_node_shared_ptr(),
-                                  multiply, betta_constant.get_node_shared_ptr(),
-                                  add, min_constant, min, max_constant, max});
+                               multiply,
+                               betta_constant.get_node_shared_ptr(),
+                               add,
+                               min_constant,
+                               min,
+                               max_constant,
+                               max});
         ov::replace_node(m.get_match_root(), max);
         return true;
     };
