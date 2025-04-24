@@ -1,0 +1,39 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+model_version: 1
+graph {
+  node {
+    input: "Input3"
+    output: "Block87_Output_0"
+    name: "Block87"
+    op_type: "Flatten"
+    attribute {
+      name: "axis"
+      i: 1
+      type: INT
+    }
+    doc_string: ""
+    domain: ""
+  }
+  name: "CNTKGraph"
+  input {
+    name: "Input3"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "Block87_Output_0"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 2
+}

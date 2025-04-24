@@ -1,0 +1,22 @@
+<attributes>
+    <processes>
+        <value>1</value>
+        <value>2</value>
+        <value>8</value>
+    </processes>
+    <threads>
+        <value>1</value>
+        <value>2</value>
+    </threads>
+    <iterations>
+        <value>1000</value>
+    </iterations>
+    <devices>
+        <value>CPU</value>
+        <value>GPU</value>
+    </devices>
+    <models>
+        <model name="alexnet" precision="FP32" source="omz" />
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+    </models>
+</attributes>

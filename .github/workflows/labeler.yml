@@ -1,0 +1,47 @@
+name: "Pull Request Labeler"
+on:
+- pull_request_target
+
+permissions: read-all
+
+jobs:
+  triage:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    steps:
+    - uses: akladiev/labeler@eeac5941e7fb6f980d47e038ac0665168851c874 # v4.3.1
+      with:
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        configuration-path: '.github/labeler.yml'
+        sync-labels: 'true'
+        dot: 'true'
+        non-matching-label: 'no-match-files'
+
+  external_pr_labeller:
+    name: Label External PR
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    steps:
+      - name: Checkout Labeller Script
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: '.github'
+
+      - name: Install deps
+        run: pip3 install PyGithub==2.2.0
+
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
+
+      - name: Label External PR
+        env:
+          GITHUB_TOKEN: "${{ secrets.EXTERNAL_LABELLER_TOKEN }}"
+        run: |
+          python3 ${{ github.workspace }}/.github/scripts/external_pr_labeller.py \
+          --repository-name ${GITHUB_REPOSITORY} --pr-number ${{ github.event.number }}

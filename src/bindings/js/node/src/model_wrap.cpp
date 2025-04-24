@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/model_wrap.hpp"
@@ -31,18 +31,6 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
 
 void ModelWrap::set_model(const std::shared_ptr<ov::Model> &model) {
   _model = model;
-}
-
-Napi::Object ModelWrap::wrap(Napi::Env env, std::shared_ptr<ov::Model> model) {
-  Napi::HandleScope scope(env);
-  const auto &prototype = env.GetInstanceData<AddonData>()->model;
-  if (!prototype) {
-    OPENVINO_THROW("Invalid pointer to model prototype.");
-  }
-  const auto &model_js = prototype.New({});
-  const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
-  mw->set_model(model);
-  return model_js;
 }
 
 Napi::Value ModelWrap::get_name(const Napi::CallbackInfo &info) {
@@ -215,13 +203,4 @@ Napi::Value ModelWrap::clone(const Napi::CallbackInfo &info) {
     reportError(info.Env(), e.what());
     return info.Env().Undefined();
   }
-}
-
-Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo &info) {
-  std::vector<ov::Node *> ops = this->model_->get_ops();
-  Napi::Array result = Napi::Array::New(info.Env(), ops.size());
-  for (size_t i = 0; i < ops.size(); i++) {
-    result[i] = NodeWrap::New(info.Env(), ops[i]);
-  }
-  return result;
 }

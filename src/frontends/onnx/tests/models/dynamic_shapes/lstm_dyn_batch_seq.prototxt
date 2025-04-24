@@ -1,0 +1,278 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    output: "W"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 12
+        dims: 1
+        data_type: 1
+        float_data: 0.31403765082359314
+        float_data: -0.16793324053287506
+        float_data: 1.3882579803466797
+        float_data: -0.690295398235321
+        float_data: -0.39940449595451355
+        float_data: -0.7833511233329773
+        float_data: -0.30992957949638367
+        float_data: 0.35575729608535767
+        float_data: -0.46826308965682983
+        float_data: 1.1741459369659424
+        float_data: -2.4147889614105225
+        float_data: -0.42783254384994507
+        name: "const_tensor_W"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "R"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 12
+        dims: 3
+        data_type: 1
+        float_data: 0.8490582704544067
+        float_data: 0.45121243596076965
+        float_data: -1.179901361465454
+        float_data: 0.13536448776721954
+        float_data: 0.813286542892456
+        float_data: 0.6017516255378723
+        float_data: 0.4847572445869446
+        float_data: -1.2136037349700928
+        float_data: 0.16383321583271027
+        float_data: 1.5106260776519775
+        float_data: 1.1177502870559692
+        float_data: 0.2358246147632599
+        float_data: 0.8490582704544067
+        float_data: 0.45121243596076965
+        float_data: -1.179901361465454
+        float_data: 0.13536448776721954
+        float_data: 0.813286542892456
+        float_data: 0.6017516255378723
+        float_data: 0.4847572445869446
+        float_data: -1.2136037349700928
+        float_data: 0.16383321583271027
+        float_data: 1.5106260776519775
+        float_data: 1.1177502870559692
+        float_data: 0.2358246147632599
+        float_data: 0.8490582704544067
+        float_data: 0.45121243596076965
+        float_data: -1.179901361465454
+        float_data: 0.13536448776721954
+        float_data: 0.813286542892456
+        float_data: 0.6017516255378723
+        float_data: 0.4847572445869446
+        float_data: -1.2136037349700928
+        float_data: 0.16383321583271027
+        float_data: 1.5106260776519775
+        float_data: 1.1177502870559692
+        float_data: 0.2358246147632599
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "B"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 24
+        data_type: 1
+        float_data: 0.53367018699646
+        float_data: 1.6593654155731201
+        float_data: -1.1500109434127808
+        float_data: 0.0034221699461340904
+        float_data: 0.7993710041046143
+        float_data: 0.43780383467674255
+        float_data: -0.5508262515068054
+        float_data: 1.0774186849594116
+        float_data: -0.606513500213623
+        float_data: 0.6434063911437988
+        float_data: -1.5693753957748413
+        float_data: 1.4923384189605713
+        float_data: 1.1554348468780518
+        float_data: -1.328158974647522
+        float_data: 0.24995532631874084
+        float_data: 0.15112681686878204
+        float_data: -0.3469875752925873
+        float_data: -0.100888192653656
+        float_data: -0.2931624948978424
+        float_data: -0.4731961488723755
+        float_data: 0.6616785526275635
+        float_data: -1.1646721363067627
+        float_data: -0.09588219225406647
+        float_data: 0.5212928056716919
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "X"
+    input: "W"
+    input: "R"
+    input: "B"
+    input: "sequence_lens"
+    input: "initial_h"
+    input: "initial_c"
+    output: "Y"
+    output: "Y_h"
+    output: "Y_c"
+    op_type: "LSTM"
+    attribute {
+      name: "direction"
+      s: "forward"
+      type: STRING
+    }
+    attribute {
+      name: "hidden_size"
+      i: 3
+      type: INT
+    }
+  }
+  name: "test-model-lstm"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "sequence_lens"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: -1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "initial_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "initial_c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: -1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 12
+}

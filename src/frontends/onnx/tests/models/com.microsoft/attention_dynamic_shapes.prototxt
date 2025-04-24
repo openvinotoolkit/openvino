@@ -1,0 +1,90 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "input"
+    input: "weights"
+    input: "bias"
+    input: "mask"
+    input: "past"
+    output: "output"
+    output: "present"
+    name: "Attention_1"
+    op_type: "Attention"
+    attribute {
+      name: "num_heads"
+      i: 2
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  name: "attention-model"
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  input {
+    name: "weights"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  input {
+    name: "bias"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  input {
+    name: "mask"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+            dim {}
+            dim {}
+        }
+      }
+    }
+  }
+  input {
+    name: "past"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "present"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

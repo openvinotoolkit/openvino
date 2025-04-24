@@ -1,0 +1,31 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+model_version: 1
+graph {
+  name: "Dynamic Transpose"
+  node {
+    input: "A"
+    output: "transposed"
+    name: "TransposeNode"
+    op_type: "Transpose"
+  }
+  input {
+    name: "A"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "transposed"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

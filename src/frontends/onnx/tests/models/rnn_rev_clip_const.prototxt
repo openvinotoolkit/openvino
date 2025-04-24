@@ -1,0 +1,157 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    output: "W"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 5
+        dims: 2
+        data_type: 1
+        float_data: 0.31403765082359314
+        float_data: -0.16793324053287506
+        float_data: 1.3882579803466797
+        float_data: -0.690295398235321
+        float_data: -0.39940449595451355
+        float_data: -0.7833511233329773
+        float_data: -0.30992957949638367
+        float_data: 0.35575729608535767
+        float_data: -0.46826308965682983
+        float_data: 1.1741459369659424
+        name: "const_tensor_W"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    output: "R"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        dims: 5
+        dims: 5
+        data_type: 1
+        float_data: -2.4147889614105225
+        float_data: -0.42783254384994507
+        float_data: -0.821994960308075
+        float_data: -0.03900860995054245
+        float_data: -0.43670088052749634
+        float_data: -0.5381056666374207
+        float_data: -0.10769882798194885
+        float_data: 0.7524239420890808
+        float_data: -0.2507970929145813
+        float_data: 1.044718623161316
+        float_data: -1.4777363538742065
+        float_data: 0.1999327391386032
+        float_data: 0.9256489872932434
+        float_data: -2.2825160026550293
+        float_data: 0.9503963589668274
+        float_data: 1.5379830598831177
+        float_data: -0.8857600688934326
+        float_data: 0.2856624722480774
+        float_data: 0.7929264307022095
+        float_data: -0.042619530111551285
+        float_data: 0.8490582704544067
+        float_data: 0.45121243596076965
+        float_data: -1.179901361465454
+        float_data: 0.13536448776721954
+        float_data: 0.813286542892456
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "X"
+    input: "W"
+    input: "R"
+    output: "Y"
+    output: "Y_h"
+    op_type: "RNN"
+    attribute {
+      name: "clip"
+      f: 1.7519999742507935
+      type: FLOAT
+    }
+    attribute {
+      name: "direction"
+      s: "reverse"
+      type: STRING
+    }
+    attribute {
+      name: "hidden_size"
+      i: 5
+      type: INT
+    }
+  }
+  name: "test-model-rnn"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_h"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 12
+}

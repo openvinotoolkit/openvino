@@ -1,0 +1,46 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "size"
+    output: "y"
+    op_type: "HammingWindow"
+    attribute {
+      name: "output_datatype"
+      i: 1  # Use 1 for f32
+      type: INT
+    }
+    attribute {
+      name: "periodic"
+      i: 1  # Set to 1 for periodic, 0 for non-periodic
+      type: INT
+    }
+  }
+  name: "test_hammingwindow_periodic"
+  input {
+    name: "size"
+    type {
+      tensor_type {
+        elem_type: 7  # INT64
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1  # FLOAT
+        shape {
+          dim {
+            dim_value: 10  # Modify this based on your expected output shape
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 17
+}

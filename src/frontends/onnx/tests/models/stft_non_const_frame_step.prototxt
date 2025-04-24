@@ -1,0 +1,99 @@
+ir_version: 8
+graph {
+  node {
+    output: "frame_length"
+    name: "frame_length_const"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 16
+        name: "frame_length_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    input: "signal"
+    input: "frame_step"
+    input: "window"
+    input: "frame_length"
+    output: "Y"
+    op_type: "STFT"
+    attribute {
+      name: "onesided"
+      i: 1
+      type: INT
+    }
+  }
+  name: "g"
+  input {
+    name: "signal"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 32
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "frame_step"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "window"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+          dim {
+          }
+          dim {
+          }
+          dim {
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 17
+}

@@ -1,0 +1,34 @@
+name: 'System Information'
+description: 'Information about the system'
+runs:
+  using: "composite"
+  steps:
+    - if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        # Install pre-requisites for Fedora
+        if [[ -e /etc/fedora-release ]]; then
+          yum update -y -q && yum install -y -q procps
+        fi
+        
+        echo "System: ${{ runner.os }}"
+        echo "System Architecture: ${{ runner.arch }}"
+        echo "CPU Info: "; lscpu
+        echo "RAM Info: "; free -h --si
+        echo "MEMORY Info: "; df -h
+
+    - if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        echo "System: ${{ runner.os }}"
+        echo "System Architecture: ${{ runner.arch }}"
+        echo "CPU and RAM Info: "; system_profiler SPHardwareDataType
+        echo "MEMORY Info: "; df -h
+
+    - if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        echo "System: ${{ runner.os }}"
+        echo "System Architecture: ${{ runner.arch }}"
+        echo "CPU Info: "; Get-CimInstance –ClassName Win32_Processor | Select-Object -Property Name, NumberOfCores, NumberOfLogicalProcessors
+        echo "RAM info: $(systeminfo | Select-String 'Total Physical Memory:')"

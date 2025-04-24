@@ -1,0 +1,485 @@
+:root {
+    /* OpenVino Sphinx Theme Variables */
+    --ost-font-size:16px;
+    --ost-color-primary:0, 104, 181;
+    --ost-color-primary-variant:0, 74, 134;
+    --ost-color-secondary: 0, 163, 246;
+    --ost-color-text-primary:38, 38, 38;
+    --ost-color-text-primary-variant:43, 44, 48;
+    --ost-color-sidebar-link-active: var(--ost-color-text-primary);
+    --ost-color-sidebar-link-hover: var(--ost-color-sidebar-link-active);
+    --ost-color-sidebar-link: var(--ost-color-text-primary-variant);
+    --ost-color-link: var(--ost-color-primary);
+    --ost-color-link-hover:var(--ost-color-primary);
+    --ost-tabs--label-text--active: var(--white);
+    --ost-tabs--border:var(--ost-tabs--label-text--active);
+    --ost-tabs--label-background: 247, 247, 247;
+    --ost-tabs--label-background-active: var(--ost-tabs--label-background);
+    --ost-tabs--label-background-hover: rgb(var(--ost-tabs--label-background));
+    --ost-color-h1: var(--ost-color-text-primary);
+    --ost-color-h2: var(--pst-color-h1);
+    --ost-color-active-navigation:var(--ost-color-text-primary);
+    --ost-color-navbar-background: var(--ost-color-primary);
+    --ost-color-sst-dropdown-text:255, 255, 255;
+    --ost-color-sst-dropdown-background:var(--ost-color-navbar-background);
+    --ost-color-sst-dropdown-background-active:var(--ost-color-primary-variant);
+    /* Override Pydata Sphinx Theme Variables */
+    --pst-font-family-heading: var(--ost-font-family), var(--pst-font-family-base-system);
+    --pst-font-size-base: var(--ost-font-size);
+    --pst-color-sidebar-link-active: var(--ost-color-sidebar-link-active);
+    --pst-color-sidebar-link-hover: var(--ost-color-sidebar-link-hover);
+    --pst-color-sidebar-link: var(--ost-color-sidebar-link);
+    --pst-color-primary: var(--ost-color-primary);
+    --pst-color-secondary: var(--ost-color-primary)!important;
+    --pst-color-link: var(--ost-color-link);
+    --pst-color-link-hover: var(--ost-color-link-hover);
+    --tabs--label-text--active: var(--ost-tabs--label-text--active);
+    --tabs--label-background--active: rgb(var(--ost-color-primary));
+    --tabs--border: var(--ost-tabs--border);
+    --tabs--label-background: var(--ost-tabs--label-background);
+    --pst-color-h1: var(--ost-color-h1);
+    --pst-color-h2: var(--ost-color-h2);
+    --pst-color-active-navigation: var(--ost-color-active-navigation);
+}
+
+body {
+    -webkit-font-smoothing: antialiased;
+}
+
+.bd-sidebar .nav .active > a {
+    font-weight: 700!important;
+}
+
+.toc-entry >.nav-link.active {
+    font-weight: 500!important;
+    border-color: rgb(var(--ost-color-primary));
+}
+
+
+/* Syntax Highlighting */
+
+code {
+    color: rgb(var(--ost-color-primary));
+}
+
+code.descname, code.descclassname {
+    font-size: 1rem;
+}
+
+.highlight-default,
+.highlight-default .highlight,
+.highlight-default pre,
+.highlight-default .highlight .k,
+.highlight-default .highlight .kc,
+.highlight-default .highlight .kd,
+.highlight-default .highlight .nb,
+.highlight-default .highlight .kn,
+.highlight-default .highlight .kp,
+.highlight-default .highlight .kr,
+.highlight-default .highlight .kt,
+.highlight-default span {
+    background-color:transparent;
+    font-weight: normal !important;
+    color: #000000 !important;
+}
+
+.highlight-default pre {
+    border: none;
+    box-shadow: none;
+}
+
+em.sig-param,
+.sig-paren {
+    font-weight: normal;
+    font-style: italic;
+    font-size: inherit;
+}
+
+.highlight .p {
+    font-weight: normal;
+}
+
+.sst-github {
+    vertical-align: middle;
+    content: url('media/github-mark-light.svg');
+}
+
+#navbar-icon-links {
+    transform: translateY(-50%);
+    top:50%;
+    position: relative;
+}
+
+@media print {
+    .bd-sidebar, .prev-next-bottom, .editthispage {
+        display: none;
+    }
+}
+
+blockquote {
+    background: #F9F9F9;
+    padding:1rem;
+}
+
+blockquote p {
+    margin-bottom:0;
+}
+
+@media (min-width: 720px) {
+    .pl-md-5, .px-md-5 {
+        padding-left: 3.2rem!important;
+    }
+}
+
+@media (min-width: 720px) {
+    .pr-md-4, .px-md-4 {
+        padding-right: 3.2rem!important;
+    }
+}
+
+/* Edit this page */
+
+.editthispage {
+    padding-top:0;
+}
+
+.editthispage a {
+    color: rgba(var(--ost-color-link), 1);
+}
+
+.editthispage a:hover {
+    color: rgba(var(--ost-color-link-hover), 1);
+}
+
+/* Toctree */
+
+.toctree-wrapper.compound p, .bd-toc-item.active p {
+    margin-bottom: 0;
+}
+
+/* Toc */
+
+.bd-toc-item.active p {
+    color: rgba(var(--ost-color-primary),1);
+}
+
+.bd-toc .onthispage {
+    color: rgba(var(--ost-color-h1),1);
+    font-weight: 500;
+}
+
+/* Navbar */
+
+.navbar-brand {
+    padding-left:0.5rem;
+}
+
+@media (max-width:426px) {
+    .navbar-toggler {
+        padding-right:1.5rem;
+    }
+}
+
+.navbar-light .navbar-toggler-icon {
+    background-image: url('media/burger.svg');
+}
+
+.navbar-brand > .title {
+    position: absolute;
+    transform: translateY(-50%);
+    top: 50%;
+}
+
+.navbar {
+    background:rgba(var(--ost-color-navbar-background), 1) !important;
+    height: 60px;
+}
+
+.navbar-light .navbar-nav li a.nav-link {
+    color: #fff !important;
+    font-size: 1rem;
+    white-space: nowrap!important;
+    padding-right:0;
+    padding: 0 .8rem;
+}
+
+@media (max-width: 1072px) {
+    #navbar-collapsible {
+        max-width: 100%;
+        display: none !important;
+    }
+
+    #navbar-collapsible.show {
+        display: block !important;
+    }
+
+    .navbar-expand-lg>.container,
+    .navbar-expand-lg>.container-fluid,
+    .navbar-expand-lg>.container-lg,
+    .navbar-expand-lg>.container-md,
+    .navbar-expand-lg>.container-sm,
+    .navbar-expand-lg>.container-xl {
+        flex-wrap: wrap;
+    }
+
+    .container-xl {
+        display: block;
+    }
+
+    .navbar-toggler {
+        display: block !important;
+    }
+}
+
+@media (max-width:426px) {
+    .bd-content {
+        padding-left:1.5rem;
+        padding-right:1.5rem;
+    }
+}
+
+#navbar-collapsible {
+    padding-left:0;
+}
+
+#navbar-end {
+    display: flex;
+    flex-direction: row;
+    padding-left:0.1rem;
+}
+
+.navbar-end-item {
+    display:block;
+}
+
+.navbar-brand img {
+    width:120px;
+    height: auto;
+    margin-top: 8px;
+}
+
+/* Tabs */
+
+html .tab-set > label {
+    background: rgba(var(--tabs--label-background),1);
+    margin-right:10px;
+    border:none;
+}
+
+html .tab-set > label:hover {
+    color: var(--tabs--label-text--active);
+    background: var(--tabs--label-background--active);
+}
+
+.tab-set, .tab-content {
+    padding-left:0;
+    padding-right:0;
+}
+
+.tab-content {
+    box-shadow:none;
+    padding-top: 5px;
+    border-top: 1px solid rgba(0,0,0,.1);
+}
+
+/* Prev Next Buttons */
+.prev-next-bottom {
+    float: right;
+}
+
+.prev-next-bottom a.left-prev:before {
+    content: '';
+}
+
+.prev-next-bottom a.right-next:after {
+    content: '';
+}
+
+.prev-next-bottom a.left-prev {
+    float: none;
+}
+
+.prev-next-bottom a.right-next {
+    float: none;
+}
+
+.footer {
+    font-size: 14px;
+}
+
+.prev-next-bottom a.left-prev, .prev-next-bottom a.right-next {
+    font-weight:bold;
+    padding:7px 20px 7px 20px;
+    font-size:14px;
+    border: 1px solid rgba(0,0,0,.2);
+    max-width: 45%;
+    overflow-x: hidden;
+    color: rgba(0,0,0,.65);
+}
+
+/* NAVBAR SELECTORS */
+
+.sst-btn,
+.sst-btn:hover,
+.sst-btn:active,
+.sst-btn:focus,
+.sst-dropdown .dropdown-menu,
+.sst-dropdown .dropdown-item {
+    color: rgba(var(--ost-color-sst-dropdown-text),1) !important;
+}
+
+.sst-dropown {
+    position:relative;
+}
+
+.sst-dropdown .dropdown-menu {
+    min-width:0px;
+    width:100%;
+    border:0;
+    max-height:200px;
+    overflow-y: auto;
+}
+
+.sst-btn,
+.sst-dropdown .dropdown-menu {
+    background-color: rgba(var(--ost-color-sst-dropdown-background),1);
+    margin:0;
+    border-radius:0;
+}
+
+.sst-btn.focus,
+.sst-btn:active,
+.sst-btn:focus {
+    box-shadow: none;
+}
+
+.sst-btn:hover,
+.sst-dropdown:hover .sst-btn,
+.sst-dropdown.show .sst-btn,
+.sst-dropdown .dropdown-menu.show,
+.sst-dropdown.show .dropdown-item,
+.sst-dropdown .dropdown-item.active,
+.sst-dropdown .dropdown-item:active,
+.sst-dropdown .dropdown-item:hover {
+    background-color: rgba(var(--ost-color-sst-dropdown-background-active), 1);
+}
+
+.sst-dropdown .sst-btn {
+    text-align: left;
+    padding: 0.5rem 0.65625rem 0.5rem 0.96875rem;
+}
+
+.sst-dropdown .dropdown-toggle:before {
+    display: inline-block;
+    content: '';
+    background-image:url('media/chevron.svg');
+    background-repeat: no-repeat;
+    background-position: center center;
+    height: 9px;
+    width: 9px;
+    background-size: contain;
+    margin-right: 0.625rem;
+    vertical-align: middle;
+}
+
+.sst-dropdown.show .dropdown-toggle:before {
+    background-image:url('media/chevron-active.svg');
+}
+
+.sst-dropdown .dropdown-toggle::after {
+    content:none;
+}
+
+/*TOC Section - On this page - Override */
+
+@media (min-width: 1072px) {
+    .d-xl-block {
+        display: block!important;
+    }
+    .col-xl-2 {
+        flex: 0 0 16.66667%!important;
+        max-width: 16.66667%!important;
+    }
+    .col-xl-7 {
+        flex: 0 0 58.33333%!important;
+        max-width: 58.33333%!important;
+    }
+}
+
+
+/* Download button */
+
+.download-docs {
+    padding-top:1rem;
+}
+
+.tocsection .sst-btn,
+.download-docs .sst-btn,
+.download-docs .dropdown-menu {
+    font-size: 0.875rem;
+    min-width:8.125rem;
+}
+
+.download-docs .sst-dropdown {
+    display:inline-block;
+}
+
+.download-docs .sst-btn::before {
+    content: none;
+}
+
+/* Doc navigation mobile devices */
+
+#collapse-nav {
+    width: 100%;
+}
+
+#collapse-nav .fa-chevron-down {
+    position: absolute;
+    right: 15%;
+}
+
+#collapse-nav[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate( 180deg);
+}
+
+@media (min-width: 720px) {
+    #collapse-nav {
+        display: none;
+    }
+    #collapse-nav-wrapper {
+        display: none;
+    }
+    #nav-tree:not(.show) {
+        display: block;
+    }
+}
+
+@media (max-width: 720px) {
+    #nav-tree {
+        position: sticky;
+        top:92px;
+        z-index: 1000;
+        background: #fff;
+        max-height: 300px;
+        overflow-y: auto;
+        border-bottom:1px solid var(--bttn-prm-color);
+    }
+
+    #nav-tree {
+        display: none;
+    }
+
+    #nav-tree.show {
+        display: block;
+    }
+
+    .bd-sidebar .nav .active > a,
+    .bd-sidebar .nav .active > a:hover {
+        background: #76c3ff;
+    }
+
+    #collapse-nav {
+        display: block;
+    }
+}

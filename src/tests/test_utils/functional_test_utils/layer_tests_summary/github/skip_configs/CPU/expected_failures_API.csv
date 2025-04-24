@@ -1,0 +1,24 @@
+Test Name,Fix Priority
+ov_plugin/OVCheckChangePropComplieModleGetPropTests_InferencePrecision.ChangeCorrectProperties/mandatory_target_device=CPU_,1.0
+ov_compiled_model_mandatory/OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY.GetMetricNoThrow/3,1.0
+ov_compiled_model_mandatory/OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY.GetMetricNoThrow/2,1.0
+ov_compiled_model_mandatory/OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY.GetMetricNoThrow/1,1.0
+ov_compiled_model_mandatory/OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY.GetMetricNoThrow/0,1.0
+ov_plugin/OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties/target_device=CPU_properties={ENABLE_MMAP:YES},0
+ov_plugin/OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties/target_device=CPU_properties={ENABLE_MMAP:NO},0
+ov_plugin/OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties/target_device=CPU_properties={COMPILATION_NUM_THREADS:1},0
+ov_plugin/OVCheckMetricsPropsTests_ModelDependceProps.ChangeCorrectDeviceProperties/target_device=CPU_properties={OPTIMAL_BATCH_SIZE:},0
+ov_plugin/OVCheckMetricsPropsTests_ModelDependceProps.ChangeCorrectDeviceProperties/target_device=CPU_properties={MAX_BATCH_SIZE:},0
+ov_plugin/OVCheckGetSupportedROMetricsPropsTests.ChangeCorrectProperties/target_device=CPU_properties={LOADED_FROM_CACHE:},0
+ov_plugin/OVCheckGetSupportedROMetricsPropsTests.ChangeCorrectProperties/target_device=CPU_properties={DEVICE_UUID:},0
+ov_plugin/OVCheckGetSupportedROMetricsPropsTests.ChangeCorrectProperties/target_device=CPU_properties={DEVICE_THERMAL:},0
+ov_plugin/OVCheckGetSupportedROMetricsPropsTests.ChangeCorrectProperties/target_device=CPU_properties={DEVICE_LUID:},0
+ov_plugin/OVCheckGetSupportedROMetricsPropsTests.ChangeCorrectProperties/target_device=CPU_properties={DEVICE_GOPS:},0
+ov_plugin/OVCheckSetIncorrectRWMetricsPropsTests.ChangeIncorrectProperties/target_device=CPU_properties={ENABLE_MMAP:-10},0
+ov_plugin/OVCheckSetIncorrectRWMetricsPropsTests.ChangeIncorrectProperties/target_device=CPU_properties={COMPILATION_NUM_THREADS:-1},0
+ov_infer_request_2/OVInferRequestDynamicTests.InferFullyDynamicNetworkWithSetTensor/function=SplitAddConcat_inOutShape=(((1.4.20.20)_(1.2.20.40))((2.4.20.20)_(2.2.20.40)))_targetDevice=CPU_,0
+ov_infer_request_2/OVInferRequestDynamicTests.InferFullyDynamicNetworkWithGetTensor/function=SplitAddConcat_inOutShape=(((1.4.20.20)_(1.2.20.40))((2.4.20.20)_(2.2.20.40)))_targetDevice=CPU_,0
+ov_infer_request_1/OVInferRequestDynamicTests.InferFullyDynamicNetworkWithSetTensor/function=AddTwoOutputEdges_inOutShape=(((1.4.20.20)_(1.4.20.20))((2.4.20.20)_(2.4.20.20)))_targetDevice=CPU_,0
+ov_infer_request_1/OVInferRequestDynamicTests.InferFullyDynamicNetworkWithGetTensor/function=AddTwoOutputEdges_inOutShape=(((1.4.20.20)_(1.4.20.20))((2.4.20.20)_(2.4.20.20)))_targetDevice=CPU_,0
+ov_infer_request/OVInferenceChaining.DynamicOutputToDynamicInput/targetDevice=CPU_,0
+ov_infer_request/OVInferenceChaining.DynamicInputToDynamicOutput/targetDevice=CPU_,0

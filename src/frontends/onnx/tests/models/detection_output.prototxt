@@ -1,0 +1,140 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test_graph"
+  node {
+    domain: "org.openvinotoolkit"
+    input: "box_logits"
+    input: "class_preds"
+    input: "proposals"
+    output: "out"
+    name: "DetectionOutput_500"
+    op_type: "DetectionOutput"
+    attribute {
+      name: "background_label_id"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "code_type"
+      s: "CENTER_SIZE"
+      type: STRING
+    }
+    attribute {
+      name: "confidence_threshold"
+      f: 0.0099999997764825821
+      type: FLOAT
+    }
+    attribute {
+      name: "eta"
+      f: 1
+      type: FLOAT
+    }
+    attribute {
+      name: "keep_top_k"
+      i: 5
+      type: INT
+    }
+    attribute {
+      name: "nms_threshold"
+      f: 0.44999998807907104
+      type: FLOAT
+    }
+    attribute {
+      name: "num_classes"
+      i: 3
+      type: INT
+    }
+    attribute {
+      name: "share_location"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "top_k"
+      i: 5
+      type: INT
+    }
+    attribute {
+      name: "variance_encoded_in_target"
+      i: 0
+      type: INT
+    }
+  }
+  input {
+    name: "box_logits"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 12
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "class_preds"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 9
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "proposals"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 12
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 5
+          }
+          dim {
+            dim_value: 7
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 10
+}

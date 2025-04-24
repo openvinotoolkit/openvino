@@ -1,0 +1,1821 @@
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/LayerNorm/batchnorm/add_1"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: -1
+        }
+        dim {
+          size: 256
+        }
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/text_preprocessor/RaggedToSparse/RaggedTensorToSparse"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: -1
+        }
+        dim {
+          size: 2
+        }
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Fill/dims"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\002\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Cast/x"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: -1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Cast"
+  op: "Cast"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Cast/x"
+  attr {
+    key: "DstT"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "SrcT"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "Truncate"
+    value {
+      b: false
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Fill"
+  op: "Fill"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Fill/dims"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Cast"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "index_type"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Fill_1/dims"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\002\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Fill_1"
+  op: "Fill"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Fill_1/dims"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Cast"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "index_type"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat/axis"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat"
+  op: "ConcatV2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Fill"
+  input: "StatefulPartitionedCall/text_preprocessor/RaggedToSparse/RaggedTensorToSparse"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Fill_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat/axis"
+  attr {
+    key: "N"
+    value {
+      i: 3
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "Tidx"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\000\000\000\000\000\000\000\000"
+      }
+    }
+  }
+}
+
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Shape"
+  op: "Shape"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/LayerNorm/batchnorm/add_1"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "out_type"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice/stack_1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice"
+  op: "StridedSlice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Shape"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice/stack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice/stack_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 1
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add/y"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add"
+  op: "AddV2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add/y"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice/stack_1/1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice/stack_1"
+  op: "Pack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice/stack_1/1"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\001\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice"
+  op: "StridedSlice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice/stack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice/stack_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 2
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_1/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\000\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add_1/x"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add_1"
+  op: "AddV2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add_1/x"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_1/stack_1/1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_1/stack_1"
+  op: "Pack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_1/stack_1/1"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_1/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\001\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_1"
+  op: "StridedSlice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_1/stack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_1/stack_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_1/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 2
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/Equal"
+  op: "Equal"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_1"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "incompatible_shape_error"
+    value {
+      b: true
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+          dim {
+            size: 1
+          }
+          dim {
+            size: 256
+          }
+        }
+        float_val: 0.0
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+          dim {
+            size: 1
+          }
+          dim {
+            size: 256
+          }
+        }
+        float_val: 0.0
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat_1/axis"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat_1"
+  op: "ConcatV2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/LayerNorm/batchnorm/add_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat_1/axis"
+  attr {
+    key: "N"
+    value {
+      i: 3
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "Tidx"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_2/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add_2/y"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 0
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add_2"
+  op: "AddV2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add_2/y"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_2/stack_1"
+  op: "Pack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/add_2"
+  attr {
+    key: "N"
+    value {
+      i: 1
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_2/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_2"
+  op: "StridedSlice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_2/stack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_2/stack_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_2/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_2/packed/1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 256
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_2/packed"
+  op: "Pack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_2/packed/1"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_2/Const"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_FLOAT
+        tensor_shape {
+        }
+        float_val: 0.0
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_2"
+  op: "Fill"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_2/packed"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_2/Const"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "index_type"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/Select"
+  op: "Select"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/Equal"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/strided_slice_2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_2"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/strided_slice/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/add/y"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/add"
+  op: "AddV2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/add/y"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/strided_slice/stack_1"
+  op: "Pack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/add"
+  attr {
+    key: "N"
+    value {
+      i: 1
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/strided_slice/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/strided_slice"
+  op: "StridedSlice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/strided_slice/stack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/strided_slice/stack_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/strided_slice/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\002\000\000\000\000\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add/y"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 2
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add"
+  op: "AddV2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add/y"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice/stack_1/1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice/stack_1"
+  op: "Pack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice/stack_1/1"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\001\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice"
+  op: "StridedSlice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice/stack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice/stack_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 2
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_1/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\000\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add_1/x"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add_1"
+  op: "AddV2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add_1/x"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_1/stack_1/1"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_1/stack_1"
+  op: "Pack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_1/stack_1/1"
+  attr {
+    key: "N"
+    value {
+      i: 2
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_1/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 2
+          }
+        }
+        tensor_content: "\001\000\000\000\001\000\000\000"
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_1"
+  op: "StridedSlice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_1/stack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_1/stack_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_1/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 2
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/Equal"
+  op: "Equal"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_1"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT64
+    }
+  }
+  attr {
+    key: "incompatible_shape_error"
+    value {
+      b: true
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_2/stack"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 2
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add_2/y"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 2
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add_2"
+  op: "AddV2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/strided_slice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add_2/y"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_2/stack_1"
+  op: "Pack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/add_2"
+  attr {
+    key: "N"
+    value {
+      i: 1
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "axis"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_2/stack_2"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+          dim {
+            size: 1
+          }
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_2"
+  op: "StridedSlice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_2/stack"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_2/stack_1"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_2/stack_2"
+  attr {
+    key: "Index"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "begin_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "ellipsis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "end_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "new_axis_mask"
+    value {
+      i: 0
+    }
+  }
+  attr {
+    key: "shrink_axis_mask"
+    value {
+      i: 0
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/Select"
+  op: "Select"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/Equal"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/strided_slice_2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/zeros_2"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat_2/axis"
+  op: "Const"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "value"
+    value {
+      tensor {
+        dtype: DT_INT32
+        tensor_shape {
+        }
+        int_val: 1
+      }
+    }
+  }
+}
+node {
+  name: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat_2"
+  op: "ConcatV2"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-0/Select"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-1/strided_slice"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/Window-2/Select"
+  input: "StatefulPartitionedCall/EncoderDNN/CNN_layers/ngram_order_3/Ngram-3-Conv/concat_2/axis"
+  attr {
+    key: "N"
+    value {
+      i: 3
+    }
+  }
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+  attr {
+    key: "Tidx"
+    value {
+      type: DT_INT32
+    }
+  }
+}

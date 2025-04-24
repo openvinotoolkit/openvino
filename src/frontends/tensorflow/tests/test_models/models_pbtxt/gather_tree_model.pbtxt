@@ -1,0 +1,103 @@
+node {
+  name: "step_ids"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 20
+        }
+        dim {
+          size: 2
+        }
+        dim {
+          size: 30
+        }
+      }
+    }
+  }
+}
+node {
+  name: "parent_ids"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 20
+        }
+        dim {
+          size: 2
+        }
+        dim {
+          size: 30
+        }
+      }
+    }
+  }
+}
+node {
+  name: "max_seq_len"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+        dim {
+          size: 2
+        }
+      }
+    }
+  }
+}
+node {
+  name: "end_token"
+  op: "Placeholder"
+  attr {
+    key: "dtype"
+    value {
+      type: DT_INT32
+    }
+  }
+  attr {
+    key: "shape"
+    value {
+      shape {
+      }
+    }
+  }
+}
+node {
+  name: "Addons>GatherTree"
+  op: "Addons>GatherTree"
+  input: "step_ids"
+  input: "parent_ids"
+  input: "max_seq_len"
+  input: "end_token"
+  attr {
+    key: "T"
+    value {
+      type: DT_INT32
+    }
+  }
+}

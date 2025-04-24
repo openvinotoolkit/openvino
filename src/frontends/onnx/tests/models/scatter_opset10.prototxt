@@ -1,0 +1,60 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "data"
+    input: "indices"
+    input: "updates"
+    output: "y"
+    op_type: "Scatter"
+    attribute {
+      name: "axis"
+      i: 0
+      type: INT
+    }
+  }
+  name: "test_scatter"
+  initializer {
+    dims: 2
+    dims: 2
+    data_type: 1
+    float_data: 2.0
+    float_data: 3.0
+    float_data: 4.0
+    float_data: 5.0
+    name: "data"
+  }
+  initializer {
+    dims: 1
+    dims: 2
+    data_type: 6
+    int32_data: 0
+    int32_data: 1
+    name: "indices"
+  }
+  initializer {
+    dims: 1
+    dims: 2
+    data_type: 1
+    float_data: 12.01
+    float_data: 13.99
+    name: "updates"
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 10
+}

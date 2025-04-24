@@ -1,0 +1,74 @@
+INTERPRETER.onnx_top_k_opset_10
+
+# Temporarily disabled:
+INTERPRETER.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
+INTERPRETER.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
+
+# Failed in MacOS:
+INTERPRETER.onnx_resize11_sizes_nearest_asymmetric_floor
+
+# Disabled tests for disabled reference implementations
+INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
+
+# Revise reference implementation
+onnx_dyn_model_hardmax
+
+# ONNX evaluate method not implemented for If operator
+INTERPRETER.onnx_if_inside_if
+INTERPRETER.onnx_if_inside_loop
+INTERPRETER.onnx_if_inside_if_inside_loop
+
+# Activation function hardsigmoid unsupported
+onnx_model_gru_fwd_activations_relu_hardsigmoid
+onnx_model_lstm_fwd_hardsigmoid_activation
+
+# Issue 37473. Fails on ia32 platforms only
+onnx_model_softmax_axis_0
+onnx_model_reshape_negative_dim
+
+# LogSoftmax's reference implementation doesn't handle scalar input properly
+onnx_model_logsoftmax_0D
+# Input body shape is changed during Loop iterations
+# Exception is throw during Loop shape inference
+onnx_controlflow_loop_concat_values
+
+# Infinitive Loop is not supported
+onnx_controlflow_loop_infinite
+
+# Dynamic shape support
+onnx_controlflow_loop_2d_trip_count_dynamic
+onnx_controlflow_loop_no_variadic_inputs_and_outputs
+onnx_controlflow_loop_power
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
+# INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
+
+# No evaluator for DeformableConv2D
+onnx_model_deformable_conv_2d
+onnx_model_deformable_conv_2d_with_mask
+
+# New fails
+onnx_model_quant_conv_linear_3d
+
+INTERPRETER.onnx_dyn_shapes_ab_plus_c_inference
+INTERPRETER.onnx_dyn_shapes_dynamic_rank_input_inference
+INTERPRETER.onnx_dyn_shapes_model_conv_with_dynamic_bias
+INTERPRETER.onnx_dyn_shapes_model_convtranspose_dyn_filters
+INTERPRETER.onnx_dyn_shapes_flatten_axis_0
+INTERPRETER.onnx_dyn_shapes_flatten_axis
+INTERPRETER.onnx_dyn_shapes_flatten_neg_axis
+INTERPRETER.onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end
+INTERPRETER.onnx_model_instance_normalization_dyn_shape
+INTERPRETER.onnx_controlflow_loop_2d_no_identity_termination_cond_false
+
+# new failures after fixing the TestCase class - 77385
+quant_dequant_pattern_axis
+onnx_clip_no_min_no_max_int64
+
+# z node not found in graph cache - ticket: 81976
+INTERPRETER.onnx_expand_context_dependent_function
+INTERPRETER.onnx_softmax_crossentropy_loss_mean
+
+# Incorrect order of elements returned by the TopK implementation
+INTERPRETER.onnx_model_top_k_repeating
+INTERPRETER.onnx_model_top_k_repeating_unsorted

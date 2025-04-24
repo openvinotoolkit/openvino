@@ -1,0 +1,78 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    input: "x_scale"
+    input: "zero_point"
+    output: "Y"
+    name: "DequantizeLinear"
+    op_type: "DequantizeLinear"
+  }
+  name: "test_graph"
+  initializer {
+    data_type: 2
+    name: "zero_point"
+    raw_data: "\000"
+  }
+  initializer {
+    data_type: 1
+    float_data: 4
+    name: "x_scale"
+  }
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "x_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "zero_point"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 4
+}

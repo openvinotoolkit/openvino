@@ -1,0 +1,80 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    input: "scale"
+    input: "bias"
+    output: "y"
+    op_type: "InstanceNormalization"
+    attribute {
+      name: "epsilon"
+      f: 0.01
+      type: FLOAT
+    }
+  }
+  name: "instance_norm_graph"
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "N"
+          }
+          dim {
+            dim_param: "C"
+          }
+          dim {
+            dim_param: "H"
+          }
+          dim {
+            dim_param: "W"
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "C"
+          }
+
+        }
+      }
+    }
+  }
+  input {
+    name: "bias"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "C"
+          }
+
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+}

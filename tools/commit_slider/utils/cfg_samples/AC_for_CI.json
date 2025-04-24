@@ -1,0 +1,83 @@
+{
+    "appCmd":"source {venvName}/bin/activate && cd {appPath} && {py} -m pip install --upgrade pip && {py} -m pip install openvino-dev[caffe,kaldi,mxnet,onnx,pytorch,tensorflow2]=={wheelVersion} --find-links={precommitPath}wheels/ && {py} -m pip install -r requirements_dev.txt && {testCmd}",
+    "venvCfg":{
+       "venvEnabled":true,
+       "venvDir":"{workPath}/venv/",
+       "venvName":"tempVenv"
+    },
+    "commandList":[
+ 
+    ],
+    "runConfig":{
+       "mode":"checkOutput",
+       "traversal":"firstFailedVersion",
+       "stopPattern":"{ErrorPattern}"
+    },
+    "dlbConfig":{
+       "launchedAsJob":true,
+       "toolName":"ac",
+       "wheelVersionsMap":{
+ 
+       },
+       "commonPath":"{precommitPath}",
+       "subPath":"{subPath}",
+       "appPath":"",
+       "appCmd":""
+    },
+    "cachedPathConfig":{
+       "enabled":true,
+       "scheme":"mandatory",
+       "passCmdList":false,
+       "changeAppPath":false,
+       "commonPath":"{precommitPath}",
+       "subPath":"{subPath}",
+       "cashMap":{
+ 
+       }
+    },
+    "substitutionRules":[
+       {
+          "name":"precommitPath",
+          "enabled":true,
+          "type":"map",
+          "placeholder":"precommitPath",
+          "from":"$.cachedPathConfig.cashMap",
+          "to":"$.appCmd"
+       },
+       {
+          "name":"wheelVersion",
+          "enabled":true,
+          "type":"map",
+          "placeholder":"wheelVersion",
+          "from":"$.dlbConfig.wheelVersionsMap",
+          "to":"$.appCmd"
+       },
+       {
+        "name":"command line for client application",
+        "enabled":true,
+        "type":"static",
+        "placeholder":"appCmd",
+        "from":"$.dlbConfig.appCmd",
+        "to":"$.appCmd"
+        },
+        {
+        "name":"path to AC requirements",
+        "enabled":true,
+        "type":"static",
+        "placeholder":"toolPath",
+        "from":"$.dlbConfig.toolPath",
+        "to":"$.appCmd"
+        }
+    ],
+    "subscriptions":[
+       {
+          "name":"wheelPathsMap",
+          "enabled":true
+       },
+       {
+          "name":"wheelVersionsMap",
+          "enabled":true
+       }
+    ],
+    "verboseOutput":false
+ }

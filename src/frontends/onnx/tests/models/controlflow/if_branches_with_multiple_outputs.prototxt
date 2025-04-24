@@ -1,0 +1,264 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "if graph"
+  node {
+    input: "condition"
+    output: "if1"
+    output: "if2"
+    output: "if3"
+    name: "if"
+    op_type: "If"
+    attribute {
+      name: "then_branch"
+      type: GRAPH
+      g {
+        node {
+          input: "x"
+          output: "split1_1"
+          output: "split1_2"
+          output: "split1_3"
+          name: "split1"
+          op_type: "Split"
+          attribute {
+            name: "axis"
+            type: INT
+            i: 0
+          }
+        }
+        output {
+          name: "split1_1"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "split1_2"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "split1_3"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    attribute {
+      name: "else_branch"
+      type: GRAPH
+      g {
+        node {
+          input: "x"
+          output: "split2_1"
+          output: "split2_2"
+          output: "split2_3"
+          name: "split2"
+          op_type: "Split"
+          attribute {
+            name: "axis"
+            type: INT
+            i: 1
+          }
+        }
+        node {
+          output: "perm"
+          name: "perm"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            type: TENSOR
+            t {
+              dims: 2
+              data_type: 6
+              int32_data: 1
+              int32_data: 0
+              name: "perm"
+            }
+          }
+        }
+        node {
+          input: "split2_1"
+          input: "perm"
+          output: "transpose_1"
+          name: "transpose_1"
+          op_type: "Transpose"
+        }
+        node {
+          input: "split2_2"
+          input: "perm"
+          output: "transpose_2"
+          name: "transpose_2"
+          op_type: "Transpose"
+        }
+        node {
+          input: "split2_3"
+          input: "perm"
+          output: "transpose_3"
+          name: "transpose_3"
+          op_type: "Transpose"
+        }
+        output {
+          name: "transpose_1"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "transpose_2"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "transpose_3"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 2
+                }
+                dim {
+                  dim_value: 4
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "condition"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 6
+          }
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "if1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "if2"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "if3"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 13
+}

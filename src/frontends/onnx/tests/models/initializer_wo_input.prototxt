@@ -1,0 +1,59 @@
+ir_version: 4
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "X"
+    input: "W"
+    output: "Y"
+    name: "mul_1"
+    op_type: "Mul"
+  }
+  name: "mul test"
+  initializer {
+    dims: 3
+    dims: 2
+    data_type: 1
+    float_data: 1
+    float_data: 2
+    float_data: 3
+    float_data: 4
+    float_data: 5
+    float_data: 6
+    name: "W"
+  }
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 7
+}

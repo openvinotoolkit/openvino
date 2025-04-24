@@ -1,0 +1,49 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <map>
+#include <string>
+
+#ifdef OPENVINO_STATIC_LIBRARY
+
+// The Macro used to create extensions for static library
+#define OV_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(_OV_CREATE_EXTENSION_FUNC) \
+    OPENVINO_EXTENSION_C_API void                                                  \
+    _OV_CREATE_EXTENSION_FUNC(std::vector<::ov::Extension::Ptr>& ext)
+
+// The Macro used to create plugin for static library
+#define OV_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_OV_CREATE_PLUGIN_FUNC) \
+    OPENVINO_PLUGIN_API void                                                 \
+    _OV_CREATE_PLUGIN_FUNC(::std::shared_ptr<::ov::IPlugin> &plugin) noexcept(false)
+
+@OV_PLUGINS_DECLARATIONS@
+
+using CreateExtensionFunc = void(std::vector<::ov::Extension::Ptr>&);
+using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
+
+struct Value {
+    CreatePluginEngineFunc * m_create_plugin_func;
+    CreateExtensionFunc * m_create_extensions_func;
+    std::map<std::string, std::string> m_default_config;
+};
+
+#else
+
+struct Value {
+    std::string m_plugin_path;
+    std::map<std::string, std::string> m_default_config;
+};
+
+#endif
+
+using Key = std::string;
+using PluginsStaticRegistry = std::map<Key, Value>;
+
+
+inline const std::map<Key, Value> get_compiled_plugins_registry() {
+@OV_PLUGINS_MAP_DEFINITION@
+    return plugins_hpp;
+}

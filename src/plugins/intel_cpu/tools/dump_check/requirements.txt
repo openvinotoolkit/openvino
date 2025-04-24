@@ -1,0 +1,4 @@
+numpy>=1.16.6
+argparse
+matplotlib~=3.3.4; python_version<'3.7'
+matplotlib>=3.3.4, <3.6; python_version>='3.7'

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "node/include/addon.hpp"
@@ -26,8 +26,6 @@ void init_class(Napi::Env env, Napi::Object exports, std::string class_name,
   reference = Napi::Persistent(prototype);
   exports.Set(class_name, prototype);
 }
-
-Prototype func = NodeWrap::get_class();
 
 Napi::Value save_model_sync(const Napi::CallbackInfo &info) {
   std::vector<std::string> allowed_signatures;

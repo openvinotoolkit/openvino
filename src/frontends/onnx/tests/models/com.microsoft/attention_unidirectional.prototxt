@@ -1,0 +1,154 @@
+ir_version: 6
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "input"
+    input: "weights"
+    input: "bias"
+    output: "output"
+    output: "present"
+    name: "Attention_1"
+    op_type: "Attention"
+    attribute {
+      name: "num_heads"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "unidirectional"
+      i: 1
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  name: "attention-model"
+  initializer {
+    name: "weights"
+    dims: 3
+    dims: 12
+    data_type: 1
+    float_data: 0.01326417364180088
+    float_data: -0.017005326226353645
+    float_data: 0.021556973457336426
+    float_data: -0.079218357801437378
+    float_data: -0.019958715885877609
+    float_data: 0.066062852740287781
+    float_data: -0.063465960323810577
+    float_data: -0.036202378571033478
+    float_data: -0.038673330098390579
+    float_data: -0.050637193024158478
+    float_data: 0.0024814880453050137
+    float_data: -0.017267324030399323
+    float_data: -0.0047671985812485218
+    float_data: -0.014202062971889973
+    float_data: 0.10090816766023636
+    float_data: 0.044896259903907776
+    float_data: 0.015443948097527027
+    float_data: -0.0010053194127976894
+    float_data: 0.071923978626728058
+    float_data: 0.01173736434429884
+    float_data: 0.034053854644298553
+    float_data: -0.037060577422380447
+    float_data: 0.01355923805385828
+    float_data: 0.054467327892780304
+    float_data: 0.088897556066513062
+    float_data: 0.019563071429729462
+    float_data: 0.025579970329999924
+    float_data: -0.032200627028942108
+    float_data: -0.0083356937393546104
+    float_data: -0.10528338700532913
+    float_data: 0.04967513307929039
+    float_data: -0.093638911843299866
+    float_data: 0.0018587876111268997
+    float_data: 0.01037109550088644
+    float_data: -0.011854520998895168
+    float_data: 0.035907052457332611
+  }
+  initializer {
+    name: "bias"
+    dims: 12
+    data_type: 1
+    float_data: -0.2587452232837677
+    float_data: -0.095395378768444061
+    float_data: 0.12785771489143372
+    float_data: 0.16469171643257141
+    float_data: -0.58997648954391479
+    float_data: -0.28082749247550964
+    float_data: 0.077637940645217896
+    float_data: -0.03203071653842926
+    float_data: 0.075582884252071381
+    float_data: 0.14739133417606354
+    float_data: -0.19812127947807312
+    float_data: 0.50444173812866211
+  }
+  input {
+    name: "input"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "present"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

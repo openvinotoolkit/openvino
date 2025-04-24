@@ -1,0 +1,173 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "rois"
+    input: "deltas"
+    input: "scores"
+    input: "im_info"
+    output: "out1"
+    output: "out2"
+    output: "out3"
+    op_type: "ExperimentalDetectronDetectionOutput"
+    domain: "org.openvinotoolkit"
+    attribute {
+      name: "class_agnostic_box_regression"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "deltas_weights"
+      floats: 10
+      floats: 10
+      floats: 5
+      floats: 5
+      type: FLOATS
+    }
+    attribute {
+      name: "max_delta_log_wh"
+      f: 2
+      type: FLOAT
+    }
+    attribute {
+      name: "max_detections_per_image"
+      i: 5
+      type: INT
+    }
+    attribute {
+      name: "nms_threshold"
+      f: 0.2
+      type: FLOAT
+    }
+    attribute {
+      name: "num_classes"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "post_nms_count"
+      i: 500
+      type: INT
+    }
+    attribute {
+      name: "score_threshold"
+      f: 0.01000000074505806
+      type: FLOAT
+    }
+  }
+  input {
+    name: "rois"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 16
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "deltas"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 16
+          }
+          dim {
+            dim_value: 8
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "scores"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 16
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "im_info"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out1"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 5
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out2"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out3"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  name: "test-model"
+}
+opset_import {
+  domain: ""
+  version: 10
+}
+opset_import {
+  domain: "org.openvinotoolkit"
+  version: 1
+}
