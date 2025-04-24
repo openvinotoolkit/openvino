@@ -357,9 +357,10 @@ struct GroupDetails {
 };
 
 const PatternSymbolValue& get_element(const std::vector<PatternSymbolValue>& values, int64_t idx) {
+    auto size = static_cast<int64_t>(values.size());
     if (idx < 0)
-        idx += values.size();
-    OPENVINO_ASSERT(idx < values.size(), "Unexpected index");
+        idx += size;
+    OPENVINO_ASSERT(idx < size, "Unexpected index");
     return values[static_cast<size_t>(idx)];
 }
 
