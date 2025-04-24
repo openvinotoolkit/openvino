@@ -130,6 +130,11 @@ public:
         }
     }
 
+    ov::Any get_as_any() override {
+        VAT obj = get();
+        return {obj};
+    }
+
 protected:
     AT& m_ref;
     VAT m_buffer;
@@ -178,6 +183,12 @@ public:
             OPENVINO_THROW("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
     }
+
+    ov::Any get_as_any() override {
+        VAT obj = get();
+        return {obj};
+    }
+
     operator AT&() {
         return m_ref;
     }
@@ -223,6 +234,10 @@ public:
         } else {
             OPENVINO_THROW("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
+    }
+
+    ov::Any get_as_any() override {
+        return {get()};
     }
 
 protected:
