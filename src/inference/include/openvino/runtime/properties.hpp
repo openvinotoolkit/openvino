@@ -461,17 +461,6 @@ inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& strea
 static constexpr Property<std::set<ModelDistributionPolicy>> model_distribution_policy{"MODEL_DISTRIBUTION_POLICY"};
 
 /**
- * @brief This property used to test accurcay of setting model_distribution_policy to TENSOR_PARALLEL.
- * @ingroup ov_runtime_cpp_prop_api
- *
- * @code
- * ie.set_property(ov::hint::is_test(true));
- * ie.set_property(ov::hint::is_test(false));
- * @endcode
- */
-static constexpr Property<bool> is_test{"IS_TEST"};
-
-/**
  * @brief This property allows CPU pinning during inference.
  * @ingroup ov_runtime_cpp_prop_api
  *

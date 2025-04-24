@@ -353,10 +353,6 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         const auto& distribution_policy = engConfig.modelDistributionPolicy;
         return distribution_policy;
     }
-    if (name == ov::hint::is_test) {
-        const bool test_value = engConfig.isTest;
-        return static_cast<decltype(ov::hint::is_test)::value_type>(test_value);
-    }
     if (name == ov::hint::enable_hyper_threading) {
         const bool ht_value = engConfig.enableHyperThreading;
         return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(ht_value);
@@ -444,12 +440,12 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RW_property(ov::hint::enable_cpu_reservation.name()),
             RW_property(ov::hint::scheduling_core_type.name()),
             RW_property(ov::hint::model_distribution_policy.name()),
-            RW_property(ov::hint::is_test.name()),
             RW_property(ov::hint::enable_hyper_threading.name()),
             RW_property(ov::device::id.name()),
             RW_property(ov::intel_cpu::denormals_optimization.name()),
             RW_property(ov::log::level.name()),
             RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RW_property(ov::intel_cpu::is_test.name()),
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
             RW_property(ov::key_cache_precision.name()),
@@ -516,6 +512,8 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             engConfig.fcSparseWeiDecompressionRate);
+    } else if (name == ov::intel_cpu::is_test) {
+        return static_cast<decltype(ov::intel_cpu::is_test)::value_type>(engConfig.isTest);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
     } else if (name == ov::device::type) {
