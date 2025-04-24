@@ -540,6 +540,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
                                                                      compiled_blob);
         buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size());
         stream.rdbuf(&buffer);
+        stream.seekg(origStream.tellg(), std::ios::cur);  // skip OV header in case of cached blob
         npu_plugin_properties.erase(blob_it);
     }
 
