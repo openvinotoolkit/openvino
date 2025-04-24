@@ -39,6 +39,8 @@ RUN apt-get update && \
         python3.11-venv \
         python3.11-distutils \
         libhdf5-dev \
+        # to build samples
+        clang \
         && \
     rm -rf /var/lib/apt/lists/*
 

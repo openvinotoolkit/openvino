@@ -54,6 +54,10 @@ RUN apt-get update && \
         # Compiler, required for multi-isa build
         gcc-10 \
         g++-10 \
+        # OpenVINO JS API
+        libgtk-3-0 \
+        libgbm1 \
+        xvfb \
         && \
     rm -rf /var/lib/apt/lists/*
 
