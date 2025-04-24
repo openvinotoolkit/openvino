@@ -2,6 +2,7 @@
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+# type: ignore
 """
 openvino.properties.intel_auto submodule that simulates ov::intel_auto
 """

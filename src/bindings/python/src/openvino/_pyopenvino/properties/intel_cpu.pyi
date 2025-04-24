@@ -2,6 +2,7 @@
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+# type: ignore
 """
 openvino.properties.intel_cpu submodule that simulates ov::intel_cpu
 """

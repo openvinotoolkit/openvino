@@ -6,6 +6,7 @@ from openvino._pyopenvino import Type
 from openvino.utils.types import get_dtype
 import json as json
 import openvino._ov_api
+# type: ignore
 __all__ = ['Model', 'PartialShape', 'Type', 'get_dtype', 'json', 'json_model_analysis_dump', 'json_model_analysis_print']
 def json_model_analysis_dump(framework_model: openvino._ov_api.Model):
     ...

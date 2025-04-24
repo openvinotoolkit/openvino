@@ -10,6 +10,8 @@ from openvino._pyopenvino.op import if_op
 from openvino._pyopenvino.op import loop
 from openvino._pyopenvino.op import read_value
 from openvino._pyopenvino.op import tensor_iterator
+# type: ignore
+# type: ignore
 """
 
 Package: openvino.op

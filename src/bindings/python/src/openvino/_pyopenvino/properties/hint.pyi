@@ -2,6 +2,7 @@
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+# type: ignore
 """
 openvino.properties.hint submodule that simulates ov::hint
 """

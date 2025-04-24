@@ -10,6 +10,7 @@ from . import streams
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+# type: ignore
 """
 openvino.properties submodule
 """

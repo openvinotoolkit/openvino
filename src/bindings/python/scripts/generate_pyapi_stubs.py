@@ -21,7 +21,7 @@ def create_regex_pattern(errors):
     return "|".join([re.escape(error) for error in errors])
 
 def sanitize_file(file_path):
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding='utf-8') as file:
         content = file.readlines()
 
     content = [re.sub(r"<function _get_node_factory at 0x[0-9a-fA-F]+>", "<function _get_node_factory at memory_address>", line) for line in content]

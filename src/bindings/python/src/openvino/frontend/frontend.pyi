@@ -7,6 +7,8 @@ from openvino._pyopenvino import InputModel
 import openvino._ov_api
 import openvino._pyopenvino
 import typing
+# type: ignore
+# type: ignore
 __all__ = ['FrontEnd', 'FrontEndBase', 'FrontEndManager', 'FrontEndManagerBase', 'InputModel', 'Model']
 
 class FrontEnd(openvino._pyopenvino.FrontEnd):

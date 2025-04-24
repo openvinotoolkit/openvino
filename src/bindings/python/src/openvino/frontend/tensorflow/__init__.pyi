@@ -5,6 +5,7 @@ from __future__ import annotations
 from openvino.frontend.tensorflow.py_tensorflow_frontend import ConversionExtensionTensorflow as ConversionExtension
 from openvino.frontend.tensorflow.py_tensorflow_frontend import OpExtensionTensorflow as OpExtension
 from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraphIterator as GraphIterator
+# type: ignore
 """
 
 Package: openvino

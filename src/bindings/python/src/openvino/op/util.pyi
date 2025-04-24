@@ -13,6 +13,8 @@ from openvino._pyopenvino.op.util import SliceInputDescription
 from openvino._pyopenvino.op.util import UnaryElementwiseArithmetic
 from openvino._pyopenvino.op.util import Variable
 from openvino._pyopenvino.op.util import VariableInfo
+# type: ignore
+# type: ignore
 """
 
 Package: openvino.op.util
