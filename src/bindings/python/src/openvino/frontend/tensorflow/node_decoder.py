@@ -173,13 +173,20 @@ class TFGraphNodeDecoder(DecoderBase):
             return OVAny(tf_type_to_ov_type(type_num))
 
         if name == "value":
+            if self.m_parsed_content is None:
+                return OVAny(Tensor(np.array([])))
             if self.m_data_type == 'string':
-                return OVAny(Tensor(self.m_parsed_content))
-            if self.m_parsed_content.size == 1:  # type: ignore
-                if isinstance(self.m_parsed_content, np.ndarray):
+                string_array = np.array(self.m_parsed_content, dtype=np.object_)
+                return OVAny(Tensor(string_array))
+            if hasattr(self.m_parsed_content, 'size'):
+                if self.m_parsed_content.size == 1:
+                    if isinstance(self.m_parsed_content, np.ndarray):
+                        return OVAny(Tensor(self.m_parsed_content))
+                    self.m_parsed_content = np.array(self.m_parsed_content)
                     return OVAny(Tensor(self.m_parsed_content))
-                self.m_parsed_content = np.array(self.m_parsed_content)
-                return OVAny(Tensor(self.m_parsed_content))
+            if not isinstance(self.m_parsed_content, np.ndarray):
+                self.m_parsed_content = np.array(self.m_parsed_content, dtype=np.object_)
+            
             ov_tensor = Tensor(self.m_parsed_content, shared_memory=self.m_shared_memory)
             ov_tensor = OVAny(ov_tensor)
             return ov_tensor

@@ -7,11 +7,11 @@
 import tensorflow as tf
 from openvino.frontend.tensorflow.node_decoder import TFGraphNodeDecoder
 from openvino.frontend.tensorflow.py_tensorflow_frontend import _FrontEndPyGraphIterator as GraphIterator
-
+from typing import Optional, Dict
 
 class GraphIteratorTFGraph(GraphIterator):
     def __init__(self, tf_graph: tf.Graph, share_weights: bool, inner_graph: bool = False,
-                 input_names_map: dict = None, output_names_map: dict = None):
+                 input_names_map: Optional[Dict] = None, output_names_map: Optional[Dict] = None):
         GraphIterator.__init__(self)
         self.m_graph = tf_graph
         self.m_node_index = 0

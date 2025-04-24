@@ -14,7 +14,7 @@ from typing import List, Dict, Union
 
 
 # TODO: reuse this method in ovc and remove duplication
-def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):
+def get_static_shape(shape: Union[PartialShape, list, tuple], dynamic_value=None):
     # Current function returns list with static dimensions with following logic.
     # For dynamic dimensions return lower boundaries if they are set, otherwise
     # return upper boundaries if they are set. If dimension is fully dynamic then raise error.
@@ -25,7 +25,7 @@ def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):
                 shape_list.append(dynamic_value)
                 continue
             shape_list.append(dim)
-        elif isinstance(dim, np.int64):
+        elif isinstance(dim, (np.integer, int)):
             if dim == np.int64(-1):
                 shape_list.append(dynamic_value)
                 continue
@@ -272,24 +272,27 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
         tf_function = model
         input_needs_packing = False
     elif isinstance(model, (tf.keras.Model, tf.Module)):
-        tf_function = create_generic_function_from_keras_model(model)
-        if tf_function is not None:
+        generic_function = create_generic_function_from_keras_model(model)
+        if generic_function is not None:
+            tf_function = generic_function
             input_needs_packing = False
         else:
             # Wrap model to tf.Function.
             # In this case we loose input/output tensor names.
             @tf.function
-            def tf_function(args):
+            def wrapped_function(args):
                 return model(*args)
 
+            tf_function = wrapped_function
             input_needs_packing = True
     else:
         # Wrap model to tf.Function.
         # In this case we loose input/output tensor names.
         @tf.function
-        def tf_function(args):
+        def wrapped_function(args):
             return model(*args)
 
+        tf_function = wrapped_function
         input_needs_packing = True
 
     def are_shapes_defined(shape: Union[List, Dict]):
@@ -410,6 +413,7 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
 def extract_model_graph(argv):
     model = argv["input_model"]
     import tensorflow as tf
+    Trackable = None
     trackable_is_imported = False
     try:
         from tensorflow.python.training.tracking.base import Trackable  # pylint: disable=no-name-in-module,import-error
@@ -444,7 +448,7 @@ def extract_model_graph(argv):
 
     if isinstance(model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
         return True
-    if trackable_is_imported and isinstance(model, Trackable):
+    if trackable_is_imported and Trackable is not None and isinstance(model, Trackable):
         if hasattr(model, "signatures") and len(model.signatures.items()):
             if "serving_default" in model.signatures:
                 argv["input_model"] = model.signatures["serving_default"]
