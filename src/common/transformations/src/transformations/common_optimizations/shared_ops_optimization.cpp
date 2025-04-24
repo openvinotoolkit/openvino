@@ -64,8 +64,8 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
     for (size_t i = 0; i < input_size; ++i) {
         if (ov::op::util::input_sources_are_equal(lhs, rhs, i))
             continue;
-        auto lhs_constant = as_type_ptr<v0::Constant>(lhs->input_value(i).get_node_shared_ptr());
-        auto rhs_constant = as_type_ptr<v0::Constant>(rhs->input_value(i).get_node_shared_ptr());
+        auto lhs_constant = as_type<v0::Constant>(lhs->get_input_node_ptr(i));
+        auto rhs_constant = as_type<v0::Constant>(rhs->get_input_node_ptr(i));
         if (!lhs_constant || !rhs_constant)
             return false;
         if (lhs_constant->get_element_type() != rhs_constant->get_element_type())

@@ -40,7 +40,7 @@ bool ov::pass::UselessSliceEraser::run_on_model(const std::shared_ptr<ov::Model>
         if (node->get_input_shape(0) != node->get_output_shape(0))
             continue;
 
-        auto stridesNode = ov::as_type_ptr<ov::op::v0::Constant>(node->input_value(3).get_node_shared_ptr());
+        auto stridesNode = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(3));
         if (stridesNode) {
             auto strides = stridesNode->cast_vector<int64_t>();
             if (!std::any_of(strides.begin(), strides.end(), [](int64_t strd) {
@@ -251,9 +251,9 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>
     enum { START = 1, STOP, STRIDE, AXIS };
 
     int64_t stride;
-    if (!get_scalar(op->input_value(STRIDE).get_node_shared_ptr(), stride) || stride != 1)
+    if (!get_scalar(op->get_input_node_shared_ptr(STRIDE), stride) || stride != 1)
         return false;
-    if (!get_scalar(op->input_value(AXIS).get_node_shared_ptr(), attrs.axis))
+    if (!get_scalar(op->get_input_node_shared_ptr(AXIS), attrs.axis))
         return false;
     attrs.axis = attrs.axis >= 0 ? attrs.axis : attrs.axis + rank;
 
@@ -263,7 +263,7 @@ bool slice_is_suitable_for_optimization(const std::shared_ptr<ov::op::v8::Slice>
 
     for (int i = START; i <= STOP; i++) {
         int64_t value;
-        if (!get_scalar(op->input_value(i).get_node_shared_ptr(), value))
+        if (!get_scalar(op->get_input_node_shared_ptr(i), value))
             return false;
         value = value >= 0 ? value : value + dimension;
         value = std::max<int64_t>(std::min(value, dimension), 0);

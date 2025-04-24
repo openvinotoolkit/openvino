@@ -152,7 +152,7 @@ pass::AbsSinking::AbsSinking() {
 
         bool graph_got_changed = false;
 
-        if (auto concat = as_type_ptr<v0::Concat>(abs_ops[0]->input_value(0).get_node_shared_ptr())) {
+        if (auto concat = as_type_ptr<v0::Concat>(abs_ops[0]->get_input_node_shared_ptr(0))) {
             for (const auto& input : concat->inputs()) {
                 auto new_abs = ov::op::util::make_try_fold<v0::Abs>(input.get_source_output());
                 if (!as_type_ptr<v0::Constant>(new_abs))
@@ -260,7 +260,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
             return false;
         }
 
-        const auto concat = as_type_ptr<v0::Concat>(reshape->input_value(1).get_node_shared_ptr());
+        const auto concat = as_type_ptr<v0::Concat>(reshape->get_input_node_shared_ptr(1));
         if (!concat)
             return false;
 
@@ -274,7 +274,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         }
 
         auto check_shape_of_gather = [&](const std::shared_ptr<Node>& gather) {
-            auto shape_of = gather->input_value(0).get_node_shared_ptr();
+            auto shape_of = gather->get_input_node_shared_ptr(0);
             if (!is_type<op::util::ShapeOfBase>(shape_of)) {
                 return false;
             }
@@ -300,8 +300,8 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         for (auto& concat_input : new_concat_inputs) {
             auto node = concat_input.get_node_shared_ptr();
             if (ov::is_type<op::util::GatherBase>(node) &&
-                ov::is_type<v0::Constant>(node->input_value(1).get_node_shared_ptr()) && check_shape_of_gather(node)) {
-                auto indices_constant = as_type_ptr<v0::Constant>(node->input_value(1).get_node_shared_ptr());
+                ov::is_type<v0::Constant>(node->get_input_node_shared_ptr(1)) && check_shape_of_gather(node)) {
+                auto indices_constant = as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
                 bool gather_can_be_fused = true;
                 const auto indices = indices_constant->cast_vector<std::int64_t>();
                 for (size_t i = 0; i < indices.size(); ++i) {

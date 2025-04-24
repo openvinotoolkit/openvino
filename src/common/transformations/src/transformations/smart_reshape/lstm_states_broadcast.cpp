@@ -132,11 +132,11 @@ bool relax_batch_for_initial_states_of_lstm_in_ti(const shared_ptr<ov::op::v0::T
     auto batch_delivering_node = deduce_outer_source_of_batch_for_inner_lstm_cell(ti, lstm_cell);
     if (batch_delivering_node == nullptr)
         return rewritten;
-    if (auto init_hidden_state = ov::as_type_ptr<ov::op::v0::Parameter>(lstm_cell->input_value(1).get_node_shared_ptr())) {
+    if (auto init_hidden_state = ov::as_type_ptr<ov::op::v0::Parameter>(lstm_cell->get_input_node_shared_ptr(1))) {
         auto outer_init_hidden_state_input = get_outer_input_of_ti_by_parameter(init_hidden_state, ti);
         rewritten = broadcast_state_by_batch(outer_init_hidden_state_input, batch_delivering_node) || rewritten;
     }
-    if (auto init_cell_state = ov::as_type_ptr<ov::op::v0::Parameter>(lstm_cell->input_value(2).get_node_shared_ptr())) {
+    if (auto init_cell_state = ov::as_type_ptr<ov::op::v0::Parameter>(lstm_cell->get_input_node_shared_ptr(2))) {
         auto outer_init_cell_state_input = get_outer_input_of_ti_by_parameter(init_cell_state, ti);
         rewritten = broadcast_state_by_batch(outer_init_cell_state_input, batch_delivering_node) || rewritten;
     }

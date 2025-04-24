@@ -33,7 +33,7 @@ TSGatherForward::TSGatherForward() {
         }
 
         auto transpose_order = transpose_info.transpose_const;
-        auto gather_axis = as_type_ptr<ov::op::v0::Constant>(main_node->input_value(2).get_node_shared_ptr());
+        auto gather_axis = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(2));
         if (!gather_axis) {
             return false;
         }
@@ -171,8 +171,8 @@ TSGatherBackward::TSGatherBackward() {
             return false;
         }
 
-        auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
-        auto gather_axis = as_type_ptr<ov::op::v0::Constant>(main_node->input_value(2).get_node_shared_ptr());
+        auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        auto gather_axis = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(2));
         if (!transpose_order || !gather_axis) {
             return false;
         }

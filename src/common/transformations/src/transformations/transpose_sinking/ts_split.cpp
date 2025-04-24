@@ -56,7 +56,7 @@ OutputTranspose GetOutputTransposes(const NodePtr& node) {
 template <typename NodeT>
 std::shared_ptr<ov::Node> FindInputNode(ov::Node* node) {
     for (size_t input_idx = 0; input_idx < node->get_input_size(); ++input_idx) {
-        std::shared_ptr<ov::Node> input_node = node->input_value(input_idx).get_node_shared_ptr();
+        std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(input_idx);
         auto target_node = ov::as_type_ptr<NodeT>(input_node);
         if (target_node)
             return target_node;

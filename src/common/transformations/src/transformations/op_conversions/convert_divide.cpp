@@ -32,7 +32,7 @@ bool convert_divide(std::shared_ptr<ov::Node> node) {
         div->input_value(1),
         ov::op::v0::Constant::create(div->get_input_element_type(1), ov::Shape{}, {-1}));
 
-    if (ov::as_type_ptr<ov::op::v0::Constant>(div->input_value(1).get_node_shared_ptr())) {
+    if (ov::as_type_ptr<ov::op::v0::Constant>(div->get_input_node_shared_ptr(1))) {
         if (auto const_pow = ov::util::get_constant_from_source(pow)) {
             pow = const_pow;
         } else {

@@ -111,7 +111,7 @@ TSSqueezeForward::TSSqueezeForward() {
         std::vector<size_t> non_negative_axes;
         std::shared_ptr<ov::op::v0::Constant> squeeze_axes;
         if (main_node->get_input_size() > 1) {
-            squeeze_axes = as_type_ptr<ov::op::v0::Constant>(main_node->input_value(1).get_node_shared_ptr());
+            squeeze_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
             if (!squeeze_axes) {
                 return false;
             }
@@ -209,7 +209,7 @@ TSSqueezeBackward::TSSqueezeBackward() {
             return false;
         }
 
-        auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
+        auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
 
         if (!transpose_order) {
             return false;
@@ -218,7 +218,7 @@ TSSqueezeBackward::TSSqueezeBackward() {
         std::vector<size_t> non_negative_axes;
         std::shared_ptr<ov::op::v0::Constant> squeeze_axes;
         if (main_node->get_input_size() > 1) {
-            squeeze_axes = as_type_ptr<ov::op::v0::Constant>(main_node->input_value(1).get_node_shared_ptr());
+            squeeze_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
             if (!squeeze_axes) {
                 return false;
             }
