@@ -71,7 +71,7 @@ fastspeech2_conformer_with_hifigan,espnet/fastspeech2_conformer_with_hifigan,xfa
 flaubert,lincoln/flaubert-mlsum-topic-classification
 flava,facebook/flava-full
 flava_image_codebook,facebook/flava-image-codebook
-fnet,google/fnet-base,xfail,Unsupported op aten::fft_fftn aten::real
+fnet,google/fnet-base
 focalnet,microsoft/focalnet-small
 fsmt,facebook/wmt19-en-ru,xfail,Trace error: Only tensors lists tuples of tensors or dictionary of tensors can be output from traced functions
 funnel,funnel-transformer/small
