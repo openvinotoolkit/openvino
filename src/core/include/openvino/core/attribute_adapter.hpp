@@ -38,9 +38,6 @@ public:
     virtual void set_as_any(const ov::Any& x) {
         OPENVINO_NOT_IMPLEMENTED;
     }
-    virtual ov::Any get_as_any() {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
 };
 
 /// \brief Provides access to values via get/set methods from an m_value, typically from
@@ -67,10 +64,6 @@ public:
         } else {
             OPENVINO_THROW("Bad cast from: ", x.type_info().name(), " to: ", typeid(VAT).name());
         }
-    }
-    ov::Any get_as_any() override {
-        VAT obj = get();
-        return {obj};
     }
 };
 
@@ -130,11 +123,6 @@ public:
         }
     }
 
-    ov::Any get_as_any() override {
-        VAT obj = get();
-        return {obj};
-    }
-
 protected:
     AT& m_ref;
     VAT m_buffer;
@@ -184,11 +172,6 @@ public:
         }
     }
 
-    ov::Any get_as_any() override {
-        VAT obj = get();
-        return {obj};
-    }
-
     operator AT&() {
         return m_ref;
     }
@@ -234,10 +217,6 @@ public:
         } else {
             OPENVINO_THROW("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
-    }
-
-    ov::Any get_as_any() override {
-        return {get()};
     }
 
 protected:

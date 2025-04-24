@@ -185,20 +185,47 @@ op::Predicate all_of(const std::vector<std::function<bool(Output<Node>)>>& predi
 }
 
 namespace {
+#define ACCESSOR(type) \
+    void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { match(name, {adapter.get()}); };
+
+#define ACCESSOR_V(type) ACCESSOR(type) ACCESSOR(std::vector<type>)
+
 class AttributeMatchingVisitor : public ov::AttributeVisitor {
 public:
     explicit AttributeMatchingVisitor(const Attributes& expected_attrs)
         : ov::AttributeVisitor(),
           m_expected_attrs{expected_attrs} {
         OPENVINO_ASSERT(!expected_attrs.empty(), "Please remove trivial attribute matching check");
-        for (auto& [name, expected_value] : expected_attrs)
+        for (const auto& [name, expected_value] : expected_attrs)
             m_matched_attributes[name] = false;
     }
 
+    ACCESSOR(bool)
+    ACCESSOR_V(std::string)
+    ACCESSOR_V(int8_t)
+    ACCESSOR_V(int16_t)
+    ACCESSOR_V(int32_t)
+    ACCESSOR_V(int64_t)
+    ACCESSOR_V(uint8_t)
+    ACCESSOR_V(uint16_t)
+    ACCESSOR_V(uint32_t)
+    ACCESSOR_V(uint64_t)
+    ACCESSOR_V(float)
+    ACCESSOR_V(double)
+
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
+    };
+    void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void*");
+    };
+    void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare models");
+    };
+
+    void match(const std::string& name, const ov::Any& node_attribute) {
         if (m_expected_attrs.count(name)) {
             try {
-                const auto& node_attribute = adapter.get_as_any();
                 const auto& attribute_type_id = node_attribute.type_info();
 
                 auto expected_attribute = m_expected_attrs.at(name);
@@ -241,7 +268,7 @@ public:
         } else {
             OPENVINO_DEBUG("  Node attribute `", name, "` is not being compared");
         }
-    };
+    }
 
     bool get_match_status() const {
         // TODO: provide additional logging in case of failure; however the on_adapter method is already logging a lot
