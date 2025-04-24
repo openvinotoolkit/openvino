@@ -464,9 +464,10 @@ static void quantize_block_by_dims(const ov::intel_cpu::PlainTensor& src,
                                    size_t block_number,
                                    size_t block_offset,
                                    size_t groupe_size) {
-    // The layout for per token per head:
-    // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
-    // feature(u8,idx_S)|
+    // The cache layout is [scale0, zp0]|[group0]|[scale1, zp1]|[group1].....
+    // dst_offset is the offset among groups. The addition of 2 * sizeof(float) aims to shift to next group
+    // base pointer points to the base address of next group.
+    // base +  2 * sizeof(float) aims to skip the scale/zp within the group.
     constexpr size_t sub_byte_multiplier = DST_PREC == ov::element::u4 ? 2 : 1;
     size_t S = src.m_dims[3];
     for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
