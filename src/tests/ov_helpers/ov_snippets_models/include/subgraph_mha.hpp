@@ -460,6 +460,40 @@ private:
     bool add_2nd_reshape = false;
 };
 
+/* Graph:
+ *           input0   input1
+ *              \     /
+ *              MatMul0  input2
+ *                 |     /
+ *              Eltwise1
+ *                 |
+ *              Reshape input3
+ *                 |    /
+ *              Eltwise2
+ *                 |
+ *              Reshape
+ *                 |
+ *              Softmax
+ *                 |       input4
+ *                  \      /
+ *                   MatMul1
+ */
+class MHARankUpgradeToReductionFunction : public SnippetsFunctionBase {
+public:
+    explicit MHARankUpgradeToReductionFunction(const std::vector<PartialShape>& inputShapes)
+        : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 5, "Got invalid number of input shapes");
+        bool are_static_shapes = std::all_of(input_shapes.cbegin(), input_shapes.cend(), [](const PartialShape& shape) {
+            return shape.is_static();
+        });
+        OPENVINO_ASSERT(are_static_shapes, "Expect static shape, got dynamic shape");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

@@ -119,6 +119,11 @@ protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
 
+class MHARankUpgradeToReductionReshape : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
 class MHAWithDynamicMul : public testing::WithParamInterface<ov::test::snippets::MHAWithDynamicMulParams>,
                           virtual public MHABase {
 public:
