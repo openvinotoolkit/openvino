@@ -110,9 +110,6 @@ class CustomOpWithAttribute(Op):
     def evaluate(self, outputs, inputs):
         inputs[0].copy_to(outputs[0])
         return True
-    
-    def has_evaluate(self):
-        return True
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
@@ -167,7 +164,7 @@ def test_visit_attributes_custom_op(prepared_paths, attributes, expectation, rai
     input_data = np.ones([2, 1], dtype=np.float32)
     expected_output = np.maximum(0.0, input_data)
 
-    compiled_model = compile_model(model_with_op_attr)
+    compiled_model = compile_model(model_with_op_attr, "CPU")
     input_tensor = Tensor(input_data)
     results = compiled_model({"data1": input_tensor})
     assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)

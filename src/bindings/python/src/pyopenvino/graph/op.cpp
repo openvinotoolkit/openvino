@@ -49,26 +49,21 @@ const ov::op::Op::type_info_t& PyOp::get_type_info() const {
 }
 
 bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    std::cout << "evaluate" << std::endl;
     PYBIND11_OVERRIDE(bool, ov::op::Op, evaluate, output_values, input_values);
-    std::cout << "after evaluate" << std::endl;
 }
 
 bool PyOp::has_evaluate() const {
-    // py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
-    // // Try to look up the overridden method on the Python side.
-    // py::function overrided_py_method = pybind11::get_override(this, "has_evaluate");
-    // if (overrided_py_method) {                                 // method is found
-    //     return static_cast<py::bool_>(overrided_py_method());  // Call the Python function.
-    // }
-    // py::function overrided_evaluate_method = pybind11::get_override(this, "evaluate");
-    // if (overrided_evaluate_method) {
-    //     return true;
-    // }
-    // return false;
-    std::cout << "has evaluate" << std::endl;
-    PYBIND11_OVERRIDE(bool, ov::op::Op, has_evaluate);
-    std::cout << "after has evaluate" << std::endl;
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    // Try to look up the overridden method on the Python side.
+    py::function overrided_py_method = pybind11::get_override(this, "has_evaluate");
+    if (overrided_py_method) {                                 // method is found
+        return static_cast<py::bool_>(overrided_py_method());  // Call the Python function.
+    }
+    py::function overrided_evaluate_method = pybind11::get_override(this, "evaluate");
+    if (overrided_evaluate_method) {
+        return true;
+    }
+    return false;
 }
 
 void PyOp::update_type_info() {
