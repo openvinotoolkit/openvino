@@ -418,8 +418,11 @@ public:
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
         auto updated_impl_params = canonicalize_fused_shapes(impl_params);
 
+        // For scale of 1D tensor or attention_mask of empty shape, use extend_shape_to_rank_from_end as before
         for (auto& input_layout : updated_impl_params.input_layouts) {
-            input_layout.set_partial_shape(extend_shape_to_rank_from_idx_equal_to_diff(input_layout.get_partial_shape()));
+            input_layout.set_partial_shape(input_layout.get_partial_shape().size() <= 1 ?
+                                           extend_shape_to_rank_from_end(input_layout.get_partial_shape()) :
+                                           extend_shape_to_rank_from_idx_equal_to_diff(input_layout.get_partial_shape()));
         }
 
         auto& output_layout = updated_impl_params.output_layouts[0];
