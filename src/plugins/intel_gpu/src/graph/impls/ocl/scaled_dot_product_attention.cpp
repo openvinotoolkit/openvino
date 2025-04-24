@@ -338,25 +338,24 @@ public:
             data_inputs_num++;
         }
 
-        auto extend_order = [](const std::vector<int64_t>& order, size_t rank = 4) {
-            if (order.size() >= rank) {
+        auto extend_order_in_num_heads_dim = [](const std::vector<int64_t>& order, size_t rank = 4) {
+            if (order.size() == rank) {
                 return order;
             }
-            auto diff = rank - order.size();
-            std::vector<int64_t> extended_order(rank, 0);
-            extended_order[diff] = 1;
 
+            std::vector<int64_t> extended_order(rank, 0);
+            extended_order[1] = 1;
             for (size_t i = 0, j = 0; i < rank; ++i) {
-                if (i == diff) continue;
+                if (i == 1) continue;
                 extended_order[i] = (order[j] == 0) ? 0 : order[j] + 1;
                 ++j;
             }
             return extended_order;
         };
-        auto extended_input_q_transpose_order = extend_order(desc->input_q_transpose_order);
-        auto extended_input_k_transpose_order = extend_order(desc->input_k_transpose_order);
-        auto extended_input_v_transpose_order = extend_order(desc->input_v_transpose_order);
-        auto extended_output_transpose_order = extend_order(desc->output_transpose_order);
+        auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+        auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+        auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+        auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
 
         params.conf = get_sdpa_configuration(impl_param,
                                              extended_input_q_transpose_order,
@@ -416,17 +415,25 @@ public:
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
-        auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+        auto updated_impl_params = impl_params;
+
+        auto extend_pshape_to_rank_in_num_heads_dim = [](ov::PartialShape pshape, size_t rank = 4) {
+            if (pshape.size() == rank) {
+                return pshape;
+            }
+            pshape.insert(pshape.begin() + 1, ov::Dimension(1));
+            return pshape;
+        };
 
         // For scale of 1D tensor or attention_mask of empty shape, use extend_shape_to_rank_from_end as before
         for (auto& input_layout : updated_impl_params.input_layouts) {
             input_layout.set_partial_shape(input_layout.get_partial_shape().size() <= 1 ?
                                            extend_shape_to_rank_from_end(input_layout.get_partial_shape()) :
-                                           extend_shape_to_rank_from_idx_equal_to_diff(input_layout.get_partial_shape()));
+                                           extend_pshape_to_rank_in_num_heads_dim(input_layout.get_partial_shape()));
         }
 
         auto& output_layout = updated_impl_params.output_layouts[0];
-        output_layout.set_partial_shape(extend_shape_to_rank_from_idx_equal_to_diff(output_layout.get_partial_shape()));
+        output_layout.set_partial_shape(extend_pshape_to_rank_in_num_heads_dim(output_layout.get_partial_shape()));
 
         return updated_impl_params;
     }

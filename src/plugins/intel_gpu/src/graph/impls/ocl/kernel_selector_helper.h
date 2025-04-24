@@ -236,14 +236,6 @@ inline ov::PartialShape extend_shape_to_rank_from_begin(const ov::PartialShape& 
     return extended_pshape;
 }
 
-inline ov::PartialShape extend_shape_to_rank_from_idx_equal_to_diff(ov::PartialShape pshape, size_t rank = 4) {
-    if (pshape.size() >= rank) {
-        return pshape;
-    }
-    pshape.insert(pshape.begin() + (rank - pshape.size()), ov::Dimension(1));
-    return pshape;
-}
-
 inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer,
                           bool first_to_second_only = false) {
     if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
