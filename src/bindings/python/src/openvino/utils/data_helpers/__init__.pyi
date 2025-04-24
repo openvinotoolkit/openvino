@@ -6,4 +6,5 @@ from openvino.utils.data_helpers.data_dispatcher import _data_dispatch
 from openvino.utils.data_helpers.wrappers import OVDict
 from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
 from openvino.utils.data_helpers.wrappers import tensor_from_file
+# type: ignore
 __all__ = ['OVDict', 'data_dispatcher', 'tensor_from_file', 'wrappers']

@@ -4,6 +4,7 @@ from openvino.exceptions import UserInputError
 from typing import Any
 import logging as logging
 import numpy as np
+# type: ignore
 """
 Helper functions for validating user input.
 """

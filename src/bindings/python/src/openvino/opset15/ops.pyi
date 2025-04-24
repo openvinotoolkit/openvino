@@ -13,6 +13,7 @@ import numpy as np
 import openvino._pyopenvino
 import openvino.utils.decorators
 import typing
+# type: ignore
 """
 Factory functions for ops added to openvino opset15.
 """
@@ -24,7 +25,7 @@ def bitwise_left_shift(left, right, *args, **kwargs) -> openvino._pyopenvino.Nod
         :param arg0: Node with data to be shifted.
         :param arg1: Node with number of shifts.
         :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors.
-                               Defaults to ‚ÄúNUMPY‚Äù.
+                               Defaults to ìNUMPYî.
     
         :return: The new node performing BitwiseLeftShift operation.
         
@@ -36,7 +37,7 @@ def bitwise_right_shift(left, right, *args, **kwargs) -> openvino._pyopenvino.No
         :param arg0: Tensor with data to be shifted.
         :param arg1: Tensor with number of shifts.
         :param auto_broadcast: The type of broadcasting specifies rules used for auto-broadcasting of input tensors.
-                               Defaults to ‚ÄúNUMPY‚Äù.
+                               Defaults to ìNUMPYî.
     
         :return: The new node performing BitwiseRightShift operation.
         

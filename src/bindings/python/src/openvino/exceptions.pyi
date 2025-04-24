@@ -1,5 +1,9 @@
 # type: ignore
 from __future__ import annotations
+# type: ignore
+# type: ignore
+# type: ignore
+# type: ignore
 """
 openvino exceptions hierarchy. All exceptions are descendants of OVError.
 """

@@ -9,6 +9,7 @@ from openvino.exceptions import UserInputError
 from pathlib import Path
 from typing import Any
 import openvino._pyopenvino
+# type: ignore
 __all__ = ['Any', 'DEFAULT_OPSET', 'Extension', 'Node', 'NodeFactory', 'Output', 'Path', 'UserInputError', 'singledispatchmethod']
 class NodeFactory:
     """

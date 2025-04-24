@@ -3,6 +3,7 @@ from . import hint
 from __future__ import annotations
 import openvino._pyopenvino
 import typing
+# type: ignore
 """
 openvino.properties.intel_gpu submodule that simulates ov::intel_gpu
 """

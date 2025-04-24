@@ -7,6 +7,7 @@ from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
 import openvino._op_base
 import openvino._pyopenvino
+# type: ignore
 __all__ = ['Op', 'PartialShape', 'PostponedConstant', 'Shape', 'Tensor', 'Type', 'make_postponed_constant']
 class PostponedConstant(openvino._op_base.Op):
     """
