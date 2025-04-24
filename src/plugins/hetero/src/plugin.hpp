@@ -71,6 +71,8 @@ private:
     Configuration m_cfg;
 
     mutable size_t independent_submodel_size = 0;
+
+    mutable std::vector<std::string> execution_devices;
 };
 
 }  // namespace hetero
