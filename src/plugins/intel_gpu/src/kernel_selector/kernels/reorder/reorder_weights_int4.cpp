@@ -66,24 +66,20 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
     return dispatchData;
 }
 
-static inline  kernel_selector::Tensor::NDims GetTrimmedDims(const kernel_selector::Tensor::NDims& org_dims) {
-    auto it = org_dims.begin();
-    while (it != org_dims.end() && it->v == 1) {
-        ++it;
-    }
-    return std::vector<kernel_selector::Tensor::Dim>(it, org_dims.end());
-}
-
 JitConstants ReorderWeightsKernelInt4::GetJitConstants(const reorder_weights_params& params) const {
     auto jit = ReorderKernelBase::GetJitConstants(params);
     const auto& input = params.input;
     const auto& output = params.output;
 
     if (input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) {
-        auto idims = GetTrimmedDims(input.GetDims());
-        auto odims = GetTrimmedDims(output.GetDims());
-        const auto input_inner_most_dim = idims.front().LogicalDimPadded();
-        const auto output_inner_most_dim = odims.front().LogicalDimPadded();
+        const auto idims = input.GetDims();
+        const auto odims = output.GetDims();
+
+        size_t input_inner_most_idx  = input.GetDims().size() - params.original_input_rank;
+        size_t output_inner_most_idx = output.GetDims().size() - params.original_output_rank;
+
+        const auto input_inner_most_dim = idims.at(input_inner_most_idx).LogicalDimPadded();
+        const auto output_inner_most_dim = odims.at(output_inner_most_idx).LogicalDimPadded();
         OPENVINO_ASSERT(input_inner_most_dim % 2 != 0 && output_inner_most_dim % 2 == 0,
                         "Reorder weight i4 kernel for data padding only supports"
                         "an odd input innermost dimension and an even output innermost dimension.");
@@ -103,21 +99,25 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     // the input tensor should have an odd innermost dimension without any padding,
     // and the output tensor should have padding with only the pad.after value for the innermost dimension.
     if (input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) {
-        auto idims = GetTrimmedDims(input.GetDims());
-        auto odims = GetTrimmedDims(output.GetDims());
+        const auto idims = input.GetDims();
+        const auto odims = output.GetDims();
+
+        size_t input_inner_most_idx  = idims.size() - p.original_input_rank;
+        size_t output_inner_most_idx = odims.size() - p.original_output_rank;
 
         bool has_pads_for_input_dims = std::any_of(idims.begin(), idims.end(), [](const kernel_selector::Tensor::Dim& d) {
             return d.pad.Total() != 0;
         });
-        bool has_pads_for_output_dims_except_inner_most = std::any_of(odims.begin() + 1, odims.end(), [](const kernel_selector::Tensor::Dim& d) {
+        bool has_pads_for_output_dims_except_inner_most = std::any_of(odims.begin() + output_inner_most_idx + 1, odims.end(),
+            [](const kernel_selector::Tensor::Dim& d) {
             return d.pad.Total() != 0;
         });
 
-        if (idims[0].v % 2 != 0
+        if (idims[input_inner_most_idx].v % 2 != 0
             && !has_pads_for_input_dims
             && !has_pads_for_output_dims_except_inner_most
-            && odims[0].pad.before == 0
-            && odims[0].LogicalDimPadded() % 2 == 0) {
+            && odims[output_inner_most_idx].pad.before == 0
+            && odims[output_inner_most_idx].LogicalDimPadded() % 2 == 0) {
             return true;
         }
     }

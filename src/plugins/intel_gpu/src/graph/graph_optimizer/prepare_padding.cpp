@@ -16,6 +16,7 @@ using namespace ov::intel_gpu;
 
 void prepare_padding::run(program& p) {
     if (p.get_config().get_use_onednn()) {
+        const auto allow_new_shape_infer = p.get_config().get_allow_new_shape_infer();
         for (const auto& node : p.get_processing_order()) {
             if (!node->is_type<fully_connected>())
                 continue;
@@ -31,11 +32,14 @@ void prepare_padding::run(program& p) {
                 const size_t alignment = 2;
                 auto weight_layout = weight_node.get_output_layout(0);
                 const auto const_shape = weight_layout.get_partial_shape().to_shape();
-                // Get the innermost index after trimming trailing elements in the shape such as [4,64,1,1].
                 size_t inner_most_idx = const_shape.size() - 1;
-                for (; inner_most_idx >= 0; --inner_most_idx) {
-                    if (const_shape[inner_most_idx] != 1)
-                        break;
+                if (!allow_new_shape_infer) {
+                    // Get the innermost index after trimming trailing elements in the canonicalized legacy shape such as [4,64,1,1].
+                    for (; inner_most_idx >= 0; --inner_most_idx) {
+                        if (const_shape[inner_most_idx] != 1)
+                            break;
+                    }
+                    OPENVINO_ASSERT(const_shape[inner_most_idx] % alignment == 0, "inner most dimension for the legacy shape should be even.");
                 }
 
                 if (const_shape[inner_most_idx] % alignment != 0) {

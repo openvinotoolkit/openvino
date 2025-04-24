@@ -3635,7 +3635,11 @@ static void run_reorder_weight_int4(const ov::Shape in_shape, const std::vector<
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), weights_reorder_params));
 
-    network network(engine, topology, get_test_default_config(engine));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
