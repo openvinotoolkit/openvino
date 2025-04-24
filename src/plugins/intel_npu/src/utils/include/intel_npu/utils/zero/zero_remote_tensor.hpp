@@ -8,21 +8,23 @@
 #include <memory>
 #include <string>
 
-#include "intel_npu/config/config.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
+#include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 
 namespace intel_npu {
 
-/**
- * @brief Acts as an interface for the remote tensor structures implemented by all backends.
- * @details The operations common for all backends can be found implemented here
- */
-class RemoteTensor : public ov::IRemoteTensor {
+class ZeroRemoteTensor final : public ov::IRemoteTensor {
 public:
-    RemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
-                 const ov::element::Type& element_type,
-                 const ov::Shape& shape);
+    ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
+                     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                     const ov::element::Type& element_type,
+                     const ov::Shape& shape,
+                     ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
+                     ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
+                     const void* mem = nullptr);
 
     /**
      * @brief Returns additional information associated with tensor
@@ -63,20 +65,39 @@ public:
      */
     std::shared_ptr<ov::IRemoteContext> get_context() const;
 
-protected:
-    virtual void allocate(const size_t bytes) = 0;
-    virtual bool deallocate() noexcept = 0;
-    void update_strides();
+    void* get_original_memory() const;
+    ze_context_handle_t get_zero_context_handle() const;
 
-    virtual ~RemoteTensor();
+    ~ZeroRemoteTensor() override;
+
+private:
+    void allocate(const size_t bytes);
+    bool deallocate() noexcept;
+    bool is_allocated() const noexcept;
+    void update_strides();
+    void update_properties();
 
     std::shared_ptr<ov::IRemoteContext> _context;
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
 
     ov::element::Type _element_type;
     ov::Shape _shape;
     ov::Shape _capacity;
     ov::Strides _strides{};
     ov::AnyMap _properties;
+
+    Logger _logger;
+
+    ov::intel_npu::TensorType _tensor_type;
+    ov::intel_npu::MemType _mem_type;
+    const void* _mem = nullptr;
+    void* _data = nullptr;
+
+    bool _external_memory_support = false;
 };
+
+inline bool is_remote_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
+    return std::dynamic_pointer_cast<ZeroRemoteTensor>(tensor) != nullptr;
+}
 
 }  // namespace intel_npu

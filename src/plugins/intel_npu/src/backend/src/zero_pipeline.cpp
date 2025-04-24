@@ -12,8 +12,8 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-#include "zero_remote_tensor.hpp"
 
 namespace intel_npu {
 

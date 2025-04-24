@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_remote_tensor.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 
 #include <ze_api.h>
 
-#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
@@ -23,21 +22,23 @@ namespace intel_npu {
 
 ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                                   const ze_device_properties_t& device_properties,
                                    const ov::element::Type& element_type,
                                    const ov::Shape& shape,
-                                   const Config& config,
                                    TensorType tensor_type,
                                    MemType mem_type,
-                                   void* mem)
-    : RemoteTensor(context, element_type, shape),
-      _config(config),
-      _logger("ZeroRemoteContext", _config.get<LOG_LEVEL>()),
+                                   const void* mem)
+    : _context(context),
       _init_structs(init_structs),
-      _device_properties(device_properties),
+      _element_type(element_type),
+      _shape(shape),
+      _capacity(shape),
+      _logger("ZeroRemoteContext", Logger::global().level()),
       _tensor_type(tensor_type),
       _mem_type(mem_type),
       _mem(mem) {
+    OPENVINO_ASSERT(shape_size(_shape) != 0);
+    OPENVINO_ASSERT(_element_type.is_static());
+
     const auto byte_size = ov::element::get_memory_size(_element_type, shape_size(_shape));
 
     ze_device_external_memory_properties_t desc = {};
@@ -56,6 +57,62 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
     }
 
     allocate(byte_size);
+}
+
+const ov::element::Type& ZeroRemoteTensor::get_element_type() const {
+    return _element_type;
+}
+
+const ov::Shape& ZeroRemoteTensor::get_shape() const {
+    return _shape;
+}
+
+const ov::Strides& ZeroRemoteTensor::get_strides() const {
+    return _strides;
+}
+
+const ov::AnyMap& ZeroRemoteTensor::get_properties() const {
+    return _properties;
+}
+
+void ZeroRemoteTensor::set_shape(ov::Shape new_shape) {
+    if (_shape == new_shape) {
+        return;
+    }
+
+    _shape = std::move(new_shape);
+
+    if (ov::shape_size(_shape) > ov::shape_size(_capacity)) {
+        OPENVINO_THROW("Cannot set a new bigger shape to this tensor.");
+    }
+
+    _strides.clear();
+    update_strides();
+}
+
+void ZeroRemoteTensor::update_strides() {
+    if (_element_type.bitwidth() < 8) {
+        return;
+    }
+
+    auto& shape = get_shape();
+    if (_strides.empty() && !shape.empty()) {
+        _strides.resize(shape.size());
+        _strides.back() = shape.back() == 0 ? 0 : _element_type.size();
+        std::transform(shape.crbegin(),
+                       shape.crend() - 1,
+                       _strides.rbegin(),
+                       _strides.rbegin() + 1,
+                       std::multiplies<size_t>());
+    }
+}
+
+const std::string& ZeroRemoteTensor::get_device_name() const {
+    return _context->get_device_name();
+}
+
+std::shared_ptr<ov::IRemoteContext> ZeroRemoteTensor::get_context() const {
+    return _context;
 }
 
 ZeroRemoteTensor::~ZeroRemoteTensor() {
@@ -97,7 +154,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         size_t size = (bytes + STANDARD_PAGE_SIZE - 1) & ~(STANDARD_PAGE_SIZE - 1);
 
         ze_host_mem_alloc_desc_t desc = {};
-        if (_tensor_type == TensorType::INPUT && (_device_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)) {
+        if (_tensor_type == TensorType::INPUT) {
             ze_host_mem_alloc_flag_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
             desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, static_cast<ze_host_mem_alloc_flags_t>(flag)};
         } else {
@@ -120,7 +177,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         ze_external_memory_import_win32_handle_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_WIN32,
                                                                   nullptr,
                                                                   ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32,
-                                                                  _mem,
+                                                                  const_cast<void*>(_mem),
                                                                   nullptr};
         ze_device_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, 0, 0};
         THROW_ON_FAIL_FOR_LEVELZERO("zeMemAllocDevice",

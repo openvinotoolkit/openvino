@@ -79,22 +79,4 @@ std::map<ov::element::Type, float> IDevice::getGops() const {
     OPENVINO_THROW("Get DEVICE_GOPS is not supported");
 }
 
-ov::SoPtr<ov::IRemoteTensor> IDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext>,
-                                                         const ov::element::Type&,
-                                                         const ov::Shape&,
-                                                         const Config&,
-                                                         ov::intel_npu::TensorType,
-                                                         ov::intel_npu::MemType,
-                                                         void*) {
-    OPENVINO_THROW("Create Remote Tensor is not supported");
-}
-
-ov::SoPtr<ov::ITensor> IDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext>,
-                                                 const ov::element::Type&,
-                                                 const ov::Shape&,
-                                                 const Config&,
-                                                 ov::intel_npu::TensorType) {
-    OPENVINO_THROW("Create Host Tensor is not supported");
-}
-
 }  // namespace intel_npu

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "zero_host_tensor.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 
@@ -10,17 +10,13 @@ namespace intel_npu {
 
 ZeroHostTensor::ZeroHostTensor(const std::shared_ptr<ov::IRemoteContext>& context,
                                const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                               const ze_device_properties_t& device_properties,
                                const ov::element::Type element_type,
                                const ov::Shape& shape,
-                               const Config& config,
                                ov::intel_npu::TensorType tensor_type)
     : _impl(std::make_shared<ZeroRemoteTensor>(context,
                                                init_structs,
-                                               device_properties,
                                                element_type,
                                                shape,
-                                               config,
                                                tensor_type,
                                                ov::intel_npu::MemType::L0_INTERNAL_BUF)) {}
 

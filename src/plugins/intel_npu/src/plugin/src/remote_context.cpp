@@ -4,8 +4,6 @@
 
 #include "remote_context.hpp"
 
-#include "intel_npu/config/options.hpp"
-
 using namespace ov::intel_npu;
 
 namespace {
@@ -25,18 +23,13 @@ std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<
 namespace intel_npu {
 
 RemoteContextImpl::RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                     const Config& config,
                                      const ov::AnyMap& remote_properties)
-    : _config(config),
-      _device_name("NPU") {
+    : _device_name("NPU") {
     if (engineBackend == nullptr || engineBackend->getName() != "LEVEL0") {
         OPENVINO_THROW("Level zero backend is not found!");
     }
 
-    _device = engineBackend->getDevice(config.get<DEVICE_ID>());
-    if (_device == nullptr) {
-        OPENVINO_THROW("Device is not available!");
-    }
+    _init_structs = engineBackend->getInitStructs();
 
     _properties = {l0_context(engineBackend->getContext())};
 
@@ -83,7 +76,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
     }
 
     if (!mem_type_object.has_value()) {
-        return _device->createRemoteTensor(get_this_shared_ptr(), type, shape, _config);
+        return {std::make_shared<ZeroRemoteTensor>(get_this_shared_ptr(), _init_structs, type, shape)};
     }
 
     // Mem_handle shall be set if mem_type is a shared memory type.
@@ -91,21 +84,21 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         OPENVINO_THROW("No parameter ", mem_handle.name(), " found in parameters map");
     }
 
-    return _device->createRemoteTensor(get_this_shared_ptr(),
-                                       type,
-                                       shape,
-                                       _config,
-                                       tensor_type_object.value_or(ov::intel_npu::TensorType::BINDED),
-                                       mem_type_object.value_or(ov::intel_npu::MemType::L0_INTERNAL_BUF),
-                                       mem_handle_object.value_or(nullptr));
+    return {std::make_shared<ZeroRemoteTensor>(get_this_shared_ptr(),
+                                               _init_structs,
+                                               type,
+                                               shape,
+                                               tensor_type_object.value_or(ov::intel_npu::TensorType::BINDED),
+                                               mem_type_object.value_or(ov::intel_npu::MemType::L0_INTERNAL_BUF),
+                                               mem_handle_object.value_or(nullptr))};
 }
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
-    return _device->createHostTensor(get_this_shared_ptr(),
-                                     type,
-                                     shape,
-                                     _config,
-                                     _tensor_type_object.value_or(ov::intel_npu::TensorType::BINDED));
+    return {std::make_shared<ZeroHostTensor>(get_this_shared_ptr(),
+                                             _init_structs,
+                                             type,
+                                             shape,
+                                             _tensor_type_object.value_or(ov::intel_npu::TensorType::BINDED))};
 }
 
 const std::string& RemoteContextImpl::get_device_name() const {
