@@ -15,7 +15,6 @@
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"

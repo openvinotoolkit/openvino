@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/plugin/transformations_pipeline.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -12,8 +14,6 @@
 #include <tuple>
 #include <vector>
 
-#include "openvino/opsets/opset10.hpp"
-#include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "low_precision/add.hpp"
@@ -58,55 +58,57 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
+#include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
+#include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
-#include "plugin/transformations/kv_cache_fusion.hpp"
-#include "plugin/transformations/move_fc_reshape_to_weights.hpp"
-#include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
-#include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/fc_per_layer_scaling.hpp"
-#include "plugin/transformations/transpose_fusion.hpp"
+#include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
-#include "plugin/transformations/convert_convolution.hpp"
+#include "plugin/transformations/kv_cache_fusion.hpp"
+#include "plugin/transformations/lora_horizontal_fusion.hpp"
+#include "plugin/transformations/move_fc_reshape_to_weights.hpp"
+#include "plugin/transformations/optimize_subsequent_reshapes.hpp"
+#include "plugin/transformations/print_model_statistics.hpp"
+#include "plugin/transformations/sink_reshape.hpp"
+#include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
-#include "plugin/transformations/increase_position_ids_precision.hpp"
-#include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
-#include "plugin/transformations/optimize_subsequent_reshapes.hpp"
-#include "plugin/transformations/lora_horizontal_fusion.hpp"
-#include "plugin/transformations/sink_reshape.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
-#include "transformations/common_optimizations/rms_fusion.hpp"
+#include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_pagedattn_inputs.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/sdpa_scale_fusion.hpp"
-#include "transformations/common_optimizations/activations_scaling.hpp"
-#include "transformations/common_optimizations/softmax_fusion.hpp"
-#include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
+#include "transformations/common_optimizations/softmax_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
-#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/convert_precision.hpp"
@@ -125,8 +127,8 @@
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_gather_0d.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
-#include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_gather_to_compressed.hpp"
+#include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
@@ -151,6 +153,7 @@
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include "transformations/op_conversions/gelu7_downgrade.hpp"
+#include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
 #include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
@@ -161,11 +164,10 @@
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softplus_decomposition.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
-#include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/resolve_names_collisions.hpp"
@@ -173,6 +175,15 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reverse_sequence.hpp"
+#include "openvino/op/roll.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace {
 template<typename T>
@@ -515,13 +526,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
             //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
             //   until the SDPA operation is optimized for these cases
-            const auto optimal_subgroup_size = 16;
-            bool valid_head_size = head_size % optimal_subgroup_size == 0;
-            valid_head_size &= (head_size >= 64 && head_size <= 256);
+            bool valid_head_size = (head_size >= 64 && head_size <= 256);
             if (!valid_head_size) {
                 return false;
             }
 
+            const auto optimal_subgroup_size = 16;
+            // sdpa_opt is not supporting compressed KV yet for unaligned head size
+            if (head_size % optimal_subgroup_size != 0) {
+                if (ov::element::Type(sdpa->get_input_element_type(1)).size() < 2 || ov::element::Type(sdpa->get_input_element_type(2)).size() < 2) {
+                    return false;
+                }
+            }
             return true;
         });
 
@@ -1184,14 +1200,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
                 if (innermost_size < 32) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: shape is too small - " << innermost_size << std::endl;
-                    return true;
-                }
-
-                // AZP does not support 8bit weight
-                // XXX: This is currently wrapped as GPU_DEBUG_IF as dynamic_quantize_asym is not exposed through public API.
-                GPU_DEBUG_IF(asymmetric_dyn_quant
-                    && (root->get_input_element_type(1) == ov::element::i8 || root->get_input_element_type(1) == ov::element::u8)) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support 8bit weight" << std::endl;
                     return true;
                 }
 
