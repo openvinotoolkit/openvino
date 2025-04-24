@@ -5,7 +5,7 @@
 
 """ Script to generate XML config file with the list of IR models
 Usage: 
-  python gen_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache>
+    python gen_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache> --topology=<model_name_1>,<model_name_2>,...
 """
 # pylint:disable=line-too-long
 
@@ -21,6 +21,17 @@ from inspect import getsourcefile
 from pathlib import Path
 import defusedxml.ElementTree as ET
 import xml.etree.ElementTree as eET
+
+class ListAction(argparse.Action):
+  def __init__(self, option_strings, dest, nargs=None, **kwargs):
+    if nargs is not None:
+      raise ValueError('nargs not allowed')
+    super(ListAction, self).__init__(option_strings, dest, **kwargs)
+
+  def __call__(self, parser, namespace, values, option_string=None):
+    values = [x.strip() for x in values.split(',')]
+    setattr(namespace, self.dest, values)
+
 
 log.basicConfig(format="{file}: [ %(levelname)s ] %(message)s".format(file=os.path.basename(__file__)),
                 level=log.INFO, stream=sys.stdout)
@@ -66,6 +77,9 @@ def get_args(parser):
     parser.add_argument('--ir_cache_dir', type=Path,
                         default=abs_path('../ir_cache'),
                         help='Directory with IR data cache.')
+    parser.add_argument('--topology', action=ListAction, default='',
+                        help="'List of models topology in IR-cache. Examples: --topology=<model_name_1>,<model_name_2>,..."
+                        )
     return parser.parse_args()
 
 def main():
@@ -85,6 +99,9 @@ def main():
     for root, _, files in os.walk(subdirectory):
         for file_name in files:
             if file_name.endswith(".xml"):
+                if args.topology:
+                    if file_name.split('.')[0] not in args.topology:
+                        continue
                 full_path = os.path.join(root, file_name)
                 path_parts = os.path.normpath(full_path).split(os.path.sep)
 
