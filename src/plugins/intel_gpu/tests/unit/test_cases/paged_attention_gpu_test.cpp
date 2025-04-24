@@ -351,6 +351,10 @@ struct PagedAttentionManager {
         return get_memory_from_vec(max_context_len);
     }
 
+    memory::ptr get_score_aggregation_window_memory() {
+        return get_memory_from_vec(score_aggregation_window);
+    }
+
     memory::ptr get_rotated_block_indices_memory() {
         return get_memory_from_vec(rotated_block_indices);
     }
@@ -810,6 +814,8 @@ public:
         auto alibi_mem = pam.get_alibi_memory();
         auto max_context_len_mem = pam.get_max_context_len_memory();
 
+        auto score_aggregation_window_mem = pam.get_score_aggregation_window_memory();
+
         // cache rotation related memory buffers
         auto rotated_block_indices_mem = pam.get_rotated_block_indices_memory();
         auto rotation_deltas_mem = pam.get_rotation_deltas_memory();
@@ -828,6 +834,7 @@ public:
         auto sliding_window_layout = sliding_window_mem->get_layout();
         auto alibi_layout = alibi_mem->get_layout();
         auto max_context_len_layout = max_context_len_mem->get_layout();
+        auto score_aggregation_window_layout = score_aggregation_window_mem->get_layout();
         auto rotated_block_indices_layout = rotated_block_indices_mem->get_layout();
         auto rotation_deltas_layout = rotation_deltas_mem->get_layout();
         auto rotation_trig_lut_layout = rotation_trig_lut_mem->get_layout();
@@ -890,7 +897,8 @@ public:
             input_info("scale"),
             input_info("sliding_window"),
             input_info("alibi"),
-            input_info("max_context_len") };
+            input_info("max_context_len"),
+            input_info("score_aggregation_window") };
 
         if (p.rotation_config.apply_rotation) {
             pa_inputs.push_back(input_info("rotated_block_indices"));
@@ -925,6 +933,7 @@ public:
             input_layout("sliding_window", sliding_window_layout),
             input_layout("alibi", alibi_layout),
             input_layout("max_context_len", max_context_len_layout),
+            input_layout("score_aggregation_window", score_aggregation_window_layout),
             pa_prim,
             reorder("output_data", input_info("paged_attention", 0), format::bfyx, data_types::f16)
         );
@@ -962,6 +971,7 @@ public:
         network->set_input_data("sliding_window", sliding_window_mem);
         network->set_input_data("alibi", alibi_mem);
         network->set_input_data("max_context_len", max_context_len_mem);
+        network->set_input_data("score_aggregation_window", score_aggregation_window_mem);
 
         if (p.rotation_config.apply_rotation) {
             network->set_input_data("rotated_block_indices", rotated_block_indices_mem);
