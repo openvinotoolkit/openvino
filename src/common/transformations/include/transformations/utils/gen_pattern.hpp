@@ -1164,15 +1164,6 @@ std::shared_ptr<Node> GenConst_tril(values_info vt) {
     });
 }
 
-inline std::shared_ptr<Node> operator|(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return std::make_shared<ov::pass::pattern::op::Or>(OutputVector{lhs, rhs});
-}
-
-inline std::shared_ptr<Node> operator|(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs) {
-    return std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{lhs->get_default_output(), rhs->get_default_output()});
-}
-
 inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
                                              detail::PatternNode start,
                                              detail::PatternNode stop,
@@ -1201,6 +1192,8 @@ inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
                                                   file);
     return opt2;
 }
+
+using namespace ov::pass;
 
 inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
                                       Symbol start,

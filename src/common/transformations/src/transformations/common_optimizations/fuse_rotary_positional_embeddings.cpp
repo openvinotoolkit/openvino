@@ -237,13 +237,19 @@ static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
 
     std::vector<int64_t> begin_mask(axis + 1, 1);
     std::vector<int64_t> end_mask(axis + 1, 1);
+    std::vector<int64_t> new_axis_mask;
+    std::vector<int64_t> shrink_axis_mask;
+    std::vector<int64_t> ellipsis_mask;
 
     begin_mask[axis] = 0;
     end_mask[axis] = 0;
 
     auto opt2 = pattern::wrap_type<ov::opset1::StridedSlice>({data, begin, end, stride},
                                                              {{"begin_mask", begin_mask},
-                                                              {"end_mask", end_mask}});
+                                                              {"end_mask", end_mask},
+                                                              {"new_axis_mask", new_axis_mask},
+                                                              {"shrink_axis_mask", shrink_axis_mask},
+                                                              {"ellipsis_mask", ellipsis_mask}});
 
     return opt1 | opt2;
 }
@@ -265,16 +271,16 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     auto x_or_cos2 = pattern::any_input(pattern::rank_equals(4));
     auto t_sin = pattern::any_input(pattern::rank_equals(4));
 
-    auto varsplit = pattern::wrap_type<opset1::VariadicSplit>({x, NewGenConst({int64_t(3)}), NewGenConst({"half_ndims", "?"})});
+    auto varsplit = pattern::wrap_type<opset1::VariadicSplit>({x, 3, {"half_ndims", "?"}});
     varsplit->set_output_size(2);
 
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
     // rotate half : [-x2, x1]
     auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, 3);
-    auto x2neg = pattern::wrap_type<opset1::Multiply>({x2 | varsplit->output(1), FLOAT_CONSTANT_WITH_PREDICATE(value == std::vector<float>{-1.0f})}, {{"auto_broadcast", "numpy"}});
+    auto x2neg = pattern::wrap_type<opset1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
     auto x1 = NewGenSlice(x, 0, "half_ndims", 1, 3);
-    auto x_rotate_half = pattern::wrap_type<opset1::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1l}});
+    auto x_rotate_half = pattern::wrap_type<opset1::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 
     auto mul_cos = pattern::wrap_type<opset1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
     auto mul_sin = pattern::wrap_type<opset1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
@@ -293,12 +299,13 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
         } else if (pattern_map.at(x_or_cos2) == pattern_map.at(x)) {
             v_cos = pattern_map.at(x_or_cos1);
         } else {
-            return false; // not a RoPE
+            // not a RoPE
+            return false;
         }
 
         auto symbols = m.get_symbols();
         auto half_ndims = symbols["half_ndims"];
-        if (!half_ndims.is_static()) {
+        if (!half_ndims.is_integer()) {
             return false;
         }
 
