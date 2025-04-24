@@ -188,8 +188,6 @@ struct lstm_seq : public RNNParams<lstm_seq> {
 
 struct gru_seq : public RNNParams<gru_seq> {
     CLDNN_DECLARE_PRIMITIVE(gru_seq)
-    using vec_activation = std::vector<activation_func>;
-    using vec_activation_param = std::vector<activation_additional_params>;
     using RNNParams::RNNParams;
     gru_seq(const gru_seq&) = default;
     bool linear_before_reset;
