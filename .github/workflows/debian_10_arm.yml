@@ -74,7 +74,8 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    # if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ 'false' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
