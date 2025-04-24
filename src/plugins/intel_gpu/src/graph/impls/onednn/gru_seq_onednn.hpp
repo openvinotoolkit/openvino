@@ -35,10 +35,6 @@ struct GRUSeqImplementationManager : public ImplementationManager {
 
             if (idx == 0) {
                 in_fmts[idx] = format::fbyx;
-            } else if (idx == 1) {
-                in_fmts[idx] = format::fbyx;
-            } else if (idx == 2 || idx == 3) {
-                in_fmts[idx] = format::byfx;
             } else {
                 in_fmts[idx] = format::get_default_format(out_rank);
             }
