@@ -138,10 +138,14 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
+      - name: Skip workflow
+        run: |
+          echo "${{ needs.Smart_CI.outputs.skip_workflow }}"
+
       - name: Display Job statuses
         run: |
-          echo Job statuses: ${{ toJSON(needs) }}
-          echo Job statuses: ${{ toJSON(needs.*.result) }}
+          echo "Job statuses: ${{ toJSON(needs) }}"
+          echo "Job statuses: ${{ toJSON(needs.*.result) }}"
 
       - name: Check status of all jobs
         if: >-
