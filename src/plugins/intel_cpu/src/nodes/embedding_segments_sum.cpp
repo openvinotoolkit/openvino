@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/embedding_segments_sum.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -163,7 +163,7 @@ bool EmbeddingSegmentsSum::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingSegmentsSum::execute(const dnnl::stream& strm) {
+void EmbeddingSegmentsSum::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights) {

@@ -7,6 +7,9 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/op/parameter.hpp"
 #include "utils.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

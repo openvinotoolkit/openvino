@@ -14,11 +14,11 @@ bool evaluate(const std::shared_ptr<ov::op::v0::Interpolate>& op,
     ov::element::Type input_et = op->get_input_element_type(0);
     switch (input_et) {
     case ov::element::f64:
-        ov::reference::interpolate<double>(inputs[0].data<double>(),
-                                           op->get_input_partial_shape(0),
-                                           outputs[0].data<double>(),
-                                           op->get_output_shape(0),
-                                           op->get_attrs());
+        ov::reference::interpolate(inputs[0].data<double>(),
+                                   op->get_input_partial_shape(0),
+                                   outputs[0].data<double>(),
+                                   op->get_output_shape(0),
+                                   op->get_attrs());
         break;
     case ov::element::f32:
         ov::reference::interpolate<float>(inputs[0].data<float>(),
@@ -157,7 +157,7 @@ std::vector<float> get_scales_vector(const ov::TensorVector& args,
     std::vector<float> scales;
     size_t num_of_axes = axes.size();
     if (attrs.shape_calculation_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
-        float* scales_ptr = args[scales_port].data<float>();
+        auto scales_ptr = args[scales_port].data<float>();
         scales.insert(scales.end(), scales_ptr, scales_ptr + num_of_axes);
     } else {
         auto target_shape = get_target_shape_vector(args, num_of_axes);
@@ -209,7 +209,7 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
     size_t bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
     std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
 
-    const uint8_t* data_ptr = static_cast<uint8_t*>(inputs[0].data());
+    auto data_ptr = static_cast<const uint8_t*>(inputs[0].data());
     uint8_t* padded_data_ptr = padded_input_data.data();
 
     reference::pad_input_data(data_ptr,

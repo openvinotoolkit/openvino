@@ -94,16 +94,17 @@ jobs:
       build-contrib: true
       build-debian-packages: true
       build-rpm-packages: false
-      cmake-options: |- 
-            -G "Ninja Multi-Config" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCPACK_GENERATOR=TGZ \
-            -DENABLE_WHEEL=ON \
+      build-additional-python-packages: true
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_CPPLINT=OFF
+            -DENABLE_NCC_STYLE=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_SYSTEM_OPENCL=ON
+            -DCMAKE_VERBOSE_MAKEFILE=ON
+            -DCPACK_GENERATOR=TGZ
+            -DENABLE_WHEEL=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   Debian_Packages:
@@ -167,13 +168,13 @@ jobs:
       #
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -230,7 +231,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -256,7 +257,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ matrix.TEST_TYPE == 'API' }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -468,27 +469,18 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+      - name: Download OpenVINO packages
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
-          name: openvino_package
+          pattern: "{openvino_package,openvino_developer_package}"
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO Developer package
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
-        with:
-          name: openvino_developer_package
-          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${INSTALL_DIR}
-            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          popd
-
-          pushd ${INSTALL_DIR}
-            pigz -dc openvino_developer_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          popd
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${{ env.INSTALL_DIR }}
+            mkdir -p ${{ env.OPENVINO_DEVELOPER_PACKAGE }} && pigz -dc developer_package.tar.gz | tar -xf - -C ${{ env.OPENVINO_DEVELOPER_PACKAGE }}
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -526,6 +518,17 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
+
+  GPU_Stub:
+    needs: [Build, Smart_CI]
+    runs-on: ubuntu-latest
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    steps:
+      - name: GPU stub
+        run: |
+          echo "This is only a stub to collect statistics of GPU runs filtered by Smart CI. 
+          It will help us to estimate hardware requirements"
+        shell: bash
 
   iGPU:
     name: iGPU Tests

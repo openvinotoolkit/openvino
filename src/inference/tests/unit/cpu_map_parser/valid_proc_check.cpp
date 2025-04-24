@@ -52,10 +52,10 @@ public:
 LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_1 = {
     {},  // param[in]: The logical processors selected in this simulation case does not include the physical core of
          // Pcore
-    {{40, 20, 0, 20, -1, -1},
-     {20, 10, 0, 10, 0, 0},
-     {20, 10, 0, 10, 1, 1}},  // param[in]: The proc_type_table of simulated platform which is 2 sockets, 20 Pcores
-                              // and 40 logical processors with hyper-threading enabled.
+    {{40, 20, 0, 0, 20, -1, -1},
+     {20, 10, 0, 0, 10, 0, 0},
+     {20, 10, 0, 0, 10, 1, 1}},  // param[in]: The proc_type_table of simulated platform which is 2 sockets, 20 Pcores
+                                 // and 40 logical processors with hyper-threading enabled.
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
@@ -66,7 +66,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_1 = {
     1,  // param[expected out]: Since all selected logical processors are in one socket, the number of sockets changes
         // to 1.
     4,  // param[expected out]: Since only 4 logical processors are selected, the number of cores changes to 4.
-    {{4, 4, 0, 0, 0, 0}},  // param[expected out]: The proc_type_table changes to 4 Pcores only
+    {{4, 4, 0, 0, 0, 0, 0}},  // param[expected out]: The proc_type_table changes to 4 Pcores only
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
@@ -76,7 +76,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_1 = {
 };
 LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_2 = {
     {1, 3, 5, 7},
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {21, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {23, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -85,7 +85,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_2 = {
     },
     1,
     4,
-    {{4, 4, 0, 0, 0, 0}},
+    {{4, 4, 0, 0, 0, 0, 0}},
     {
         {21, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {23, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -95,7 +95,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_2 = {
 };
 LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_3 = {
     {1, 3, 5, 7},
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
@@ -108,7 +108,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_3 = {
     },
     1,
     8,
-    {{8, 8, 0, 0, 0, 0}},
+    {{8, 8, 0, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
@@ -122,7 +122,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_3 = {
 };
 LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_4 = {
     {0, 2, 4, 6},
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
@@ -135,7 +135,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_4 = {
     },
     1,
     4,
-    {{8, 4, 0, 4, 0, 0}},
+    {{8, 4, 0, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
@@ -149,7 +149,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_4 = {
 };
 LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_5 = {
     {},
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
@@ -162,7 +162,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_5 = {
     },
     2,
     8,
-    {{8, 8, 0, 0, -1, -1}, {4, 4, 0, 0, 0, 0}, {4, 4, 0, 0, 1, 1}},
+    {{8, 8, 0, 0, 0, -1, -1}, {4, 4, 0, 0, 0, 0, 0}, {4, 4, 0, 0, 0, 1, 1}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
@@ -176,7 +176,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_5 = {
 };
 LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_6 = {
     {0, 2, 4, 6, 10, 12, 14, 16},
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {20, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {22, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
@@ -189,7 +189,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_6 = {
     },
     2,
     8,
-    {{8, 8, 0, 0, -1, -1}, {4, 4, 0, 0, 0, 0}, {4, 4, 0, 0, 1, 1}},
+    {{8, 8, 0, 0, 0, -1, -1}, {4, 4, 0, 0, 0, 0, 0}, {4, 4, 0, 0, 0, 1, 1}},
     {
         {20, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {22, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
@@ -203,7 +203,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_6 = {
 };
 LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_7 = {
     {0, 2, 4, 6},
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {10, 1, 1, 10, HYPER_THREADING_PROC, 10, -1},
         {12, 1, 1, 12, HYPER_THREADING_PROC, 12, -1},
@@ -216,7 +216,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_7 = {
     },
     2,
     8,
-    {{8, 8, 0, 0, -1, -1}, {4, 4, 0, 0, 0, 0}, {4, 4, 0, 0, 1, 1}},
+    {{8, 8, 0, 0, 0, -1, -1}, {4, 4, 0, 0, 0, 0, 0}, {4, 4, 0, 0, 0, 1, 1}},
     {
         {10, 1, 1, 10, MAIN_CORE_PROC, 10, -1},
         {12, 1, 1, 12, MAIN_CORE_PROC, 12, -1},
@@ -230,7 +230,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_7 = {
 };
 LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_8 = {
     {0, 2, 4, 6, 10, 12, 14, 16},
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
@@ -251,7 +251,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_8 = {
     },
     2,
     8,
-    {{16, 8, 0, 8, -1, -1}, {8, 4, 0, 4, 0, 0}, {8, 4, 0, 4, 1, 1}},
+    {{16, 8, 0, 0, 8, -1, -1}, {8, 4, 0, 0, 4, 0, 0}, {8, 4, 0, 0, 4, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
@@ -273,7 +273,7 @@ LinuxNumactlTestCase numactl_2sockets_20cores_hyperthreading_8 = {
 };
 LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_1 = {
     {},
-    {{24, 8, 8, 8, 0, 0}},
+    {{24, 8, 8, 0, 8, 0, 0}},
     {
         {16, 0, 0, 8, EFFICIENT_CORE_PROC, 8, -1},
         {17, 0, 0, 9, EFFICIENT_CORE_PROC, 9, -1},
@@ -282,7 +282,7 @@ LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_1 = {
     },
     1,
     4,
-    {{4, 0, 4, 0, 0, 0}},
+    {{4, 0, 4, 0, 0, 0, 0}},
     {
         {16, 0, 0, 8, EFFICIENT_CORE_PROC, 8, -1},
         {17, 0, 0, 9, EFFICIENT_CORE_PROC, 9, -1},
@@ -292,7 +292,7 @@ LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_1 = {
 };
 LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_2 = {
     {},
-    {{24, 8, 8, 8, 0, 0}},
+    {{24, 8, 8, 0, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
@@ -305,7 +305,7 @@ LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_2 = {
     },
     1,
     8,
-    {{8, 4, 4, 0, 0, 0}},
+    {{8, 4, 4, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
@@ -319,7 +319,7 @@ LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_2 = {
 };
 LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_3 = {
     {0, 1, 2, 3},
-    {{24, 8, 8, 8, 0, 0}},
+    {{24, 8, 8, 0, 8, 0, 0}},
     {
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {3, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -332,7 +332,7 @@ LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_3 = {
     },
     1,
     8,
-    {{8, 4, 4, 0, 0, 0}},
+    {{8, 4, 4, 0, 0, 0, 0}},
     {
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {3, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -346,7 +346,7 @@ LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_3 = {
 };
 LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_4 = {
     {0, 1, 2, 3},
-    {{24, 8, 8, 8, 0, 0}},
+    {{24, 8, 8, 0, 8, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -363,7 +363,7 @@ LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_4 = {
     },
     1,
     8,
-    {{12, 4, 4, 4, 0, 0}},
+    {{12, 4, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -381,7 +381,7 @@ LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_4 = {
 };
 LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_5 = {
     {0, 1, 2, 3},
-    {{24, 8, 8, 8, 0, 0}},
+    {{24, 8, 8, 0, 8, 0, 0}},
     {
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {3, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -398,7 +398,7 @@ LinuxNumactlTestCase numactl_1sockets_16cores_hyperthreading_5 = {
     },
     1,
     12,
-    {{12, 8, 4, 0, 0, 0}},
+    {{12, 8, 4, 0, 0, 0, 0}},
     {
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {3, 0, 0, 1, MAIN_CORE_PROC, 1, -1},

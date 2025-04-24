@@ -3,10 +3,10 @@
 //
 
 #include "ov_lpt_models/fuse_convert.hpp"
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/power.hpp"
 
 namespace ov {
 namespace builder {
