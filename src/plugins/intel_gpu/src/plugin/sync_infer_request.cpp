@@ -23,6 +23,8 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
+#include "intel_gpu/runtime/linux_perf.hpp"
+
 #include <algorithm>
 #include <iterator>
 #include <memory>
@@ -102,6 +104,7 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
 
 void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::infer");
+    auto perf1 = LinuxPerf::Profile("SyncInferRequest::infer");
     setup_stream_graph();
     std::lock_guard<std::mutex> lk(m_graph->get_mutex());
     enqueue();
@@ -123,6 +126,7 @@ std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::set_tensor");
+    auto perf1 = LinuxPerf::Profile("SyncInferRequest::set_tensor");
     const auto& port_info = find_port(port);
     size_t port_index = port_info.idx;
     const auto& shape = port.get_partial_shape();
@@ -234,6 +238,7 @@ void SyncInferRequest::wait_notify() {
 void SyncInferRequest::enqueue() {
     int64_t network_enqueue_time = 0;
     auto enqueue_start = std::chrono::high_resolution_clock::now();
+    auto perf1 = LinuxPerf::Profile("SyncInferRequest::enqueue");
 
     // set input and output memory from request blob maps
     // into the network object primitives
@@ -741,6 +746,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                                                                const ov::Output<const ov::Node>& port,
                                                                const TensorWrapper& user_tensor_wrapper) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
+    auto perf1 = LinuxPerf::Profile("SyncInferRequest::prepare_input: " + internal_name);
     auto pshape = port.get_partial_shape();
     auto is_dynamic = pshape.is_dynamic();
     auto user_tensor = user_tensor_wrapper.ptr;
@@ -868,6 +874,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     }
 
     cldnn::event::ptr ret_event = nullptr;
+    // std::cout << "prepare_input: " << internal_name << ", convert_needed = " << convert_needed << ", is_remote_tensor_impl = " << is_remote_tensor_impl
+    //           << ", is_generic_remote = " << is_generic_remote << std::endl;
     if (convert_needed) {
         if (is_remote_tensor_impl) {
             convert_and_copy(remote_tensor_impl_ptr->get_memory(), device_tensor->get_memory(), stream);
