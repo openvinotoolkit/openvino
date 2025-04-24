@@ -6,7 +6,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 
 struct ReshapeSinkingAttributes {
     ov::element::Type_t data_et;
@@ -35,7 +38,7 @@ TEST_P(ReshapeSinkingTest, ReshapeSinkingOnlyMatMul) {
                                                  p.transpose_b);
         auto reshape_back =
             std::make_shared<ov::opset9::Reshape>(matmul, create_constant(p.output_pattern_back), false);
-        model = std::make_shared<ov::Model>(ov::NodeVector{reshape_back}, ov::ParameterVector{parameter});
+        model = std::make_shared<ov::Model>(ov::OutputVector{reshape_back}, ov::ParameterVector{parameter});
     }
     OV_ASSERT_NO_THROW(model->reshape(p.new_shape));
 }
@@ -57,7 +60,7 @@ TEST_P(ReshapeSinkingTestWithAdd, ReshapeSinkingMatMulAdd) {
                                                  p.transpose_b);
         auto add = std::make_shared<ov::opset9::Add>(matmul, ov::op::v0::Constant::create(p.data_et, {1, 37}, {0}));
         auto reshape_back = std::make_shared<ov::opset9::Reshape>(add, create_constant(p.output_pattern_back), false);
-        model = std::make_shared<ov::Model>(ov::NodeVector{reshape_back}, ov::ParameterVector{parameter});
+        model = std::make_shared<ov::Model>(ov::OutputVector{reshape_back}, ov::ParameterVector{parameter});
     }
     OV_ASSERT_NO_THROW(model->reshape(p.new_shape));
 }

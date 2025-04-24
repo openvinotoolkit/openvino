@@ -273,6 +273,8 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::f32, format::bs_fs_fsv8_bsv8),
         std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv8),
         std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv16),
+        std::make_tuple(data_types::i8, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
     });
 }
 

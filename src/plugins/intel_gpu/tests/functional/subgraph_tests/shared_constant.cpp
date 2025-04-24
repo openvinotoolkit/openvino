@@ -42,8 +42,8 @@ protected:
         // explicitly set the output name, to avoid global conflict
         mul2->set_friendly_name("Multiply_0");
         mul->set_friendly_name("Multiply_1");
-        function = std::make_shared<ov::Model>(ov::NodeVector{convBprop, conv, groupConvBprop, mul2, mul},
-                ov::ParameterVector{input1, input2, input3, input4, input5});
+        function = std::make_shared<ov::Model>(ov::OutputVector{convBprop, conv, groupConvBprop, mul2, mul},
+                                               ov::ParameterVector{input1, input2, input3, input4, input5});
     }
 };
 
