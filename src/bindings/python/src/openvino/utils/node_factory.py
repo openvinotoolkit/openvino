@@ -4,7 +4,7 @@
 
 
 from functools import singledispatchmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 from pathlib import Path
 
 from openvino._pyopenvino import NodeFactory as _NodeFactory
@@ -64,7 +64,7 @@ class NodeFactory(object):
         """Add custom operations from an extension.
 
         Base method that raises TypeError for unknown types.
-        
+
         :param      extension:  An extension path or object.
         :raises     TypeError:  If the extension type is not supported.
         """
@@ -126,8 +126,10 @@ class NodeFactory(object):
     def _arguments_as_outputs(arguments: List[Union[Node, Output]]) -> List[Output]:
         """Convert a list of Nodes and Outputs to a list of only Outputs.
 
-        :param      arguments:  The arguments to convert.
+        :param arguments:  List of Nodes or Outputs to convert to list of Outputs.
+        :type arguments:  List[Union[Node, Output]]
         :return:    A list containing only Output objects.
+        :rtype: List[Output]
         """
         outputs: List[Output] = []
         for argument in arguments:
