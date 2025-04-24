@@ -384,6 +384,8 @@ public:
             params.beam_table.SetDynamicShapeOffset(in_offsets_map.at(get_beam_table_id(desc)));
         }
 
+        params.could_use_flashattn_v2 = impl_param.get_program().get_config().get_could_use_flashattn_v2();
+
         return params;
     }
 
