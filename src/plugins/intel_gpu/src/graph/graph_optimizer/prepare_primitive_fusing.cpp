@@ -189,7 +189,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
             auto& fc_node = node->get_dependency(0);
             if (node->get_dependencies().size() > 1)
                 continue;
-            if (!node->get_dependency(0).get_fused_primitives().empty())
+            if (!fc_node.get_fused_primitives().empty())
                 continue;
             auto in_dt = fc_node.get_input_layout(0).data_type;
             if (in_dt != data_types::f16)
@@ -464,7 +464,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->weights,
                                                                        bias_name,
                                                                        fc.get_output_layout().data_type,
-                                                                       desc->input_size);
+                                                                       desc->input_size,
+                                                                       desc->weights_rank);
 
             if (desc->compressed_weights) {
                 fc_with_bias_prim->compressed_weights = true;
@@ -744,14 +745,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (activation_func == cldnn::activation_func::relu_negative_slope && !additional_params_input.empty() &&
                     (input.is_type<fully_connected>() || input.is_type<gemm>())) {
                     // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
-                    return;
-                }
-
-                // Fusing prelu to multi batch onednn conv caused an accuracy issue. Blocked fusing of the case.
-                auto input_layout = input.get_output_layout();
-                if (input.is_type<convolution>() && (lo.get_preferred_impl_type(input, format::any /*dummy*/) == impl_types::onednn) &&
-                    activation_func == cldnn::activation_func::relu_negative_slope &&
-                    input_layout.is_static() && input_layout.batch() > 1) {
                     return;
                 }
 

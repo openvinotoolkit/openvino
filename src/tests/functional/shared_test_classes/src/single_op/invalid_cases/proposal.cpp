@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/invalid_cases/proposal.hpp"
+#include "openvino/op/proposal.hpp"
 
 namespace ov {
 namespace test {

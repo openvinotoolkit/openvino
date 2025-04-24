@@ -16,6 +16,8 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace {
 typedef std::tuple<
@@ -62,7 +64,7 @@ void InferRequestIOPrecision::SetUp() {
                                                        {},
                                                        {clamp_min, clamp_max});
 
-    function = std::make_shared<ov::Model>(ov::NodeVector{activation}, params);
+    function = std::make_shared<ov::Model>(ov::OutputVector{activation}, params);
 }
 
 TEST_P(InferRequestIOPrecision, Inference) {

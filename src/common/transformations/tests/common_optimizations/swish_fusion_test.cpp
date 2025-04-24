@@ -11,7 +11,14 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -29,7 +36,7 @@ TEST_F(TransformationTestsF, SwishFusionWithBeta) {
         auto add = std::make_shared<opset4::Add>(exp, constant);
         auto div = std::make_shared<opset4::Divide>(input, add);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input, beta});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input, beta});
 
         manager.register_pass<ov::pass::SwishFusion>();
     }
@@ -39,7 +46,7 @@ TEST_F(TransformationTestsF, SwishFusionWithBeta) {
         auto beta = std::make_shared<opset4::Parameter>(element::f32, Shape{});
         auto swish = std::make_shared<opset4::Swish>(input, beta);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{swish}, ParameterVector{input, beta});
+        model_ref = std::make_shared<ov::Model>(OutputVector{swish}, ParameterVector{input, beta});
     }
 }
 
@@ -52,7 +59,7 @@ TEST_F(TransformationTestsF, SwishFusionWithoutBeta) {
         auto add = std::make_shared<opset4::Add>(exp, constant);
         auto div = std::make_shared<opset4::Divide>(input, add);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::SwishFusion>();
     }
@@ -61,7 +68,7 @@ TEST_F(TransformationTestsF, SwishFusionWithoutBeta) {
         auto input = std::make_shared<opset4::Parameter>(element::f16, PartialShape::dynamic(1));
         auto swish = std::make_shared<opset4::Swish>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{swish}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{swish}, ParameterVector{input});
     }
 }
 
@@ -74,7 +81,7 @@ TEST_F(TransformationTestsF, SwishFusionWithoutBetaNonOneAddConstant) {
         auto add = std::make_shared<opset4::Add>(exp, constant);
         auto div = std::make_shared<opset4::Divide>(input, add);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
         manager.register_pass<ov::pass::SwishFusion>();
     }
@@ -87,9 +94,9 @@ TEST_F(TransformationTestsF, SwishFusionWithoutBetaNonOneAddConstant) {
         auto add = std::make_shared<opset4::Add>(exp, constant);
         auto div = std::make_shared<opset4::Divide>(input, add);
 
-        model = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{div}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{div}, ParameterVector{input});
     }
 }
 
@@ -99,7 +106,7 @@ TEST_F(TransformationTestsF, SwishFusionWithSigmoid) {
         auto sig = std::make_shared<opset4::Sigmoid>(input);
         auto mul = std::make_shared<opset4::Multiply>(input, sig);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         manager.register_pass<ov::pass::SwishFusion>();
     }
@@ -108,7 +115,7 @@ TEST_F(TransformationTestsF, SwishFusionWithSigmoid) {
         auto input = std::make_shared<opset4::Parameter>(element::f16, PartialShape::dynamic(1));
         auto swish = std::make_shared<opset4::Swish>(input);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{swish}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{swish}, ParameterVector{input});
     }
 }
 
@@ -120,7 +127,7 @@ TEST_F(TransformationTestsF, SwishFusionWithSigmoidWithBeta) {
         auto sig = std::make_shared<opset4::Sigmoid>(mul_beta);
         auto mul = std::make_shared<opset4::Multiply>(input, sig);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input, beta});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input, beta});
 
         manager.register_pass<ov::pass::SwishFusion>();
     }
@@ -130,7 +137,7 @@ TEST_F(TransformationTestsF, SwishFusionWithSigmoidWithBeta) {
         auto beta = std::make_shared<opset4::Parameter>(element::f16, Shape{});
         auto swish = std::make_shared<opset4::Swish>(input, beta);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{swish}, ParameterVector{input, beta});
+        model_ref = std::make_shared<ov::Model>(OutputVector{swish}, ParameterVector{input, beta});
     }
 }
 
@@ -143,7 +150,7 @@ TEST_F(TransformationTestsF, SwishFusionWithSigmoidWithBetaConstant) {
         auto sig = std::make_shared<opset4::Sigmoid>(mul_beta);
         auto mul = std::make_shared<opset4::Multiply>(input, sig);
 
-        model = std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{input});
 
         manager.register_pass<ov::pass::SwishFusion>();
     }
@@ -153,6 +160,6 @@ TEST_F(TransformationTestsF, SwishFusionWithSigmoidWithBetaConstant) {
         auto beta = opset4::Constant::create(element::f16, Shape{}, {2.0});
         auto swish = std::make_shared<opset4::Swish>(input, beta);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{swish}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{swish}, ParameterVector{input});
     }
 }

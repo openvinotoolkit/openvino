@@ -103,3 +103,33 @@ class TestRepeatInterleaveTensorRepeats(PytorchLayerTest):
         dim = input_data['dim']
         self._test(*self.create_model_non_const_repeat(dim),
                    ie_device, precision, ir_version, dynamic_shapes=False)
+
+
+class TestRepeatInterleaveWithOutputSize(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.array([[1, 2], [3, 4]]), )
+
+    def create_model(self, dim, repeats, output_size):
+        class aten_repeat_interleave_output_size(torch.nn.Module):
+            def __init__(self, dim, repeats, output_size) -> None:
+                super().__init__()
+                self.dim = dim
+                self.repeats = torch.tensor(repeats, dtype=torch.int)
+                self.output_size = output_size
+            
+            def forward(self, input_tensor):
+                return input_tensor.repeat_interleave(self.repeats, self.dim, output_size=self.output_size)
+        
+        return aten_repeat_interleave_output_size(dim, repeats, output_size), None, "aten::repeat_interleave"
+    
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize('input_data', ({'repeats': 2, 'dim': None, "output_size": 8},
+                                            {'repeats': 3, 'dim': 1, "output_size": 6},
+                                            {"repeats": [1, 2], "dim": 0, "output_size": 3}))
+    def test_repeat_interleave_tensor_repeats(self, ie_device, precision, ir_version, input_data):
+        repeats = input_data['repeats']
+        dim = input_data['dim']
+        output_size = input_data["output_size"]
+        self._test(*self.create_model(dim, repeats, output_size),
+                   ie_device, precision, ir_version, dynamic_shapes=False)
