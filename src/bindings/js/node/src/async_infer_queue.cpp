@@ -18,48 +18,22 @@
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
 
-// TODO ? include pyopenvino/core/common.hpp get_optimal_number_of_requests
-uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
-    try {
-        auto supported_properties = actual.get_property(ov::supported_properties);
-        OPENVINO_ASSERT(
-            std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_number_of_infer_requests) !=
-                supported_properties.end(),
-            "Can't load network: ",
-            ov::optimal_number_of_infer_requests.name(),
-            " is not supported!",
-            " Please specify number of infer requests directly!");
-        return actual.get_property(ov::optimal_number_of_infer_requests);
-    } catch (const std::exception& ex) {
-        OPENVINO_THROW("Can't load network: ", ex.what(), " Please specify number of infer requests directly!");
-    }
-}
-
 AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectWrap<AsyncInferQueue>(info) {
-    auto env = info.Env();
+    const auto env = info.Env();
     if (ov::js::validate<CompiledModelWrap, int>(info)) {
-        const auto& cmodel_prototype = info.Env().GetInstanceData<AddonData>()->compiled_model;
-        if (!cmodel_prototype ||
-            !info[0].As<Napi::Object>().InstanceOf(cmodel_prototype.Value().As<Napi::Function>())) {
-            reportError(info.Env(), "Invalid CompiledModel object.");
-        }
-        CompiledModelWrap* cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(info[0].ToObject());
-        auto& ocm = cm->get_compiled_model();
+        auto& compiled = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(info[0].ToObject())->get_compiled_model();
         size_t jobs = info[1].As<Napi::Number>().Int32Value();
-
-        if (jobs == 0) {
-            jobs = static_cast<size_t>(get_optimal_number_of_requests(ocm));
-        }
+        tsfn = nullptr;
 
         m_requests.reserve(jobs);
         m_user_ids.reserve(jobs);
         m_user_inputs.reserve(jobs);
 
         for (size_t handle = 0; handle < jobs; handle++) {
-            m_requests.emplace_back(ocm.create_infer_request());
-            m_user_ids.push_back(std::make_pair(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 2),
+            m_requests.emplace_back(compiled.create_infer_request());
+            m_user_ids.push_back(std::make_pair(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 1),
                                                 Napi::Promise::Deferred::New(env)));
-            m_user_inputs.push_back(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 2));
+            m_user_inputs.push_back(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 1));
             m_idle_handles.push(handle);
         }
         this->set_default_callbacks();
@@ -70,9 +44,14 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
 
 AsyncInferQueue::~AsyncInferQueue() {
     m_requests.clear();
+    m_user_ids.clear();
+    m_user_inputs.clear();
 }
 
 void AsyncInferQueue::release(const Napi::CallbackInfo& info) {
+    if (!this->tsfn) {
+        return;
+    }
     const auto status = this->tsfn.Release();
     if (status == napi_invalid_arg) {
         reportError(info.Env(), "Failed to release AsyncInferQueue thread-safe function. Its thread-count is zero.");
@@ -122,50 +101,57 @@ void AsyncInferQueue::set_default_callbacks() {
 }
 
 void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
-    // TODO add js::validate for function
-    if (info[0].IsFunction()) {
-        Napi::Function f_callback = info[0].As<Napi::Function>();
-        this->tsfn = Napi::ThreadSafeFunction::New(info.Env(), f_callback, "AsyncInferQueueCallback", 0, 1);
-        for (size_t handle = 0; handle < m_requests.size(); handle++) {
-            m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
-                if (exception_ptr == nullptr) {
-                    auto ov_callback = [this](Napi::Env env, Napi::Function jsCallback, int* handle) {
-                        Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[*handle]);
-                        jsCallback.Call({js_ir, m_user_ids[*handle].first.Value()});
-                        const auto promise = m_user_ids[*handle].second;
-                        promise.Resolve(m_user_ids[*handle].first.Value());
-                        // returns before the promise's .then() is completed
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate<Napi::Function>(info, allowed_signatures)) {
+            this->tsfn = Napi::ThreadSafeFunction::New(info.Env(),
+                                                       info[0].As<Napi::Function>(),
+                                                       "AsyncInferQueueCallback",
+                                                       0,
+                                                       1);
+            for (size_t handle = 0; handle < m_requests.size(); handle++) {
+                m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
+                    if (exception_ptr == nullptr) {
+                        auto ov_callback = [this](Napi::Env env, Napi::Function user_callback, int* handle) {
+                            Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[*handle]);
+                            user_callback.Call({js_ir, m_user_ids[*handle].first.Value()});
+                            const auto promise = m_user_ids[*handle].second;
+                            promise.Resolve(m_user_ids[*handle].first.Value());
+                            // returns before the promise's .then() is completed
 
-                        {
-                            // Start async inference on the next request or add idle handle to queue
-                            std::lock_guard<std::mutex> lock(m_mutex);
-                            if (awaiting_requests.size() > 0) {
-                                auto& request = awaiting_requests.front();
-                                this->start_async_impl(*handle,
-                                                       std::get<2>(request),
-                                                       std::get<0>(request).Value(),
-                                                       std::get<1>(request).Value());
-                                awaiting_requests.pop();
-                            } else {
-                                m_idle_handles.push(*handle);
+                            {
+                                // Start async inference on the next request or add idle handle to queue
+                                std::lock_guard<std::mutex> lock(m_mutex);
+                                if (awaiting_requests.size() > 0) {
+                                    auto& request = awaiting_requests.front();
+                                    this->start_async_impl(*handle,
+                                                           std::get<2>(request),
+                                                           std::get<0>(request).Value(),
+                                                           std::get<1>(request).Value());
+                                    awaiting_requests.pop();
+                                } else {
+                                    m_idle_handles.push(*handle);
+                                }
                             }
-                        }
-                        delete handle;
-                    };
-                    // The ov_callback will execute when the main event loop becomes idle
-                    tsfn.BlockingCall(new int(handle), ov_callback);
-                }
-                try {
-                    if (exception_ptr) {
-                        std::rethrow_exception(exception_ptr);
+                            delete handle;
+                        };
+                        // The ov_callback will execute when the main event loop becomes idle
+                        tsfn.BlockingCall(new int(handle), ov_callback);
                     }
-                } catch (const std::exception& e) {
-                    OPENVINO_THROW(e.what());
-                }
-            });
+                    try {
+                        if (exception_ptr) {
+                            std::rethrow_exception(exception_ptr);
+                        }
+                    } catch (const std::exception& e) {
+                        OPENVINO_THROW(e.what());
+                    }
+                });
+            }
+        } else {
+            OPENVINO_THROW("'set_callback'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
-    } else {
-        reportError(info.Env(), "Invalid callback. Expected function.");
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
     }
 }
 
@@ -191,16 +177,25 @@ void AsyncInferQueue::start_async_impl(const int handle,
 }
 
 Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
-    // TODO validate Napi::CallbackInfo
+    std::vector<std::string> allowed_signatures;
 
-    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(info.Env());
+    try {
+        if (!ov::js::validate<Napi::Object, Napi::Value>(info, allowed_signatures)) {
+            OPENVINO_THROW("'startAsync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
 
-    const int handle = this->check_idle_request_id();
-    if (handle == -1) {
-        this->awaiting_requests.push(
-            std::make_tuple(Napi::Persistent(info[0].ToObject()), Napi::Persistent(info[1].ToObject()), deferred));
-    } else {
-        this->start_async_impl(handle, deferred, info[0].ToObject(), info[1].ToObject());
+        const int handle = this->check_idle_request_id();
+        Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(info.Env());
+        if (handle == -1) {
+            this->awaiting_requests.push(
+                std::make_tuple(Napi::Persistent(info[0].ToObject()), Napi::Persistent(info[1].ToObject()), deferred));
+        } else {
+            this->start_async_impl(handle, deferred, info[0].ToObject(), info[1].ToObject());
+        }
+        return deferred.Promise();
+
+    } catch (std::exception& err) {
+        reportError(info.Env(), err.what());
+        return info.Env().Undefined();
     }
-    return deferred.Promise();
 }

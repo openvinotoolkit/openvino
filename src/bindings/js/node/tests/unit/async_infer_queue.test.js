@@ -19,8 +19,15 @@ describe('Tests for AsyncInferQueue.', () => {
     core = new ov.Core();
     const model = await core.readModel(getReluModel());
     compiledModel = core.compileModelSync(model, 'CPU');
+  });
+
+  function basicUserCallback(request, jobId, err) {
+    if (err) {
+      console.error(`Job ${jobId} failed: ${err}`);
+    } else {
+      assert.strictEqual(request instanceof ov.InferRequest, true);
+    }
   }
-  );
 
   // TODO move it to utils and use it in other tests
   function generateImage(shape = [1, 3, 32, 32]) {
@@ -98,6 +105,50 @@ describe('Tests for AsyncInferQueue.', () => {
 
     await Promise.all(promises);
     assert.strictEqual(jobsDone.filter(job => job.finished).length, jobs);
+    inferQueue.release();
+  });
+
+  it('Test AsyncInferQueue no freeze', async () => {
+    try {
+      new ov.AsyncInferQueue(compiledModel, numRequest);
+    } catch(err) {
+      assert.fail(`Unexpected error thrown: ${err.message}`);
+    }
+  });
+
+  it('Test AsyncInferQueue.release()', async () => {
+    try {
+      const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+      inferQueue.release();
+    } catch(err) {
+      assert.fail(`Unexpected error thrown: ${err.message}`);
+    }
+  });
+
+  it('Test repeated AsyncInferQueue.release()', async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+    inferQueue.setCallback(basicUserCallback);
+    inferQueue.release();
+    assert.throws(() => {
+      inferQueue.release();
+    }, /Failed to release AsyncInferQueue thread-safe function./);
+
+  });
+
+  it('Test setCallback throws and list possible signatures', async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+    assert.throws(() => {
+      inferQueue.setCallback();
+    }, /'set_callback' method called with incorrect parameters./);
+    inferQueue.release();
+  });
+
+  it('Test startAsync throws and list possible signatures', async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+    inferQueue.setCallback(basicUserCallback);
+    assert.throws(() => {
+      inferQueue.startAsync({ 'data': generateImage() });
+    }, /'startAsync' method called with incorrect parameters./);
     inferQueue.release();
   });
 

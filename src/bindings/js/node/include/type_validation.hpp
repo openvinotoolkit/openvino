@@ -25,6 +25,9 @@ const char* get_attr_type() {
 };
 
 template <>
+const char* get_attr_type<Napi::Value>();
+
+template <>
 const char* get_attr_type<Napi::String>();
 
 template <>
@@ -32,6 +35,9 @@ const char* get_attr_type<Napi::Object>();
 
 template <>
 const char* get_attr_type<Napi::Boolean>();
+
+template <>
+const char* get_attr_type<Napi::Function>();
 
 template <>
 const char* get_attr_type<Napi::Buffer<uint8_t>>();
@@ -54,6 +60,9 @@ bool validate_value(const Napi::Env& env, const Napi::Value& arg) {
 };
 
 template <>
+bool validate_value<Napi::Value>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
 bool validate_value<Napi::String>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
@@ -61,6 +70,9 @@ bool validate_value<Napi::Object>(const Napi::Env& env, const Napi::Value& value
 
 template <>
 bool validate_value<Napi::Boolean>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
+bool validate_value<Napi::Function>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
 bool validate_value<Napi::Buffer<uint8_t>>(const Napi::Env& env, const Napi::Value& value);
