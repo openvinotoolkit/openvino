@@ -1,0 +1,299 @@
+/*******************************************************************************
+ * Copyright (c) 2022-2025 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+namespace KERNEL_NAME {
+
+/*******************************************************************************
+ * Copyright (c) 2022-2025 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+namespace KERNEL_NAME {
+
+#define GEN_KERNEL
+
+#undef CM_DEBUG
+
+#include <cm/cm.h>
+
+#ifdef CMRT_EMU
+# include <shim_support.h>
+#endif  //  CMRT_EMU
+
+typedef half fp16;
+
+#ifndef BTI
+#define BUFFERINDEX(x) int * x [[type("svmptr_t")]]
+#define LSC_LOAD(DATA_TYPE, VS, L1, L3) cm_ptr_load<DATA_TYPE,VS,DataSize::Default,CacheHint::L1,CacheHint::L3>
+#define LSC_STORE(DATA_TYPE, VS, L1, L3) cm_ptr_store<DATA_TYPE,VS,DataSize::Default,CacheHint::L1,CacheHint::L3>
+#define LSC_LOAD_GATHER(DATA_TYPE, VS, L1, L3,channels) cm_ptr_load<DATA_TYPE,VS,DataSize::Default,CacheHint::L1,CacheHint::L3, channels>
+//#define LSC_STORE_2D(DATA_TYPE, h, w, L1, L3) cm_store<DATA_TYPE,h, w, CacheHint::L1,CacheHint::L3>
+#define LSC_STORE_2D(DATA_TYPE, h, w, L1, L3) cm_ptr_store<DATA_TYPE,h, w, CacheHint::L1,CacheHint::L3>
+#define LSC_LOAD_0(DATA_TYPE, VS)  cm_ptr_load<DATA_TYPE,VS,DataSize::Default,CacheHint::Cached,CacheHint::Cached>
+#else
+#define BUFFERINDEX(x) SurfaceIndex x [[type("buffer_t")]]
+#define LSC_LOAD(DATA_TYPE, VS, L1, L3) cm_load<DATA_TYPE,VS,DataSize::Default,CacheHint::L1,CacheHint::L3>
+#define LSC_STORE(DATA_TYPE, VS, L1, L3) cm_store<DATA_TYPE,VS,DataSize::Default,CacheHint::L1,CacheHint::L3>
+#define LSC_LOAD_GATHER(DATA_TYPE, VS, L1, L3,channels) cm_load<DATA_TYPE,VS,DataSize::Default,CacheHint::L1,CacheHint::L3, channels>
+#define LSC_STORE_2D(DATA_TYPE, h, w, L1, L3) cm_store<DATA_TYPE,h, w, CacheHint::L1,CacheHint::L3>
+#endif
+
+
+constexpr int QK = 32; // compatible
+constexpr int SBS = 8; // compatible
+constexpr int BLOCK_SIZE = QK / 2;
+constexpr int SCALE_SIZE = sizeof(fp16);
+#define NUM_EXPERTS             8
+#define NUM_MOE_MLP_LAYER       128
+
+inline auto load_qblocks(const uint8_t* weight, const uint8_t* scale)
+{
+    vector<uint8_t, BLOCK_SIZE* SBS> ybytes;
+    ybytes.format<int>() = LSC_LOAD_0(int, (BLOCK_SIZE * SBS / 4))((int*)weight, 0);
+
+    vector<fp16, SBS> scales;
+    scales.format<int>() = LSC_LOAD_0(int, (SBS / 2))((int*)scale, 0);
+    //vector<fp16, SBS> scales = LSC_LOAD(fp16, SBS, Cached, Cached)((fp16*)scale, 0);  compiler error
+
+
+    vector<fp16, QK* SBS> yvs;
+#pragma unroll
+    for (int i = 0; i < SBS; ++i) {
+        vector<uint8_t, QK> uyv;
+        // uyv.select<QK / 2, 1>(0) = ybytes.template select<QK / 2, 1>(i * QK / 2) & (uint8_t)0xF;
+        // uyv.select<QK / 2, 1>(QK / 2) = ybytes.template select<QK / 2, 1>(i * QK / 2) >> (uint8_t)4;
+        uyv.select<QK / 2, 2>(0) = ybytes.template select<QK / 2, 1>(i * QK / 2) & (uint8_t)0xF; // compatible
+        uyv.select<QK / 2, 2>(1) = ybytes.template select<QK / 2, 1>(i * QK / 2) >> (uint8_t)4; // compatible
+        yvs.template select<QK, 1>(i * QK) = (uyv.format<int8_t>() - (int8_t)8) * scales[i];
+    }
+    return yvs;
+}
+
+inline auto load_qblock(const uint8_t* weight, const uint8_t* scale) {
+    vector<uint8_t, BLOCK_SIZE> ybytes;
+    ybytes.format<int>() = LSC_LOAD_0(int, (BLOCK_SIZE / 4))((int*)weight, 0);
+    fp16 scales = *(const fp16*)scale;
+
+    vector<uint8_t, QK> uyv;
+    // uyv.select<QK / 2, 1>(0) = ybytes & (uint8_t)0xF;
+    // uyv.select<QK / 2, 1>(QK / 2) = ybytes >> (uint8_t)4;
+    uyv.select<QK / 2, 2>(0) = ybytes & (uint8_t)0xF; // compatible
+    uyv.select<QK / 2, 2>(1) = ybytes >> (uint8_t)4; // compatible
+    vector<fp16, QK> yv = (uyv.format<int8_t>() - (int8_t)8) * scales;
+
+    return yv;
+}
+
+template <typename IT, const int VS, const int GS, const int ES>
+void moe_forward_up_kernel(
+    BUFFERINDEX(input),
+    BUFFERINDEX(indexs),
+    BUFFERINDEX(gate_addrs),
+    BUFFERINDEX(up_addrs),
+    BUFFERINDEX(gate_scales_addrs),
+    BUFFERINDEX(up_scales_addrs),
+    BUFFERINDEX(output),
+    const int num_experts,
+    const int state_size,
+    const int output_size,
+    uint slmX
+) {
+    const int nb = state_size / QK;
+    const int nsb = nb / SBS;
+
+    const int eid = cm_group_id(0) * cm_local_size(0) + cm_local_id(0);
+    const int tid = cm_local_id(1);
+    const int vid = cm_group_id(1) * VS;
+
+    // get correct expert
+    //const uint8_t* weight1 = (const uint8_t*)(gate_addrs[indexs[eid]]);
+    //const uint8_t* weight2 = (const uint8_t*)(up_addrs[indexs[eid]]);
+
+    //const uint8_t* scales1 = (const uint8_t*)(gate_scales_addrs[indexs[eid]]);
+    //const uint8_t* scales2 = (const uint8_t*)(up_scales_addrs[indexs[eid]]);
+
+    vector<int, NUM_EXPERTS> indexs_vec = LSC_LOAD_0(int, NUM_EXPERTS)(indexs, 0);
+    int index = indexs_vec[eid];
+
+    int g_offset = index / 8;
+    int l_offset = index % 8;
+    vector<int, 16> gpu_gate_addr = LSC_LOAD_0(int, 16)(gate_addrs, g_offset * 64);     //8  * 16
+    const uint8_t* weight1 = (uint8_t*)gpu_gate_addr.format<unsigned long long>()[l_offset];
+
+    vector<int, 16> gpu_up_addr = LSC_LOAD_0(int, 16)(up_addrs, g_offset * 64);     //8  * 16
+    const uint8_t* weight2 = (uint8_t*)gpu_up_addr.format<unsigned long long>()[l_offset];
+
+    vector<int, 16> gpu_gate_scales_addr = LSC_LOAD_0(int, 16)(gate_scales_addrs, g_offset * 64);     //8  * 16
+    const uint8_t* scales1 = (uint8_t*)gpu_gate_scales_addr.format<unsigned long long>()[l_offset];
+
+    vector<int, 16> gpu_up_scales_addr = LSC_LOAD_0(int, 16)(up_scales_addrs, g_offset * 64);     //8  * 16
+    const uint8_t* scales2 = (uint8_t*)gpu_up_scales_addr.format<unsigned long long>()[l_offset];
+
+
+    const uint8_t* weight1_base = weight1 + nb * BLOCK_SIZE * vid;
+    const uint8_t* scale1_base = scales1 + nb * SCALE_SIZE * vid;
+    const uint8_t* weight2_base = weight2 + nb * BLOCK_SIZE * vid;
+    const uint8_t* scale2_base = scales2 + nb * SCALE_SIZE * vid;
+
+    vector<IT, VS* ES> accvs1{};
+    vector<IT, VS* ES> accvs2{};
+
+    for (int s = tid; s < nsb; s += GS) {
+        vector<IT, SBS* QK> xvs;
+        xvs.format<int>().select<64, 1>(0) = LSC_LOAD_0(int, (SBS * QK / 4))((int*)input, s * SBS * QK * sizeof(IT));
+        xvs.format<int>().select<64, 1>(64) = LSC_LOAD_0(int, (SBS * QK / 4))((int*)input, s * SBS * QK * sizeof(IT) + 256);
+
+#pragma unroll
+        for (int v = 0; v < VS; ++v) {
+            vector<fp16, SBS* QK> yvs1 = load_qblocks(
+                weight1_base + v * nb * BLOCK_SIZE + s * SBS * BLOCK_SIZE,
+                scale1_base + v * nb * SCALE_SIZE + s * SBS * SCALE_SIZE
+            );
+
+#pragma unroll
+            for (int i = 0; i < SBS * QK; i += ES) {
+                accvs1.template select<ES, 1>(v * ES) +=
+                    xvs.template select<ES, 1>(i) * yvs1.template select<ES, 1>(i);
+            }
+
+            vector<fp16, SBS* QK> yvs2 = load_qblocks(
+                weight2_base + v * nb * BLOCK_SIZE + s * SBS * BLOCK_SIZE,
+                scale2_base + v * nb * SCALE_SIZE + s * SBS * SCALE_SIZE
+            );
+
+#pragma unroll
+            for (int i = 0; i < SBS * QK; i += ES) {
+                accvs2.template select<ES, 1>(v * ES) +=
+                    xvs.template select<ES, 1>(i) *
+                    yvs2.template select<ES, 1>(i);
+            }
+        }
+    }
+
+    for (int b = nsb * SBS + tid; b < nb; b += GS) {
+        vector<IT, QK> xv;
+        xv.format<int>() = LSC_LOAD_0(int, (QK / 2))((int*)input, b * QK * sizeof(IT));
+
+#pragma unroll
+        for (int v = 0; v < VS; ++v) {
+            vector<fp16, QK> yv1 = load_qblock(
+                weight1_base + v * nb * BLOCK_SIZE + b * BLOCK_SIZE,
+                scale1_base + v * nb * SCALE_SIZE + b * SCALE_SIZE
+            );
+
+#pragma unroll
+            for (int i = 0; i < QK; i += ES) {
+                accvs1.template select<ES, 1>(v * ES) +=
+                    xv.template select<ES, 1>(i) *
+                    yv1.template select<ES, 1>(i);
+            }
+
+            vector<fp16, QK> yv2 = load_qblock(
+                weight2_base + v * nb * BLOCK_SIZE + b * BLOCK_SIZE,
+                scale2_base + v * nb * SCALE_SIZE + b * SCALE_SIZE
+            );
+
+#pragma unroll
+            for (int i = 0; i < QK; i += ES) {
+                accvs2.template select<ES, 1>(v * ES) +=
+                    xv.template select<ES, 1>(i) *
+                    yv2.template select<ES, 1>(i);
+            }
+        }
+    }
+
+    vector<float, VS> accs1;
+    vector<float, VS> accs2;
+#pragma unroll
+    for (int v = 0; v < VS; ++v) {
+        accs1[v] = cm_sum<float>(accvs1.template select<ES, 1>(v * ES));
+        accs2[v] = cm_sum<float>(accvs2.template select<ES, 1>(v * ES));
+    }
+
+    cm_slm_block_write<float, VS >(slmX, tid * VS * sizeof(float), accs1);
+    cm_slm_block_write<float, VS >(slmX, tid * VS * sizeof(float) + GS * VS * sizeof(float), accs2);
+
+    cm_slm_fence(0x20);
+    cm_barrier();
+
+    if (tid == 0) {
+#pragma unroll
+        for (int i = 1; i < GS; ++i) {
+            vector<float, VS> accs1_slm;
+            cm_slm_block_read<float, VS>(slmX, GENX_DWALIGNED, i * VS * sizeof(float), accs1_slm);
+            accs1 += accs1_slm;
+        }
+
+#pragma unroll
+        for (int i = 1; i < GS; ++i) {
+            vector<float, VS> accs2_slm;
+            cm_slm_block_read<float, VS>(slmX, GENX_DWALIGNED, i * VS * sizeof(float) + GS * VS * sizeof(float), accs2_slm);
+            accs2 += accs2_slm;
+        }
+
+        vector<IT, VS> result = accs1 / (1 + cm_pow(2.718281828459f, -accs1)) * accs2;
+
+        LSC_STORE(int, VS/2, WriteBack, WriteBack)((int*)output, (eid * output_size + vid) * sizeof(IT), result.format<int>());//fp16
+    }
+}
+
+_GENX_MAIN_ void KERNEL_NAME(
+    BUFFERINDEX(input), 			// shape: f16[1, 2048]
+    BUFFERINDEX(indexs),			// shape: u64[8] ??? i32
+    BUFFERINDEX(gate_addrs),		// shape: u64[128]
+    BUFFERINDEX(up_addrs),			// shape: u64[128]
+    BUFFERINDEX(gate_scales_addrs),	// shape: f16[768, 2048/32=64] 
+    BUFFERINDEX(up_scales_addrs),	// shape: f16[768, 2048/32=64]
+    BUFFERINDEX(output)) {			// shape: f16[8, 1, 768]
+    //const int num_experts,
+    //const int state_size,     // 2048
+    //const int output_size) {  // 768
+    const int VS = 2;
+    const int GS = 4;
+    cm_slm_init(2 * GS * VS * sizeof(float));
+    uint slmX = cm_slm_alloc(2 * GS * VS * sizeof(float));
+
+    moe_forward_up_kernel<fp16, 2U, 4U, 32U>(
+        input, 			// shape: f16[1, 2048]
+        indexs,			// shape: u64[8] ??? i32
+        gate_addrs,		// shape: u64[128]
+        up_addrs,			// shape: u64[128]
+        gate_scales_addrs,	// shape: f16[768, 2048/32=64] 
+        up_scales_addrs,	// shape: f16[768, 2048/32=64]
+        output,			// shape: f16[8, 1, 768]
+        EXPERT_NUM,
+        HIDDEN_SIZE,     // 2048
+        INTERMEDIATE_SIZE,   // 768
+        slmX);
+}
+
+#ifdef CMRT_EMU
+EXPORT_SIGNATURE(sgemm_kernel);
+#endif  //  CMRT_EMU
+
+}
+}

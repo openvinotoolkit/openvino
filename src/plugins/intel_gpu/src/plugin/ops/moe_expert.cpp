@@ -99,11 +99,13 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
                 auto idx = rt["__scale_const__"].as<int>();
                 OPENVINO_ASSERT(idx >= 0 && idx < 3);
                 params[i].param[idx].scale = alloc(node, true);
+                params[i].param[idx].scale_ba = alloc(node, false);
             }
             if (rt.count("__zp_const__")) {
                 auto idx = rt["__zp_const__"].as<int>();
                 OPENVINO_ASSERT(idx >= 0 && idx < 3);
                 params[i].param[idx].zp = alloc(node, true);
+                params[i].param[idx].zp_ba = alloc(node, false);
             }
         }
     }

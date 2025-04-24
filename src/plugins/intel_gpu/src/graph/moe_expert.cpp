@@ -151,6 +151,40 @@ void moe_expert_inst::get_tmp_memory(data_types type, int m, int hidden_size, in
             GPU_DEBUG_LOG << "=> allocate expert_mask to " << expected_alloc_type << std::endl;
             layout expert_layout(ov::PartialShape{topk * static_cast<int>(sizeof(expert_info))}, data_types::u8, cldnn::format::bfyx);
             scratch.expert_info = alloc_buf(nullptr, expert_layout, expected_alloc_type);
+
+            const auto& config = get_config();
+            layout ptr_layout(ov::PartialShape{config.expert_num}, data_types::u64, cldnn::format::byfx);
+            scratch.gate_addrs = alloc_buf(nullptr, ptr_layout);
+            scratch.gate_scales_addrs = alloc_buf(nullptr, ptr_layout);
+            scratch.gate_zp_addrs = alloc_buf(nullptr, ptr_layout);
+            scratch.up_addrs = alloc_buf(nullptr, ptr_layout);
+            scratch.up_scales_addrs = alloc_buf(nullptr, ptr_layout);
+            scratch.up_zp_addrs = alloc_buf(nullptr, ptr_layout);
+            scratch.down_addrs = alloc_buf(nullptr, ptr_layout);
+            scratch.down_scales_addrs = alloc_buf(nullptr, ptr_layout);
+            scratch.down_zp_addrs = alloc_buf(nullptr, ptr_layout);
+            std::array<std::vector<uint64_t>, 9> buf;
+            for (size_t i = 0; i < get_mlp_params().size(); i++) {
+                const auto& param = get_mlp_params()[i];
+                buf[0].push_back(reinterpret_cast<uint64_t>(param.param[0].weight->buffer_ptr()));
+                buf[1].push_back(reinterpret_cast<uint64_t>(param.param[0].scale_ba->buffer_ptr()));
+                buf[2].push_back(reinterpret_cast<uint64_t>(param.param[0].zp_ba->buffer_ptr()));
+                buf[3].push_back(reinterpret_cast<uint64_t>(param.param[1].weight->buffer_ptr()));
+                buf[4].push_back(reinterpret_cast<uint64_t>(param.param[1].scale_ba->buffer_ptr()));
+                buf[5].push_back(reinterpret_cast<uint64_t>(param.param[1].zp_ba->buffer_ptr()));
+                buf[6].push_back(reinterpret_cast<uint64_t>(param.param[2].weight->buffer_ptr()));
+                buf[7].push_back(reinterpret_cast<uint64_t>(param.param[2].scale_ba->buffer_ptr()));
+                buf[8].push_back(reinterpret_cast<uint64_t>(param.param[2].zp_ba->buffer_ptr()));
+            }
+            scratch.gate_addrs->copy_from(_network.get_stream(), buf[0].data(), 0, 0, ptr_layout.bytes_count(), true);
+            scratch.gate_scales_addrs->copy_from(_network.get_stream(), buf[1].data(), 0, 0, ptr_layout.bytes_count(), true);
+            scratch.gate_zp_addrs->copy_from(_network.get_stream(), buf[2].data(), 0, 0, ptr_layout.bytes_count(), true);
+            scratch.up_addrs->copy_from(_network.get_stream(), buf[3].data(), 0, 0, ptr_layout.bytes_count(), true);
+            scratch.up_scales_addrs->copy_from(_network.get_stream(), buf[4].data(), 0, 0, ptr_layout.bytes_count(), true);
+            scratch.up_zp_addrs->copy_from(_network.get_stream(), buf[5].data(), 0, 0, ptr_layout.bytes_count(), true);
+            scratch.down_addrs->copy_from(_network.get_stream(), buf[6].data(), 0, 0, ptr_layout.bytes_count(), true);
+            scratch.down_scales_addrs->copy_from(_network.get_stream(), buf[7].data(), 0, 0, ptr_layout.bytes_count(), true);
+            scratch.down_zp_addrs->copy_from(_network.get_stream(), buf[8].data(), 0, 0, ptr_layout.bytes_count(), true);
         }
 
         scratch.x = alloc_buf(scratch.x.get(), x_layout);

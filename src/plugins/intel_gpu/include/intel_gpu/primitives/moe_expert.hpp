@@ -25,6 +25,9 @@ struct moe_expert : public primitive_base<moe_expert> {
             cldnn::memory::ptr bias;
             cldnn::memory::ptr scale;
             cldnn::memory::ptr zp;
+            // ba layout copy
+            cldnn::memory::ptr scale_ba;
+            cldnn::memory::ptr zp_ba;
             bool operator==(const param& rhs) const {
                 return weight == rhs.weight && bias == rhs.bias && scale == rhs.scale && zp == rhs.zp;
             }

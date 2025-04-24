@@ -441,6 +441,7 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit, bo
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
     jit.make("MAX_TOPK", desc->_config.topk);
+    jit.make("EXPERT_NUM", desc->_config.expert_num);
     jit.make("HIDDEN_SIZE", desc->get_hidden_size());
     jit.make("INTERMEDIATE_SIZE", desc->get_intermediate_size());
     jit.make("N_BLOCK", N_BLOCK);
@@ -573,6 +574,56 @@ protected:
     }
 };
 
+class MoeExpertOptMLPUpCM : public cm::KernelGenerator {
+public:
+    MoeExpertOptMLPUpCM() : KernelGenerator("moe_expert_up_cm") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_expert>();
+        add_common_consts(params, jit, false);
+        jit.make("KERNEL_NAME", get_entry_point(params));
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
+class MoeExpertOptMLPDownCM : public cm::KernelGenerator {
+public:
+    MoeExpertOptMLPDownCM() : KernelGenerator("moe_expert_down_cm") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_expert>();
+        add_common_consts(params, jit, false);
+        jit.make("KERNEL_NAME", get_entry_point(params));
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
 class MoeExpertOptMLPReduceCM : public cm::KernelGenerator {
 public:
     MoeExpertOptMLPReduceCM() : KernelGenerator("moe_expert_mlp", "reduce_cm") {}
@@ -612,6 +663,8 @@ public:
     Stage::Ptr mlp_down = make_stage<MoeExpertOptMLPDown>();
     Stage::Ptr mlp_reduce = make_stage<MoeExpertOptMLPReduce>();
     Stage::Ptr cm_mlp_reduce = make_stage<MoeExpertOptMLPReduceCM>();
+    Stage::Ptr cm_mlp_up = make_stage<MoeExpertOptMLPUpCM>();
+    Stage::Ptr cm_mlp_down = make_stage<MoeExpertOptMLPDownCM>();
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -670,6 +723,8 @@ public:
         add_stage(mlp_down, params);
         add_stage(mlp_reduce, params);
         add_stage(cm_mlp_reduce, params);
+        add_stage(cm_mlp_up, params);
+        add_stage(cm_mlp_down, params);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -750,25 +805,48 @@ public:
         instance.get_tmp_memory(hidden_states_layout.data_type, max_topk, _hidden_size, _intermediate_size, max_topk, scratch);
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
-        // scratch.up = up(x) * silu(gate(x))
-        execute_stage({},
-                      instance,
-                      *mlp_gate_up,
-                      {batch_mem_ptr, hidden_states_mem_ptr},
-                      {scratch.up},
-                      {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
-                      {1, subgroup_size, SUBGROUP_NUM});
-        // scratch.y = down(scratch.up) * weight[expert_no]
-        execute_stage({},
-                      instance,
-                      *mlp_down,
-                      {batch_mem_ptr, scratch.up, routing_mem_ptr},
-                      {scratch.y},
-                      {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
-                      {1, subgroup_size, SUBGROUP_NUM});
-        // final = sum(scratch.y)
         event::ptr ret;
-        if (cm_mlp_reduce) {
+        if (cm_mlp_up) {
+            // scratch.up = up(x) * silu(gate(x))
+            // int* input,             // shape: f16[1, 2048]
+            // int* indexs,            // shape: u64[8] ??? i32
+            // int* gate_addrs,        // shape: u64[128]
+            // int* up_addrs,          // shape: u64[128]
+            // int* gate_scales_addrs, // shape: f16[768, 2048/32=64] 
+            // int* up_scales_addrs,   // shape: f16[768, 2048/32=64]
+            // int* output,            // shape: f16[8, 1, 768]
+            // const int num_experts,
+            // const int state_size,     // 2048
+            // const int output_size);   // 768
+            // sycl::range<2> global_size(num_experts, output_size / VS * GS);
+            // sycl::range<2> local_size(1, GS);
+            execute_stage({},
+                        instance,
+                        *cm_mlp_up,
+                        {hidden_states_mem_ptr, batch_mem_ptr, scratch.gate_addrs, scratch.up_addrs,
+                            scratch.gate_scales_addrs, scratch.up_scales_addrs},
+                        {scratch.up},
+                        {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size / 2 * 4)},
+                        {1, 4});
+            // scratch.y = down(scratch.up) * weight[expert_no]
+            //     BUFFERINDEX(input),                  // shape: f16[8, 1, 768]
+            //     BUFFERINDEX(indexs),                 // shape: i64[8]   ??? i32
+            //     BUFFERINDEX(eweights),               // shape: f16[8]
+            //     BUFFERINDEX(down_addrs),             // shape: u64[128]
+            //     BUFFERINDEX(down_scales_addrs),      // shape: u64[128]
+            //     BUFFERINDEX(output),                 // shape: f16[8, 2048]
+            //     const int num_experts,               // const: 8
+            //     const int state_size,                // const: 768
+            //     const int output_size                // const: 2048
+            // sycl::range<2> global_size(num_experts, output_size / VS * GS);
+            // sycl::range<2> local_size(1, GS);
+            execute_stage({},
+                        instance,
+                        *cm_mlp_down,
+                        {scratch.up, batch_mem_ptr, routing_mem_ptr, scratch.down_addrs, scratch.down_scales_addrs},
+                        {scratch.y},
+                        {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size / 4 * 4)},
+                        {1, 4});
             // global: [1, HIDDEN_SIZE/SUBGROUP_SIZE], local: [1, SUBGROUP_NUM]
             ret = execute_stage({},
                                 instance,
@@ -779,6 +857,23 @@ public:
                                 {1, SUBGROUP_NUM},
                                 instance.needs_completion_event());
         } else {
+            // scratch.up = up(x) * silu(gate(x))
+            execute_stage({},
+                        instance,
+                        *mlp_gate_up,
+                        {batch_mem_ptr, hidden_states_mem_ptr},
+                        {scratch.up},
+                        {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                        {1, subgroup_size, SUBGROUP_NUM});
+            // scratch.y = down(scratch.up) * weight[expert_no]
+            execute_stage({},
+                        instance,
+                        *mlp_down,
+                        {batch_mem_ptr, scratch.up, routing_mem_ptr},
+                        {scratch.y},
+                        {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                        {1, subgroup_size, SUBGROUP_NUM});
+            // final = sum(scratch.y)
             ret = execute_stage({},
                                 instance,
                                 *mlp_reduce,
