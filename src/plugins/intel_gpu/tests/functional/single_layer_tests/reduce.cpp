@@ -78,6 +78,7 @@ protected:
         auto profile_info = inferRequest.get_profiling_info();
         auto num_executed = std::count_if(profile_info.begin(), profile_info.end(),
             [](const ov::ProfilingInfo& p) { return p.status == ov::ProfilingInfo::Status::EXECUTED; });
+        // This ensures that primitive_fusing_through does not happen across "dimension-change-barrier" in reduce
         ASSERT_EQ(num_executed, 3);
     }
 };
