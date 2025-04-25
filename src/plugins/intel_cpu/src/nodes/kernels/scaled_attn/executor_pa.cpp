@@ -2027,7 +2027,7 @@ void fill_rotation_coefficients_from_lut(T* rotation_coefficients_block_data,
     }
 }
 
-template <class KVCACHE_TYPE>
+template <ov::element::Type_t KEY_PREC>
 void rotate_kv_cache(PlainTensor& key_cache,
                      const PlainTensor& rotated_block_indices,
                      const PlainTensor& rotation_deltas,
@@ -2064,8 +2064,23 @@ void rotate_kv_cache(PlainTensor& key_cache,
                                             rotation_trig_lut_data,
                                             block_size,
                                             embedding_size);
-        auto* cache_block_ptr = key_cache.ptr<KVCACHE_TYPE>(rotated_block_index);
-        rotate_kv_cache_block(cache_block_ptr, rotation_coefficient_block_data, num_heads, block_size, embedding_size);
+        if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
+            auto* cache_block_ptr = key_cache.ptr<uint8_t>(rotated_block_index);
+
+            rotate_kv_cache_block(cache_block_ptr,
+                                  rotation_coefficient_block_data,
+                                  num_heads,
+                                  block_size,
+                                  embedding_size);
+        } else {
+            auto* cache_block_ptr =
+                key_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type>(rotated_block_index);
+            rotate_kv_cache_block(cache_block_ptr,
+                                  rotation_coefficient_block_data,
+                                  num_heads,
+                                  block_size,
+                                  embedding_size);
+        }
     }
 }
 
@@ -3439,17 +3454,11 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             // Rotate kv cache currently doesn't support quantized cache.
             // for u8 it only supports compilation but throws exception in the runtime
             // TODO: implement u4/u8
-            if constexpr (KEY_PREC != ov::element::u4) {
-                rotate_kv_cache<typename ov::element_type_traits<KEY_PREC>::value_type>(
-                    k_cache,
-                    rotated_block_indices,
-                    rotation_deltas,
-                    rotation_trig_lut,
-                    _helper._block_rotation_coefficient_scratch);
-            } else {
-                static_assert(KEY_PREC == ov::element::u4,
-                              "PagedAttn doesn't support rotate_kv_cache with u4 precision");
-            }
+            rotate_kv_cache<KEY_PREC>(k_cache,
+                                      rotated_block_indices,
+                                      rotation_deltas,
+                                      rotation_trig_lut,
+                                      _helper._block_rotation_coefficient_scratch);
         }
 
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
