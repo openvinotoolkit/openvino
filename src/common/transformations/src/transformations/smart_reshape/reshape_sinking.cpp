@@ -52,7 +52,8 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
         // check first Reshape eligibility: has a constant output pattern in a form of [-1, K]
         auto reshape = pattern_to_node.at(reshape_label);
         int64_t K = -1;
-        if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(reshape->get_input_node_shared_ptr(1))) {
+        if (const auto& constant =
+                ov::as_type_ptr<ov::op::v0::Constant>(reshape->input_value(1).get_node_shared_ptr())) {
             auto output_pattern_vector = constant->cast_vector<int64_t>();
             if (output_pattern_vector.size() != 2 || output_pattern_vector[0] != -1)
                 return false;
@@ -74,7 +75,8 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
         if (!matmul || matmul->get_transpose_a())
             return false;
         int64_t O = -1;
-        if (const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(matmul->get_input_node_shared_ptr(1))) {
+        if (const auto& constant =
+                ov::as_type_ptr<ov::op::v0::Constant>(matmul->input_value(1).get_node_shared_ptr())) {
             const auto& constant_shape = constant->get_shape();
             if (constant_shape.size() != 2)
                 return false;
@@ -93,7 +95,7 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
             auto add = ov::as_type_ptr<ov::op::v1::Add>(pattern_to_node.at(add_label));
             if (!add || add->get_autob() != ov::op::AutoBroadcastType::NUMPY)
                 return false;
-            const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(add->get_input_node_shared_ptr(1));
+            const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(add->input_value(1).get_node_shared_ptr());
             if (!constant)
                 return false;
             const auto& constant_shape = constant->get_shape();
@@ -110,7 +112,7 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
         // input_shape of the pattern except for the batch and last dimension
         auto reshape_1 = m.get_match_root();
 
-        const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(reshape_1->get_input_node_shared_ptr(1));
+        const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(reshape_1->input_value(1).get_node_shared_ptr());
         if (constant == nullptr)
             return false;
         auto output_pattern = constant->cast_vector<int64_t>();

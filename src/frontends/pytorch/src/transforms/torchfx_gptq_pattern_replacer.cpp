@@ -69,14 +69,18 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
         }
         const auto& pattern_map = m.get_pattern_value_map();
         auto unsqueeze_1_node = pattern_map.at(unsqueeze_1).get_node_shared_ptr();
-        auto unsqueeze_1_in0_const = ov::as_type_ptr<v0::Constant>(unsqueeze_1_node->get_input_node_shared_ptr(0));
-        auto unsqueeze_1_in1_const = ov::as_type_ptr<v0::Constant>(unsqueeze_1_node->get_input_node_shared_ptr(1));
+        auto unsqueeze_1_in0_const =
+            ov::as_type_ptr<v0::Constant>(unsqueeze_1_node->input_value(0).get_node_shared_ptr());
+        auto unsqueeze_1_in1_const =
+            ov::as_type_ptr<v0::Constant>(unsqueeze_1_node->input_value(1).get_node_shared_ptr());
         auto abs_node = pattern_map.at(abs).get_node_shared_ptr();
-        auto abs_in_const = ov::as_type_ptr<v0::Constant>(abs_node->get_input_node_shared_ptr(0));
+        auto abs_in_const = ov::as_type_ptr<v0::Constant>(abs_node->input_value(0).get_node_shared_ptr());
         auto broadcast_node = pattern_map.at(broadcast).get_node_shared_ptr();
         auto unsqueeze_2_node = pattern_map.at(unsqueeze_2).get_node_shared_ptr();
-        auto unsqueeze_2_in0_const = ov::as_type_ptr<v0::Constant>(unsqueeze_2_node->get_input_node_shared_ptr(0));
-        auto unsqueeze_2_in1_const = ov::as_type_ptr<v0::Constant>(unsqueeze_2_node->get_input_node_shared_ptr(1));
+        auto unsqueeze_2_in0_const =
+            ov::as_type_ptr<v0::Constant>(unsqueeze_2_node->input_value(0).get_node_shared_ptr());
+        auto unsqueeze_2_in1_const =
+            ov::as_type_ptr<v0::Constant>(unsqueeze_2_node->input_value(1).get_node_shared_ptr());
 
         OutputVector outputs_1(unsqueeze_1_node->get_output_size());
         OutputVector unsqueeze_1_inputs(2);
@@ -153,7 +157,8 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
         } else {
             auto convert_3_node = pattern_map.at(convert_3).get_node_shared_ptr();
             auto convert_4_node = pattern_map.at(convert_4).get_node_shared_ptr();
-            auto convert_4_in_const = ov::as_type_ptr<v0::Constant>(convert_4_node->get_input_node_shared_ptr(0));
+            auto convert_4_in_const =
+                ov::as_type_ptr<v0::Constant>(convert_4_node->input_value(0).get_node_shared_ptr());
             auto add_node = pattern_map.at(add).get_node_shared_ptr();
             OutputVector outputs_5(convert_3_node->get_output_size());
             if (!convert_3_node->constant_fold(outputs_5, shifted_const->outputs())) {
@@ -173,7 +178,7 @@ GPTQDecompressionReplacer::GPTQDecompressionReplacer() {
         }
 
         auto convert_2_node = pattern_map.at(convert_2).get_node_shared_ptr();
-        auto convert_2_in_const = ov::as_type_ptr<v0::Constant>(convert_2_node->get_input_node_shared_ptr(0));
+        auto convert_2_in_const = ov::as_type_ptr<v0::Constant>(convert_2_node->input_value(0).get_node_shared_ptr());
 
         OutputVector outputs_8(convert_2_node->get_output_size());
         if (!convert_2_node->constant_fold(outputs_8, convert_2_in_const->outputs())) {
@@ -254,14 +259,15 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
         auto reshape3_node = pattern_map.at(reshape_3).get_node_shared_ptr();
         // auto mult_node = pattern_map.at(mult).get_node_shared_ptr();
 
-        auto add_input0_const = ov::as_type_ptr<v0::Constant>(convert_1_node->get_input_node_shared_ptr(0));
+        auto add_input0_const = ov::as_type_ptr<v0::Constant>(convert_1_node->input_value(0).get_node_shared_ptr());
         if (add_input0_const->get_element_type() != element::u4) {
             return false;
         }
         auto add_in0_ptr = add_input0_const->get_data_ptr<uint8_t>();
         uint32_t add_val = 0;
         if (convert_2_node) {
-            auto convert_2_input_const = ov::as_type_ptr<v0::Constant>(convert_2_node->get_input_node_shared_ptr(0));
+            auto convert_2_input_const =
+                ov::as_type_ptr<v0::Constant>(convert_2_node->input_value(0).get_node_shared_ptr());
             auto add_in1_ptr = convert_2_input_const->get_data_ptr<uint8_t>();
             if (!add_in1_ptr)
                 return false;
@@ -284,7 +290,7 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
         }
 
         const auto& static_shape_2 = reshape2_node->get_shape();
-        auto reshape2_in0_const = ov::as_type_ptr<v0::Constant>(convert_4_node->get_input_node_shared_ptr(0));
+        auto reshape2_in0_const = ov::as_type_ptr<v0::Constant>(convert_4_node->input_value(0).get_node_shared_ptr());
         auto sub_replace_const = std::make_shared<v0::Constant>(reshape2_in0_const->get_element_type(),
                                                                 static_shape_2,
                                                                 reshape2_in0_const->get_data_ptr<uint8_t>());
@@ -292,7 +298,7 @@ GPTQMultPatternReplacer::GPTQMultPatternReplacer() {
         auto new_sub_node = std::make_shared<v1::Subtract>(new_convert_node, add_replace_const);
 
         const auto& static_shape_3 = reshape3_node->get_shape();
-        auto reshape3_in0_const = ov::as_type_ptr<v0::Constant>(reshape3_node->get_input_node_shared_ptr(0));
+        auto reshape3_in0_const = ov::as_type_ptr<v0::Constant>(reshape3_node->input_value(0).get_node_shared_ptr());
         auto mult_scale_const = std::make_shared<v0::Constant>(reshape3_in0_const->get_element_type(),
                                                                static_shape_3,
                                                                reshape3_in0_const->get_data_ptr<uint8_t>());

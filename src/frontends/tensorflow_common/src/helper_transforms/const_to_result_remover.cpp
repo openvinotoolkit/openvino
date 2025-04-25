@@ -22,8 +22,8 @@ bool ConstToResultRemover::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // look for isolated UnsupportedConst->Result sub-graphs to remove
     // also, find isolated Constant->Result sub-graphs to remove
     for (const auto& result : m->get_results()) {
-        auto unsupported_const = as_type_ptr<UnsupportedConstant>(result->get_input_node_shared_ptr(0));
-        auto const_node = as_type_ptr<v0::Constant>(result->get_input_node_shared_ptr(0));
+        auto unsupported_const = as_type_ptr<UnsupportedConstant>(result->input_value(0).get_node_shared_ptr());
+        auto const_node = as_type_ptr<v0::Constant>(result->input_value(0).get_node_shared_ptr());
         if (unsupported_const || const_node) {
             results_to_remove.push_back(result);
         }

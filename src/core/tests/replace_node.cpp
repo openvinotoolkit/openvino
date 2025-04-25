@@ -98,23 +98,23 @@ TEST(replace_node, replace_nodes) {
     ASSERT_EQ(f->get_results().size(), 1);
 
     // Result node should be sub (unchanged).
-    ASSERT_EQ(f->get_results()[0]->get_input_node_shared_ptr(0), sub);
+    ASSERT_EQ(f->get_results()[0]->input_value(0).get_node_shared_ptr(), sub);
 
     // sub's arguments should be mul (unchanged) and z_replacement.
-    ASSERT_EQ(sub->get_input_node_shared_ptr(0), mul);
-    ASSERT_EQ(sub->get_input_node_shared_ptr(1), z_replacement);
+    ASSERT_EQ(sub->input_value(0).get_node_shared_ptr(), mul);
+    ASSERT_EQ(sub->input_value(1).get_node_shared_ptr(), z_replacement);
 
     // mul's arguments should be add (unchanged) and k_replacement.
-    ASSERT_EQ(mul->get_input_node_shared_ptr(0), add);
-    ASSERT_EQ(mul->get_input_node_shared_ptr(1), k_replacement);
+    ASSERT_EQ(mul->input_value(0).get_node_shared_ptr(), add);
+    ASSERT_EQ(mul->input_value(1).get_node_shared_ptr(), k_replacement);
 
     // add's arguments should be x_replacement and y_replacement.
-    ASSERT_EQ(add->get_input_node_shared_ptr(0), x_replacement);
-    ASSERT_EQ(add->get_input_node_shared_ptr(1), y_replacement);
+    ASSERT_EQ(add->input_value(0).get_node_shared_ptr(), x_replacement);
+    ASSERT_EQ(add->input_value(1).get_node_shared_ptr(), y_replacement);
 
     // z_replacement's arguments should be x_replacement and mul.
-    ASSERT_EQ(z_replacement->get_input_node_shared_ptr(0), x_replacement);
-    ASSERT_EQ(z_replacement->get_input_node_shared_ptr(1), mul);
+    ASSERT_EQ(z_replacement->input_value(0).get_node_shared_ptr(), x_replacement);
+    ASSERT_EQ(z_replacement->input_value(1).get_node_shared_ptr(), mul);
 }
 
 TEST(replace_node, simple_node_replacement) {

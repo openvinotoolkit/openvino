@@ -233,15 +233,15 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
         if (special_body_ports.body_condition_output_idx >= 0) {
             const auto& body_outputs = loop_op->get_function()->get_results();
-            auto body_condition_output = body_outputs.at(special_body_ports.body_condition_output_idx)->get_input_node_shared_ptr(0);
+            auto body_condition_output = body_outputs.at(special_body_ports.body_condition_output_idx)->input_value(0).get_node_shared_ptr();
             body_execution_condition_id = layer_type_name_ID(body_condition_output);
         }
 
-        trip_count_id = layer_type_name_ID(loop_op->get_input_node_shared_ptr(0));
+        trip_count_id = layer_type_name_ID(loop_op->input_value(0).get_node_shared_ptr());
         // Update trip_count_id for cached constant primitive
         if (trip_count_id != p.primitive_ids[trip_count_id])
             trip_count_id = p.primitive_ids[trip_count_id];
-        first_execution_condition_id = layer_type_name_ID(loop_op->get_input_node_shared_ptr(1));
+        first_execution_condition_id = layer_type_name_ID(loop_op->input_value(1).get_node_shared_ptr());
     }
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges

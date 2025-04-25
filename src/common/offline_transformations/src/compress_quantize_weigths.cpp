@@ -98,16 +98,16 @@ ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
         auto weights = ov::util::constantfold_subgraph(fq->input_value(0));
         if (!weights)
             return false;
-        auto input_low = ov::as_type_ptr<op::v0::Constant>(fq->get_input_node_shared_ptr(1));
+        auto input_low = ov::as_type_ptr<op::v0::Constant>(fq->input_value(1).get_node_shared_ptr());
         if (!input_low)
             return false;
-        auto input_high = ov::as_type_ptr<op::v0::Constant>(fq->get_input_node_shared_ptr(2));
+        auto input_high = ov::as_type_ptr<op::v0::Constant>(fq->input_value(2).get_node_shared_ptr());
         if (!input_high)
             return false;
-        auto output_low = ov::as_type_ptr<op::v0::Constant>(fq->get_input_node_shared_ptr(3));
+        auto output_low = ov::as_type_ptr<op::v0::Constant>(fq->input_value(3).get_node_shared_ptr());
         if (!output_low)
             return false;
-        auto output_high = ov::as_type_ptr<op::v0::Constant>(fq->get_input_node_shared_ptr(4));
+        auto output_high = ov::as_type_ptr<op::v0::Constant>(fq->input_value(4).get_node_shared_ptr());
         if (!output_high)
             return false;
 
@@ -247,7 +247,7 @@ static std::shared_ptr<ov::op::v0::Constant> get_fake_convert_shift(
     const std::shared_ptr<ov::op::v13::FakeConvert>& fake_convert) {
     if (fake_convert->get_input_size() < 3)
         return nullptr;
-    const auto shift = ov::as_type_ptr<ov::op::v0::Constant>(fake_convert->get_input_node_shared_ptr(2));
+    const auto shift = ov::as_type_ptr<ov::op::v0::Constant>(fake_convert->input_value(2).get_node_shared_ptr());
     if (!shift)
         return nullptr;
     float value = -1.0f;
@@ -272,7 +272,7 @@ ov::pass::CompressWeightsWithFakeConvert::CompressWeightsWithFakeConvert() {
         const auto fake_convert = ov::as_type_ptr<op::v13::FakeConvert>(m.get_match_root());
         auto weights = pattern_map.at(weights_const_pattern);
 
-        NodeVector from{weights, fake_convert, fake_convert->get_input_node_shared_ptr(1)};
+        NodeVector from{weights, fake_convert, fake_convert->input_value(1).get_node_shared_ptr()};
         NodeRegistry node_registry;
 
         if (weights->get_output_element_type(0) != fake_convert->get_input_element_type(0)) {
@@ -350,21 +350,21 @@ static bool evaluate_node(const std::shared_ptr<ov::Node>& node,
 static ov::TensorVector get_fake_quantize_input_tensors(const std::shared_ptr<ov::Node>& fq) {
     ov::Tensor weights_tensor;
 
-    auto fq_input = fq->get_input_node_shared_ptr(0);
+    auto fq_input = fq->input_value(0).get_node_shared_ptr();
     auto fq_input_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_input);
 
     if (!fq_input_constant) {
-        auto weights = ov::as_type_ptr<ov::op::v0::Constant>(fq_input->get_input_node_shared_ptr(0));
+        auto weights = ov::as_type_ptr<ov::op::v0::Constant>(fq_input->input_value(0).get_node_shared_ptr());
         if (!evaluate_node(fq_input, ov::TensorVector{tensor_from_constant(weights)}, weights_tensor))
             return {};
     } else {
         weights_tensor = tensor_from_constant(fq_input_constant);
     }
 
-    auto in_low = ov::as_type_ptr<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(1));
-    auto in_high = ov::as_type_ptr<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(2));
-    auto out_low = ov::as_type_ptr<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(3));
-    auto out_high = ov::as_type_ptr<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(4));
+    auto in_low = ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(1).get_node_shared_ptr());
+    auto in_high = ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(2).get_node_shared_ptr());
+    auto out_low = ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(3).get_node_shared_ptr());
+    auto out_high = ov::as_type_ptr<ov::op::v0::Constant>(fq->input_value(4).get_node_shared_ptr());
 
     return ov::TensorVector{weights_tensor,
                             tensor_from_constant(in_low),
@@ -396,7 +396,7 @@ bool has_dequantization_subgraph(const std::shared_ptr<ov::Node>& fq,
         return false;
     auto subtract = get_single_consumer_of_type<ov::op::v1::Subtract>(convert_to_high_precision);
     if (subtract) {
-        zero_point = subtract->get_input_node_shared_ptr(1);
+        zero_point = subtract->input_value(1).get_node_shared_ptr();
         return get_single_consumer_of_type<ov::op::v1::Multiply>(subtract) != nullptr;
     } else {
         return get_single_consumer_of_type<ov::op::v1::Multiply>(convert_to_high_precision) != nullptr;

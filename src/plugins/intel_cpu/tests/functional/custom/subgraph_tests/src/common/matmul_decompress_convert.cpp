@@ -150,7 +150,7 @@ protected:
         ASSERT_NE(nullptr, execFunction);
         for (const auto& fcNode : execFunction->get_ops()) {
             if (getExecValue(fcNode->get_rt_info(), ov::exec_model_info::LAYER_TYPE) == "FullyConnected") {
-                const auto& constNode = fcNode->get_input_node_shared_ptr(1);
+                const auto& constNode = fcNode->input_value(1).get_node_shared_ptr();
                 ov::element::Type expectedType(
                     getExecValue(constNode->get_rt_info(), ov::exec_model_info::OUTPUT_PRECISIONS));
                 ASSERT_EQ(expectedType, expectedWeiElemType);

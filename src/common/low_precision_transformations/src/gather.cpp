@@ -47,7 +47,7 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
         constant = ov::as_type_ptr<ov::opset1::Constant>(newConstant);
     }
 
-    const int64_t axis = ov::as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(2))->cast_vector<int64_t>()[0];
+    const int64_t axis = ov::as_type_ptr<opset1::Constant>(gather->input_value(2).get_node_shared_ptr())->cast_vector<int64_t>()[0];
     const size_t normalizedAxis =
         ov::util::try_normalize_axis(axis, gather->get_input_partial_shape(0).rank(), *gather);
 
@@ -159,7 +159,7 @@ bool GatherTransformation::canBeTransformed(const std::shared_ptr<Node>& operati
     // If dequantization constant is not scalar, Gather axis must be constant.
     // If the Gather axis matches with dequantization channel, the Gather indices
     // must be constant and have 0D or 1D shape so we can do folding.
-    const auto axisConstant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(2));
+    const auto axisConstant = ov::as_type_ptr<opset1::Constant>(operation->input_value(2).get_node_shared_ptr());
     if (axisConstant == nullptr) {
         return false;
     }
@@ -180,7 +180,7 @@ bool GatherTransformation::canBeTransformed(const std::shared_ptr<Node>& operati
             ov::util::try_normalize_axis(axis, operation->get_input_partial_shape(0).rank(), *operation);
 
         if (constantShape[normalizedAxis] != 1ul) {
-            const auto indicesConstant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1));
+            const auto indicesConstant = ov::as_type_ptr<opset1::Constant>(operation->input_value(1).get_node_shared_ptr());
             if (indicesConstant == nullptr)
                 return false;
             const auto indicesShape = indicesConstant->get_shape();

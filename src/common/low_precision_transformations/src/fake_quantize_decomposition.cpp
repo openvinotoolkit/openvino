@@ -99,8 +99,8 @@ DataPrecision getDataPrecisionByOutputPortAndFakeQuantize(std::shared_ptr<opset1
 // 2. Precisions on port
 DataPrecision getDataPrecisionByOutputPort(std::shared_ptr<opset1::FakeQuantize> layer) {
     const size_t levels = layer->get_levels();
-    const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
-    const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
+    const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->input_value(3).get_node_shared_ptr())->cast_vector<float>();
+    const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->input_value(4).get_node_shared_ptr())->cast_vector<float>();
 
     auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));
     if (precisionsAttribute.empty()) {
@@ -189,8 +189,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 
     if (!intervalsAlignment.empty()) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "decomposeFakeQuantize1");
-        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
-        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
+        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->input_value(3).get_node_shared_ptr())->cast_vector<float>();
+        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->input_value(4).get_node_shared_ptr())->cast_vector<float>();
 
         float dequantizationMul;
         float dequantizationSub;
@@ -367,8 +367,8 @@ bool FakeQuantizeDecompositionTransformation::transform(ov::pass::pattern::Match
     if (dataPrecision.precision == element::dynamic) {
         element::Type precision;
         const auto levels = layer->get_levels();
-        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(3))->cast_vector<float>();
-        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->get_input_node_shared_ptr(4))->cast_vector<float>();
+        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(layer->input_value(3).get_node_shared_ptr())->cast_vector<float>();
+        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(layer->input_value(4).get_node_shared_ptr())->cast_vector<float>();
         if (intervalsAlignment.empty()) {
             // define precision by FakeQuantize intervals
             LayerTransformation::PrecisionDetails precisionDetailsAtOutputIntervals = LayerTransformation::getPrecisionDetails(

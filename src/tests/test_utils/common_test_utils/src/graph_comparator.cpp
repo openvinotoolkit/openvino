@@ -99,8 +99,8 @@ bool less_by_friendly_name(const std::shared_ptr<ov::op::v0::Result>& l, const s
 
 bool less_by_parent_friendly_name(const std::shared_ptr<ov::op::v0::Result>& l,
                                   const std::shared_ptr<ov::op::v0::Result>& r) {
-    const auto& l_name = l->get_input_node_shared_ptr(0)->get_friendly_name();
-    const auto& r_name = r->get_input_node_shared_ptr(0)->get_friendly_name();
+    const auto& l_name = l->input_value(0).get_node_shared_ptr()->get_friendly_name();
+    const auto& r_name = r->input_value(0).get_node_shared_ptr()->get_friendly_name();
     return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
@@ -679,11 +679,11 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ov::Model>& f, cons
 
         for (size_t i = 0; i < f_results.size(); ++i) {
             if (should_compare(CmpValues::NAMES)) {
-                if (name(f_results[i]->get_input_node_shared_ptr(0)) !=
-                    name(f_ref_results[i]->get_input_node_shared_ptr(0))) {
+                if (name(f_results[i]->input_value(0).get_node_shared_ptr()) !=
+                    name(f_ref_results[i]->input_value(0).get_node_shared_ptr())) {
                     return Result::error(
-                        "Different output node names: " + name(f_results[i]->get_input_node_shared_ptr(0)) + " and " +
-                        name(f_ref_results[i]->get_input_node_shared_ptr(0)));
+                        "Different output node names: " + name(f_results[i]->input_value(0).get_node_shared_ptr()) +
+                        " and " + name(f_ref_results[i]->input_value(0).get_node_shared_ptr()));
                 }
             }
             q.push({f_results[i].get(), f_ref_results[i].get()});
@@ -771,8 +771,8 @@ void Comparator::compare_inputs(ov::Node* node1, ov::Node* node2, std::ostream& 
             using Constant = ov::op::v0::Constant;
             const auto equal_value = ::attributes::detail::equal::Equal<std::shared_ptr<Constant>>::equal_value;
 
-            auto const1 = ov::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
-            auto const2 = ov::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
+            auto const1 = ov::as_type_ptr<Constant>(node1->input_value(i).get_node_shared_ptr());
+            auto const2 = ov::as_type_ptr<Constant>(node2->input_value(i).get_node_shared_ptr());
             if (const1 && const2 && !equal_value(const1, const2)) {
                 err_log << "Different Constant values detected\n"
                         << const1->get_friendly_name() << " & " << const2->get_friendly_name() << "\n"

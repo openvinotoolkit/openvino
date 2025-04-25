@@ -326,8 +326,8 @@ template <typename T, typename... Args>
 std::shared_ptr<Node> fold_reshape(Args&&... args) {
     std::shared_ptr<Node> node = std::make_shared<T>(args...);
     if (node->get_output_size() == 1) {
-        const auto data_const = ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(0));
-        const auto target_shape = ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(1));
+        const auto data_const = ov::as_type_ptr<ov::opset1::Constant>(node->input_value(0).get_node_shared_ptr());
+        const auto target_shape = ov::as_type_ptr<ov::opset1::Constant>(node->input_value(1).get_node_shared_ptr());
         if (data_const && target_shape) {
             return std::make_shared<ov::opset1::Constant>(node->get_input_element_type(0),
                                                       node->get_output_shape(0),

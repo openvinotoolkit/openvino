@@ -55,7 +55,7 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
     std::shared_ptr<Node> newSubtract;
 
     const element::Type precisionBeforeConvert = convert->input(0).get_element_type();
-    if (NetworkHelper::checkConstantValuePrecision(precisionBeforeConvert, subtract->get_input_node_shared_ptr(1))) {
+    if (NetworkHelper::checkConstantValuePrecision(precisionBeforeConvert, subtract->input_value(1).get_node_shared_ptr())) {
         newSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
             std::vector<ov::element::Type>{ element::f32, element::f32 }, std::vector<ov::element::Type>{},
             ov::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
@@ -75,7 +75,7 @@ bool FuseConvertTransformation::transform(ov::pass::pattern::Matcher &m) {
         return false;
     }
 
-    const auto convert = ov::as_type_ptr<ov::opset1::Convert>(op->get_input_node_shared_ptr(0));
+    const auto convert = ov::as_type_ptr<ov::opset1::Convert>(op->input_value(0).get_node_shared_ptr());
     auto parent = convert->input_value(0);
 
     if (ov::is_type<ov::opset1::Constant>(parent.get_node_shared_ptr())) {
@@ -120,7 +120,7 @@ bool FuseConvertTransformation::canBeTransformed(const std::shared_ptr<Node>& op
         return false;
     }
 
-    const auto convert = ov::as_type_ptr<ov::opset1::Convert>(op->get_input_node_shared_ptr(0));
+    const auto convert = ov::as_type_ptr<ov::opset1::Convert>(op->input_value(0).get_node_shared_ptr());
     // issue #40395
     if (convert == nullptr) {
         return false;

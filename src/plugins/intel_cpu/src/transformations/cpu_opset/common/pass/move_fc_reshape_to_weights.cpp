@@ -55,18 +55,18 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
 
     ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         const auto fully_connected = m.get_match_root();
-        const auto weights_path = fully_connected->get_input_node_shared_ptr(1);
+        const auto weights_path = fully_connected->input_value(1).get_node_shared_ptr();
         const bool with_transpose = ov::is_type<ov::op::v1::Transpose>(weights_path);
         if (with_transpose) {
             const auto transpose_const =
-                ov::as_type_ptr<ov::op::v0::Constant>(weights_path->get_input_node_shared_ptr(1));
+                ov::as_type_ptr<ov::op::v0::Constant>(weights_path->input_value(1).get_node_shared_ptr());
             if (transpose_const->cast_vector<int>() != std::vector<int>{1, 0}) {
                 return false;
             }
         }
 
         const auto& fc_input_shape = fully_connected->get_input_shape(1);
-        const auto reshape = with_transpose ? weights_path->get_input_node_shared_ptr(0) : weights_path;
+        const auto reshape = with_transpose ? weights_path->input_value(0).get_node_shared_ptr() : weights_path;
 
         auto check_decompression_shape = [&](const std::shared_ptr<ov::Node>& node) {
             ov::Shape expected_shape(3, 1);
@@ -84,18 +84,18 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
                    });
         };
 
-        const auto mul = reshape->get_input_node_shared_ptr(0);
-        if (!check_decompression_shape(mul->get_input_node_shared_ptr(1))) {
+        const auto mul = reshape->input_value(0).get_node_shared_ptr();
+        if (!check_decompression_shape(mul->input_value(1).get_node_shared_ptr())) {
             return false;
         }
-        const auto mul_parent = mul->get_input_node_shared_ptr(0);
+        const auto mul_parent = mul->input_value(0).get_node_shared_ptr();
         const bool with_subtract = ov::is_type<ov::op::v1::Subtract>(mul_parent);
-        if (with_subtract && !check_decompression_shape(mul_parent->get_input_node_shared_ptr(1))) {
+        if (with_subtract && !check_decompression_shape(mul_parent->input_value(1).get_node_shared_ptr())) {
             return false;
         }
 
-        const auto convert = with_subtract ? mul_parent->get_input_node_shared_ptr(0) : mul_parent;
-        const auto weights = convert->get_input_node_shared_ptr(0);
+        const auto convert = with_subtract ? mul_parent->input_value(0).get_node_shared_ptr() : mul_parent;
+        const auto weights = convert->input_value(0).get_node_shared_ptr();
         ov::Shape expected_weights_shape(3, 1);
         expected_weights_shape[1] = fc_input_shape[with_transpose ? 1 : 0];
         expected_weights_shape[2] = fc_input_shape[with_transpose ? 0 : 1];
@@ -118,12 +118,12 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
 
         // We can remove 3D->2D reshape if we manually reshape all constants in the weights subgraph
         ov::replace_output_update_name(reshape->output(0), reshape->input_value(0));
-        squeeze_constant(mul->get_input_node_shared_ptr(1));
+        squeeze_constant(mul->input_value(1).get_node_shared_ptr());
         squeeze_constant(weights);
         if (with_subtract) {
-            auto sub_const = mul_parent->get_input_node_shared_ptr(1);
+            auto sub_const = mul_parent->input_value(1).get_node_shared_ptr();
             if (ov::is_type<ov::op::v0::Convert>(sub_const)) {
-                sub_const = sub_const->get_input_node_shared_ptr(0);
+                sub_const = sub_const->input_value(0).get_node_shared_ptr();
             }
             squeeze_constant(sub_const);
         }

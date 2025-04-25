@@ -17,7 +17,7 @@ static std::vector<int64_t> ExtractAxes(const std::shared_ptr<ov::op::util::Inte
     std::vector<int64_t> axes;
     auto inputRank = op->get_input_partial_shape(0).size();
     if (op->get_input_size() == axes_index + 1) {
-        auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(axes_index));
+        auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(axes_index).get_node_shared_ptr());
         OPENVINO_ASSERT(axes_constant, "Unsupported parameter node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         axes = axes_constant->cast_vector<int64_t>();
@@ -75,10 +75,10 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
     auto attrs = op->get_attrs();
 
-    auto sizes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(SIZES_INDEX));
+    auto sizes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(SIZES_INDEX).get_node_shared_ptr());
     std::vector<int64_t> sizes = sizes_constant ? sizes_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
 
-    auto scales_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));
+    auto scales_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(SCALES_INDEX).get_node_shared_ptr());
     std::vector<float> scales = scales_constant ? scales_constant->cast_vector<float>() : std::vector<float>{};
 
     std::vector<int64_t> axes = ExtractAxes(op, AXES_INDEX);
@@ -155,7 +155,7 @@ static void CreateInterpolateOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
 
     auto attrs = op->get_attrs();
 
-    auto scales_or_sizes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(eScalesOrSizesIndex));
+    auto scales_or_sizes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(eScalesOrSizesIndex).get_node_shared_ptr());
     std::vector<float> scales = scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES ?
         scales_or_sizes_constant->cast_vector<float>() : std::vector<float>{};
     std::vector<int64_t> sizes = scales_or_sizes_constant && attrs.shape_calculation_mode == ov::op::v11::Interpolate::ShapeCalcMode::SIZES ?

@@ -383,11 +383,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         [&](const_node_ptr& node) -> bool {
             if (ov::is_type<ov::op::internal::GatherCompressed>(node)) {
                 // It is necessary to avoid precision conversion for constant node(compressed weights)
-                ov::enable_keep_const_precision(node->get_input_node_shared_ptr(0));
+                ov::enable_keep_const_precision(node->input_value(0).get_node_shared_ptr());
 
                 // Prioritize LPT pipeline to handle dequantization part for quantized models as it more optimal in
                 // general case
-                if (ov::intel_cpu::one_of(node->get_input_node_shared_ptr(0)->get_element_type(),
+                if (ov::intel_cpu::one_of(node->input_value(0).get_node_shared_ptr()->get_element_type(),
                                           ov::element::u8,
                                           ov::element::i8) &&
                     useLpt) {
@@ -840,7 +840,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_COMMON(
         lptManager,
         [&](const_node_ptr& node) -> bool {
-            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
+            if (NetworkHelper::isConstantPath(node->input_value(1).get_node_shared_ptr()) &&
                 one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
                 return false;
             }
@@ -974,7 +974,7 @@ void Transformations::PostLpt() {
                 return node->get_input_element_type(1) == ov::element::i8 ||
                        node->get_input_element_type(1) == ov::element::u8 ||
                        (ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
-                        !ov::is_type<const ov::op::v1::Transpose>(node->get_input_node_shared_ptr(0)));
+                        !ov::is_type<const ov::op::v1::Transpose>(node->input_value(0).get_node_shared_ptr()));
             }
             return false;
         },
@@ -1273,7 +1273,7 @@ void Transformations::MainSnippets() {
         // and CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
             return (ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                    !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1))) ||
+                    !ov::is_type<const ov::op::v0::Constant>(n->input_value(1).get_node_shared_ptr())) ||
                    ov::is_type<const ov::op::v4::Mish>(n);
         };
         // todo: general tokenization flow is not currently supported for these operations.

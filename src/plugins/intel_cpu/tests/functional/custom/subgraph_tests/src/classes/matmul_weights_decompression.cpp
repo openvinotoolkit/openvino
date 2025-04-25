@@ -150,11 +150,11 @@ void MatmulWeightsDecompression::check_results() {
 
     const auto runtime_model = compiledModel.get_runtime_model();
     const auto result = runtime_model->get_result();
-    auto fc = result->get_input_node_shared_ptr(0);
+    auto fc = result->input_value(0).get_node_shared_ptr();
     // Handle precision conversion before output
     auto type = fc->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
     if (type == "Reorder" || type == "Convert" || type == "Subgraph")
-        fc = fc->get_input_node_shared_ptr(0);
+        fc = fc->input_value(0).get_node_shared_ptr();
 
     type = fc->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
     EXPECT_EQ(type, "FullyConnected");

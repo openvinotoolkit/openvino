@@ -48,7 +48,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
         if (transpose) {
-            const auto parent = transpose->get_input_node_shared_ptr(0);
+            const auto parent = transpose->input_value(0).get_node_shared_ptr();
             const auto child = transpose->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             auto is_brgemm_case = ov::is_type_any_of<opset1::MatMul, opset1::MatMul>(child);
             auto decomposition_case = true;
@@ -58,12 +58,12 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                     // Transpose decomposition is supported only for Transpose nodes right after Subgraph's parameters
                     decomposition_case = false;
                     const auto body = subgraph->body_ptr();
-                    const auto subgraph_output = body->get_results()[transpose->input_value(0).get_index()]->get_input_node_shared_ptr(0);
+                    const auto subgraph_output = body->get_results()[transpose->input_value(0).get_index()]->input_value(0).get_node_shared_ptr();
                     is_brgemm_case = is_brgemm_case || ov::is_type<opset1::MatMul>(subgraph_output);
                 }
             }
 
-            const auto& order = as_type_ptr<const opset1::Constant>(n->get_input_node_shared_ptr(1));
+            const auto& order = as_type_ptr<const opset1::Constant>(n->input_value(1).get_node_shared_ptr());
             if (order) {
                 const auto order_value = order->cast_vector<int>();
                 return (decomposition_case && TransposeDecomposition::is_supported_transpose_order(order_value)) ||
@@ -158,7 +158,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     auto is_supported_reduce_op = [](const std::shared_ptr<const Node> &n) -> bool {
         if (ov::is_type_any_of<const ov::op::v1::ReduceMax, const ov::op::v1::ReduceSum>(n)) {
             const auto& reduce_base = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(n);
-            const auto& axis_constant = ov::as_type_ptr<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
+            const auto& axis_constant = ov::as_type_ptr<const ov::op::v0::Constant>(n->input_value(1).get_node_shared_ptr());
             const auto rank = n->get_input_partial_shape(0).rank();
             if (rank.is_dynamic() || !reduce_base->get_keep_dims() || !axis_constant || shape_size(axis_constant->get_shape()) != 1)
                 return false;

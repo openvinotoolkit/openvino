@@ -41,7 +41,7 @@ static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::uti
     float pad_value = 0.f;
     bool is_value_const = false;
     if (op->get_pad_mode() == ov::op::PadMode::CONSTANT && op->get_input_size() == 4) {
-        auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+        auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(3).get_node_shared_ptr());
         if (const_node) {
             const bool check_value_range = false;  // Allows the usage of infinity value as pad_value
             OPENVINO_ASSERT(ov::op::util::get_single_value(const_node, pad_value, check_value_range),

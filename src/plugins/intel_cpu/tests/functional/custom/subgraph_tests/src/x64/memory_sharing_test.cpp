@@ -52,7 +52,7 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
                                                    autoPad,
                                                    convOutCh1);
     conv1->set_friendly_name(convName);
-    conv1->get_input_node_shared_ptr(1)->set_friendly_name(weightName);
+    conv1->input_value(1).get_node_shared_ptr()->set_friendly_name(weightName);
     auto model1 = makeNgraphFunction(type, params1, conv1, "Model1");
 
     // second model
@@ -72,7 +72,7 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
                                                    autoPad,
                                                    convOutCh2);
     conv2->set_friendly_name(convName);
-    conv2->get_input_node_shared_ptr(1)->set_friendly_name(weightName);
+    conv2->input_value(1).get_node_shared_ptr()->set_friendly_name(weightName);
     auto model2 = makeNgraphFunction(type, params2, conv2, "Model2");
 
     // model compilation

@@ -175,10 +175,10 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     std::vector<float>& ish,
     std::vector<float>& osc,
     std::vector<float>& osh) {
-    auto input_low_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(1));
-    auto input_high_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(2));
-    auto output_low_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(3));
-    auto output_high_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(4));
+    auto input_low_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr());
+    auto input_high_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr());
+    auto output_low_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->input_value(3).get_node_shared_ptr());
+    auto output_high_constant = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->input_value(4).get_node_shared_ptr());
     if (!input_low_constant || !input_high_constant || !output_low_constant || !output_high_constant)
         return false;
 
@@ -365,10 +365,10 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(const 
         });
     };
     return fq && fq->get_levels() != 2 &&
-           ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(1)) &&
-           ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(2)) &&
-           ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(3)) &&
-           ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(4)) &&
+           ov::is_type<ov::op::v0::Constant>(fq->input_value(1).get_node_shared_ptr()) &&
+           ov::is_type<ov::op::v0::Constant>(fq->input_value(2).get_node_shared_ptr()) &&
+           ov::is_type<ov::op::v0::Constant>(fq->input_value(3).get_node_shared_ptr()) &&
+           ov::is_type<ov::op::v0::Constant>(fq->input_value(4).get_node_shared_ptr()) &&
            utils::one_of(fq->get_auto_broadcast(), ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::NONE) &&
            is_valid_range_values(fq);
 }

@@ -29,9 +29,9 @@ ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
         NodeRegistry node_registry;
         const auto out0 = node_registry.make<ov::op::v0::Convert>(convert_promote_types->input_value(0), dest_type);
         const auto out1 = node_registry.make<ov::op::v0::Convert>(convert_promote_types->input_value(1), dest_type);
-        out0->set_friendly_name(convert_promote_types->get_input_node_shared_ptr(0)->get_friendly_name() + "/" +
+        out0->set_friendly_name(convert_promote_types->input_value(0).get_node_shared_ptr()->get_friendly_name() + "/" +
                                 friendly_name + ".0");
-        out1->set_friendly_name(convert_promote_types->get_input_node_shared_ptr(1)->get_friendly_name() + "/" +
+        out1->set_friendly_name(convert_promote_types->input_value(1).get_node_shared_ptr()->get_friendly_name() + "/" +
                                 friendly_name + ".1");
         copy_runtime_info(convert_promote_types, node_registry.get());
         replace_node(convert_promote_types, {out0, out1});

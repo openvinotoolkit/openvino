@@ -105,13 +105,13 @@ bool check_intervals(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuanti
     const auto exact_comparison = !element_type.is_integral();
 
     return
-        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(1)),
+        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->input_value(1).get_node_shared_ptr()),
                        min_value, max_diff, exact_comparison) &&
-        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(2)),
+        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->input_value(2).get_node_shared_ptr()),
                        max_value, max_diff, exact_comparison) &&
-        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3)),
+        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->input_value(3).get_node_shared_ptr()),
                        min_value, max_diff, true) &&
-        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4)),
+        check_interval(fakeQuantize, ov::as_type_ptr<ov::opset1::Constant>(fakeQuantize->input_value(4).get_node_shared_ptr()),
                        max_value, max_diff, true);
 }
 } // namespace

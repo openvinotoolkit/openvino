@@ -75,7 +75,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
     }
 
     for (size_t i = 0lu; i < op->get_input_size(); i++) {
-        isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
+        isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->input_value(i).get_node_shared_ptr());
         if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) &&
             !attrs.isSliceScatterOp) {
             shapeHasDataDependency = true;
@@ -147,7 +147,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
             return;
         }
 
-        const auto constNode = ov::as_type_ptr<const ov::opset1::Constant>(op->get_input_node_shared_ptr(type));
+        const auto constNode = ov::as_type_ptr<const ov::opset1::Constant>(op->input_value(type).get_node_shared_ptr());
         parameter = constNode->cast_vector<int>();
 
         auto size = constNode->get_shape()[0];

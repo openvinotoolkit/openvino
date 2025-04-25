@@ -226,7 +226,7 @@ auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
 
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
     return ov::is_type<ov::opset1::MatMul>(node) &&
-           !ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1)) &&
+           !ov::is_type<ov::opset1::Constant>(node->input_value(1).get_node_shared_ptr()) &&
            ov::op::util::is_on_constant_path(node->input_value(1));
 }
 

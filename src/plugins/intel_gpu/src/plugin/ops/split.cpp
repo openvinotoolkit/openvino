@@ -58,7 +58,7 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
         }
 
         int64_t axis = -1;
-        auto const_axis = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto const_axis = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         if (const_axis) {
             axis = ov::util::try_normalize_axis(const_axis->cast_vector<int64_t>()[0],
                                                 op->get_input_partial_shape(0).rank(),

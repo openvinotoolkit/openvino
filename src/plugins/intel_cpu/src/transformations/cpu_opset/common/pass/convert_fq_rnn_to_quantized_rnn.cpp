@@ -222,7 +222,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
         if (hidden_state_it != pattern_map.end()) {
             const auto& convert = pattern_map.at(convert_H).get_node_shared_ptr();
             const auto subtract_it = pattern_map.find(subtract_H);
-            const auto& multiply = rnn->get_input_node_shared_ptr(1);
+            const auto& multiply = rnn->input_value(1).get_node_shared_ptr();
 
             auto new_convert = convert->clone_with_new_inputs({rnn_quantized->output(1)});
             std::shared_ptr<Node> multiply_input = new_convert;

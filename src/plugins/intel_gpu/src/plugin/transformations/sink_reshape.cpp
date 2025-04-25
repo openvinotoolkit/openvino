@@ -45,7 +45,7 @@ SinkReshape::SinkReshape() {
         auto supported_conv_eltwise_post_ops_for_fuse = [](const std::shared_ptr<const Node>& node) -> bool {
             if (ov::is_type<v1::Add>(node) || ov::is_type<v1::Subtract>(node) || ov::is_type<v1::Multiply>(node) ||
                 ov::is_type<v1::Divide>(node))
-                return std::dynamic_pointer_cast<v0::Constant>(node->get_input_node_shared_ptr(1)) != nullptr;
+                return std::dynamic_pointer_cast<v0::Constant>(node->input_value(1).get_node_shared_ptr()) != nullptr;
             return ov::is_type<v0::Exp>(node);
         };
         std::function<bool(const std::shared_ptr<ov::Node>&)> is_suitable_parent;
@@ -55,7 +55,7 @@ SinkReshape::SinkReshape() {
             if (ov::as_type_ptr<op::Convolution>(node))
                 return true;
             for (size_t idx = 0; idx < node->get_input_size(); idx++) {
-                auto input = node->get_input_node_shared_ptr(idx);
+                auto input = node->input_value(idx).get_node_shared_ptr();
                 if (ov::as_type_ptr<v0::Constant>(node))
                     continue;
                 if (supported_conv_eltwise_post_ops_for_fuse(node)) {
@@ -86,7 +86,7 @@ SinkReshape::SinkReshape() {
             return mismatch_count == 1;
         };
         const auto reshape = ov::as_type_ptr<v1::Reshape>(output.get_node_shared_ptr());
-        return is_suitable_reshape(reshape) && is_suitable_parent(reshape->get_input_node_shared_ptr(0));
+        return is_suitable_reshape(reshape) && is_suitable_parent(reshape->input_value(0).get_node_shared_ptr());
     };
 
     auto reshape_m = wrap_type<v1::Reshape>(reshape_predicate && consumers_count(1));

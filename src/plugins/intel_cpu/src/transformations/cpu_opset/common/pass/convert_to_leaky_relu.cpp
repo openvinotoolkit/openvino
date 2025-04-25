@@ -23,7 +23,7 @@ ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
         if (!prelu) {
             return false;
         }
-        auto slopeNode = ov::as_type_ptr<ov::opset1::Constant>(prelu->get_input_node_shared_ptr(1));
+        auto slopeNode = ov::as_type_ptr<ov::opset1::Constant>(prelu->input_value(1).get_node_shared_ptr());
         if (slopeNode != nullptr && ov::shape_size(slopeNode->get_shape()) == 1) {
             const float slope = slopeNode->cast_vector<float>()[0];
             const auto leakyRelu = std::make_shared<ov::intel_cpu::LeakyReluNode>(prelu->input(0).get_source_output(),

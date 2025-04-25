@@ -311,13 +311,13 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const st
     }
     if (start_node->get_input_size() == 0)
         return leaf_node;
-    auto first_parent = start_node->get_input_node_shared_ptr(0);
+    auto first_parent = start_node->input_value(0).get_node_shared_ptr();
     while (op::Subgraph::is_shape_infer_op(first_parent)) {
         OPENVINO_ASSERT(first_parent->input(0).get_source_output().get_target_inputs().size() == 1, "Shape infer ops are supposed to be the only consumer.");
         leaf_node = first_parent;
         if (leaf_node->get_input_size() == 0)
             break;
-        first_parent = leaf_node->get_input_node_shared_ptr(0);
+        first_parent = leaf_node->input_value(0).get_node_shared_ptr();
     }
     return leaf_node;
 }

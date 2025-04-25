@@ -81,7 +81,7 @@ public:
         };
         actualFunction = createActualFunction(testValues.precisionBefore, shape, testValues.dequantization);
         const auto result = actualFunction->get_results()[0];
-        ov::pass::low_precision::NetworkHelper::separateInStandaloneBranch(result->get_input_node_shared_ptr(0));
+        ov::pass::low_precision::NetworkHelper::separateInStandaloneBranch(result->input_value(0).get_node_shared_ptr());
 
         const auto createReferenceFunction = [](
             const ov::element::Type precision,

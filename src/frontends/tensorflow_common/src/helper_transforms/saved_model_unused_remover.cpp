@@ -33,7 +33,7 @@ bool SavedModelUnusedRemover::run_on_model(const std::shared_ptr<ov::Model>& m) 
             continue;
         }
 
-        auto param = as_type_ptr<v0::Parameter>(result->get_input_node_shared_ptr(0));
+        auto param = as_type_ptr<v0::Parameter>(result->input_value(0).get_node_shared_ptr());
         if (param) {
             isUsed = false;
             for (size_t i = 0; i < param->get_output_size(); ++i) {

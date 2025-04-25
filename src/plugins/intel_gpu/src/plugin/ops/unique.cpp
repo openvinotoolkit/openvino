@@ -18,7 +18,7 @@ void CreateUniqueOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v10::Unique
     bool flattened = true;
     int64_t axis{};
     if (op->get_input_size() == 2) {
-        auto axis_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto axis_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         OPENVINO_ASSERT(axis_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         axis = axis_constant->cast_vector<int64_t>().at(0);
         axis = ov::util::try_normalize_axis(axis, op->get_input_partial_shape(0).rank(), *op);

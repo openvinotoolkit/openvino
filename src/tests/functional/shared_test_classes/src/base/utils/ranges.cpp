@@ -37,7 +37,7 @@ ov::Tensor ModelRange::generate_input(std::shared_ptr<ov::Node> node, size_t por
         throw std::runtime_error("Couln't find Operation in inputMap: " + std::string(node->get_type_name()));
     }
 
-    std::string range_id = get_range_id(node->get_input_node_shared_ptr(port));
+    std::string range_id = get_range_id(node->input_value(port).get_node_shared_ptr());
     return it->second(node, port, node->get_input_element_type(port), targetShape, node_ranges[range_id]);
 }
 

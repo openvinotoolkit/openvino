@@ -52,7 +52,7 @@ TEST_F(NodeUtilsTest, clone_node) {
 
     {
         auto cloned_node = ov::util::clone_node(add_node_1);
-        ASSERT_TRUE(ov::op::util::is_parameter(cloned_node->get_input_node_shared_ptr(0)));
+        ASSERT_TRUE(ov::op::util::is_parameter(cloned_node->input_value(0).get_node_shared_ptr()));
         ASSERT_TRUE(ov::op::util::is_parameter(cloned_node->get_input_node_ptr(1)));
     }
     {

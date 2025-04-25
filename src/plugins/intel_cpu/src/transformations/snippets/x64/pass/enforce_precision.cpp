@@ -93,7 +93,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
         for (auto index = 0ull; index < supported_precisions_to_enforce.size(); ++index) {
             if ((supported_precisions_to_enforce[index] == target) || (actual_precisions[index] == source)) {
                 const auto op_parent =
-                    ov::as_type_ptr<snippets::op::ConvertSaturation>(op->get_input_node_shared_ptr(index));
+                    ov::as_type_ptr<snippets::op::ConvertSaturation>(op->input_value(index).get_node_shared_ptr());
                 if ((op_parent != nullptr) && (op_parent->get_input_element_type(0) == target) &&
                     // we can remove existing convertion only if precisions before and after are appropriate for removal
                     snippets::pass::PropagatePrecision::can_be_removed(op_parent->get_input_element_type(0),

@@ -26,11 +26,12 @@ bool OneHot::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             errorMessage = "Only opset1 OneHot operation is supported";
             return false;
         }
-        if (ov::as_type_ptr<const ov::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
+        if (ov::as_type_ptr<const ov::opset1::Constant>(oneHot->input_value(ON_VALUE_ID).get_node_shared_ptr()) ==
+            nullptr) {
             errorMessage = "Only const 'on_value' input is supported";
             return false;
         }
-        if (ov::as_type_ptr<const ov::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID)) ==
+        if (ov::as_type_ptr<const ov::opset1::Constant>(oneHot->input_value(OFF_VALUEAXES_ID).get_node_shared_ptr()) ==
             nullptr) {
             errorMessage = "Only const 'off_value' input is supported";
             return false;
@@ -49,7 +50,8 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     }
 
     const auto oneHot = ov::as_type_ptr<const ov::opset1::OneHot>(op);
-    const auto depthNode = ov::as_type_ptr<const ov::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
+    const auto depthNode =
+        ov::as_type_ptr<const ov::opset1::Constant>(oneHot->input_value(DEPTH_ID).get_node_shared_ptr());
     if (depthNode) {
         depth = depthNode->cast_vector<uint32_t>()[0];
     }

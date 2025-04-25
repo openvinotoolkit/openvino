@@ -136,7 +136,7 @@ void insert_result_before_merge(const shared_ptr<Merge>& merge_node,
     // and retrive branch index for it
     const auto& merge_input = merge_node->input(input_ind);
     const auto& input_value = merge_node->input_value(input_ind);
-    const shared_ptr<const Node>& merge_producer = merge_node->get_input_node_shared_ptr(input_ind);
+    const shared_ptr<const Node>& merge_producer = merge_node->input_value(input_ind).get_node_shared_ptr();
     auto producer_cf_marker = get_cf_marker(merge_producer);
     FRONT_END_GENERAL_CHECK(
         producer_cf_marker.existing_markers_with_branches.count(eliminated_marker) > 0,

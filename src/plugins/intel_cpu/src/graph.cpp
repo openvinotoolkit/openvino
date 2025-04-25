@@ -189,7 +189,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         op2node[op] = node;
 
         for (size_t port = 0; port < op->get_input_size(); port++) {
-            auto parentOp = op->get_input_node_shared_ptr(port);
+            auto parentOp = op->input_value(port).get_node_shared_ptr();
             auto parentNode = op2node[parentOp];
 
             CreateEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port));

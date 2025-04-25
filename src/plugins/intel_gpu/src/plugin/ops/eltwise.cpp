@@ -165,7 +165,7 @@ static void CreateLogicalXorOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
 static void CreatePowerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Power>& op) {
     validate_inputs_count(op, {2});
-    auto power_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto power_node = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
     if (power_node) {
         if (ov::shape_size(power_node->get_output_shape(0)) == 1) {
             float pow;

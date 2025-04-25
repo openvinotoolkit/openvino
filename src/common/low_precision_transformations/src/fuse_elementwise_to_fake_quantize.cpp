@@ -20,7 +20,7 @@ bool FuseElementwiseToFakeQuantizeTransformation::canBeTransformed(const std::sh
         return false;
     }
 
-    if (!ov::is_type<ov::opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+    if (!ov::is_type<ov::opset1::Constant>(operation->input_value(1).get_node_shared_ptr())) {
         return false;
     }
 
@@ -28,12 +28,12 @@ bool FuseElementwiseToFakeQuantizeTransformation::canBeTransformed(const std::sh
         return false;
     }
 
-    const auto parent = operation->get_input_node_shared_ptr(0);
+    const auto parent = operation->input_value(0).get_node_shared_ptr();
     auto fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(parent);
     const auto convert = ov::as_type_ptr<ov::opset1::Convert>(parent);
 
     if (convert) {
-        fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fq = ov::as_type_ptr<ov::opset1::FakeQuantize>(convert->input_value(0).get_node_shared_ptr());
     }
 
     if (!fq) {

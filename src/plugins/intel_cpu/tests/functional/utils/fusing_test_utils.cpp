@@ -84,7 +84,7 @@ postFunctionMgr::addPostOps(const ov::element::Type &ngPrc, ov::ParameterVector 
     auto clonedPostFunction = _pFunction->clone();
     clonedPostFunction->set_friendly_name(_pFunction->get_friendly_name());
     clonedPostFunction->replace_node(clonedPostFunction->get_parameters()[0], lastNode);
-    return clonedPostFunction->get_result()->get_input_node_shared_ptr(0);
+    return clonedPostFunction->get_result()->input_value(0).get_node_shared_ptr();
 }
 
 std::string postFunctionMgr::getFusedOpsNames() const {

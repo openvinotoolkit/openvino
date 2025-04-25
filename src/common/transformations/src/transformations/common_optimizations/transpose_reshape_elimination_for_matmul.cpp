@@ -179,9 +179,9 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
             return false;
 
         auto transpose_before_constant =
-            ov::as_type_ptr<ov::op::v0::Constant>(transpose_before->get_input_node_shared_ptr(1));
+            ov::as_type_ptr<ov::op::v0::Constant>(transpose_before->input_value(1).get_node_shared_ptr());
         auto transpose_after_constant =
-            ov::as_type_ptr<ov::op::v0::Constant>(transpose_after->get_input_node_shared_ptr(1));
+            ov::as_type_ptr<ov::op::v0::Constant>(transpose_after->input_value(1).get_node_shared_ptr());
         if (!transpose_before_constant || !transpose_after_constant)
             return false;
 
@@ -200,7 +200,7 @@ ov::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMa
                 return false;
             }
             auto broadcast_before_constant =
-                ov::as_type_ptr<ov::op::v0::Constant>(broadcast_before->get_input_node_shared_ptr(1));
+                ov::as_type_ptr<ov::op::v0::Constant>(broadcast_before->input_value(1).get_node_shared_ptr());
             if (!broadcast_before_constant) {
                 return false;
             }

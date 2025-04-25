@@ -80,7 +80,7 @@ generate_model(ov::NodeVector& nodes,
                     for (const auto& orig_node_to_check : orig_in_node->output(out_idx).get_target_inputs()) {
                         if (orig_node_to_check.get_node()->shared_from_this() == node) {
                             auto orig_in_node_name = orig_in_node->get_friendly_name();
-                            auto cloned_in_node = cloned_node->get_input_node_shared_ptr(in_idx);
+                            auto cloned_in_node = cloned_node->input_value(in_idx).get_node_shared_ptr();
                             // if op input node is in subgraph replace parameters
                             // in cloned node by other nodes from the map
                             if (cloned_node_map.count(orig_in_node_name)) {
@@ -162,7 +162,7 @@ generate_model(ov::NodeVector& nodes,
         result << op->get_type_info();
         for (size_t i = 0; i < op->inputs().size(); ++i) {
             const auto& in = op->input(i);
-            if (!is_node_to_skip(op->get_input_node_shared_ptr(i))) {
+            if (!is_node_to_skip(op->input_value(i).get_node_shared_ptr())) {
                 is_erase_node |= true;
             }
             result << in.get_element_type();

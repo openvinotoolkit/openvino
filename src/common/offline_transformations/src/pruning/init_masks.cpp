@@ -35,11 +35,11 @@ public:
             // Initializing weights mask:
             // 1. Looking for Const node with weights
             NodeVector weights_calculation_nodes;
-            auto cur_node = m_output.get_node()->get_input_node_shared_ptr(1);
+            auto cur_node = m_output.get_node()->input_value(1).get_node_shared_ptr();
 
             while (!ov::is_type<opset6::Constant>(cur_node) && cur_node->inputs().size()) {
                 weights_calculation_nodes.push_back(cur_node);
-                cur_node = cur_node->get_input_node_shared_ptr(0);
+                cur_node = cur_node->input_value(0).get_node_shared_ptr();
             }
             if (!ov::is_type<opset6::Constant>(cur_node)) {
                 OPENVINO_DEBUG("Can't find Constant weights for Convolution: ",
@@ -76,7 +76,7 @@ public:
             // Initializing weights mask:
             // 1. Looking for Const node with weights
             NodeVector weights_calculation_nodes;
-            auto cur_node = matmul->get_input_node_shared_ptr(1);
+            auto cur_node = matmul->input_value(1).get_node_shared_ptr();
 
             if (cur_node->get_output_partial_shape(0).is_dynamic())
                 return false;
@@ -88,7 +88,7 @@ public:
                 weights_calculation_nodes.push_back(cur_node);
                 if (ov::is_type<opset6::Transpose>(cur_node)) {
                     const auto forward_order =
-                        ov::util::get_constant_from_source(cur_node->get_input_node_shared_ptr(1));
+                        ov::util::get_constant_from_source(cur_node->input_value(1).get_node_shared_ptr());
                     if (!forward_order)
                         return false;
                     const auto forward_order_vec = forward_order->cast_vector<int64_t>();
@@ -109,7 +109,7 @@ public:
                         return false;
                     }
                 }
-                cur_node = cur_node->get_input_node_shared_ptr(0);
+                cur_node = cur_node->input_value(0).get_node_shared_ptr();
             }
             if (!ov::is_type<opset6::Constant>(cur_node)) {
                 OPENVINO_DEBUG("Can't find Constant weights for MatMul: ", matmul->get_friendly_name(), "\n");

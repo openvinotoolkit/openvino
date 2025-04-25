@@ -759,7 +759,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
 
         auto new_node = std::make_shared<op::internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
-        ov::copy_runtime_info({root->get_input_node_shared_ptr(0), root}, new_node);
+        ov::copy_runtime_info({root->input_value(0).get_node_shared_ptr(), root}, new_node);
         ov::replace_node(old_node, new_node);
         return true;
     };

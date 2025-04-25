@@ -77,7 +77,7 @@ public:
             testValues.actual.dequantization,
             testValues.typeRelaxed);
 
-        const auto targetNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
+        const auto targetNode = actualFunction->get_output_op(0)->input_value(0).get_node_shared_ptr();
         const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
         ov::pass::low_precision::NetworkHelper::moveDequantizationAfter(
             targetNode,
@@ -312,7 +312,7 @@ TEST(LPT, MoveDequantizationAfterTransformationNegative) {
         ov::builder::subgraph::DequantizationOperations{{ov::element::f32}, {7.f}, {10.f}},
         typeRelaxed);
 
-    const auto targetNode = model->get_output_op(0)->get_input_node_shared_ptr(0);
+    const auto targetNode = model->get_output_op(0)->input_value(0).get_node_shared_ptr();
     const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
 
     // updateOutputPrecision is supported only for type relaxed nodes

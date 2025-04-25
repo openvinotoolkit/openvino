@@ -31,7 +31,7 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std:
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
         }
-        auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         if (!axisOp) {
             errorMessage = "Constant expected as the axis input.";
             return false;
@@ -57,14 +57,14 @@ Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
         INPUTS_NUM = 2;
     } else if (ov::as_type_ptr<const ov::op::v1::VariadicSplit>(op)) {
         INPUTS_NUM = 3;
-        if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))) {
+        if (!ov::is_type<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr())) {
             this->splitLengths.resize(op->get_input_shape(2)[0]);
             this->constSplitLengths = false;
         }
     }
 
     const auto inRank = getInputShapeAtPort(0).getRank();
-    auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
     auto axis = axisOp->cast_vector<int64_t>()[0];
     if (axis < 0) {
         axis += inRank;

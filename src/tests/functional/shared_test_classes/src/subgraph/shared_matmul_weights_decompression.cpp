@@ -121,7 +121,7 @@ void SharedMatmulWeightsDecompression::check_results() {
 
     const auto results = compiledModel.get_runtime_model()->get_results();
     for (const auto& result : results) {
-        const auto last_layer = result->get_input_node_shared_ptr(0);
+        const auto last_layer = result->input_value(0).get_node_shared_ptr();
         const auto& expected_weights_precision = use_matmul_decompression_impl
                                                      ? compressed_weights_precision
                                                      : last_layer->get_input_element_type(0);

@@ -30,8 +30,8 @@
 namespace {
 
 int getConstPort(const std::shared_ptr<ov::Node>& node) {
-    const auto const1 = ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(0));
-    const auto const2 = ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(1));
+    const auto const1 = ov::as_type_ptr<ov::opset1::Constant>(node->input_value(0).get_node_shared_ptr());
+    const auto const2 = ov::as_type_ptr<ov::opset1::Constant>(node->input_value(1).get_node_shared_ptr());
     int constPort = -1;
     if (const2) {
         constPort = 1;
@@ -56,7 +56,7 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp>& node) {
     }
     auto const_shape = node->get_input_shape(constPort);
     return ov::shape_size(const_shape) == 1 && input_rank.get_length() >= static_cast<int64_t>(const_shape.size()) &&
-           !ov::intel_cpu::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
+           !ov::intel_cpu::one_of(node->input_value(nonConstPort).get_node_shared_ptr()->get_type_info(),
                                   ov::opset1::NormalizeL2::get_type_info_static(),
                                   ov::opset4::Interpolate::get_type_info_static(),
                                   ov::opset1::Convolution::get_type_info_static(),
@@ -75,7 +75,7 @@ bool isConvertableToPowerStatic(const std::shared_ptr<ov::opset1::Power>& node) 
     if (input_rank.is_dynamic()) {
         return false;
     }
-    auto const_node = ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(1));
+    auto const_node = ov::as_type_ptr<ov::opset1::Constant>(node->input_value(1).get_node_shared_ptr());
     return const_node &&
            input_rank.get_length() >= static_cast<ov::Dimension::value_type>(const_node->get_shape().size()) &&
            ov::shape_size(const_node->get_shape()) == 1;
@@ -86,7 +86,7 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
     const int constPort = getConstPort(node);
     const int nonConstPort = 1 - constPort;
     std::shared_ptr<ov::opset1::Constant> powerNode =
-        ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(constPort));
+        ov::as_type_ptr<ov::opset1::Constant>(node->input_value(constPort).get_node_shared_ptr());
     const float value = powerNode->cast_vector<float>()[0];
     if (std::is_same_v<BaseOp, ov::opset1::Power>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),

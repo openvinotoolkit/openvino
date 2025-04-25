@@ -64,8 +64,8 @@ bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ov::Node> 
         return false;
     }
 
-    const auto outputLow = as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3));
-    const auto outputHigh = as_type_ptr<ov::opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4));
+    const auto outputLow = as_type_ptr<ov::opset1::Constant>(fakeQuantize->input_value(3).get_node_shared_ptr());
+    const auto outputHigh = as_type_ptr<ov::opset1::Constant>(fakeQuantize->input_value(4).get_node_shared_ptr());
 
     if (outputLow == nullptr || outputHigh == nullptr) {
         return false;

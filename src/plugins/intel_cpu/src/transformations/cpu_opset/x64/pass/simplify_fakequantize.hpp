@@ -13,13 +13,14 @@ namespace ov::intel_cpu {
 inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq_node,
                                           float threshold = 0.0001f) {
     auto levels = fq_node->get_levels();
-    auto input_low = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(1))->cast_vector<float>();
+    auto input_low =
+        ov::as_type_ptr<ov::op::v0::Constant>(fq_node->input_value(1).get_node_shared_ptr())->cast_vector<float>();
     auto input_high =
-        ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(2))->cast_vector<float>();
+        ov::as_type_ptr<ov::op::v0::Constant>(fq_node->input_value(2).get_node_shared_ptr())->cast_vector<float>();
     auto output_low =
-        ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(3))->cast_vector<float>();
+        ov::as_type_ptr<ov::op::v0::Constant>(fq_node->input_value(3).get_node_shared_ptr())->cast_vector<float>();
     auto output_high =
-        ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(4))->cast_vector<float>();
+        ov::as_type_ptr<ov::op::v0::Constant>(fq_node->input_value(4).get_node_shared_ptr())->cast_vector<float>();
 
     std::vector<float> cl, ch, isc, ish, osc, osh;
     for (float i : input_low) {

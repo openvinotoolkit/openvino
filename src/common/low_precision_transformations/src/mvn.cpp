@@ -84,7 +84,7 @@ bool MVNTransformation::canBeTransformed(const std::shared_ptr<Node>& operation)
     } else {
         // MVN-6 allows negative values in reduction axes: [-r, r-1]
         // given static rank of input data of MVN node, we can recover the exact axis number
-        auto axis_set = ov::as_type_ptr<ov::opset1::Constant>(mvn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
+        auto axis_set = ov::as_type_ptr<ov::opset1::Constant>(mvn->input_value(1).get_node_shared_ptr())->cast_vector<int64_t>();
 
         Dimension::value_type ndims = 0;
         if (std::any_of(axis_set.begin(), axis_set.end(), [](int64_t v) { return v < 0; })) {

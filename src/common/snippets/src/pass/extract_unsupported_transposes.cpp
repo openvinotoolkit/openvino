@@ -29,7 +29,7 @@ bool ov::snippets::pass::ExtractUnsupportedTransposes::run_on_subgraph(const std
         if (!transpose)
             continue;
 
-        const auto& order = ov::as_type_ptr<opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+        const auto& order = ov::as_type_ptr<opset1::Constant>(transpose->input_value(1).get_node_shared_ptr());
         OPENVINO_ASSERT(order, "ExtractUnsupportedTransposes expects Transposes with constant order");
 
         const auto order_value = order->cast_vector<int>();

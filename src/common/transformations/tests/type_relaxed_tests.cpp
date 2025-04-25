@@ -354,7 +354,7 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConstantFolding>();
         OV_ASSERT_NO_THROW(manager.run_passes(f));
-        auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
+        auto layer_before_result = f->get_result()->input_value(0).get_node_shared_ptr();
         ASSERT_TRUE(ov::is_type<ov::opset1::Constant>(layer_before_result));
     }
 }
@@ -372,7 +372,7 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck1) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConstantFolding>();
         OV_ASSERT_NO_THROW(manager.run_passes(f));
-        auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
+        auto layer_before_result = f->get_result()->input_value(0).get_node_shared_ptr();
         ASSERT_TRUE(ov::is_type<ov::opset1::Constant>(layer_before_result));
     }
 }
@@ -394,7 +394,7 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck2) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConstantFolding>();
         OV_ASSERT_NO_THROW(manager.run_passes(f));
-        auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
+        auto layer_before_result = f->get_result()->input_value(0).get_node_shared_ptr();
         ASSERT_TRUE(ov::is_type<ov::opset1::Constant>(layer_before_result));
     }
 }
@@ -414,7 +414,7 @@ TEST_F(TypeRelaxedTests, ConstantFoldingCheck3) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::ConstantFolding>();
         OV_ASSERT_NO_THROW(manager.run_passes(f));
-        auto layer_before_result = f->get_result()->get_input_node_shared_ptr(0);
+        auto layer_before_result = f->get_result()->input_value(0).get_node_shared_ptr();
         ASSERT_TRUE(ov::is_type<ov::opset1::Constant>(layer_before_result));
     }
 }

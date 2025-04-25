@@ -17,7 +17,7 @@ bool model_has_suitable_do(const std::shared_ptr<const ov::Model>& model) {
         std::shared_ptr<ov::Node> convert_node;
         if (ov::is_type<ov::op::v0::Convert>(do_node)) {  // cases with do->convert->result
             convert_node = do_node;
-            do_node = convert_node->get_input_node_shared_ptr(0);
+            do_node = convert_node->input_value(0).get_node_shared_ptr();
         }
         auto detectionOutputBase = ov::as_type_ptr<ov::op::util::DetectionOutputBase>(do_node);
         if (detectionOutputBase) {
@@ -79,7 +79,7 @@ std::shared_ptr<const ov::Model> apply_batch_affinity(const std::shared_ptr<cons
         std::shared_ptr<ov::Node> convert_node;
         if (ov::is_type<ov::op::v0::Convert>(do_node)) {  // cases with do->convert->result
             convert_node = do_node;
-            do_node = convert_node->get_input_node_shared_ptr(0);
+            do_node = convert_node->input_value(0).get_node_shared_ptr();
         }
         // the code below doesn't need to separate the versions (opsets) of the DetectionOutput
         // so base class  check is enough

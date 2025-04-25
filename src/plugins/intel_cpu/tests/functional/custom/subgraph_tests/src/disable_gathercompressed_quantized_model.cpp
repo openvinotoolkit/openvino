@@ -87,7 +87,7 @@ protected:
         const auto compressed_weights_precision = std::get<0>(test_param);
 
         const auto runtime_model = compiledModel.get_runtime_model();
-        const auto matmul = runtime_model->get_result()->get_input_node_shared_ptr(0);
+        const auto matmul = runtime_model->get_result()->input_value(0).get_node_shared_ptr();
 
         bool have_gather = false;
         bool have_gather_compressed = false;

@@ -121,7 +121,7 @@ static void CreateMultinomialOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     };
     p.add_primitive(*op, random_prim);
 
-    auto const_num_samples = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto const_num_samples = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
     OPENVINO_ASSERT(const_num_samples != nullptr, "[GPU] Unsupported num_samples node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     std::int64_t num_samples{};

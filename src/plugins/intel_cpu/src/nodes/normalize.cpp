@@ -740,7 +740,7 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
             return false;
         }
 
-        auto axesNode = ov::as_type_ptr<const ov::op::v0::Constant>(norm->get_input_node_shared_ptr(AXES));
+        auto axesNode = ov::as_type_ptr<const ov::op::v0::Constant>(norm->input_value(AXES).get_node_shared_ptr());
         if (!axesNode) {
             errorMessage = "Supports only constant 'axes' input";
             return false;

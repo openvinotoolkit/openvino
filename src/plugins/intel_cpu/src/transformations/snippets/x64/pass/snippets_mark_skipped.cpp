@@ -89,7 +89,7 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node>& node, const i
     size_t numNonConstInputs = 0;
     ov::PartialShape dataShape;
     for (size_t i = 0; i < node->get_input_size(); i++) {
-        const auto parent = node->get_input_node_shared_ptr(i);
+        const auto parent = node->input_value(i).get_node_shared_ptr();
         if (!ov::is_type<ov::op::v0::Constant>(parent)) {
             fusingPort = i;
             dataShape = node->get_input_partial_shape(i);
@@ -243,7 +243,7 @@ bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& nod
         return false;
     }
 
-    const auto zp_weights = node->get_input_node_shared_ptr(1);
+    const auto zp_weights = node->input_value(1).get_node_shared_ptr();
     const auto zp_weight_pshape = zp_weights->get_output_partial_shape(0);
     if (zp_weight_pshape.is_dynamic()) {
         return false;
@@ -259,7 +259,7 @@ bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& nod
     const bool first_conv_input_is_suitable =
         node->get_input_element_type(0) == ov::element::u8 && zp_weights_is_suitable;
 
-    const auto conv_weights = child->get_input_node_shared_ptr(1);
+    const auto conv_weights = child->input_value(1).get_node_shared_ptr();
     bool second_conv_input_is_suitable =
         ov::is_type<ov::op::v0::Constant>(conv_weights) && conv_weights->get_output_element_type(0) == ov::element::i8;
     return first_conv_input_is_suitable && second_conv_input_is_suitable;
@@ -333,8 +333,8 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node>& node,
                                                           ov::op::v0::PRelu>(node);
         const auto rank = node->get_output_partial_shape(0).rank();
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) && rank.is_static() && is_binary_eltwise) {
-            const auto const1 = ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
-            const auto const2 = ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+            const auto const1 = ov::is_type<ov::op::v0::Constant>(node->input_value(0).get_node_shared_ptr());
+            const auto const2 = ov::is_type<ov::op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
             int constPort = -1;
             if (const2) {
                 constPort = 1;
@@ -426,14 +426,14 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node>& n
               GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution)) {
             return false;
         }
-        const auto& parent = n->get_input_node_shared_ptr(0);
+        const auto& parent = n->input_value(0).get_node_shared_ptr();
         const bool is_suitable_parent = isSuitableConvolutionParent(parent) || isFusedBiasNode(parent) ||
                                         (GetNodeFusingType(parent) == NodeFusingType::FusedWithConvolution);
         return is_suitable_parent;
     };
     int num_conv_parents = 0;
     for (size_t i = 0; i < node->get_input_size(); i++) {
-        const auto n = node->get_input_node_shared_ptr(i);
+        const auto n = node->input_value(i).get_node_shared_ptr();
         // BinaryConvolution allows other ops to be fused before the Add, while Convolution doesn't
         num_conv_parents += static_cast<int>(isSuitableConvolutionParent(n) || isFusedBiasNode(n) || isFusedFQNode(n) ||
                                              GetNodeFusingType(n) == NodeFusingType::FusedWithBinaryConvolution);
@@ -453,7 +453,7 @@ bool isSuitableGatherChild(const std::shared_ptr<const Node>& node) {
 }
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
     return ov::is_type<ov::opset1::MatMul>(node) &&
-           !ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1)) &&
+           !ov::is_type<ov::opset1::Constant>(node->input_value(1).get_node_shared_ptr()) &&
            ov::op::util::is_on_constant_path(node->input_value(1));
 }
 // Continue fusing chain of the passed type if the node has one child

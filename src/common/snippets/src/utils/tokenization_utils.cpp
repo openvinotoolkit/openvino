@@ -203,14 +203,14 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
 
                         auto internal = input_body_parameters[i];
                         auto internal_consumers = internal->outputs();
-                        if (auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->get_input_node_shared_ptr(i))) {
+                        if (auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node_shared_ptr())) {
                             // todo: In principle, we can still attach the node to the subgraph if cyclic dependency is introduced during ternary merge.
                             //  Need to support.
                             if (cyclicDependencyIsIntoduced(to_replace_with, currentTopoBounds))
                                 return abort("Attempt to perform recurrent merge for cyclic-dependent subgraphs. Aborting.");
                             for (const auto& output : internal_consumers) {
                                     for (auto consumer : output.get_target_inputs()) {
-                                        auto other_body = clones[subgraph->get_input_node_shared_ptr(i)];
+                                        auto other_body = clones[subgraph->input_value(i).get_node_shared_ptr()];
                                         auto other_body_result = other_body->get_results()[consumer.get_source_output().get_index()];
                                         auto result_producer = other_body_result->input(0).get_source_output();
 

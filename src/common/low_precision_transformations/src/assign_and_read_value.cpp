@@ -57,7 +57,7 @@ bool AssignAndReadValueTransformation::transform(ov::pass::pattern::Matcher& m) 
     // set new precision for oldVar to update precision in newReadValue
     oldVar->update({variableInfo.data_shape, dequantization.data.get_element_type(), variableInfo.variable_id});
     // transform ReadValue part
-    const auto newConstant = foldConvert(readValue->get_input_node_shared_ptr(0), dequantization.data.get_element_type());
+    const auto newConstant = foldConvert(readValue->input_value(0).get_node_shared_ptr(), dequantization.data.get_element_type());
     const auto newReadValue = readValue->copy_with_new_inputs({newConstant});
     const auto newDequantization = dequantization.copyWithNewInput(newReadValue);
     replace_node(readValue, newDequantization);
@@ -107,7 +107,7 @@ bool AssignAndReadValueTransformation::canBeTransformed(const std::shared_ptr<No
     }
 
     // TODO: remove this limitation and change the transformation when this constant will be accepted to be non-zero
-    if (!NetworkHelper::isZeroConst(readValue->get_input_node_shared_ptr(0))) {
+    if (!NetworkHelper::isZeroConst(readValue->input_value(0).get_node_shared_ptr())) {
         return false;
     }
 

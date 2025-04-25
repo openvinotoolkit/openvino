@@ -97,7 +97,7 @@ static void CreateCommonBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov:
 static void CreateBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Broadcast>& op) {
     validate_inputs_count(op, {2, 3});
     if (op->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NONE && op->get_input_size() == 3) {
-        auto axis_mapping_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        auto axis_mapping_node = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
         OPENVINO_ASSERT(axis_mapping_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         auto axis_mapping = axis_mapping_node->get_axis_set_val();
@@ -112,7 +112,7 @@ static void CreateBroadcastOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     validate_inputs_count(op, {2, 3});
     ov::AxisSet axis_mapping;
     if (op->get_input_size() == 3) {
-        auto axis_mapping_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        auto axis_mapping_node = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
         OPENVINO_ASSERT(axis_mapping_node != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         axis_mapping = axis_mapping_node->get_axis_set_val();

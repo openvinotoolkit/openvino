@@ -35,9 +35,9 @@ public:
             ov::builder::subgraph::RoundWithToleranceFunction::getOriginal(testValues.inputPrecision,
                                                                                testValues.inputShape,
                                                                                testValues.actualDequantization);
-        const auto lastNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
+        const auto lastNode = actualFunction->get_output_op(0)->input_value(0).get_node_shared_ptr();
         const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(lastNode);
-        const auto subtractConstant = dequantization.subtract->get_input_node_shared_ptr(1);
+        const auto subtractConstant = dequantization.subtract->input_value(1).get_node_shared_ptr();
         const auto roundedConst =
             ov::pass::low_precision::NetworkHelper::round(subtractConstant, testValues.inputPrecision);
 

@@ -16,7 +16,7 @@ static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_p
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+    auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(3).get_node_shared_ptr());
     OPENVINO_ASSERT(axes_constant, "Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     int64_t axis = ov::util::try_normalize_axis(axes_constant->cast_vector<int64_t>()[0],

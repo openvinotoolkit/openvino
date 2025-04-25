@@ -68,8 +68,8 @@ using namespace dnnl::impl::cpu::aarch64;
 namespace ov::intel_cpu::node {
 
 Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shared_ptr<ov::Node>& op) {
-    const auto const1 = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(0));
-    const auto const2 = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    const auto const1 = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(0).get_node_shared_ptr());
+    const auto const2 = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
     int constPort = -1;
     if (const2) {
         constPort = 1;

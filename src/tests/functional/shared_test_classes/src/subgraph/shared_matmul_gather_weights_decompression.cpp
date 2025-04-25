@@ -103,10 +103,10 @@ void SharedMatmulAndGatherWeightsDecompression::check_results() {
 
     const auto results = compiledModel.get_runtime_model()->get_results();
     EXPECT_EQ(results.size(), 2);
-    const auto gather_node = results[0]->get_input_node_shared_ptr(0);
+    const auto gather_node = results[0]->input_value(0).get_node_shared_ptr();
     EXPECT_EQ(gather_node->get_input_element_type(0), compressed_weights_precision);
 
-    const auto matmul_node = results[1]->get_input_node_shared_ptr(0);
+    const auto matmul_node = results[1]->input_value(0).get_node_shared_ptr();
     const auto& expected_mm_weights_precision = use_matmul_decompression_impl
                                                     ? compressed_weights_precision
                                                     : matmul_node->get_input_element_type(0);

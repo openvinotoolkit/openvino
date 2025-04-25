@@ -21,7 +21,7 @@ bool FuseTransposeBrgemm::is_supported_transpose(const Output<Node>& transpose_o
     const auto transpose = ov::as_type_ptr<const ov::opset1::Transpose>(transpose_out.get_node_shared_ptr());
     if (!transpose)
         return false;
-    const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+    const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->input_value(1).get_node_shared_ptr());
     if (!order)
         return false;
     return is_supported_transpose_order(order->cast_vector<int32_t>());
@@ -70,10 +70,10 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
 
         // Transpose on the Brgemm's output
         if (!brgemm) {
-            brgemm = ov::as_type_ptr<op::Brgemm>(m.get_match_root()->get_input_node_shared_ptr(0));
+            brgemm = ov::as_type_ptr<op::Brgemm>(m.get_match_root()->input_value(0).get_node_shared_ptr());
             const auto& brgemm_out = brgemm->output(0);
             const auto& transpose_out = m.get_match_value();
-            const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose_out.get_node_shared_ptr()->get_input_node_shared_ptr(1));
+            const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose_out.get_node_shared_ptr()->input_value(1).get_node_shared_ptr());
             const auto& original_port = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_out);
             original_port->set_shape(utils::pshape_to_vdims(transpose_out.get_partial_shape()));
             const auto& out_layout = original_port->get_layout();
@@ -88,7 +88,7 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
             const auto& in_value = in.get_source_output();
             if (transpose_matcher->match(in_value)) {
                 const auto& transpose = as_type_ptr<ov::op::v1::Transpose>(in_value.get_node_shared_ptr());
-                const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+                const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
                 brgemm->set_argument(i, transpose->input_value(0));
                 const auto& original_port = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
                 const auto& in_layout = original_port->get_layout();

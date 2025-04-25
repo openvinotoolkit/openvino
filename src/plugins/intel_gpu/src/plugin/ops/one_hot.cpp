@@ -17,9 +17,9 @@ static void CreateOneHotOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
     std::string layerName = layer_type_name_ID(op);
 
     int64_t axis = op->get_axis();
-    auto depth_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    auto on_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
-    auto off_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+    auto depth_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+    auto on_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
+    auto off_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(3).get_node_shared_ptr());
 
     OPENVINO_ASSERT(on_value_node != nullptr || off_value_node != nullptr || depth_value_node != nullptr,
                     "[GPU] Unsupported on/off/depth nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");

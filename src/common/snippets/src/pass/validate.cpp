@@ -74,7 +74,7 @@ bool Validate::is_supported_fq(const std::shared_ptr<const ov::Node>& node) {
 bool Validate::is_supported_transpose(const std::shared_ptr<const ov::Node>& node) {
     // Transpose is supported only on Inputs or Outputs of body
     const auto consumers = node->get_output_target_inputs(0);
-    return (ov::is_type<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(0))) ||
+    return (ov::is_type<ov::op::v0::Parameter>(node->input_value(0).get_node_shared_ptr())) ||
            (consumers.size() == 1 && ov::is_type<ov::op::v0::Result>(consumers.cbegin()->get_node()));
 }
 

@@ -85,7 +85,8 @@ ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimin
         NodeVector nodes{pattern_map.at(reshape_a).get_node_shared_ptr(), reshape};
         while (ov::as_type_ptr<ov::op::v1::Reshape>(input.get_node_shared_ptr())) {
             auto node = input.get_node_shared_ptr();
-            if (!has_valid_pattern(node->get_input_node_shared_ptr(1)) || input.get_target_inputs().size() != 1) {
+            if (!has_valid_pattern(node->input_value(1).get_node_shared_ptr()) ||
+                input.get_target_inputs().size() != 1) {
                 break;
             }
             nodes.push_back(node);

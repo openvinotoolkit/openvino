@@ -26,7 +26,7 @@ snippets::pass::ReduceToSnippetsReduce::ReduceToSnippetsReduce() {
         auto reduce = m.get_match_root();
         const auto& reduce_base = ov::as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(reduce);
         OPENVINO_ASSERT(reduce_base, "Failed to cast Reduce operation to ArithmeticReductionKeepDims");
-        const auto& axis_constant = ov::as_type_ptr<ov::op::v0::Constant>(reduce->get_input_node_shared_ptr(1));
+        const auto& axis_constant = ov::as_type_ptr<ov::op::v0::Constant>(reduce->input_value(1).get_node_shared_ptr());
         // Note: we do not check the Constant value here. If the Reduce was tokenized, then we assume that it is supported
         OPENVINO_ASSERT(reduce_base->get_keep_dims() && axis_constant, "Unspported Reduce was tokenized by Snippets");
 

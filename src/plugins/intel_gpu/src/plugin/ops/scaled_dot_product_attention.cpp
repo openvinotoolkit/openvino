@@ -29,7 +29,7 @@ const size_t scale_idx = 4;
 static std::shared_ptr<ov::op::v0::Constant> GetScalarConstInput(const std::shared_ptr<ov::op::Op>& op, size_t idx) {
     std::shared_ptr<ov::op::v0::Constant> constOp = nullptr;
     if (op->get_input_size() > idx && !op->get_input_partial_shape(idx).is_dynamic() && ov::shape_size(op->get_input_shape(idx)) == 1) {
-        constOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(idx));
+        constOp = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(idx).get_node_shared_ptr());
     }
     return constOp;
 }

@@ -65,7 +65,7 @@ bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
         return false;
     }
 
-    const auto operation = fq->get_input_node_shared_ptr(0);
+    const auto operation = fq->input_value(0).get_node_shared_ptr();
     std::shared_ptr<ov::Node> concat;
     bool without_operation = true;
     const std::string fq_original_name = fq->get_friendly_name();
@@ -74,7 +74,7 @@ bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
         concat = operation;
     } else {
         operation_original_name = operation->get_friendly_name();
-        concat = operation->get_input_node_shared_ptr(0);
+        concat = operation->input_value(0).get_node_shared_ptr();
         without_operation = false;
     }
 
@@ -97,7 +97,7 @@ bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
     const auto concat_axis = ov::util::normalize(concat_node->get_axis(), rank.get_length());
 
     for (size_t i = 0; i < 4; i++) {
-        curr_constants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
+        curr_constants[i] = as_type_ptr<opset1::Constant>(fq->input_value(i + 1).get_node_shared_ptr());
         if (!multi_chanels && curr_constants[i]->get_shape().size() > static_cast<size_t>(concat_axis)
             && curr_constants[i]->get_shape()[concat_axis] != 1) {
             multi_chanels = true;
@@ -170,12 +170,12 @@ bool MoveFakeQuantize::transform(ov::pass::pattern::Matcher& m) {
 }
 
 bool MoveFakeQuantize::canBeTransformed(const std::shared_ptr<Node>& layer) const {
-    auto operation = layer->get_input_node_shared_ptr(0);
+    auto operation = layer->input_value(0).get_node_shared_ptr();
     std::shared_ptr<ov::Node> concat;
     if (is_type<opset1::Concat>(operation)) {
         concat = operation;
     } else {
-        concat = operation->get_input_node_shared_ptr(0);
+        concat = operation->input_value(0).get_node_shared_ptr();
     }
     if (!ConcatTransformation::isQuantizedStatic(concat)) {
         return false;

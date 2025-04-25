@@ -728,8 +728,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return lstm_seq->get_clip() == 0.0f &&
                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
                        max_seq_len != 1 &&
-                       !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
-                                                          lstm_seq->get_input_node_shared_ptr(3));
+                       !ov::op::util::is_seq_len_provided(lstm_seq->input_value(0).get_node_shared_ptr(),
+                                                          lstm_seq->input_value(3).get_node_shared_ptr());
             }
             return false;
         };
@@ -801,7 +801,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // Condition to filter out axes such as [0, 1, 2] which is not supported currently.
             const auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(node);
             const auto inputRank = norm->get_input_partial_shape(0).size();
-            auto axesNode = ov::as_type_ptr<const ov::op::v0::Constant>(norm->get_input_node_shared_ptr(1));
+            auto axesNode = ov::as_type_ptr<const ov::op::v0::Constant>(norm->input_value(1).get_node_shared_ptr());
             const auto axes = axesNode->cast_vector<size_t>();
             const auto isSupportedAxes = [](const std::vector<size_t> &axes, const size_t inputRank) {
                 if (axes.size() == 1 && axes[0] == 1) {
@@ -980,9 +980,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 const auto constantNode = NetworkHelper::getConstantInput(node);
                 const auto constant = constantNode == nullptr ? nullptr : ov::as_type_ptr<ov::op::v0::Constant>(constantNode);
                 if (constant != nullptr) {
-                    auto parent = node->get_input_node_shared_ptr(0);
+                    auto parent = node->input_value(0).get_node_shared_ptr();
                     if (parent == constant) {
-                        parent = node->get_input_node_shared_ptr(1);
+                        parent = node->input_value(1).get_node_shared_ptr();
                     }
                 }
             }
@@ -1195,8 +1195,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
-                for (size_t i = 0 ; i < root->get_input_node_shared_ptr(0)->get_output_size(); ++i) {
-                    if (root->get_input_node_shared_ptr(0)->get_output_element_type(i) == ov::element::Type_t::f32) {
+                for (size_t i = 0 ; i < root->input_value(0).get_node_shared_ptr()->get_output_size(); ++i) {
+                    if (root->input_value(0).get_node_shared_ptr()->get_output_element_type(i) == ov::element::Type_t::f32) {
                         GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
                         return true;
                     }

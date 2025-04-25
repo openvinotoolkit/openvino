@@ -127,7 +127,7 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
         const auto out_type = tfl_quantize->get_type();
 
         const auto is_constant =
-            ov::is_type<v0::Constant>(tfl_quantize->get_input_node_shared_ptr(0));  // for Constant case
+            ov::is_type<v0::Constant>(tfl_quantize->input_value(0).get_node_shared_ptr());  // for Constant case
 
         FRONT_END_GENERAL_CHECK(in_type == out_type || in_type == element::f32 || out_type == element::f32,
                                 "TFLQuantized types do not match: in_type = ",

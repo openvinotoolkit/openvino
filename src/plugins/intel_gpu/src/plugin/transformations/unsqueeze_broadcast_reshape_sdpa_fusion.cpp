@@ -70,7 +70,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         auto broadcast_c = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_c_m).get_node_shared_ptr());
 
         std::vector<int32_t> target_shape_val_b;
-        auto target_shape_constant_b = ov::as_type_ptr<ov::op::v0::Constant>(broadcast_c->get_input_node_shared_ptr(1));
+        auto target_shape_constant_b = ov::as_type_ptr<ov::op::v0::Constant>(broadcast_c->input_value(1).get_node_shared_ptr());
         if (target_shape_constant_b) {
             target_shape_val_b = target_shape_constant_b->cast_vector<int32_t>();
             if (!valid_broadcast_target_shape(target_shape_val_b)) {
@@ -79,7 +79,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         }
 
         std::vector<int32_t> target_shape_val_c;
-        auto target_shape_constant_c = ov::as_type_ptr<ov::op::v0::Constant>(broadcast_b->get_input_node_shared_ptr(1));
+        auto target_shape_constant_c = ov::as_type_ptr<ov::op::v0::Constant>(broadcast_b->input_value(1).get_node_shared_ptr());
         if (target_shape_constant_c) {
             target_shape_val_c = target_shape_constant_c->cast_vector<int32_t>();
             if (!valid_broadcast_target_shape(target_shape_val_c)) {

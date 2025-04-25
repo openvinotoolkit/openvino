@@ -37,7 +37,7 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
     if (output.get_partial_shape().is_static() && !supports_immad)
         return false;
 
-    auto order_node = output.get_node()->get_input_node_shared_ptr(1);
+    auto order_node = output.get_node()->input_value(1).get_node_shared_ptr();
     if (!ov::is_type<ov::op::v0::Constant>(order_node))
         return false;
 

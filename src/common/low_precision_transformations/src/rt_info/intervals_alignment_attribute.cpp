@@ -56,8 +56,8 @@ ov::Any IntervalsAlignmentAttribute::create(
             }
         }
 
-        const auto outLow = ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(3));
-        const auto outHigh = ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(4));
+        const auto outLow = ov::as_type_ptr<opset1::Constant>(node->input_value(3).get_node_shared_ptr());
+        const auto outHigh = ov::as_type_ptr<opset1::Constant>(node->input_value(4).get_node_shared_ptr());
         if (!NetworkHelper::isScalarLike(outLow) || !NetworkHelper::isScalarLike(outHigh)) {
             return nullptr;
         }
@@ -112,8 +112,8 @@ ov::Any IntervalsAlignmentAttribute::create(
                 fakeQuantize->get_levels());
         auto& result = (rtInfo[IntervalsAlignmentAttribute::get_type_info_static()] = attribute);
 
-        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3))->cast_vector<float>();
-        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4))->cast_vector<float>();
+        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(fakeQuantize->input_value(3).get_node_shared_ptr())->cast_vector<float>();
+        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(fakeQuantize->input_value(4).get_node_shared_ptr())->cast_vector<float>();
         LayerTransformation::PrecisionDetails preferablePrecision = LayerTransformation::getPrecisionDetails(
             fakeQuantize->get_levels(),
             outputLowValues,

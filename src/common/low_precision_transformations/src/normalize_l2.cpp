@@ -71,7 +71,7 @@ bool NormalizeL2Transformation::canBeTransformed(const std::shared_ptr<Node>& op
     }
 
     // TODO: Expand transformation for all cases of axes values
-    const auto axes = ov::as_type_ptr<ov::opset1::Constant>(operation->get_input_node_shared_ptr(1));
+    const auto axes = ov::as_type_ptr<ov::opset1::Constant>(operation->input_value(1).get_node_shared_ptr());
     const std::vector<int64_t> axesAcrossSpatial = { 1 };
     const std::vector<int64_t> axesByChannels = { 1, 2, 3 };
 
@@ -106,11 +106,11 @@ bool NormalizeL2Transformation::transform(ov::pass::pattern::Matcher &m) {
 
     auto normalize = ov::as_type_ptr<ov::opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation, defaultPrecisions));
 
-    const auto axes = ov::as_type_ptr<ov::opset1::Constant>(normalize->get_input_node_shared_ptr(1));
+    const auto axes = ov::as_type_ptr<ov::opset1::Constant>(normalize->input_value(1).get_node_shared_ptr());
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize, defaultPrecisions);
-    auto scalesConst = ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+    auto scalesConst = ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiply->input_value(1).get_node_shared_ptr());
     if (scalesConst == nullptr) {
-        scalesConst = ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
+        scalesConst = ov::as_type_ptr<ov::opset1::Constant>(dequantization.multiply->input_value(0).get_node_shared_ptr());
     }
 
     std::shared_ptr<ov::opset1::Constant> newScalesConst;

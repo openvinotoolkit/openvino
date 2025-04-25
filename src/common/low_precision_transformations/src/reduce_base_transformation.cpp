@@ -42,7 +42,7 @@ bool ReduceBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& red
         return false;
     }
 
-    const auto axesConstant = ov::as_type_ptr<ov::opset1::Constant>(reduce->get_input_node_shared_ptr(1));
+    const auto axesConstant = ov::as_type_ptr<ov::opset1::Constant>(reduce->input_value(1).get_node_shared_ptr());
     if (axesConstant == nullptr) {
         return false;
     }

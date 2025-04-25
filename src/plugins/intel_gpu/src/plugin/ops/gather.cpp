@@ -148,7 +148,7 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
             float zp_value = 0.0f;
             bool has_scalar_zp = false;
             if (op->get_input_size() == 5) {
-                std::shared_ptr<ov::op::v0::Constant> zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(4));
+                std::shared_ptr<ov::op::v0::Constant> zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(4).get_node_shared_ptr());
                 if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
                     has_scalar_zp = true;
                     zp_value = zp_const->cast_vector<float>()[0];

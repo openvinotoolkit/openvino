@@ -21,11 +21,11 @@ void CreateRollOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v7::Roll>& op
     const auto& op_friendly_name = op->get_friendly_name();
     const auto& input_pshape = op->get_input_partial_shape(0);
 
-    auto shift_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto shift_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
     OPENVINO_ASSERT(shift_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op_friendly_name, " (", op->get_type_name(), ")");
     const auto shift_raw = shift_constant->cast_vector<int32_t>();
 
-    auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+    auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
     OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op_friendly_name, " (", op->get_type_name(), ")");
     auto axes_raw = axes_constant->cast_vector<int32_t>();
 

@@ -30,8 +30,8 @@ ov::frontend::paddle::pass::TransformTensorArray::TransformTensorArray(std::vect
         const auto& shape_node = opsMap.at(shape_label).get_node_shared_ptr();
         if (!write_node || !shape_node)
             return false;
-        const auto& new_item = write_node->get_input_node_shared_ptr(0);
-        const auto& list = shape_node->get_input_node_shared_ptr(0);
+        const auto& new_item = write_node->input_value(0).get_node_shared_ptr();
+        const auto& list = shape_node->input_value(0).get_node_shared_ptr();
         const auto& new_item_unsqueeze = std::make_shared<Unsqueeze>(
             new_item->output(0),
             Constant::create(element::i32, {1}, {0}));  // unsqueeze in order to handyfully slice a tensorarray

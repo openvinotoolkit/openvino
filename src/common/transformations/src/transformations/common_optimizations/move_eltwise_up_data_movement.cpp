@@ -85,12 +85,12 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
         }
 
         for (size_t i = 1; i < eltwise->get_input_size(); ++i) {
-            if (!is_scalar_like(eltwise->get_input_node_shared_ptr(i))) {
+            if (!is_scalar_like(eltwise->input_value(i).get_node_shared_ptr())) {
                 return false;
             }
         }
 
-        auto current = eltwise->get_input_node_shared_ptr(0);
+        auto current = eltwise->input_value(0).get_node_shared_ptr();
         auto child = eltwise;
 
         while (is_data_movement_operation(current, allowed_data_movement_ops)) {
@@ -100,7 +100,7 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
             }
 
             child = current;
-            current = current->get_input_node_shared_ptr(0);
+            current = current->input_value(0).get_node_shared_ptr();
         }
 
         // now current is the first not data movement op
@@ -111,7 +111,8 @@ ov::pass::MoveEltwiseUpThroughDataMovScalar::MoveEltwiseUpThroughDataMovScalar(
         // eltwise constant shape should match new input shape
         for (size_t i = 1; i < eltwise->get_input_size(); i++) {
             if (current->get_output_partial_shape(0).size() != eltwise->get_input_partial_shape(i).size()) {
-                auto old_eltwise_const = ov::as_type_ptr<ov::opset8::Constant>(eltwise->get_input_node_shared_ptr(i));
+                auto old_eltwise_const =
+                    ov::as_type_ptr<ov::opset8::Constant>(eltwise->input_value(i).get_node_shared_ptr());
                 if (old_eltwise_const->get_shape().size() != 0) {
                     auto new_constant = std::make_shared<ov::opset8::Constant>(*old_eltwise_const.get(), ov::Shape{});
                     ov::replace_node_update_name(old_eltwise_const, new_constant);
@@ -206,7 +207,7 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
             }
         }
 
-        auto parent = eltwise->get_input_node_shared_ptr(data_flow_idx);
+        auto parent = eltwise->input_value(data_flow_idx).get_node_shared_ptr();
         const auto& parent_in_pshape = parent->get_input_partial_shape(0);
         auto parent_in_channel_dim =
             parent_in_pshape.size() <= channel_idx ? ov::Dimension(1) : parent_in_pshape[channel_idx];
@@ -218,7 +219,7 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
         auto new_shape = ov::Shape(parent->get_input_partial_shape(0).size(), 1);
 
         new_shape[channel_idx] = const_shape[channel_idx];
-        auto old_const = ov::as_type_ptr<ov::op::v0::Constant>(eltwise->get_input_node_shared_ptr(const_idx));
+        auto old_const = ov::as_type_ptr<ov::op::v0::Constant>(eltwise->input_value(const_idx).get_node_shared_ptr());
         auto new_const = std::make_shared<ov::op::v0::Constant>(*old_const, new_shape);
         ov::replace_node_update_name(old_const, new_const);
         ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(data_flow_idx));

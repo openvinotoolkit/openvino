@@ -186,7 +186,7 @@ std::vector<TRShape> broadcast_base_shape_infer(const ov::op::util::BroadcastBas
     auto target_as_shape = get_input_const_data_as_shape<TRShape>(op, 1, ta);
 
     if (!target_as_shape) {
-        if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(op->get_input_node_shared_ptr(1))) {
+        if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(op->input_value(1).get_node_shared_ptr())) {
             const auto concat_inputs = concat->input_values();
             if (concat->get_output_partial_shape(0).is_static() && concat->get_shape().size() == 1 &&
                 concat_inputs.size() == shape_size(concat->get_shape())) {

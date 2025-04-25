@@ -140,7 +140,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
                     if (can_be_fused(actual_after, required_after)) {
                         // fuse existing convert
                         auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                            existing_convert->get_input_node_shared_ptr(0),
+                            existing_convert->input_value(0).get_node_shared_ptr(),
                             required_after);
                         copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
                         op->set_argument(op_input.get_index(), convert);
@@ -173,7 +173,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
             auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
                 result->input_value(0),
                 expected_type);
-            copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
+            copy_runtime_info(result->input_value(0).get_node_shared_ptr(), convert);
             result->set_argument(0, convert);
         }
     }

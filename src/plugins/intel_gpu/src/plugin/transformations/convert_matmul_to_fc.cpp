@@ -52,8 +52,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
             if (user != matmul && ov::is_type<ov::op::v0::MatMul>(user) && ov::is_type<ov::op::v0::Convert>(input_b)) {
                 auto other_matmul = ov::as_type_ptr<ov::op::v0::MatMul>(user);
                 // Transpose for input_b generates invalid input for other sibling matmul
-                if (input_b == other_matmul->get_input_node_shared_ptr(0) || fc_input_b == fc_input_a ||
-                    (input_b == other_matmul->get_input_node_shared_ptr(1) && matmul->get_transpose_b() != other_matmul->get_transpose_b())) {
+                if (input_b == other_matmul->input_value(0).get_node_shared_ptr() || fc_input_b == fc_input_a ||
+                    (input_b == other_matmul->input_value(1).get_node_shared_ptr() && matmul->get_transpose_b() != other_matmul->get_transpose_b())) {
                     return false;
                 }
             }
@@ -159,7 +159,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         bool can_reuse_transpose = false;
         if (!matmul->get_transpose_b()) {
             if (transpose_node && transpose_node->get_input_size() == 2) {
-                auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
+                auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
                 if (order_constant) {
                     std::vector<size_t> order = order_constant->cast_vector<size_t>();
 

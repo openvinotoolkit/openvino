@@ -310,7 +310,7 @@ std::shared_ptr<ov::Model> Graph::create_model() {
         const auto& result_node = model->get_output_op(i);
         const std::string onnx_output_name = onnx_outputs.Get(static_cast<int>(i)).name();
         result_node->set_friendly_name(onnx_output_name + "/sink_port_0");
-        const auto& previous_operation = result_node->get_input_node_shared_ptr(0);
+        const auto& previous_operation = result_node->input_value(0).get_node_shared_ptr();
         previous_operation->set_friendly_name(onnx_output_name);
     }
     return model;

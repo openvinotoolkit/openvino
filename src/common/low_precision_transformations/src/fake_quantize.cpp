@@ -70,12 +70,12 @@ std::shared_ptr<Node> updateShape(std::shared_ptr<Node> constantOp, const Partia
 }
 
 std::shared_ptr<Node> getDataNode(const std::shared_ptr<Node>& eltwise) {
-    if (!ov::is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(0))) {
-        return eltwise->get_input_node_shared_ptr(0);
+    if (!ov::is_type<opset1::Constant>(eltwise->input_value(0).get_node_shared_ptr())) {
+        return eltwise->input_value(0).get_node_shared_ptr();
     }
 
-    if (!ov::is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(1))) {
-        return eltwise->get_input_node_shared_ptr(1);
+    if (!ov::is_type<opset1::Constant>(eltwise->input_value(1).get_node_shared_ptr())) {
+        return eltwise->input_value(1).get_node_shared_ptr();
     }
 
     return nullptr;
@@ -86,12 +86,12 @@ std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwi
         return nullptr;
     }
 
-    std::shared_ptr<opset1::Constant> constant = ov::as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(1));
+    std::shared_ptr<opset1::Constant> constant = ov::as_type_ptr<opset1::Constant>(eltwise->input_value(1).get_node_shared_ptr());
     if (constant != nullptr) {
         return constant;
     }
 
-    return ov::as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(0));
+    return ov::as_type_ptr<opset1::Constant>(eltwise->input_value(0).get_node_shared_ptr());
 }
 
 bool all_precisions_equal(const std::shared_ptr<Node>& node) {
@@ -164,7 +164,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     MatcherPass* matcherPass,
     const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize,
     const bool updatePrecisions) {
-    const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
+    const std::shared_ptr<Node> eltwise = fakeQuantize->input_value(0).get_node_shared_ptr();
 
     if (!updatePrecisions && !fq::all_precisions_equal(eltwise)) {
         return nullptr;
@@ -216,7 +216,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     }
 
     // issue #79980
-    const auto data = eltwise->get_input_size() == 1ul ? eltwise->get_input_node_shared_ptr(0) : fq::getDataNode(eltwise);
+    const auto data = eltwise->get_input_size() == 1ul ? eltwise->input_value(0).get_node_shared_ptr() : fq::getDataNode(eltwise);
     const size_t outputIdx = NetworkHelper::getParentOutputIndex(data, eltwise);
 
     const auto newFakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(fakeQuantize->clone_with_new_inputs({

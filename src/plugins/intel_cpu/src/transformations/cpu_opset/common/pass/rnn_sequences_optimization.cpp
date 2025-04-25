@@ -34,13 +34,16 @@ int64_t getSeqAxis(const std::shared_ptr<ov::Node>& sequenceOp) {
     int64_t seqAxis = 1;  // default
     const auto& target_inputs = sequenceOp->get_output_target_inputs(0);
     if (target_inputs.size() == 1) {
-        const auto transpose_before = ov::as_type_ptr<ov::opset1::Transpose>(sequenceOp->get_input_node_shared_ptr(0));
+        const auto transpose_before =
+            ov::as_type_ptr<ov::opset1::Transpose>(sequenceOp->input_value(0).get_node_shared_ptr());
         const auto transpose_after =
             ov::as_type_ptr<ov::opset1::Transpose>(target_inputs.begin()->get_node()->shared_from_this());
 
         if (transpose_after && transpose_before) {
-            auto order_before = ov::as_type_ptr<ov::opset1::Constant>(transpose_before->get_input_node_shared_ptr(1));
-            auto order_after = ov::as_type_ptr<ov::opset1::Constant>(transpose_after->get_input_node_shared_ptr(1));
+            auto order_before =
+                ov::as_type_ptr<ov::opset1::Constant>(transpose_before->input_value(1).get_node_shared_ptr());
+            auto order_after =
+                ov::as_type_ptr<ov::opset1::Constant>(transpose_after->input_value(1).get_node_shared_ptr());
             if (order_before && order_after) {
                 auto order_before_values = order_before->cast_vector<int64_t>();
                 auto order_after_values = order_after->cast_vector<int64_t>();
@@ -59,7 +62,7 @@ bool transform(const std::shared_ptr<ov::Node>& sequenceOp) {
     // Detect pattern: Transpose_before -> Seq -> Transpose_after
     auto seqAxis = getSeqAxis(sequenceOp);
     if (seqAxis == 0) {
-        ov::Output<ov::Node> in_0 = sequenceOp->get_input_node_shared_ptr(0)->input_value(0);
+        ov::Output<ov::Node> in_0 = sequenceOp->input_value(0).get_node_shared_ptr()->input_value(0);
 
         auto shapeBeforeTranspose = ov::op::util::make_try_fold<ov::opset1::ShapeOf>(in_0);
         auto newInShape = ov::op::util::make_try_fold<ov::opset8::Gather>(
@@ -67,8 +70,8 @@ bool transform(const std::shared_ptr<ov::Node>& sequenceOp) {
             ov::opset1::Constant::create(ov::element::i32, {3}, {1, 0, 2}),
             ov::opset1::Constant::create(ov::element::i32, {}, {0}));
         auto reshape1 = std::make_shared<ov::opset1::Reshape>(in_0, newInShape, false);
-        ov::copy_runtime_info(sequenceOp->get_input_node_shared_ptr(0), reshape1);
-        ov::replace_node(sequenceOp->get_input_node_shared_ptr(0), reshape1);
+        ov::copy_runtime_info(sequenceOp->input_value(0).get_node_shared_ptr(), reshape1);
+        ov::replace_node(sequenceOp->input_value(0).get_node_shared_ptr(), reshape1);
 
         const auto& seqTargetInputs = sequenceOp->get_output_target_inputs(0);
         if (seqTargetInputs.empty()) {

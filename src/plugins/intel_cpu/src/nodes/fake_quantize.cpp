@@ -1021,7 +1021,7 @@ bool FakeQuantize::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             }
         }
         for (size_t i = 1; i < fq->get_input_size(); i++) {
-            if (!ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
+            if (!ov::as_type_ptr<const ov::opset1::Constant>(fq->input_value(i).get_node_shared_ptr())) {
                 errorMessage = "Has non const 'range' input on " + std::to_string(i) + " port";
                 return false;
             }
@@ -1173,16 +1173,19 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
             THROW_CPU_NODE_ERR("has different quantization axis size on 'data' and 'range' inputs");
         }
 
-        const auto inputLowNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(1));
+        const auto inputLowNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->input_value(1).get_node_shared_ptr());
         auto inputLowData = inputLowNode->cast_vector<float>();
 
-        const auto inputHighNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(2));
+        const auto inputHighNode =
+            ov::as_type_ptr<const ov::opset1::Constant>(fq->input_value(2).get_node_shared_ptr());
         auto inputHighData = inputHighNode->cast_vector<float>();
 
-        const auto outputLowNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(3));
+        const auto outputLowNode =
+            ov::as_type_ptr<const ov::opset1::Constant>(fq->input_value(3).get_node_shared_ptr());
         auto outputLowData = outputLowNode->cast_vector<float>();
 
-        const auto outputHighNode = ov::as_type_ptr<const ov::opset1::Constant>(fq->get_input_node_shared_ptr(4));
+        const auto outputHighNode =
+            ov::as_type_ptr<const ov::opset1::Constant>(fq->input_value(4).get_node_shared_ptr());
         auto outputHighData = outputHighNode->cast_vector<float>();
 
         binarization = levels == 2;

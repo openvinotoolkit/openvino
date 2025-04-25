@@ -49,7 +49,7 @@ static void CreateMVNOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::MVN
 static void CreateMVNOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v6::MVN>& op) {
     validate_inputs_count(op, {2});
 
-    auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+    auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
     OPENVINO_ASSERT(inConst != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     std::vector<int64_t> axes = inConst->cast_vector<int64_t>();

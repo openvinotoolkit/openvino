@@ -48,7 +48,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     if (query_merged_dim.is_static()) {
         heads_num = query_merged_dim.get_length() / k_head_size;
     } else {
-        auto reshape_input = op->get_input_node_shared_ptr(0)->get_input_partial_shape(0);
+        auto reshape_input = op->input_value(0).get_node_shared_ptr()->get_input_partial_shape(0);
         heads_num = reshape_input[2].get_length();
     }
 
@@ -61,7 +61,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     const size_t sliding_window_idx = 10;
     const size_t alibi_idx = 11;
 
-    std::shared_ptr<ov::op::v0::Constant> scale_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(scale_idx));
+    std::shared_ptr<ov::op::v0::Constant> scale_const = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(scale_idx).get_node_shared_ptr());
     if (scale_const) {
         OPENVINO_ASSERT(ov::shape_size(scale_const->get_output_shape(0)) == 1);
         prim.scale_val = scale_const->cast_vector<float>()[0];
@@ -69,13 +69,13 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         prim.scale_val = std::optional<float>();
     }
 
-    std::shared_ptr<ov::op::v0::Constant> sliding_windows_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(sliding_window_idx));
+    std::shared_ptr<ov::op::v0::Constant> sliding_windows_const = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(sliding_window_idx).get_node_shared_ptr());
     if (sliding_windows_const) {
         OPENVINO_ASSERT(ov::shape_size(sliding_windows_const->get_output_shape(0)) == 1);
         prim.sliding_window = sliding_windows_const->cast_vector<size_t>()[0];
     }
 
-    std::shared_ptr<ov::op::v0::Constant> alibi_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(alibi_idx));
+    std::shared_ptr<ov::op::v0::Constant> alibi_const = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(alibi_idx).get_node_shared_ptr());
     OPENVINO_ASSERT(alibi_const != nullptr);
     prim.has_alibi = ov::shape_size(alibi_const->get_output_shape(0)) > 0;
     prim.has_rotated_blocks = op->get_input_size() == 16;

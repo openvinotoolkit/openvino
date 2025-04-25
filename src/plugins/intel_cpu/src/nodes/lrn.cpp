@@ -76,7 +76,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(dataDims.size());
             return false;
         }
-        auto axesNode = ov::as_type_ptr<const ov::opset1::Constant>(lrn->get_input_node_shared_ptr(1));
+        auto axesNode = ov::as_type_ptr<const ov::opset1::Constant>(lrn->input_value(1).get_node_shared_ptr());
         if (!axesNode) {
             errorMessage = "Only Constant operation on 'axis' input is supported";
             return false;
@@ -114,8 +114,8 @@ Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         auto lrn = ov::as_type_ptr<const ov::opset1::LRN>(op);
-        auto axes =
-            ov::as_type_ptr<const ov::opset1::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
+        auto axes = ov::as_type_ptr<const ov::opset1::Constant>(lrn->input_value(1).get_node_shared_ptr())
+                        ->cast_vector<int64_t>();
         bool isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
         alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());

@@ -26,13 +26,13 @@ void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<
         if (!are_weights_scalar(parent))
             break;
 
-        parent = parent->get_input_node_shared_ptr(0);
+        parent = parent->input_value(0).get_node_shared_ptr();
         transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent);
     }
 
     // If there isn't another Transpose, need to create new Transpose
     if (transpose) {
-        const auto transpose_pattern = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        const auto transpose_pattern = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
         OPENVINO_ASSERT(transpose_pattern,
                         "ExplicitTransposeMatMulInputs expects existing Transpose with Constant order");
 

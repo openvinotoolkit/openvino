@@ -26,7 +26,7 @@ static void CreateCommonReshapeOp(ProgramBuilder& p, const std::shared_ptr<ov::N
 
     if (p.use_new_shape_infer() || op->is_dynamic()) {
         std::shared_ptr<cldnn::reshape> reshape_prim = nullptr;
-        auto second_const_input = op->get_input_size() == 2 ? ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1)) : nullptr;
+        auto second_const_input = op->get_input_size() == 2 ? ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr()) : nullptr;
         std::vector<int64_t> output_pattern = {};
         if (second_const_input != nullptr) {
             output_pattern = second_const_input->cast_vector<int64_t>();

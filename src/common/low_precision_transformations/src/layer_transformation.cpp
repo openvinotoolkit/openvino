@@ -148,8 +148,8 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
 
     if (ov::is_type<ov::opset1::Constant>(parent)) {
         return true;
-    } else if (ov::is_type<ov::opset1::Convert>(parent) && ov::is_type<ov::opset1::Constant>(parent->get_input_node_shared_ptr(0))) {
-        const auto constant = parent->get_input_node_shared_ptr(0);
+    } else if (ov::is_type<ov::opset1::Convert>(parent) && ov::is_type<ov::opset1::Constant>(parent->input_value(0).get_node_shared_ptr())) {
+        const auto constant = parent->input_value(0).get_node_shared_ptr();
         const auto constantType = constant->output(0).get_element_type();
         return operationType == constantType;
     } else {

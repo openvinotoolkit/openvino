@@ -123,7 +123,7 @@ protected:
                                                                               ov::Strides{1, 1});
         // It's necessary to force acdb layout to be sure that the reorder, which changes dims order, will be inserted
         // (by default acdb layout is chosen only on >= AVX512 platforms)
-        const auto conv = conv_with_bias->get_input_node_shared_ptr(0);
+        const auto conv = conv_with_bias->input_value(0).get_node_shared_ptr();
         const auto acdb_format = CPUTestUtils::cpu_memory_format_t::acdb;
         conv->get_rt_info() = makeCPUInfo({acdb_format}, {acdb_format}, {});
 

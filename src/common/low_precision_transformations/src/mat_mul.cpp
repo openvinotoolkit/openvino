@@ -227,9 +227,9 @@ bool MatMulTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
     // TODO: remove this logic when
     //       1. CompressedMatmul is implemented
     //       2. Or convert on scales is supported across the whole LPT pipeline
-    if (auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(layer->get_input_node_shared_ptr(1))) {
-        if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(mul->get_input_node_shared_ptr(1))) {
-            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0))) {
+    if (auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(layer->input_value(1).get_node_shared_ptr())) {
+        if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(mul->input_value(1).get_node_shared_ptr())) {
+            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(convert->input_value(0).get_node_shared_ptr())) {
                 auto new_constant = foldConvert(constant, convert->get_destination_type());
                 ov::replace_node_update_name(convert, new_constant);
             }
@@ -262,7 +262,7 @@ bool MatMulTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
         }
     }
 
-    const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
+    const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(layer->input_value(1).get_node_shared_ptr());
     if (fakeQuantize) {
         if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize)) {
             return false;
@@ -280,8 +280,8 @@ bool MatMulTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
             return false;
         }
 
-        const auto outLowShape = fakeQuantize->get_input_node_shared_ptr(3)->get_shape();
-        const auto outHighShape = fakeQuantize->get_input_node_shared_ptr(4)->get_shape();
+        const auto outLowShape = fakeQuantize->input_value(3).get_node_shared_ptr()->get_shape();
+        const auto outHighShape = fakeQuantize->input_value(4).get_node_shared_ptr()->get_shape();
         const auto fakeQuantizeShape = fakeQuantize->get_output_partial_shape(0);
         const size_t rank = fakeQuantizeShape.rank().get_length();
 
@@ -298,7 +298,7 @@ bool MatMulTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) 
         return false;
     }
 
-    if ((!NetworkHelper::isConstantPath(layer->get_input_node_shared_ptr(1))) && (dequantization1.subtract)) {
+    if ((!NetworkHelper::isConstantPath(layer->input_value(1).get_node_shared_ptr())) && (dequantization1.subtract)) {
         return false;
     }
 

@@ -66,20 +66,20 @@ std::shared_ptr<ov::opset1::Subtract> replaceToSubtract(const std::shared_ptr<No
 std::shared_ptr<ov::opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& op) {
     const auto add = ov::as_type_ptr<ov::opset1::Add>(op);
     if ((add == nullptr) ||
-        !ov::is_type<ov::opset1::Subtract>(add->get_input_node_shared_ptr(0)) ||
+        !ov::is_type<ov::opset1::Subtract>(add->input_value(0).get_node_shared_ptr()) ||
         // TODO: use general way from getDequantization: is eltwise with Constant
-        !ov::is_type<ov::opset1::Constant>(add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
+        !ov::is_type<ov::opset1::Constant>(add->input_value(0).get_node_shared_ptr()->input_value(1).get_node_shared_ptr())) {
         return nullptr;
     }
 
     const auto newSubConst = fold<ov::opset1::Subtract>(
-        add->get_input_node_shared_ptr(0)->input_value(1),
+        add->input_value(0).get_node_shared_ptr()->input_value(1),
         add->input_value(1));
 
     const auto newSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Subtract>>(
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{ op->get_output_element_type(0) },
-        ov::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->input_value(0), element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(add->input_value(0).get_node_shared_ptr()->input_value(0), element::f32).get(),
         ov::op::TemporaryReplaceOutputType(newSubConst, element::f32).get());
     NetworkHelper::copyInfo(add, newSubtract);
 
@@ -132,8 +132,8 @@ bool AddTransformation::transform(ov::pass::pattern::Matcher &m) {
 
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
         ov::copy_runtime_info({ add, newMultiply }, newMultiply);
-        if (ov::is_type<ov::opset1::Add>(newMultiply->get_input_node_shared_ptr(0))) {
-            newAddOrSubtract = newMultiply->get_input_node_shared_ptr(0);
+        if (ov::is_type<ov::opset1::Add>(newMultiply->input_value(0).get_node_shared_ptr())) {
+            newAddOrSubtract = newMultiply->input_value(0).get_node_shared_ptr();
 
             auto subtract = fuseWithSubtract(newAddOrSubtract);
             if (subtract != nullptr) {

@@ -69,7 +69,7 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
         // Order=[0, 2, 1, 3]
         auto is_expected_transpose = [&](std::shared_ptr<op::v1::Transpose>& transpose) {
             if (transpose) {
-                const auto orders = as_type_ptr<op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+                const auto orders = as_type_ptr<op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
                 return orders && (std::vector<int32_t>({0, 2, 1, 3}) == orders->cast_vector<int32_t>());
             }
             return false;
@@ -109,13 +109,13 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
             return false;
         }
         // K,V Reshape's order should be same node.
-        auto k_reshape_order = as_type_ptr<op::v0::Constant>(k_reshape->get_input_node_shared_ptr(1));
-        auto v_reshape_order = as_type_ptr<op::v0::Constant>(v_reshape->get_input_node_shared_ptr(1));
+        auto k_reshape_order = as_type_ptr<op::v0::Constant>(k_reshape->input_value(1).get_node_shared_ptr());
+        auto v_reshape_order = as_type_ptr<op::v0::Constant>(v_reshape->input_value(1).get_node_shared_ptr());
         if (k_reshape_order && v_reshape_order) {
             if (k_reshape_order->cast_vector<int32_t>() != v_reshape_order->cast_vector<int32_t>()) {
                 return false;
             }
-        } else if (k_reshape->get_input_node_shared_ptr(1) != v_reshape->get_input_node_shared_ptr(1)) {
+        } else if (k_reshape->input_value(1).get_node_shared_ptr() != v_reshape->input_value(1).get_node_shared_ptr()) {
             return false;
         }
 

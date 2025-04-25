@@ -62,7 +62,7 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
         }
         // get the input
         const auto& sub_node = opsMap.at(q_sub_label).get_node_shared_ptr();
-        if (!sub_node->get_input_node_shared_ptr(0)) {
+        if (!sub_node->input_value(0).get_node_shared_ptr()) {
             return false;
         }
         const auto& input_item = sub_node->get_input_source_output(0);
@@ -95,7 +95,7 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
 
         // get the scale
         const auto& scale_node_cast = ov::as_type_ptr<Constant>(
-            opsMap.at(q_real_scale_label).get_node_shared_ptr()->get_input_node_shared_ptr(0));
+            opsMap.at(q_real_scale_label).get_node_shared_ptr()->input_value(0).get_node_shared_ptr());
         float scale;
         if (!scale_node_cast || !ov::op::util::get_single_value(scale_node_cast, scale)) {
             return false;

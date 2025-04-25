@@ -138,7 +138,7 @@ auto Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
                                                            [](const ov::Input<ov::Node>& in) {
                                                                return ov::is_type<ov::op::v0::Result>(in.get_node());
                                                            }) ||
-                                              !ov::is_type<ov::op::v0::Parameter>(transpose->get_input_node_shared_ptr(0));
+                                              !ov::is_type<ov::op::v0::Parameter>(transpose->input_value(0).get_node_shared_ptr());
             if (are_prev_or_next_ops) {
                 push_prc_size(transpose->get_element_type().size());
             }
@@ -148,9 +148,9 @@ auto Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
             push_prc_size(ov::element::f32.size());
         } else if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op)) {
             // Since all buffers around Matmul must be unique, we explicitely add values to the vector without any checks
-            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(0)))
+            if (!ov::is_type<ov::op::v0::Parameter>(matmul->input_value(0).get_node_shared_ptr()))
                 used_precision_size.push_back(matmul->get_input_element_type(0).size());
-            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(1)))
+            if (!ov::is_type<ov::op::v0::Parameter>(matmul->input_value(1).get_node_shared_ptr()))
                 used_precision_size.push_back(matmul->get_input_element_type(1).size());
 
             const auto consumers = matmul->get_output_target_inputs(0);

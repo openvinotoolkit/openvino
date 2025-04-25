@@ -130,7 +130,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
             auto& strided_slice_node = strided_slice_nodes[i];
             for (const auto& user : strided_slice_node->get_users()) {
                 for (size_t idx = 0; idx < user->inputs().size(); ++idx) {
-                    if (user->get_input_node_shared_ptr(idx) == strided_slice_node) {
+                    if (user->input_value(idx).get_node_shared_ptr() == strided_slice_node) {
                         user->input(idx).replace_source_output(variadic_split->output(i));
                     }
                 }

@@ -13,12 +13,12 @@ ov::snippets::pass::ConvertPowerToPowerStatic::ConvertPowerToPowerStatic() {
     auto scalarPower = std::make_shared<ov::pass::pattern::op::Label>(ov::pass::pattern::any_input(),
                                                                       [](std::shared_ptr<Node> n) {
                                                                           return is_type<ov::op::v1::Power>(n) &&
-                                                                                 is_type<snippets::op::Scalar>(n->get_input_node_shared_ptr(1));
+                                                                                 is_type<snippets::op::Scalar>(n->input_value(1).get_node_shared_ptr());
                                                                       });
     ov::graph_rewrite_callback callback = [](ov::pass::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ConvertPowerToPowerStatic")
         auto power = ov::as_type_ptr<ov::op::v1::Power>(m.get_match_root());
-        auto scalar = ov::as_type_ptr<snippets::op::Scalar>(power->get_input_node_shared_ptr(1));
+        auto scalar = ov::as_type_ptr<snippets::op::Scalar>(power->input_value(1).get_node_shared_ptr());
         auto value = scalar->cast_vector<float>()[0];
         auto power_static = std::make_shared<snippets::op::PowerStatic>(power->input(0).get_source_output(), value);
         power_static->set_friendly_name(power->get_friendly_name());

@@ -19,7 +19,7 @@ bool TransposeDecomposition::is_supported_transpose(const Output<Node>& transpos
     const auto transpose = ov::as_type_ptr<const ov::opset1::Transpose>(transpose_out.get_node_shared_ptr());
     if (!transpose)
         return false;
-    const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->get_input_node_shared_ptr(1));
+    const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->input_value(1).get_node_shared_ptr());
     if (!order)
         return false;
     return is_supported_transpose_order(order->cast_vector<int32_t>());

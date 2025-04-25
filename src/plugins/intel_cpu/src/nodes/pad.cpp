@@ -60,15 +60,15 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         THROW_CPU_NODE_ERR("couldn't be casted to op of opset1");
     }
 
-    shapeHasDataDependency = !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_BEGIN_ID)) ||
-                             !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_END_ID));
+    shapeHasDataDependency = !ov::is_type<op::v0::Constant>(op->input_value(PADS_BEGIN_ID).get_node_shared_ptr()) ||
+                             !ov::is_type<op::v0::Constant>(op->input_value(PADS_END_ID).get_node_shared_ptr());
 
     auto fillingInParameters = [&](VectorIdxs& parameter, const size_t type) {
         if (type < PADS_BEGIN_ID) {
             return;
         }
 
-        const auto constNode = ov::as_type_ptr<const op::v0::Constant>(op->get_input_node_shared_ptr(type));
+        const auto constNode = ov::as_type_ptr<const op::v0::Constant>(op->input_value(type).get_node_shared_ptr());
         if (constNode) {
             auto pad_data = constNode->cast_vector<int32_t>();
             for (const auto& value : pad_data) {
@@ -87,13 +87,14 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     isPadValueSpecified = pad->get_input_size() == 4;
     if (pad_mode == op::PadMode::CONSTANT) {
         attrs.padMode = CONSTANT;
-        if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() ==
+        if (isPadValueSpecified && op->input_value(PAD_VALUE_ID).get_node_shared_ptr()->get_type_info() ==
                                        ov::op::v0::Constant::get_type_info_static()) {
             if (!ov::is_scalar(pad->get_input_shape(PAD_VALUE_ID))) {
                 THROW_CPU_NODE_ERR("has non scalar 'pad_value' input");
             }
-            attrs.padValue = ov::as_type_ptr<const op::v0::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
-                                 ->cast_vector<float>()[0];
+            attrs.padValue =
+                ov::as_type_ptr<const op::v0::Constant>(pad->input_value(PAD_VALUE_ID).get_node_shared_ptr())
+                    ->cast_vector<float>()[0];
             attrs.constPadValue = true;
         }
     } else if (pad_mode == op::PadMode::EDGE) {

@@ -48,7 +48,7 @@ bool SplitTransformation::transform(ov::pass::pattern::Matcher& m) {
     newSplit->set_friendly_name(split->get_friendly_name());
     ov::copy_runtime_info(split, newSplit);
 
-    const int64_t axis = ov::as_type_ptr<ov::opset1::Constant>(split->get_input_node_shared_ptr(1))->cast_vector<int64_t>()[0];
+    const int64_t axis = ov::as_type_ptr<ov::opset1::Constant>(split->input_value(1).get_node_shared_ptr())->cast_vector<int64_t>()[0];
     const size_t normalizedAxis = ov::util::try_normalize_axis(axis, split->get_input_partial_shape(0).rank(), *split);
     const size_t outputSize = newSplit->get_output_size();
 

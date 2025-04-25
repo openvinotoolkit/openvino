@@ -41,7 +41,7 @@ bool is_valid_transpose(const std::shared_ptr<ov::opset1::Transpose>& node, cons
         return is_supported_tensor(t) && ov::snippets::pass::TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0;
     };
 
-    return node && node->get_output_target_inputs(0).size() == 1 && is_valid_transpose_order(node->get_input_node_shared_ptr(1)) &&
+    return node && node->get_output_target_inputs(0).size() == 1 && is_valid_transpose_order(node->input_value(1).get_node_shared_ptr()) &&
            is_supported_transpose_tensor(node->get_input_tensor(0));
 }
 
@@ -157,7 +157,7 @@ bool update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
 
             for (size_t i = 0; i < interm_op->get_input_size(); ++i) {
                 const size_t shift = ordered_ops.size();
-                auto parent = interm_op->get_input_node_shared_ptr(i);
+                auto parent = interm_op->input_value(i).get_node_shared_ptr();
                 while (is_supported_branch_op(parent)) {
                     // All supported ops have only one output port
                     if (parent->get_output_target_inputs(0).size() != 1)
@@ -171,7 +171,7 @@ bool update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
                     // TODO [107731]: We think that sequence of ops goes through input port 0
                     //                But can be Select here? If it can be, parent shouldn't be on input port 0. Need another way?
                     if (parent->get_input_size() > 0)
-                        parent = parent->get_input_node_shared_ptr(0);
+                        parent = parent->input_value(0).get_node_shared_ptr();
                 }
             }
         }
@@ -368,9 +368,9 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         //          (in other words, if the Buffer should be inserted between Brgemm and this op sequence),
         //          we don't tokenize such operations into Subgraph. The details are described in the ticket 160177.
         //          Please, return the tokenization of these ops when parallel loops are implemented.
-        const auto transpose0 = ov::as_type_ptr<ov::opset1::Transpose>(matmul0->get_input_node_shared_ptr(0));
-        const auto transpose1 = ov::as_type_ptr<ov::opset1::Transpose>(matmul0->get_input_node_shared_ptr(1));
-        const auto transpose2 = ov::as_type_ptr<ov::opset1::Transpose>(matmul1->get_input_node_shared_ptr(1));
+        const auto transpose0 = ov::as_type_ptr<ov::opset1::Transpose>(matmul0->input_value(0).get_node_shared_ptr());
+        const auto transpose1 = ov::as_type_ptr<ov::opset1::Transpose>(matmul0->input_value(1).get_node_shared_ptr());
+        const auto transpose2 = ov::as_type_ptr<ov::opset1::Transpose>(matmul1->input_value(1).get_node_shared_ptr());
         tokenize_transpose(transpose0, matmul0->get_transpose_a(), pattern_rank, ordered_ops.begin());
         tokenize_transpose(transpose1, matmul0->get_transpose_b(), pattern_rank, ordered_ops.begin());
         tokenize_transpose(transpose2, matmul1->get_transpose_b(), pattern_rank, ordered_ops.end());

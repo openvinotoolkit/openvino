@@ -23,7 +23,7 @@ ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
         }
         float beta_value = 1.0;
         if (swish->input_values().size() == 2) {
-            auto beta = ov::as_type_ptr<ov::opset4::Constant>(swish->get_input_node_shared_ptr(1));
+            auto beta = ov::as_type_ptr<ov::opset4::Constant>(swish->input_value(1).get_node_shared_ptr());
 
             if (!beta || ov::shape_size(swish->get_input_shape(1)) != 1) {
                 return false;

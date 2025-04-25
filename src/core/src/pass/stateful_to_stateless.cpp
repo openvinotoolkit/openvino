@@ -98,7 +98,8 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
     if (beam_idx) {
         for (const ov::Input<ov::Node>& input : beam_idx->get_output_target_inputs(0)) {
             if (auto gather = ov::as_type_ptr<op::util::GatherBase>(input.get_node()->shared_from_this())) {
-                auto read_value = ov::as_type_ptr<op::util::ReadValueBase>(gather->get_input_node_shared_ptr(0));
+                auto read_value =
+                    ov::as_type_ptr<op::util::ReadValueBase>(gather->input_value(0).get_node_shared_ptr());
                 OPENVINO_ASSERT(read_value,
                                 "Unexpected model topology in StatefulToStateless: no ReadValue is found at the first "
                                 "input of Gather by `beam_idx` parameter");

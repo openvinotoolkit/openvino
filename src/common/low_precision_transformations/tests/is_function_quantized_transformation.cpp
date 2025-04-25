@@ -41,7 +41,7 @@ public:
             testValues.constantSubgraphOnParameters);
 
         if (testValues.inputOnParameters) {
-            replace_node(fakeQuantize->get_input_node_shared_ptr(3), input);
+            replace_node(fakeQuantize->input_value(3).get_node_shared_ptr(), input);
         }
 
         ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(fakeQuantize) };

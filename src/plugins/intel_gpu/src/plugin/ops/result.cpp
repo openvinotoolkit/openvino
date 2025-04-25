@@ -18,7 +18,7 @@ namespace ov::intel_gpu {
 static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Result>& op) {
     validate_inputs_count(op, {1});
 
-    auto prev = op->get_input_node_shared_ptr(0);
+    auto prev = op->input_value(0).get_node_shared_ptr();
     auto input_id = prev->get_friendly_name();
     if (prev->get_output_size() > 1) {
         input_id += "." + std::to_string(op->get_input_source_output(0).get_index());

@@ -47,7 +47,7 @@ RepeatPatternExtractor::get_repeat_pattern_borders(const std::shared_ptr<ov::Mod
                     }
                 }
                 for (size_t in_idx = 0; in_idx < node->inputs().size(); ++in_idx) {
-                    auto in_node = node->get_input_node_shared_ptr(in_idx);
+                    auto in_node = node->input_value(in_idx).get_node_shared_ptr();
                     if (std::find(node_vector.begin(), node_vector.end(), in_node) == node_vector.end()) {
                         in_vec.push_back(node->input(in_idx));
                     }
@@ -174,8 +174,8 @@ RepeatPatternExtractor::get_patterns_by_nodes(const std::vector<size_t>& start_o
                         if (j != 0) {
                             bool is_input_matched = false;
                             for (size_t input_idx = 0; input_idx < patterns[i_orig][j]->inputs().size(); ++input_idx) {
-                                auto in_orig = patterns[i_orig][j]->get_input_node_shared_ptr(input_idx);
-                                auto in_ref = patterns[i_ref][j]->get_input_node_shared_ptr(input_idx);
+                                auto in_orig = patterns[i_orig][j]->input_value(input_idx).get_node_shared_ptr();
+                                auto in_ref = patterns[i_ref][j]->input_value(input_idx).get_node_shared_ptr();
                                 if (std::find(pattern_orig.begin(), pattern_orig.end(), in_orig) != pattern_orig.end() &&
                                     std::find(pattern_ref.begin(), pattern_ref.end(), in_ref) != pattern_ref.end()) {
                                     is_input_matched = true;

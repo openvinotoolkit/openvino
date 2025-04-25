@@ -57,9 +57,9 @@ static std::shared_ptr<ov::op::v0::Concat> create_new_weights(ov::pass::NodeRegi
     weights_to_concat.reserve(num_inputs);
 
     for (size_t i = 0; i < num_inputs; i++) {
-        const auto conv = concat->get_input_node_shared_ptr(i);
+        const auto conv = concat->input_value(i).get_node_shared_ptr();
         const auto weights_output = conv->input_value(1);
-        const auto weights = conv->get_input_node_shared_ptr(1);
+        const auto weights = conv->input_value(1).get_node_shared_ptr();
         const auto& shape = weights->get_output_partial_shape(0);
         if (shape.is_dynamic() || weights->get_output_shape(0) != weights_shape)
             return nullptr;
@@ -111,8 +111,8 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& concat = pattern_value_map.at(concat_label).get_node_shared_ptr();
 
-        const auto first_conv = as_type_ptr<ov::op::v1::Convolution>(concat->get_input_node_shared_ptr(0));
-        const auto split = first_conv->get_input_node_shared_ptr(0);
+        const auto first_conv = as_type_ptr<ov::op::v1::Convolution>(concat->input_value(0).get_node_shared_ptr());
+        const auto split = first_conv->input_value(0).get_node_shared_ptr();
         const bool is_split = is_type<ov::op::v1::Split>(split);
         const bool is_variadic_split = is_type<ov::op::v1::VariadicSplit>(split);
         if (!is_split && !is_variadic_split)
@@ -158,7 +158,7 @@ ov::pass::ConvolutionToGroupConvolutionFusion::ConvolutionToGroupConvolutionFusi
         from.push_back(split);
         from.push_back(first_conv);
         for (size_t i = 1; i < concat_num_inputs; i++) {
-            from.push_back(concat->get_input_node_shared_ptr(i));
+            from.push_back(concat->input_value(i).get_node_shared_ptr());
         }
         from.push_back(concat);
 

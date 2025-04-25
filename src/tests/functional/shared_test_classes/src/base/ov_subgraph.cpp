@@ -257,7 +257,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
     for (size_t j = 0; j < results.size(); j++) {
         const auto result = results[j];
         for (size_t i = 0; i < result->get_input_size(); ++i) {
-            std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
+            std::shared_ptr<ov::Node> inputNode = result->input_value(i).get_node_shared_ptr();
             auto it = compareMap.find(inputNode->get_type_info());
             ASSERT_NE(it, compareMap.end());
             it->second(inputNode, i, inference_precision,
@@ -568,8 +568,8 @@ void SubgraphBaseTest::compare_nodes(const std::shared_ptr<ov::Node>& node1, con
                     << node2->get_friendly_name() << " Input(" << i << ") " << node2->input(i).get_element_type() << std::endl;
         }
 
-        const auto const_in_1 = ov::as_type_ptr<ov::op::v0::Constant>(node1->get_input_node_shared_ptr(i));
-        const auto const_in_2 = ov::as_type_ptr<ov::op::v0::Constant>(node2->get_input_node_shared_ptr(i));
+        const auto const_in_1 = ov::as_type_ptr<ov::op::v0::Constant>(node1->input_value(i).get_node_shared_ptr());
+        const auto const_in_2 = ov::as_type_ptr<ov::op::v0::Constant>(node2->input_value(i).get_node_shared_ptr());
         const auto equal_value = ::attributes::detail::equal::Equal<std::shared_ptr<ov::op::v0::Constant>>::equal_value;
         if (const_in_1 && const_in_2 && !equal_value(const_in_1, const_in_2)) {
             err_log << "Different Constant values detected\n"

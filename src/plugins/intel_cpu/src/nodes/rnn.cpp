@@ -336,8 +336,8 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 return false;
             }
 
-            if (ov::op::util::is_seq_len_provided(op->get_input_node_shared_ptr(0),
-                                                  op->get_input_node_shared_ptr(seqLenIdx))) {
+            if (ov::op::util::is_seq_len_provided(op->input_value(0).get_node_shared_ptr(),
+                                                  op->input_value(seqLenIdx).get_node_shared_ptr())) {
                 errorMessage = "Unsupported sequence length.";
                 return false;
             }

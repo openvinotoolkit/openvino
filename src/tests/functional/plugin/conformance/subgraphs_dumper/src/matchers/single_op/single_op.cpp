@@ -65,8 +65,8 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ov::Node> &node,
             return false;
         }
         if (is_match_in_types) {
-            const auto& in_node = node->get_input_node_shared_ptr(port_id);
-            const auto& in_node_ref = ref->get_input_node_shared_ptr(port_id);
+            const auto& in_node = node->input_value(port_id).get_node_shared_ptr();
+            const auto& in_node_ref = ref->input_value(port_id).get_node_shared_ptr();
             if (ov::util::is_node_to_skip(in_node) || ov::util::is_node_to_skip(in_node_ref)) {
                 continue;
             } else if (in_node->get_type_info() != in_node_ref->get_type_info()) {

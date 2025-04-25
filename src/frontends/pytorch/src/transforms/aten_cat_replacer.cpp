@@ -64,7 +64,7 @@ AtenCatToConcat::AtenCatToConcat() {
             axis = std::stoll(attrs.at("axis"));
         }
 
-        std::shared_ptr<Node> input_node = cat->get_input_node_shared_ptr(0);
+        std::shared_ptr<Node> input_node = cat->input_value(0).get_node_shared_ptr();
         if (auto loop = ov::as_type_ptr<v5::Loop>(input_node)) {
             // case when concatenation is done inside the Loop
             auto body = loop->get_function();
@@ -78,14 +78,14 @@ AtenCatToConcat::AtenCatToConcat() {
             }
             FRONT_END_GENERAL_CHECK(body_result_index >= 0, "Couldn't find descriptor for output.");
             auto body_result = body->get_results()[body_result_index];
-            auto append = cast_fw_node(body_result->get_input_node_shared_ptr(0), "aten::append");
+            auto append = cast_fw_node(body_result->input_value(0).get_node_shared_ptr(), "aten::append");
             if (!append) {
                 add_exception_to_fw_node(
                     cat,
                     "<aten/quantized>::cat unsupported case: aten::append wasn't found inside prim::Loop body.");
                 return false;
             }
-            auto param = ov::as_type_ptr<v0::Parameter>(append->get_input_node_shared_ptr(0));
+            auto param = ov::as_type_ptr<v0::Parameter>(append->input_value(0).get_node_shared_ptr());
             if (!param) {
                 add_exception_to_fw_node(
                     cat,
@@ -103,7 +103,8 @@ AtenCatToConcat::AtenCatToConcat() {
                 }
             }
             FRONT_END_GENERAL_CHECK(input_index >= 0, "Couldn't find descriptor for input.");
-            auto list_construct = cast_fw_node(loop->get_input_node_shared_ptr(input_index), "prim::ListConstruct");
+            auto list_construct =
+                cast_fw_node(loop->input_value(input_index).get_node_shared_ptr(), "prim::ListConstruct");
             if (!list_construct || list_construct->get_input_size() > 0) {
                 add_exception_to_fw_node(
                     cat,

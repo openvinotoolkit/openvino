@@ -16,7 +16,7 @@ static void CreateTileOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Ti
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
-    if (auto repeats_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1))) {
+    if (auto repeats_const = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr())) {
         std::vector<int64_t> repeats = repeats_const->cast_vector<int64_t>();
 
         // TODO: Remove code below once new shape infer is enabled

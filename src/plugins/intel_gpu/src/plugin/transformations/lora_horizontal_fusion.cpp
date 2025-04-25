@@ -33,21 +33,21 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
 
             const auto& add = ov::as_type_ptr<ov::op::v1::Add>(node);                                                         check(add)
 
-            size_t matmul2_idx = ov::is_type<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(0)) ? 0 : 1;
-            const auto& matmul2 = ov::as_type_ptr<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(matmul2_idx));           check(matmul2)
+            size_t matmul2_idx = ov::is_type<ov::op::v0::MatMul>(add->input_value(0).get_node_shared_ptr()) ? 0 : 1;
+            const auto& matmul2 = ov::as_type_ptr<ov::op::v0::MatMul>(add->input_value(matmul2_idx).get_node_shared_ptr());           check(matmul2)
 
-            const auto& multiply = ov::as_type_ptr<ov::op::v1::Multiply>(matmul2->get_input_node_shared_ptr(0));              check(multiply)
+            const auto& multiply = ov::as_type_ptr<ov::op::v1::Multiply>(matmul2->input_value(0).get_node_shared_ptr());              check(multiply)
 
-            const auto& variable_b = ov::as_type_ptr<ov::op::util::ReadValueBase>(matmul2->get_input_node_shared_ptr(1));     check(variable_b)
+            const auto& variable_b = ov::as_type_ptr<ov::op::util::ReadValueBase>(matmul2->input_value(1).get_node_shared_ptr());     check(variable_b)
 
-            size_t matmul1_idx = ov::is_type<ov::op::v0::MatMul>(multiply->get_input_node_shared_ptr(0)) ? 0 : 1;
-            const auto& matmul1 = ov::as_type_ptr<ov::op::v0::MatMul>(multiply->get_input_node_shared_ptr(matmul1_idx));      check(matmul1)
+            size_t matmul1_idx = ov::is_type<ov::op::v0::MatMul>(multiply->input_value(0).get_node_shared_ptr()) ? 0 : 1;
+            const auto& matmul1 = ov::as_type_ptr<ov::op::v0::MatMul>(multiply->input_value(matmul1_idx).get_node_shared_ptr());      check(matmul1)
 
             size_t alpha_idx = (matmul1_idx + 1) % 2;
             const auto& variable_alpha =
-                ov::as_type_ptr<ov::op::util::ReadValueBase>(multiply->get_input_node_shared_ptr(alpha_idx));                 check(variable_alpha)
+                ov::as_type_ptr<ov::op::util::ReadValueBase>(multiply->input_value(alpha_idx).get_node_shared_ptr());                 check(variable_alpha)
 
-            const auto& variable_a = ov::as_type_ptr<ov::op::util::ReadValueBase>(matmul1->get_input_node_shared_ptr(1));     check(variable_a)
+            const auto& variable_a = ov::as_type_ptr<ov::op::util::ReadValueBase>(matmul1->input_value(1).get_node_shared_ptr());     check(variable_a)
 
             #undef check
             return true;
@@ -85,15 +85,15 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
         for (const auto& add : split->get_users()) {
             add_nodes.emplace_back(add);
 
-            size_t matmul2_idx = ov::is_type<ov::op::v0::MatMul>(add->get_input_node_shared_ptr(0)) ? 0 : 1;
+            size_t matmul2_idx = ov::is_type<ov::op::v0::MatMul>(add->input_value(0).get_node_shared_ptr()) ? 0 : 1;
             matmul2_nodes.emplace_back(add->input_value(matmul2_idx));
         }
         for (const auto& matmul2 : matmul2_nodes) {
-            multiply_nodes.emplace_back(matmul2.get_node()->get_input_node_shared_ptr(0));
+            multiply_nodes.emplace_back(matmul2.get_node()->input_value(0).get_node_shared_ptr());
         }
         for (const auto& multiply : multiply_nodes) {
-            size_t matmul1_idx = ov::is_type<ov::op::v0::MatMul>(multiply->get_input_node_shared_ptr(0)) ? 0 : 1;
-            matmul1_nodes.emplace_back(multiply->get_input_node_shared_ptr(matmul1_idx));
+            size_t matmul1_idx = ov::is_type<ov::op::v0::MatMul>(multiply->input_value(0).get_node_shared_ptr()) ? 0 : 1;
+            matmul1_nodes.emplace_back(multiply->input_value(matmul1_idx).get_node_shared_ptr());
 
             size_t alpha_idx = (matmul1_idx + 1) % 2;
             variable_alpha_nodes.emplace_back(multiply->input_value(alpha_idx));
@@ -144,7 +144,7 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
         fused_matmul2->set_friendly_name(matmul2_name);
         ov::copy_output_runtime_info(matmul2_nodes, {fused_matmul2->output(0)});
 
-        auto fused_add = std::make_shared<ov::op::v1::Add>(split->get_input_node_shared_ptr(0), fused_matmul2);
+        auto fused_add = std::make_shared<ov::op::v1::Add>(split->input_value(0).get_node_shared_ptr(), fused_matmul2);
         auto fused_add_name = add_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(add_nodes.size()) + "_Adds";
         fused_add->set_friendly_name(fused_add_name);
         ov::copy_runtime_info(add_nodes, fused_add);
@@ -153,7 +153,7 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
             const auto& old_add = add_nodes[i];
             for (auto u : old_add->get_users()) {
                 for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
-                    if (u->get_input_node_shared_ptr(idx) == old_add) {
+                    if (u->input_value(idx).get_node_shared_ptr() == old_add) {
                         u->input(idx).replace_source_output(split->output(i));
                     }
                 }

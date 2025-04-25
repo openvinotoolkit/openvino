@@ -21,13 +21,13 @@ namespace pull_reshape_through_dequantization {
 namespace {
 
 std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& elementwise) {
-    const auto reshapeValues = ov::as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1));
+    const auto reshapeValues = ov::as_type_ptr<opset1::Constant>(reshape->input_value(1).get_node_shared_ptr());
     OPENVINO_ASSERT(reshapeValues != nullptr, "Reshape constant was not found");
 
-    auto elementwiseValuesConvert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(1));
+    auto elementwiseValuesConvert = ov::as_type_ptr<opset1::Convert>(elementwise->input_value(1).get_node_shared_ptr());
     auto elementwiseValues = elementwiseValuesConvert == nullptr ?
-        ov::as_type_ptr<opset1::Constant>(elementwise->get_input_node_shared_ptr(1)) :
-        ov::as_type_ptr<opset1::Constant>(elementwiseValuesConvert->get_input_node_shared_ptr(0));
+        ov::as_type_ptr<opset1::Constant>(elementwise->input_value(1).get_node_shared_ptr()) :
+        ov::as_type_ptr<opset1::Constant>(elementwiseValuesConvert->input_value(0).get_node_shared_ptr());
     assert(elementwiseValues != nullptr);
 
     const auto newElementwiseValues = [&]() -> std::shared_ptr<Node> {
@@ -149,7 +149,7 @@ ov::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDeq
         }
 
         do {
-            const auto parent = reshape->get_input_node_shared_ptr(0);
+            const auto parent = reshape->input_value(0).get_node_shared_ptr();
             if (ov::is_type<opset1::Multiply>(parent) || ov::is_type<opset1::Subtract>(parent)) {
                 reshape = pull_reshape_through_dequantization::moveThroughElementwise(reshape, parent);
             } else if (ov::is_type<opset1::Convert>(parent)) {

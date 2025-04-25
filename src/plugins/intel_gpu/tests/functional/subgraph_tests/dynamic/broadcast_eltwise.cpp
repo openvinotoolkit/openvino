@@ -82,13 +82,13 @@ TEST_P(BroadcastEltwise, smoke_CompareWithRefs) {
 
     const auto model = compiledModel.get_runtime_model();
 
-    const auto last_node = model->get_result()->get_input_node_shared_ptr(0);
+    const auto last_node = model->get_result()->input_value(0).get_node_shared_ptr();
     const auto& last_rt_info = last_node->get_rt_info();
     const auto last_layer_type = last_rt_info.find("layerType")->second.as<std::string>();
     EXPECT_EQ(last_layer_type, "Reorder");
 
     // Check that BroadcastTransition transformation was applied and broadcast is after eltwise now.
-    const auto last_node_input = last_node->get_input_node_shared_ptr(0);
+    const auto last_node_input = last_node->input_value(0).get_node_shared_ptr();
     const auto& last_input_rt_info = last_node_input->get_rt_info();
     const auto last_input_layer_type = last_input_rt_info.find("layerType")->second.as<std::string>();
     EXPECT_EQ(last_input_layer_type, "broadcast");

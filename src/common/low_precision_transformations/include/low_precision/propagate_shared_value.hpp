@@ -117,7 +117,7 @@ private:
             if (!dequantization.empty() &&
                 (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
                  ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
-                inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
+                inputNode = dequantization.data.get_node()->input_value(0).get_node_shared_ptr();
             }
 
             if (NetworkHelper::isPrecisionPreserved(inputNode)) {

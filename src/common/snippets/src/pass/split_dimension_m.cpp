@@ -205,7 +205,7 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
     };
 
     auto reshape_transpose = [&](const std::shared_ptr<ov::Node>& transpose, bool is_input) -> size_t {
-        const auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+        const auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(transpose->input_value(1).get_node_shared_ptr());
         OPENVINO_ASSERT(order_constant != nullptr, "Transpose must have Constant order");
         const auto order = order_constant->cast_vector<size_t>();
         const auto forward_index = order.size() - 1 - dim_M_index;
@@ -235,7 +235,7 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
     };
 
     auto update_matmul_second_branch = [&](const std::shared_ptr<ov::op::v0::MatMul>& node) {
-        auto parent = node->get_input_node_shared_ptr(1);
+        auto parent = node->input_value(1).get_node_shared_ptr();
         while (!ov::is_type<ov::op::v0::Parameter>(parent)) {
             if (parent->get_input_size() > 1) {
                 for (const auto& input_source : parent->input_values()) {
@@ -244,7 +244,7 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
             }
 
             // [107731]: It's covered my MHA tokenization
-            parent = parent->get_input_node_shared_ptr(0);
+            parent = parent->input_value(0).get_node_shared_ptr();
         }
         reshape_parameter(parent, false);
     };
@@ -259,7 +259,7 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
             softmax_v1->set_axis(softmax_v1->get_output_partial_shape(0).size()); // since new_shape.size() = old_shape.size() + 1
         } else if (const auto broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(op)) {
             // Broadcast is tokenized only between MatMuls -> Split M dimension
-            const auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1));
+            const auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr());
             OPENVINO_ASSERT(shape_const, "SplitDimensionM expects Broadcast with Constant output shape");
             const auto m_dim_idx = broadcast->get_output_partial_shape(0).size() - 2;
             const auto new_shape = get_updated_shape(shape_const->cast_vector<size_t>(), m_dim_idx, true);
@@ -275,7 +275,7 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
 
     // Update Transpose order on Result
     for (const auto& res : results) {
-        const auto parent = res->get_input_node_shared_ptr(0);
+        const auto parent = res->input_value(0).get_node_shared_ptr();
         if (ov::is_type<ov::op::v1::Transpose>(parent)) {
             reshape_transpose(parent, false);
         }
@@ -291,7 +291,7 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
         const auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{output_shape.size()}, output_shape);
         const auto reshape = std::make_shared<ov::op::v1::Reshape>(subgraph->output(i), shape_const, false);
         // Save output name
-        const auto original_output = body->get_results()[i]->get_input_node_shared_ptr(0);
+        const auto original_output = body->get_results()[i]->input_value(0).get_node_shared_ptr();
         const auto original_name = original_output->get_friendly_name();
         reshape->set_friendly_name(original_name);
         original_output->set_friendly_name(original_name + "_original");

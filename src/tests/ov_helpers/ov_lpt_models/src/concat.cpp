@@ -1495,11 +1495,11 @@ std::shared_ptr<ov::Model> ConcatFunction::getReferenceWithSplitedIntermediate(
 
     const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
     replace_node(
-        fakeQuantize2->get_input_node_shared_ptr(3),
-        ov::pass::low_precision::NetworkHelper::toScalarIfPossible(fakeQuantize2->get_input_node_shared_ptr(3)));
+        fakeQuantize2->input_value(3).get_node_shared_ptr(),
+        ov::pass::low_precision::NetworkHelper::toScalarIfPossible(fakeQuantize2->input_value(3).get_node_shared_ptr()));
     replace_node(
-        fakeQuantize2->get_input_node_shared_ptr(4),
-        ov::pass::low_precision::NetworkHelper::toScalarIfPossible(fakeQuantize2->get_input_node_shared_ptr(4)));
+        fakeQuantize2->input_value(4).get_node_shared_ptr(),
+        ov::pass::low_precision::NetworkHelper::toScalarIfPossible(fakeQuantize2->input_value(4).get_node_shared_ptr()));
 
     fakeQuantize2->set_friendly_name("fakeQuantize2");
     ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionAfterOperation);

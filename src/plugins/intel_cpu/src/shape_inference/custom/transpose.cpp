@@ -31,7 +31,7 @@ Result TransposeShapeInfer::infer(const std::vector<std::reference_wrapper<const
 }
 ShapeInferPtr TransposeShapeInferFactory::makeShapeInfer() const {
     if (const auto order = ov::as_type_ptr<const ov::op::v0::Constant>(
-            m_op->get_input_node_shared_ptr(ov::op::v1::Transpose::ORDER))) {
+            m_op->input_value(ov::op::v1::Transpose::ORDER).get_node_shared_ptr())) {
         const auto axes_vec = order->cast_vector<size_t>();
         return std::make_shared<TransposeShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(), axes_vec);
     }

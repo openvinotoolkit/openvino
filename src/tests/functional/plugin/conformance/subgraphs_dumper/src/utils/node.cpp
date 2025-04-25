@@ -80,7 +80,7 @@ std::map<std::string, ov::conformance::InputInfo>
 get_input_info_by_node(const std::shared_ptr<ov::Node>& node) {
     std::map<std::string, ov::conformance::InputInfo> input_info;
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
-        std::shared_ptr<ov::Node> input_node = node->get_input_node_shared_ptr(port_id);
+        std::shared_ptr<ov::Node> input_node = node->input_value(port_id).get_node_shared_ptr();
         if (!ov::op::util::is_parameter(input_node) && !ov::op::util::is_constant(input_node)) {
             continue;
         }
@@ -147,7 +147,7 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
                                                              cloned_node->get_input_partial_shape(0));
         std::string param_name = node_name + "_0";
         param->set_friendly_name(param_name);
-        auto node_to_replace = cloned_node->get_input_node_shared_ptr(0);
+        auto node_to_replace = cloned_node->input_value(0).get_node_shared_ptr();
         ov::replace_node(node_to_replace, param);
     } else {
         cloned_node = node->clone_with_new_inputs(inputs);

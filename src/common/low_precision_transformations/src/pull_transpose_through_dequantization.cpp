@@ -23,13 +23,13 @@ namespace pull_transpose_through_dequantization {
 namespace {
 
 std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transpose, const std::shared_ptr<Node>& elementwise) {
-    const auto transposeValues = transpose->get_input_node_shared_ptr(1);
+    const auto transposeValues = transpose->input_value(1).get_node_shared_ptr();
     OPENVINO_ASSERT(transposeValues != nullptr, "transpose constant was not found");
 
-    auto elementwiseValuesConvert = ov::as_type_ptr<opset1::Convert>(elementwise->get_input_node_shared_ptr(1ul));
+    auto elementwiseValuesConvert = ov::as_type_ptr<opset1::Convert>(elementwise->input_value(1ul).get_node_shared_ptr());
     auto elementwiseValues = elementwiseValuesConvert == nullptr ?
-        elementwise->get_input_node_shared_ptr(1ul) :
-        elementwiseValuesConvert->get_input_node_shared_ptr(0ul);
+        elementwise->input_value(1ul).get_node_shared_ptr() :
+        elementwiseValuesConvert->input_value(0ul).get_node_shared_ptr();
     assert(ov::is_type<opset1::Constant>(elementwiseValues));
 
     const auto transposeValuesShape = transposeValues->get_output_shape(0);
@@ -49,7 +49,7 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transp
     }
 
     const std::shared_ptr<opset1::Transpose> newTranspose = ov::as_type_ptr<opset1::Transpose>(transpose->clone_with_new_inputs({
-        elementwise->get_input_node_shared_ptr(0ul),
+        elementwise->input_value(0ul).get_node_shared_ptr(),
         transposeValues }));
 
     const auto newElementwiseValues = ov::pass::low_precision::fold<opset1::Transpose>(
@@ -115,7 +115,7 @@ ov::pass::low_precision::PullTransposeThroughDequantization::PullTransposeThroug
         auto transpose = opsMap.at(matcherTranspose).get_node_shared_ptr();
 
         while (transpose != nullptr) {
-            const auto parent = transpose->get_input_node_shared_ptr(0);
+            const auto parent = transpose->input_value(0).get_node_shared_ptr();
             if (ov::is_type<opset1::Multiply>(parent) || ov::is_type<opset1::Subtract>(parent)) {
                 transpose = pull_transpose_through_dequantization::moveThroughElementwise(transpose, parent);
             } else if (ov::is_type<opset1::Convert>(parent)) {

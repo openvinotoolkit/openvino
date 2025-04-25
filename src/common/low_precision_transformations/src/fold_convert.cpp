@@ -38,8 +38,8 @@ bool FoldConvertTransformation::transform(ov::pass::pattern::Matcher &m) {
     }
 
     auto foldConvert = [&](const size_t branch) {
-        const auto convert = subtract->get_input_node_shared_ptr(branch);
-        if (!ov::is_type<ov::opset1::Convert>(convert) || !ov::is_type<ov::opset1::Constant>(convert->get_input_node_shared_ptr(0))) {
+        const auto convert = subtract->input_value(branch).get_node_shared_ptr();
+        if (!ov::is_type<ov::opset1::Convert>(convert) || !ov::is_type<ov::opset1::Constant>(convert->input_value(0).get_node_shared_ptr())) {
             return;
         }
 

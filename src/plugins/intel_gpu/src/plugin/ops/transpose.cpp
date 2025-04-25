@@ -18,7 +18,7 @@ static void CreateTransposeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
 
     std::vector<uint16_t> order;
     if (op->get_input_size() == 2) {
-        auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto order_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         OPENVINO_ASSERT(order_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         order = order_constant->cast_vector<uint16_t>();
     }

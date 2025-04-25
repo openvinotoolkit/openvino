@@ -110,7 +110,7 @@ void update_parameter_to_slice_input(const std::shared_ptr<ov::Node>& node,
     if (!tensor_list_get_item) {
         return;
     }
-    auto tensor_list = ov::as_type_ptr<v0::Parameter>(tensor_list_get_item->get_input_node_shared_ptr(0));
+    auto tensor_list = ov::as_type_ptr<v0::Parameter>(tensor_list_get_item->input_value(0).get_node_shared_ptr());
     if (!tensor_list) {
         return;
     }
@@ -147,7 +147,7 @@ void update_result_to_concat_output(const std::shared_ptr<ov::Node>& node,
     if (!tensor_list_set_item) {
         return;
     }
-    auto tensor_list = ov::as_type_ptr<v0::Parameter>(tensor_list_set_item->get_input_node_shared_ptr(0));
+    auto tensor_list = ov::as_type_ptr<v0::Parameter>(tensor_list_set_item->input_value(0).get_node_shared_ptr());
     if (!tensor_list) {
         return;
     }
@@ -169,7 +169,7 @@ void update_result_to_concat_output(const std::shared_ptr<ov::Node>& node,
     }
 
     uint64_t result_idx = merged_input_desc->m_body_value_index;
-    if (results[result_idx]->get_input_node_shared_ptr(0) != tensor_list_set_item) {
+    if (results[result_idx]->input_value(0).get_node_shared_ptr() != tensor_list_set_item) {
         return;
     }
 
@@ -454,7 +454,7 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
             }
 
             // get initial value of counter
-            if (!get_constant_value(loop->get_input_node_shared_ptr(input_idx), initial_counter)) {
+            if (!get_constant_value(loop->input_value(input_idx).get_node_shared_ptr(), initial_counter)) {
                 return false;
             }
 
@@ -492,17 +492,19 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
         std::vector<uint64_t> update_result_last_iter_ids;
         for (uint64_t result_idx = 0; result_idx < body_results.size(); ++result_idx) {
             const auto& result = body_results[result_idx];
-            auto tensor_list_set_item = ov::as_type_ptr<TensorListSetItem>(result->get_input_node_shared_ptr(0));
+            auto tensor_list_set_item =
+                ov::as_type_ptr<TensorListSetItem>(result->input_value(0).get_node_shared_ptr());
             if (!tensor_list_set_item) {
                 continue;
             }
             int64_t index_value = -1;
-            if (!get_constant_value(tensor_list_set_item->get_input_node_shared_ptr(1), index_value) ||
+            if (!get_constant_value(tensor_list_set_item->input_value(1).get_node_shared_ptr(), index_value) ||
                 (index_value != 0)) {
                 continue;
             }
 
-            auto tensor_list = ov::as_type_ptr<v0::Parameter>(tensor_list_set_item->get_input_node_shared_ptr(0));
+            auto tensor_list =
+                ov::as_type_ptr<v0::Parameter>(tensor_list_set_item->input_value(0).get_node_shared_ptr());
             if (!tensor_list) {
                 continue;
             }
@@ -529,7 +531,8 @@ ov::frontend::tensorflow::pass::TensorListInLoopOptimization::TensorListInLoopOp
                                      update_result_last_iter_ids.end());
         for (auto update_result_idx : all_update_result_ids) {
             const auto& body_result = body_results[update_result_idx];
-            auto tensor_list_set_item = ov::as_type_ptr<TensorListSetItem>(body_result->get_input_node_shared_ptr(0));
+            auto tensor_list_set_item =
+                ov::as_type_ptr<TensorListSetItem>(body_result->input_value(0).get_node_shared_ptr());
             FRONT_END_GENERAL_CHECK(tensor_list_set_item,
                                     "[TensorFlow Frontend] internal error: tensor_list_set_item is nullptr in "
                                     "TensorListInLoopOptimization");

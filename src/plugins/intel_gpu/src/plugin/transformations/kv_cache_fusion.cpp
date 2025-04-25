@@ -70,7 +70,7 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         std::shared_ptr<ov::Node> variable_initializer = nullptr;
         std::shared_ptr<ov::Node> kv_cache_node = nullptr;
         if (past_node->get_input_size() == 1) {
-            variable_initializer = past_node->get_input_node_shared_ptr(0);
+            variable_initializer = past_node->input_value(0).get_node_shared_ptr();
         }
 
         // Replace common ReadValue op with a custom one as common one expects paired Assign operation which is removed by this transform

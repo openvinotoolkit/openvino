@@ -17,7 +17,7 @@ namespace util {
 static inline Tensor get_string_tensor(const Node* op, const ITensorAccessor& tensor_accessor) {
     if (auto t = tensor_accessor(0)) {
         return t;
-    } else if (const auto& constant = as_type_ptr<v0::Constant>(op->get_input_node_shared_ptr(0))) {
+    } else if (const auto& constant = as_type_ptr<v0::Constant>(op->input_value(0).get_node_shared_ptr())) {
         return constant->get_tensor_view();
     } else {
         return {};

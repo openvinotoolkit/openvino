@@ -242,8 +242,8 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
     if (!bitwise_shift)
         return nullptr;
 
-    auto weights_u8 = ov::as_type_ptr<v0::Constant>(bitwise_and->get_input_node_shared_ptr(0));
-    auto weights_u8_bitwise_shift = ov::as_type_ptr<v0::Constant>(bitwise_shift->get_input_node_shared_ptr(0));
+    auto weights_u8 = ov::as_type_ptr<v0::Constant>(bitwise_and->input_value(0).get_node_shared_ptr());
+    auto weights_u8_bitwise_shift = ov::as_type_ptr<v0::Constant>(bitwise_shift->input_value(0).get_node_shared_ptr());
     if (weights_u8->get_data_ptr() != weights_u8_bitwise_shift->get_data_ptr())
         return nullptr;
 
@@ -257,7 +257,7 @@ std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64
                                                     0x0F))
         return nullptr;
 
-    if (!ov::op::util::has_constant_value<uint64_t>(bitwise_shift->get_input_node_shared_ptr(1), 4))
+    if (!ov::op::util::has_constant_value<uint64_t>(bitwise_shift->input_value(1).get_node_shared_ptr(), 4))
         return nullptr;
 
     // Pattern detected, weights_u8 is target u8 packed constant with weights

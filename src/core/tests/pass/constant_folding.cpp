@@ -740,7 +740,7 @@ TEST(constant_folding, shape_of_dynamic_v0) {
 
     ASSERT_EQ(f->get_ops().size(), 3);
 
-    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    auto result_shape_of = f->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_EQ(result_shape_of, shape_of);
     check_names(result_shape_of, {"test"});
 }
@@ -757,7 +757,7 @@ TEST(constant_folding, shape_of_dynamic_v3) {
 
     ASSERT_EQ(f->get_ops().size(), 3);
 
-    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    auto result_shape_of = f->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_EQ(result_shape_of, shape_of);
     check_names(result_shape_of, {"test"});
 }
@@ -774,7 +774,7 @@ TEST(constant_folding, shape_of_dynamic_i32_v3) {
 
     ASSERT_EQ(f->get_ops().size(), 3);
 
-    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    auto result_shape_of = f->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_EQ(result_shape_of, shape_of);
     check_names(result_shape_of, {"test"});
 }
@@ -792,7 +792,7 @@ TEST(constant_folding, shape_of_dynamic_double_folding_v0) {
 
     ASSERT_EQ(f->get_ops().size(), 3);
 
-    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    auto result_shape_of = f->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_EQ(result_shape_of, shape_of);
     check_names(result_shape_of, {"test"});
 }
@@ -809,7 +809,7 @@ TEST(constant_folding, shape_of_dynamic_double_folding_v3) {
 
     ASSERT_EQ(f->get_ops().size(), 3);
 
-    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    auto result_shape_of = f->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_EQ(result_shape_of, shape_of);
     check_names(result_shape_of, {"test"});
 }
@@ -829,7 +829,7 @@ TEST(constant_folding, shape_of_rank_dynamic_v0) {
     ASSERT_EQ(count_ops_of_type<op::v0::ShapeOf>(f), 1);
     ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 0);
 
-    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    auto result_shape_of = f->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_EQ(result_shape_of, shape_of);
     check_names(result_shape_of, {"test"});
 }
@@ -847,7 +847,7 @@ TEST(constant_folding, shape_of_rank_dynamic_v3) {
     ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(f), 1);
     ASSERT_EQ(count_ops_of_type<ov::op::v0::Constant>(f), 0);
 
-    auto result_shape_of = f->get_results().at(0)->get_input_node_shared_ptr(0);
+    auto result_shape_of = f->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_EQ(result_shape_of, shape_of);
     check_names(result_shape_of, {"test"});
 }
@@ -3650,7 +3650,7 @@ TEST(constant_folding, disable_constant_folding) {
     run_constant_folding(f);
 
     // After we enabled CF the sub-graph will be folded to Constant
-    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(interpolate->get_input_node_shared_ptr(1)));
+    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(interpolate->input_value(1).get_node_shared_ptr()));
 
     // Check that DisableConstantFolding attribute wasn't propagated to some other nodes during CF
     for (auto node : f->get_ordered_ops()) {
@@ -3680,7 +3680,7 @@ TEST(constant_folding, disable_constant_folding_simple) {
     run_constant_folding(f);
 
     // After we enabled CF the sub-graph will be folded to Constant
-    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(divide->get_input_node_shared_ptr(1)));
+    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(divide->input_value(1).get_node_shared_ptr()));
 
     // Check that DisableConstantFolding attribute wasn't propagated to some other nodes during CF
     for (auto node : f->get_ordered_ops()) {
@@ -3712,7 +3712,7 @@ TEST(constant_folding, disable_constant_folding_check) {
     ASSERT_TRUE(shapeof2->get_rt_info().count("can_be_folded"));
     ASSERT_TRUE(shapeof2->get_rt_info().at("can_be_folded").as<bool>());
 
-    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(reshape2->get_input_node_shared_ptr(1)));
+    ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(reshape2->input_value(1).get_node_shared_ptr()));
 }
 
 TEST(constant_folding, constant_loop) {

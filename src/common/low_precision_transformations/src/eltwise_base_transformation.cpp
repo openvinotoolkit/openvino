@@ -71,13 +71,13 @@ static bool isTargetType(const std::shared_ptr<Node> node) {
 static std::shared_ptr<Node> getDataParent(const std::shared_ptr<Node> branchData) {
     std::shared_ptr<Node> parent = branchData;
     while (ov::is_type<ov::opset1::FakeQuantize>(parent)) {
-        parent = parent->get_input_node_shared_ptr(0);
+        parent = parent->input_value(0).get_node_shared_ptr();
     }
 
     if (ov::marked_as_bias(parent)) {
         // we need to check both inputs in order to handle the case with constant on 0's input
         for (size_t i = 0; i < parent->get_input_size(); ++i) {
-            const auto bias_parent = parent->get_input_node_shared_ptr(i);
+            const auto bias_parent = parent->input_value(i).get_node_shared_ptr();
             // target node just before bias
             if (isTargetType(bias_parent)) {
                 return bias_parent;
@@ -103,8 +103,8 @@ static bool isBranchHaveMultipleConsumers(const std::shared_ptr<Node> branchData
         if (several_consumers(parent)) {
             return true;
         }
-        const auto new_parent = parent->get_input_node_shared_ptr(0);
-        parent = !ov::is_type<ov::opset1::Constant>(new_parent) ? new_parent : parent->get_input_node_shared_ptr(1);
+        const auto new_parent = parent->input_value(0).get_node_shared_ptr();
+        parent = !ov::is_type<ov::opset1::Constant>(new_parent) ? new_parent : parent->input_value(1).get_node_shared_ptr();
     }
     return several_consumers(parent);
 }
@@ -209,9 +209,9 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
 }
 
 std::pair<int, int> EltwiseBaseTransformation::getMultiplyConstBranch(const std::shared_ptr<Node>& eltwise) const {
-    const std::shared_ptr<Node> parent1 = eltwise->get_input_node_shared_ptr(0);
+    const std::shared_ptr<Node> parent1 = eltwise->input_value(0).get_node_shared_ptr();
     const auto dequantization1 = NetworkHelper::getDequantization(eltwise, defaultPrecisions, 0);
-    const std::shared_ptr<Node> parent2 = eltwise->get_input_node_shared_ptr(1);
+    const std::shared_ptr<Node> parent2 = eltwise->input_value(1).get_node_shared_ptr();
     const auto dequantization2 = NetworkHelper::getDequantization(eltwise, defaultPrecisions, 1);
 
     std::shared_ptr<ov::opset1::Constant> constParent = dequantization1.empty() ?
@@ -233,8 +233,8 @@ std::pair<int, int> EltwiseBaseTransformation::getMultiplyConstBranch(const std:
         return {-1, -1};
     }
 
-    auto multiplyParentParent1 = multiplyParent->get_input_node_shared_ptr(0);
-    auto multiplyParentParent2 = multiplyParent->get_input_node_shared_ptr(1);
+    auto multiplyParentParent1 = multiplyParent->input_value(0).get_node_shared_ptr();
+    auto multiplyParentParent2 = multiplyParent->input_value(1).get_node_shared_ptr();
 
     auto multiplyParentParent = ov::as_type_ptr<ov::opset1::Multiply>(multiplyParentParent1);
     auto multiplyParentConst = ov::as_type_ptr<ov::opset1::Constant>(multiplyParentParent2);

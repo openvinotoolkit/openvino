@@ -188,10 +188,12 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
         }
         // check whether the inputs to concat have same fakequantize parameters
         for (size_t i = 1; i < dense_fq_node->get_input_size(); i++) {
-            auto dense_const = ov::as_type_ptr<ov::opset8::Constant>(dense_fq_node->get_input_node_shared_ptr(i))
-                                   ->cast_vector<float>();
-            auto sparse_const = ov::as_type_ptr<ov::opset8::Constant>(sparse_fq_node->get_input_node_shared_ptr(i))
-                                    ->cast_vector<float>();
+            auto dense_const =
+                ov::as_type_ptr<ov::opset8::Constant>(dense_fq_node->input_value(i).get_node_shared_ptr())
+                    ->cast_vector<float>();
+            auto sparse_const =
+                ov::as_type_ptr<ov::opset8::Constant>(sparse_fq_node->input_value(i).get_node_shared_ptr())
+                    ->cast_vector<float>();
             if (dense_const.size() != sparse_const.size() || dense_const != sparse_const) {
                 return false;
             }

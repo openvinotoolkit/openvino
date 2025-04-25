@@ -1985,7 +1985,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         }
         if (const auto reduce = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(op)) {
             auto reduceConst =
-                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+                ov::as_type_ptr<const ov::opset1::Constant>(reduce->input_value(REDUCE_INDEXES).get_node_shared_ptr());
             if (!reduceConst) {
                 errorMessage = "Second tensor is not constant";
                 return false;
@@ -1993,7 +1993,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         }
         if (const auto reduce = ov::as_type_ptr<const ov::op::util::LogicalReductionKeepDims>(op)) {
             auto reduceConst =
-                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+                ov::as_type_ptr<const ov::opset1::Constant>(reduce->input_value(REDUCE_INDEXES).get_node_shared_ptr());
             if (!reduceConst) {
                 errorMessage = "Second tensor is not constant";
                 return false;
@@ -2003,7 +2003,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             errorMessage = "Doesn't support Reduce algorithm: " + std::string(op->get_type_info().name);
             return false;
         }
-        if (ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
+        if (ov::as_type_ptr<ov::opset1::Constant>(op->input_value(REDUCE_INDEXES).get_node_shared_ptr()) == nullptr) {
             errorMessage = "Only const 'reduce_indexes' input is supported";
             return false;
         }
@@ -2021,7 +2021,7 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         if (const auto reduce = ov::as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
             auto reduceConst =
-                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+                ov::as_type_ptr<const ov::opset1::Constant>(reduce->input_value(REDUCE_INDEXES).get_node_shared_ptr());
             if (!reduceConst) {
                 THROW_CPU_NODE_ERR("second tensor is not constant!");
             }
@@ -2029,7 +2029,7 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         } else if (const auto reduce = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
             auto reduceConst =
-                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+                ov::as_type_ptr<const ov::opset1::Constant>(reduce->input_value(REDUCE_INDEXES).get_node_shared_ptr());
             if (!reduceConst) {
                 THROW_CPU_NODE_ERR("second tensor is not constant!");
             }

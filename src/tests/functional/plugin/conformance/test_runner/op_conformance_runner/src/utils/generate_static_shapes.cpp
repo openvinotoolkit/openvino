@@ -52,7 +52,7 @@ namespace {
 
 InputShape generate(const std::shared_ptr<ov::Node>& node,
                     size_t in_port_id) {
-    const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(in_port_id));
+    const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(node->input_value(in_port_id).get_node_shared_ptr());
     std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
                                             generate_mid_shape(param->get_partial_shape()),
                                             param->get_partial_shape().get_max_shape() };
@@ -75,7 +75,7 @@ InputShape generate(const std::shared_ptr<ov::op::v1::Convolution>& node,
     std::map<size_t, size_t> restrict_dims;
     for (size_t port = 0; port < node->get_input_size(); ++port) {
         if (port != in_port_id) {
-            auto kernel_ptr = node->get_input_node_shared_ptr(port);
+            auto kernel_ptr = node->input_value(port).get_node_shared_ptr();
             // Layout of kernel is [C_OUT, C_IN, Z, Y, X], layout of input is [N, C_IN, Z, Y, X]
             for (size_t dim = kernel_ptr->get_shape().size() - 1; dim >= 2; --dim) {
                 restrict_dims.insert({dim, kernel_ptr->get_shape()[dim]});
@@ -94,7 +94,7 @@ InputShape generate(const std::shared_ptr<ov::op::v1::ConvolutionBackpropData>& 
     std::map<size_t, size_t> restrict_dims;
     for (size_t port = 0; port < node->get_input_size(); ++port) {
         if (port != in_port_id) {
-            auto kernel_ptr = node->get_input_node_shared_ptr(port);
+            auto kernel_ptr = node->input_value(port).get_node_shared_ptr();
             // Layout of kernel is [C_OUT, C_IN, Z, Y, X], layout of input is [N, C_IN, Z, Y, X]
             for (size_t dim = kernel_ptr->get_shape().size() - 1; dim >= 2; --dim) {
                 restrict_dims.insert({dim, kernel_ptr->get_shape()[dim]});

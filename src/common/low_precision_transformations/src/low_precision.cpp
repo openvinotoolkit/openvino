@@ -329,7 +329,7 @@ bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(
         nodes.pop_front();
 
         for (size_t i = 0; i < node->inputs().size(); ++i) {
-            const auto parent = node->get_input_node_shared_ptr(i);
+            const auto parent = node->input_value(i).get_node_shared_ptr();
             if (handledNodes.find(parent) != handledNodes.end()) {
                 continue;
             }

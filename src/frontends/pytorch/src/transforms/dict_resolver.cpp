@@ -31,8 +31,8 @@ bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
             for (const auto inp : targets) {
                 const auto getitem_node = cast_fw_node(inp.get_node()->shared_from_this(), "aten::__getitem__");
                 if (getitem_node) {
-                    const auto index_node =
-                        ov::as_type_ptr<ov::op::util::FrameworkNode>(getitem_node->get_input_node_shared_ptr(1));
+                    const auto index_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(
+                        getitem_node->input_value(1).get_node_shared_ptr());
                     if (!index_node) {
                         at_least_one_unused = true;
                         continue;
@@ -73,7 +73,7 @@ bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
     bool changed = false;
     const auto results = model->get_results();
     for (const auto& res : results) {
-        if (auto dict_construct_node = cast_fw_node(res->get_input_node_shared_ptr(0), "prim::DictConstruct")) {
+        if (auto dict_construct_node = cast_fw_node(res->input_value(0).get_node_shared_ptr(), "prim::DictConstruct")) {
             const auto inputs = dict_construct_node->input_values();
             if (inputs.size() % 2) {
                 // inputs must be divisible by 2

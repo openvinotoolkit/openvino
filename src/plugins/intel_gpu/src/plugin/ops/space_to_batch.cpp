@@ -22,7 +22,7 @@ static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
     bool constant_shape = true;
     for (size_t i = 1; i < 4; ++i) {
-        auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
+        auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(i).get_node_shared_ptr());
         if (!inConst) {
             constant_shape = false;
             break;
@@ -34,7 +34,7 @@ static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         auto rank = op->get_input_partial_shape(0).size();
         auto format = cldnn::format::get_default_format(rank);
         for (size_t i = 1; i < 4; ++i) {
-            auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
+            auto inConst = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(i).get_node_shared_ptr());
 
             std::vector<int32_t> sizes = inConst->cast_vector<int32_t>();
             int32_t default_size = i == 1 ? 1 : 0;

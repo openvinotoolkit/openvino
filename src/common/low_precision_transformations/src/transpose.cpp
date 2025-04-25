@@ -71,7 +71,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std
         const auto constant = transposeDeqConstant(
             dequantization.subtractConstant,
             transpose->get_output_partial_shape(0),
-            transpose->get_input_node_shared_ptr(1));
+            transpose->input_value(1).get_node_shared_ptr());
         replace_node(dequantization.subtractConstant, constant);
     }
 
@@ -79,7 +79,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std
         const auto constant = transposeDeqConstant(
             dequantization.multiplyConstant,
             transpose->get_output_partial_shape(0),
-            transpose->get_input_node_shared_ptr(1));
+            transpose->input_value(1).get_node_shared_ptr());
         replace_node(dequantization.multiplyConstant, constant);
     }
 }
@@ -109,7 +109,7 @@ bool TransposeTransformation::canBeTransformed(const std::shared_ptr<Node>& op) 
         return false;
     }
 
-    const std::shared_ptr<ov::opset1::Constant> constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(1));
+    const std::shared_ptr<ov::opset1::Constant> constant = ov::as_type_ptr<ov::opset1::Constant>(op->input_value(1).get_node_shared_ptr());
     if (constant == nullptr) {
         return false;
     }

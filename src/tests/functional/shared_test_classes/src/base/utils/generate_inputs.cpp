@@ -186,13 +186,13 @@ bool get_fq_scalar_range(const std::shared_ptr<ov::op::v0::FakeQuantize> &node, 
     auto get_min_value = [](const Vec& v) {
         return std::min_element(v.begin(), v.end());
     };
-    if (!get_const_value(node->get_input_node_shared_ptr(1), min_value, get_min_value))
+    if (!get_const_value(node->input_value(1).get_node_shared_ptr(), min_value, get_min_value))
         return false;
 
     auto get_max_value = [](const Vec& v) {
         return std::max_element(v.begin(), v.end());
     };
-    if (!get_const_value(node->get_input_node_shared_ptr(2), max_value, get_max_value))
+    if (!get_const_value(node->input_value(2).get_node_shared_ptr(), max_value, get_max_value))
         return false;
 
     return true;

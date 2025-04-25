@@ -1849,7 +1849,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
         }
 
         if (auto mvnOp = ov::as_type_ptr<const ov::op::v6::MVN>(op)) {
-            auto axesOp = ov::as_type_ptr<ov::op::v0::Constant>(mvnOp->get_input_node_shared_ptr(1));
+            auto axesOp = ov::as_type_ptr<ov::op::v0::Constant>(mvnOp->input_value(1).get_node_shared_ptr());
             if (!axesOp) {
                 errorMessage = "Constant expected as the second input.";
                 return false;

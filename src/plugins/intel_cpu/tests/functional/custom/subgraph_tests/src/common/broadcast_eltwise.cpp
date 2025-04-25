@@ -76,7 +76,7 @@ protected:
 
     void CheckLastNode(const ov::CompiledModel& execNet) {
         const auto model = execNet.get_runtime_model();
-        const auto last_node = model->get_result()->get_input_node_shared_ptr(0);
+        const auto last_node = model->get_result()->input_value(0).get_node_shared_ptr();
         const auto& rt_info = last_node->get_rt_info();
         const auto layer_type = rt_info.find("layerType")->second.as<std::string>();
         EXPECT_EQ(layer_type, "Broadcast");

@@ -85,7 +85,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> find_fake_quantize_upper(const std::sh
         return nullptr;
     }
 
-    return find_fake_quantize_upper(parent->get_input_node_shared_ptr(0));
+    return find_fake_quantize_upper(parent->input_value(0).get_node_shared_ptr());
 }
 
 template <class Operation>
@@ -168,7 +168,7 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
     const auto lstm = m.get_match_root();
     const auto inputs = get_supported_precisions(lstm);
     for (const auto& input : inputs) {
-        const auto& parent = lstm->get_input_node_shared_ptr(input.first);
+        const auto& parent = lstm->input_value(input.first).get_node_shared_ptr();
         if (!isSupportedForPerChannelQuantization(parent)) {
             continue;
         }
@@ -214,9 +214,9 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
     }
 
     for (size_t parentIndex = 0ul; parentIndex < lstm->get_input_size(); parentIndex++) {
-        auto lstm_parent = lstm->get_input_node_shared_ptr(parentIndex);
+        auto lstm_parent = lstm->input_value(parentIndex).get_node_shared_ptr();
         if (is_type<ov::opset1::FakeQuantize>(lstm_parent)) {
-            auto fq_parent = lstm_parent->get_input_node_shared_ptr(0);
+            auto fq_parent = lstm_parent->input_value(0).get_node_shared_ptr();
             if (is_type<ov::opset5::Constant>(fq_parent)) {
                 auto fq_node = as_type_ptr<ov::opset1::FakeQuantize>(lstm_parent);
                 const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq_node);
@@ -242,9 +242,9 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
                 }
 
                 std::shared_ptr<ov::Node> convert;
-                auto multiply_parent = deq_multiply->get_input_node_shared_ptr(0);
+                auto multiply_parent = deq_multiply->input_value(0).get_node_shared_ptr();
                 if (is_type<ov::opset1::Subtract>(multiply_parent)) {
-                    convert = multiply_parent->get_input_node_shared_ptr(0);
+                    convert = multiply_parent->input_value(0).get_node_shared_ptr();
                 } else {
                     convert = multiply_parent;
                 }
@@ -258,7 +258,7 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
             }
         } else {
             if (is_type<ov::opset1::Multiply>(lstm_parent)) {
-                auto multiply = lstm_parent->get_input_node_shared_ptr(0);
+                auto multiply = lstm_parent->input_value(0).get_node_shared_ptr();
                 ov::disable_constant_folding(multiply);
                 propagateSkipCleanupAttribute(lstm_parent);
             }
@@ -294,10 +294,10 @@ bool RecurrentCellTransformation::isPrecisionPreserved(std::shared_ptr<Node>) co
 
 void RecurrentCellTransformation::propagateSkipCleanupAttribute(std::shared_ptr<Node> multiply) {
     DisableCleanupAttribute::create(multiply);
-    auto multiply_parent = multiply->get_input_node_shared_ptr(0);
+    auto multiply_parent = multiply->input_value(0).get_node_shared_ptr();
     DisableCleanupAttribute::create(multiply_parent);
     if (is_type<ov::opset1::Subtract>(multiply_parent)) {
-        auto subtract_parent = multiply_parent->get_input_node_shared_ptr(0);
+        auto subtract_parent = multiply_parent->input_value(0).get_node_shared_ptr();
         DisableCleanupAttribute::create(subtract_parent);
     }
 }

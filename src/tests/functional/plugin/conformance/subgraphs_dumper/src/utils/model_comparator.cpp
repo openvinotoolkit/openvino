@@ -140,8 +140,8 @@ ModelComparator::get_matched_ops_in_graphs(const std::shared_ptr<ov::Model>& sub
                 checked_op.insert(graph_op->get_friendly_name());
                 if (is_check_inputs) {
                     for (size_t idx = 0; idx < graph_op->inputs().size(); ++idx) {
-                        auto graph_in = graph_op->get_input_node_shared_ptr(idx);
-                        auto subgraph_in = subgraph_op->get_input_node_shared_ptr(idx);
+                        auto graph_in = graph_op->input_value(idx).get_node_shared_ptr();
+                        auto subgraph_in = subgraph_op->input_value(idx).get_node_shared_ptr();
                         if (ov::util::is_node_to_skip(graph_in) && ov::util::is_node_to_skip(subgraph_in)) {
                             if (match(subgraph_in, graph_in)) {
                                 matched_op_names.insert({subgraph_in->get_friendly_name(), graph_in->get_friendly_name()});

@@ -39,15 +39,15 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(ov::pass::pattern::Matc
         return false;
     }
 
-    const auto parent = subtract->get_input_node_shared_ptr(0);
+    const auto parent = subtract->input_value(0).get_node_shared_ptr();
     auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(parent);
     const auto convert = ov::as_type_ptr<ov::opset1::Convert>(parent);
 
     if (convert) {
-        fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(convert->get_input_node_shared_ptr(0));
+        fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(convert->input_value(0).get_node_shared_ptr());
     }
 
-    const auto subtractConstant = subtract->get_input_node_shared_ptr(1);
+    const auto subtractConstant = subtract->input_value(1).get_node_shared_ptr();
     if (!ov::is_type<ov::opset1::Constant>(subtractConstant)) {
         return false;
     }
@@ -61,10 +61,10 @@ bool FuseSubtractToFakeQuantizeTransformation::transform(ov::pass::pattern::Matc
 
     const auto inputLow = foldConvert(fakeQuantize->input_value(1), deqPrecision);
     const auto inputHigh = foldConvert(fakeQuantize->input_value(2), deqPrecision);
-    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(1), inputLow);
-    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(2), inputHigh);
-    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(3), outputLow);
-    NetworkHelper::copyInfo(fakeQuantize->get_input_node_shared_ptr(4), outputHigh);
+    NetworkHelper::copyInfo(fakeQuantize->input_value(1).get_node_shared_ptr(), inputLow);
+    NetworkHelper::copyInfo(fakeQuantize->input_value(2).get_node_shared_ptr(), inputHigh);
+    NetworkHelper::copyInfo(fakeQuantize->input_value(3).get_node_shared_ptr(), outputLow);
+    NetworkHelper::copyInfo(fakeQuantize->input_value(4).get_node_shared_ptr(), outputHigh);
 
     auto newFakeQuantize = std::make_shared<ov::op::TypeRelaxed<ov::opset1::FakeQuantize>>(
         ov::opset1::FakeQuantize(

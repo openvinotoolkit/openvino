@@ -1820,7 +1820,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
             }
 
             if (interp->get_input_size() > 3 &&
-                ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID)) == nullptr) {
+                ov::as_type_ptr<const ov::op::v0::Constant>(interp->input_value(AXES_ID).get_node_shared_ptr()) == nullptr) {
                 errorMessage = "Only const 'axes' input is supported in Interpolate-4";
                 return false;
             }
@@ -1849,7 +1849,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
                 return false;
             }
             if (interp->get_input_size() > 2 && ov::as_type_ptr<const ov::op::v0::Constant>(
-                                                    interp->get_input_node_shared_ptr(AXES_ID_V11)) == nullptr) {
+                                                    interp->input_value(AXES_ID_V11).get_node_shared_ptr()) == nullptr) {
                 errorMessage = "Only const 'axes' input is supported in Interpolate-11";
                 return false;
             }
@@ -1992,14 +1992,14 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             }
 
             const auto scalesNode =
-                ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(SCALES_ID));
+                ov::as_type_ptr<const ov::op::v0::Constant>(interp->input_value(SCALES_ID).get_node_shared_ptr());
             if (scalesNode) {
                 scales = scalesNode->cast_vector<float>();
                 isScaleConstant = true;
             }
 
             if (isAxesSpecified) {
-                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID))
+                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->input_value(AXES_ID).get_node_shared_ptr())
                            ->cast_vector<int>();
             } else {
                 axes.resize(dataRank);
@@ -2037,7 +2037,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             if (interpShapeCalcMode == ngInterpShapeCalcMode::SCALES) {
                 interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::scales;
                 const auto scalesNode = ov::as_type_ptr<const ov::op::v0::Constant>(
-                    interp->get_input_node_shared_ptr(SIZE_OR_SCALE_ID_V11));
+                    interp->input_value(SIZE_OR_SCALE_ID_V11).get_node_shared_ptr());
                 if (scalesNode) {
                     scales = scalesNode->cast_vector<float>();
                     isScaleConstant = true;
@@ -2067,7 +2067,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             }
 
             if (isAxesSpecified) {
-                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))
+                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->input_value(AXES_ID_V11).get_node_shared_ptr())
                            ->cast_vector<int>();
                 if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2) {
                     interpAttrs.NCHWAsNHWC = true;

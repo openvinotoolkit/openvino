@@ -51,7 +51,7 @@ public:
             testValues.actual.dequantization,
             testValues.constantPath);
 
-        const auto targetNode = actualFunction->get_output_op(0)->get_input_node_shared_ptr(0);
+        const auto targetNode = actualFunction->get_output_op(0)->input_value(0).get_node_shared_ptr();
         const auto dequantization = ov::pass::low_precision::NetworkHelper::getDequantization(targetNode);
         ov::pass::low_precision::NetworkHelper::normalizeDequantization(dequantization);
 

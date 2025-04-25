@@ -38,7 +38,7 @@ ReversepropResolver::ReversepropResolver() {
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto base_op = m.get_match_root();
         // Apply this transformation only to starting reverse operation
-        if (ov::as_type_ptr<InternalReverseOperation>(base_op->get_input_node_shared_ptr(1)))
+        if (ov::as_type_ptr<InternalReverseOperation>(base_op->input_value(1).get_node_shared_ptr()))
             return false;
 
         auto curr_op = base_op;

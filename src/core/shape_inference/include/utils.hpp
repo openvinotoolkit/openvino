@@ -212,7 +212,7 @@ std::optional<TRes> get_input_const_data_as(const ov::Node* op,
     if (auto t = tensor_accessor(idx)) {
         return {get_tensor_data_as<TData, TRes>(t, std::forward<UnaryOperation>(func))};
     } else {
-        const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(idx));
+        const auto& constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(idx).get_node_shared_ptr());
         NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
@@ -313,7 +313,7 @@ std::optional<TShape> get_input_const_data_as_shape(const ov::Node* op,
         shape.emplace(get_tensor_data_as<TDimValue>(t, std::forward<UnaryOperation>(func)));
     } else if (port < op->get_input_size()) {
         PartialShape s;
-        if (auto c = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(port))) {
+        if (auto c = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(port).get_node_shared_ptr())) {
             shape.emplace(get_raw_data_as<TDimValue>(c->get_element_type(),
                                                      c->get_data_ptr(),
                                                      shape_size(c->get_shape()),

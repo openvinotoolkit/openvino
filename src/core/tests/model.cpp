@@ -1423,7 +1423,7 @@ TEST(model, add_output_ordered_ops) {
             relu_found = true;
             EXPECT_FALSE(relu_result_found);
         } else if (ov::as_type_ptr<ov::op::v0::Result>(node) &&
-                   ov::as_type_ptr<ov::op::v0::Relu>(node->get_input_node_shared_ptr(0))) {
+                   ov::as_type_ptr<ov::op::v0::Relu>(node->input_value(0).get_node_shared_ptr())) {
             relu_result_found = true;
             EXPECT_TRUE(relu_found);
         }
@@ -1472,7 +1472,7 @@ TEST(model, add_output_clear_cached_tensor_name_by_ordered_ops) {
     EXPECT_EQ(ops_after.size(), ops_before.size());
     // 6. Expect: Add_output to 'B' - output to node 'C' shall be added on step 4
     auto b_output = model->add_output("B");
-    std::string b_type = b_output.get_node_shared_ptr()->get_input_node_shared_ptr(0)->get_type_name();
+    std::string b_type = b_output.get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->get_type_name();
     EXPECT_EQ(b_type, op3->get_type_name());
 }
 
@@ -1512,7 +1512,7 @@ TEST(model, add_output_clear_cached_op_name_by_ordered_ops) {
     EXPECT_EQ(ops_after.size(), ops_before.size());
     // 6. Expect: Add_output to 'B' - output to node 'C' shall be added on step 4
     auto b_output = model->add_output("B", 0);
-    std::string b_type = b_output.get_node_shared_ptr()->get_input_node_shared_ptr(0)->get_type_name();
+    std::string b_type = b_output.get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->get_type_name();
     EXPECT_EQ(b_type, op3->get_type_name());
 }
 

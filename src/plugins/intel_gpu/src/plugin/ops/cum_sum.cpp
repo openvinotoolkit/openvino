@@ -21,7 +21,7 @@ static void CreateCumSumOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
 
     int64_t axis = 0;
     if (op->get_input_size() == 2) {
-        auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
         OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         axis = axes_constant->cast_vector<int64_t>()[0];
     }

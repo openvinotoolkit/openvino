@@ -112,7 +112,7 @@ bool FuseTPPToEquations::run_on_model(const std::shared_ptr<ov::Model>& m) {
         to_visit.pop_back();
         const size_t in_size = node->get_input_size();
         for (size_t i = 0; i < in_size; i++) {
-            to_visit.push_back(node->get_input_node_shared_ptr(in_size - i - 1));
+            to_visit.push_back(node->input_value(in_size - i - 1).get_node_shared_ptr());
         }
     }
     return modified;
