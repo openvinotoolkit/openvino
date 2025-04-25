@@ -33,7 +33,7 @@ void prepare_padding::run(program& p) {
                 auto weight_layout = weight_node.get_output_layout(0);
                 const auto const_shape = weight_layout.get_partial_shape().to_shape();
                 OPENVINO_ASSERT(const_shape.size() > 0, "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
-                size_t inner_most_idx = const_shape.size() - 1;
+                int32_t inner_most_idx = static_cast<int32_t>(const_shape.size()) - 1;
                 if (!allow_new_shape_infer) {
                     // Get the innermost index after trimming trailing elements in the canonicalized legacy shape such as [4, 64, 1, 1].
                     while (inner_most_idx > 0 && const_shape[inner_most_idx] == 1) {
