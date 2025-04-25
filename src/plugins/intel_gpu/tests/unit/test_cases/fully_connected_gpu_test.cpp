@@ -417,7 +417,7 @@ TEST(fully_connected_gpu, no_biases_4d_input_immad) {
 
     //  Input  : 1x8x8x12
     //  Weights: 48x12x1x1
-    //  Output : 64x48x1x1
+    //  Output : 1x8x8x48
 
     const int32_t input_b = 1, input_f = 8, input_y = 8, input_x = 12,          // size of the whole input buffer
                   weight_b = 48, weight_f = 12, weight_y = 1, weight_x = 1;     // size of the whole weights buffer
@@ -449,10 +449,10 @@ TEST(fully_connected_gpu, no_biases_4d_input_immad) {
     ASSERT_TRUE(fc_impl->is_onednn());
 
     auto outputs = network.execute();
-    ASSERT_EQ(outputs.begin()->second.get_layout().batch(), input_f*input_y);
-    ASSERT_EQ(outputs.begin()->second.get_layout().feature(), weight_b);
-    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(1), weight_y);
-    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(0), weight_x);
+    ASSERT_EQ(outputs.begin()->second.get_layout().batch(), input_b);
+    ASSERT_EQ(outputs.begin()->second.get_layout().feature(), input_f);
+    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(1), input_y);
+    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(0), weight_b);
 }
 
 TEST(fully_connected_gpu, no_biases_5d_input) {
@@ -502,7 +502,7 @@ TEST(fully_connected_gpu, no_biases_5d_input_immad) {
 
     //  Input  : 1x8x8x8x12
     //  Weights: 48x12
-    //  Output : 512x48x1x1
+    //  Output : 1x8x8x8x48
 
     const int32_t input_b = 1, input_f = 8, input_z = 8, input_y = 8, input_x = 12, // size of the whole input buffer
                   weight_b = 48, weight_f = 12;                                     // size of the whole weights buffer
@@ -534,10 +534,11 @@ TEST(fully_connected_gpu, no_biases_5d_input_immad) {
     ASSERT_TRUE(fc_impl->is_onednn());
 
     auto outputs = network.execute();
-    ASSERT_EQ(outputs.begin()->second.get_layout().batch(), input_f*input_z*input_y);
-    ASSERT_EQ(outputs.begin()->second.get_layout().feature(), weight_b);
-    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(1), 1);
-    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(0), 1);
+    ASSERT_EQ(outputs.begin()->second.get_layout().batch(), input_b);
+    ASSERT_EQ(outputs.begin()->second.get_layout().feature(), input_f);
+    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(2), input_z);
+    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(1), input_y);
+    ASSERT_EQ(outputs.begin()->second.get_layout().spatial(0), weight_b);
 }
 
 TEST(fully_connected_gpu, xb_f32_batch_1) {
@@ -3327,11 +3328,21 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto output_prim_mem = outputs.begin()->second.get_memory();
 
         auto out_l = network->get_output_layout(outputs.begin()->first);
-        ASSERT_EQ(output_prim_mem->get_layout().batch(), 6);
-        ASSERT_EQ(out_l.batch(), 6);
-        ASSERT_EQ(out_l.feature(), 2);
-        ASSERT_EQ(out_l.spatial(0), 1);
-        ASSERT_EQ(out_l.spatial(1), 1);
+        if (engine.get_device_info().supports_immad) {
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), 1);
+            ASSERT_EQ(out_l.batch(), 1);
+            ASSERT_EQ(out_l.feature(), 3);
+            ASSERT_EQ(out_l.spatial(0), 2);
+            ASSERT_EQ(out_l.spatial(1), 1);
+            ASSERT_EQ(out_l.spatial(2), 1);
+            ASSERT_EQ(out_l.spatial(3), 2);
+        } else {
+            ASSERT_EQ(output_prim_mem->get_layout().batch(), 6);
+            ASSERT_EQ(out_l.batch(), 6);
+            ASSERT_EQ(out_l.feature(), 2);
+            ASSERT_EQ(out_l.spatial(0), 1);
+            ASSERT_EQ(out_l.spatial(1), 1);
+        }
 
         std::vector<float> expected_output = {
             0.75, -0.5, -0.75, -1, 1.25, -0.75, 1.75, -1, 0.75, -0.5, -1.25, -1.5
@@ -4807,7 +4818,7 @@ TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
 
     auto in_layout = layout{ {1, batch_num, ifm_num, 1}, data_types::f16, format::bfyx };
 
-    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "dcomp_zp", data_types::f16, 3, 4);
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "dcomp_zp", data_types::f16, 3, 2);
 
     fc_prim.decompression_zero_point_scalar = 8;
 

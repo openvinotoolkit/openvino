@@ -165,19 +165,17 @@ jobs:
               cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/api_tests --component tests
             "
             
-      - name: Pack Artifacts
-        run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-        working-directory: ${{ env.INSTALL_DIR }}
-            
       - name: Build Python API (Python 3.9-3.13)
         run: |
-          SUPPORTED_PYTHON_VERSIONS=("39" "310" "311" "312" "313")
+          SUPPORTED_PYTHON_VERSIONS=("3.9" "3.10" "3.11" "3.12" "3.13")
           for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
-            python_path=/opt/python/cp${PY_VER}-cp${PY_VER}/bin
+            simpler_python_version=$(echo $PY_VER | sed -e 's/\.//g')
+            python_path=/opt/python/cp${simpler_python_version}-cp${simpler_python_version}/bin
             docker run --rm \
               -v ${{ env.OPENVINO_REPO }}:/work/src \
               -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
               -v ${{ env.PIP_CACHE_PATH }}:/work/pip_cache \
+              -v ${{ env.INSTALL_DIR }}:/work/install \
               -v ov_build_cache:/work/build \
               -e SCCACHE_AZURE_BLOB_CONTAINER \
               -e SCCACHE_AZURE_CONNECTION_STRING \
@@ -197,10 +195,15 @@ jobs:
                 export "PIP_CACHE_DIR=/work/pip_cache/${PIP_VER}"
                 python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt &&
                 cmake -DOpenVINODeveloperPackage_DIR=/work/build -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src/src/bindings/python -B /work/build_py${PY_VER} &&
-                cmake --build /work/build_py${PY_VER} --parallel $(nproc) --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} &&
-                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels
+                cmake --build /work/build_py${PY_VER} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
+                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels &&
+                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install --component pyopenvino_python${PY_VER}
               "
           done
+
+      - name: Pack Artifacts
+        run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Pack openvino_tests
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -211,7 +214,7 @@ jobs:
       #
       - name: Upload OpenVINO package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -219,7 +222,7 @@ jobs:
       
       - name: Upload OpenVINO wheels
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
@@ -227,7 +230,7 @@ jobs:
 
       - name: Upload OpenVINO tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
