@@ -20,7 +20,6 @@ RUN dnf update -y && dnf install -y \
     git \
     curl \
     python3 \
-    clang \
     # To build Python from source
     openssl-devel \
     sqlite-devel \
