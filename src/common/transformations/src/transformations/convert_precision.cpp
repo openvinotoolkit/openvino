@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -79,7 +80,7 @@ bool fuse_type_to_binary_comparision(const std::shared_ptr<ov::Node>& node, cons
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
         return true;
-    } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+    } else if (auto casted = ov::as_type_ptr<T>(node)) {
         auto relaxed_op =
             std::make_shared<ov::op::TypeRelaxed<T>>(*casted, ov::element::TypeVector{}, ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
@@ -99,7 +100,7 @@ bool fuse_type_to_logical(const std::shared_ptr<ov::Node>& node, const precision
         for (size_t i = 0; i < node->get_input_size(); ++i)
             type_relaxed->set_origin_input_type(ov::element::boolean, i);
         return true;
-    } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+    } else if (auto casted = ov::as_type_ptr<T>(node)) {
         ov::element::TypeVector input_types(node->get_input_size(), ov::element::boolean);
         auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(*casted, input_types, ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
@@ -118,7 +119,7 @@ bool fuse_type_to_reduce_logical(const std::shared_ptr<ov::Node>& node, const pr
         type_relaxed->set_overridden_output_type(to);
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
-    } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
+    } else if (auto casted = ov::as_type_ptr<T>(node)) {
         auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(*casted,
                                                                    ov::element::TypeVector{ov::element::boolean},
                                                                    ov::element::TypeVector{to});
@@ -139,7 +140,7 @@ bool fuse_type_to_prior_box(const std::shared_ptr<ov::Node>& node, const precisi
     if (auto type_relaxed = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
         return true;
-    } else if (const auto casted = std::dynamic_pointer_cast<T>(node)) {
+    } else if (const auto casted = ov::as_type_ptr<T>(node)) {
         auto relaxed_op = std::make_shared<op::TypeRelaxed<T>>(
             *casted,
             ov::element::TypeVector{casted->get_input_element_type(0), casted->get_input_element_type(1)},
@@ -274,7 +275,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
         // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
+        if (auto sub_graph_node = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
                 is_changed = convert_function_precision(pass,
@@ -311,7 +312,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
 
     if (is_output_precision_changed) {
         ops = f->get_ordered_ops();
-        is_changed = is_output_precision_changed || is_changed;
+        is_changed = true;
     }
 
     if (!is_subgraph) {
@@ -400,7 +401,7 @@ precisions_set_t find_all_used_precisions(const std::shared_ptr<ov::Model>& fn) 
         for (const auto& output : node->outputs()) {
             used_precisions.emplace(output.get_element_type());
         }
-        if (auto sub_graph_node = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(node)) {
+        if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
                 auto sub_graph_precisions =
@@ -1050,7 +1051,7 @@ bool extend_select_type(const std::shared_ptr<ov::Node>& node, const precisions_
 }
 
 bool extend_reverse_type(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
-    if (const auto casted = std::dynamic_pointer_cast<ov::op::v1::Reverse>(node)) {
+    if (const auto casted = ov::as_type_ptr<ov::op::v1::Reverse>(node)) {
         if (casted->get_mode() == ov::op::v1::Reverse::Mode::MASK) {
             auto relaxed_op = std::make_shared<op::TypeRelaxed<ov::op::v1::Reverse>>(
                 *casted,
@@ -1417,13 +1418,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
         new_const->validate_and_infer_types();
         new_const->set_friendly_name(constant->get_friendly_name());
         ov::copy_runtime_info(constant, new_const);
-
-        const auto& rt_info = node->get_rt_info();
-        auto weightless_caching_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-        if (weightless_caching_attr != rt_info.end()) {
-            new_const->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
-                weightless_caching_attr->second;
-        }
+        ov::copy_weightless_cache_attr(constant, new_const);
         return true;
     }
     return false;

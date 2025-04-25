@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,9 +20,7 @@
 #include "openvino/op/generate_proposals.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct Indexer4d {
@@ -30,12 +28,7 @@ struct Indexer4d {
     int dim23_;
     int dim123_;
 
-    explicit Indexer4d(int dim0, int dim1, int dim2, int dim3)
-        : dim3_(dim3),
-          dim23_(dim2 * dim3),
-          dim123_(dim1 * dim2 * dim3) {
-        (void)dim0;
-    }
+    explicit Indexer4d(int dim1, int dim2, int dim3) : dim3_(dim3), dim23_(dim2 * dim3), dim123_(dim1 * dim2 * dim3) {}
 
     int operator()(int i, int j, int k, int n) const {
         return i * dim123_ + j * dim23_ + k * dim3_ + n;
@@ -55,10 +48,10 @@ void refine_anchors(const float* deltas,
                     const float min_box_W,
                     const float max_delta_log_wh,
                     float coordinates_offset) {
-    Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
-    Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
-    Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 6);
-    Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
+    Indexer4d delta_idx(4, bottom_H, bottom_W);
+    Indexer4d score_idx(1, bottom_H, bottom_W);
+    Indexer4d proposal_idx(bottom_W, anchors_num, 6);
+    Indexer4d anchor_idx(bottom_W, anchors_num, 4);
 
     parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         for (int anchor = 0; anchor < anchors_num; ++anchor) {
@@ -112,7 +105,7 @@ void refine_anchors(const float* deltas,
             proposals[p_idx + 2] = x1;
             proposals[p_idx + 3] = y1;
             proposals[p_idx + 4] = score;
-            proposals[p_idx + 5] = (min_box_W <= box_w) * (min_box_H <= box_h) * 1.0;
+            proposals[p_idx + 5] = static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h) * 1.0;
         }
     });
 }
@@ -154,12 +147,14 @@ void nms_cpu(const int num_boxes,
 #endif
 
     for (int box = 0; box < num_boxes; ++box) {
-        if (is_dead[box])
+        if (is_dead[box]) {
             continue;
+        }
 
         index_out[count++] = base_index + box;
-        if (count == static_cast<size_t>(max_num_out))
+        if (count == static_cast<size_t>(max_num_out)) {
             break;
+        }
 
         int tail = box + 1;
 
@@ -246,8 +241,9 @@ void nms_cpu(const int num_boxes,
                 res = area / (A_area + B_area - area);
             }
 
-            if (nms_thresh < res)
+            if (nms_thresh < res) {
                 is_dead[tail] = 1;
+            }
         }
     }
 
@@ -261,7 +257,6 @@ void fill_output_blobs(const float* proposals,
                        uint8_t* roi_num,
                        const int num_proposals,
                        const size_t num_rois,
-                       const int post_nms_topn,
                        ov::element::Type roi_num_type) {
     const float* src_x0 = proposals + 0 * num_proposals;
     const float* src_y0 = proposals + 1 * num_proposals;
@@ -279,10 +274,10 @@ void fill_output_blobs(const float* proposals,
     });
 
     if (roi_num_type == ov::element::i32) {
-        int32_t num = static_cast<int32_t>(num_rois);
+        auto num = static_cast<int32_t>(num_rois);
         memcpy(roi_num, &num, sizeof(int32_t));
     } else if (roi_num_type == ov::element::i64) {
-        int64_t num = static_cast<int64_t>(num_rois);
+        auto num = static_cast<int64_t>(num_rois);
         memcpy(roi_num, &num, sizeof(int64_t));
     } else {
         OPENVINO_THROW("Incorrect element type of roi_num!");
@@ -304,7 +299,7 @@ bool GenerateProposals::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return true;
 }
 
-GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -324,8 +319,9 @@ GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const 
 }
 
 void GenerateProposals::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto roiNumPrecision = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
@@ -338,20 +334,20 @@ void GenerateProposals::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GenerateProposals::executeDynamicImpl(dnnl::stream strm) {
+void GenerateProposals::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void GenerateProposals::execute(dnnl::stream strm) {
+void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 3) {
-            OPENVINO_THROW("Incorrect number of input or output edges!");
+            THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
-        for (size_t i = 0; i < anchorDims.size(); i++) {
-            anchor_dims_size *= anchorDims[i];
+        for (uint64_t anchorDim : anchorDims) {
+            anchor_dims_size *= anchorDim;
         }
 
         size_t deltas_dims_size = 1;
@@ -359,16 +355,18 @@ void GenerateProposals::execute(dnnl::stream strm) {
         for (size_t i = 1; i < deltaDims.size(); i++) {
             deltas_dims_size *= deltaDims[i];
         }
-        if (anchor_dims_size != deltas_dims_size)
-            OPENVINO_THROW("'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
+        if (anchor_dims_size != deltas_dims_size) {
+            THROW_CPU_NODE_ERR("'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
+        }
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
         for (size_t i = 1; i < scoreDims.size(); i++) {
             score_dims_size *= scoreDims[i];
         }
-        if (deltas_dims_size != (4 * score_dims_size))
-            OPENVINO_THROW("'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
+        if (deltas_dims_size != (4 * score_dims_size)) {
+            THROW_CPU_NODE_ERR("'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
+        }
 
         size_t im_info_dims_size = 1;
         const auto& infoDims = getParentEdgeAt(INPUT_IM_INFO)->getMemory().getStaticDims();
@@ -377,10 +375,10 @@ void GenerateProposals::execute(dnnl::stream strm) {
         }
 
         // Prepare memory
-        const float* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
-        const float* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
-        const float* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
-        const float* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
+        const auto* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
+        const auto* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
+        const auto* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
+        const auto* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
         const int anchors_num = scoreDims[1];
 
@@ -418,7 +416,7 @@ void GenerateProposals::execute(dnnl::stream strm) {
         size_t total_num_rois = 0;
         std::vector<float> roi_item, score_item;
         std::vector<int64_t> roi_num(batch_size);
-        uint8_t* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
+        auto* p_roi_num = reinterpret_cast<uint8_t*>(&roi_num[0]);
         auto roi_num_type = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
         const auto roi_num_item_size = roi_num_type == ov::element::i32 ? sizeof(int32_t) : sizeof(int64_t);
         for (size_t n = 0; n < batch_size; ++n) {
@@ -481,7 +479,6 @@ void GenerateProposals::execute(dnnl::stream strm) {
                               p_roi_num,
                               pre_nms_topn,
                               num_rois,
-                              post_nms_topn_,
                               roi_num_type);
             p_deltas_item += deltas_dims_size;
             p_scores_item += score_dims_size;
@@ -491,15 +488,14 @@ void GenerateProposals::execute(dnnl::stream strm) {
         }
         // copy to out memory
         redefineOutputMemory({VectorDims{total_num_rois, 4}, VectorDims{total_num_rois}, VectorDims{batch_size}});
-        float* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
-        float* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
-        uint8_t* p_roi_num_item = getDstDataAtPortAs<uint8_t>(OUTPUT_ROI_NUM);
+        auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
+        auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
+        auto* p_roi_num_item = getDstDataAtPortAs<uint8_t>(OUTPUT_ROI_NUM);
         memcpy(p_roi_item, &roi_item[0], roi_item.size() * sizeof(float));
         memcpy(p_roi_score_item, &score_item[0], score_item.size() * sizeof(float));
         memcpy(p_roi_num_item, &roi_num[0], getDstMemoryAtPort(OUTPUT_ROI_NUM)->getSize());
     } catch (const std::exception& e) {
-        std::string errorMsg = e.what();
-        OPENVINO_THROW(errorMsg);
+        THROW_CPU_NODE_ERR(e.what());
     }
 }
 
@@ -515,6 +511,4 @@ bool GenerateProposals::needPrepareParams() const {
     return false;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

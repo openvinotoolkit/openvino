@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/layer_transformation.hpp"
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/strided_slice.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 using namespace ov::pass::low_precision;
 

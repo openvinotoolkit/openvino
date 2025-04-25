@@ -8,15 +8,11 @@
 #include "acl_fullyconnected_utils.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ACLLowpFullyConnectedExecutor : public ACLCommonExecutor {
 public:
-    ACLLowpFullyConnectedExecutor(const FCAttrs& attrs,
-                                  const PostOps& postOps,
-                                  const MemoryArgs& memory,
-                                  const ExecutorContext::CPtr& context);
+    ACLLowpFullyConnectedExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
     static bool supports(const FCConfig& config);
 
@@ -26,7 +22,7 @@ public:
 
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::gemm_acl;
     }
 
@@ -47,5 +43,4 @@ private:
 
 using ACLLowpFullyConnectedExecutorPtr = std::shared_ptr<ACLLowpFullyConnectedExecutor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

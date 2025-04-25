@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,7 +79,7 @@ static std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr
     relu->set_friendly_name("relu");
     auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(relu);
     sigmoid->set_friendly_name("sigmoid");
-    auto f = std::make_shared<ov::Model>(ov::NodeVector{sigmoid}, ov::ParameterVector{data});
+    auto f = std::make_shared<ov::Model>(ov::OutputVector{sigmoid}, ov::ParameterVector{data});
     return std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr<Node>>(f, relu, sigmoid);
 }
 
@@ -265,11 +265,11 @@ public:
         ov::matcher_pass_callback callback = [this](pattern::Matcher& m) {
             auto root = m.get_match_root();
             auto pass_config = this->get_pass_config();
-            if (std::dynamic_pointer_cast<op::v0::Relu>(root) && !pass_config->is_disabled<RenameReLU>()) {
+            if (ov::as_type_ptr<op::v0::Relu>(root) && !pass_config->is_disabled<RenameReLU>()) {
                 auto pass = std::make_shared<RenameReLU>();
                 pass->set_pass_config(pass_config);
                 pass->apply(root);
-            } else if (std::dynamic_pointer_cast<op::v0::Sigmoid>(root) && !pass_config->is_disabled<RenameSigmoid>()) {
+            } else if (ov::as_type_ptr<op::v0::Sigmoid>(root) && !pass_config->is_disabled<RenameSigmoid>()) {
                 auto pass = std::make_shared<RenameSigmoid>();
                 pass->set_pass_config(pass_config);
                 pass->apply(root);

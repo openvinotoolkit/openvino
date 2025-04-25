@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,7 +88,7 @@ bool ov::op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const Out
 
     const auto& shape = get_output_shape(0);
 
-    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
+    if (auto data_const = ov::as_type_ptr<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
         output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
         return true;
     }

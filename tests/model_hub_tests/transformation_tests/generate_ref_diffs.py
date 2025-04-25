@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 '''
@@ -56,7 +56,7 @@ def get_models_list_type(file_name: str, cls: Union[Type[OVModelForCausalLM], Ty
             models.append((model_name, model_link, None, None, cls))
         elif len(line_items) == 4:
             model_name, model_link, mark, reason = line_items
-            models.append((model_name, model_link, mark, reason))
+            models.append((model_name, model_link, mark, reason, cls))
         elif len(line_items) > 4:
             model_name, model_link, mark, reason, *other = line_items
             if not mark:
@@ -106,7 +106,7 @@ def main():
 
             # wrapping in try/catch block to continue printing models even if one has failed
             try:
-                paged_attention_transformation(ov_model, use_cache_eviction, use_cache_eviction)
+                paged_attention_transformation(ov_model, use_cache_eviction, use_cache_eviction, use_cache_eviction)
             except:
                 print(f"Couldn't run SDPAToPA transformation on {model_id} and generate diffs.")
                 continue
@@ -117,10 +117,12 @@ def main():
                     after_map[op.get_type_name()] = after_map.get(op.get_type_name(), 0) + 1
 
             print(f'\t"{model_id}" : {{', file=file)
-            for op in set(after_map.keys()) | set(before_map.keys()):
+            for op in sorted(set(after_map.keys()) | set(before_map.keys())):
                 print(f'\t\t"{op}" : {after_map.get(op, 0) - before_map.get(op, 0)},', file=file)
             print('\t},', file=file)
         print('}', file=file)
+
+    print(f"output written to {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()

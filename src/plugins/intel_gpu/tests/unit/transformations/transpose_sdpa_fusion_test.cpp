@@ -32,7 +32,7 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion1) {
         auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(input_a, input_b, input_c, is_causal);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ sdpa }, ov::ParameterVector{ input_a, input_b, input_c });
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         manager.register_pass<TransposeFusion>();
     }
     {
@@ -43,9 +43,15 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion1) {
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c}, is_causal, order_a, order_b, order_c, order_output, ov::element::undefined );
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c},
+                                                              is_causal,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              order_output,
+                                                              ov::element::dynamic);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ sdpa }, ov::ParameterVector{ input_a, input_b, input_c });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -60,7 +66,7 @@ TEST_F(TransformationTestsF, TransformationTestsF) {
         auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(tranpose_a, input_b, input_c, is_causal);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ sdpa }, ov::ParameterVector{ input_a, input_b, input_c });
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         manager.register_pass<TransposeFusion>();
     }
     {
@@ -71,9 +77,15 @@ TEST_F(TransformationTestsF, TransformationTestsF) {
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c}, is_causal, order_a, order_b, order_c, order_output, ov::element::undefined);
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c},
+                                                              is_causal,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              order_output,
+                                                              ov::element::dynamic);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ sdpa }, ov::ParameterVector{ input_a, input_b, input_c });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -91,7 +103,7 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion3) {
 
         auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(tranpose_a, tranpose_b, input_c, is_causal);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ sdpa }, ov::ParameterVector{ input_a, input_b, input_c });
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         manager.register_pass<TransposeFusion>();
     }
     {
@@ -102,9 +114,15 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion3) {
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c}, is_causal, order_a, order_b, order_c, order_output, ov::element::undefined);
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c},
+                                                              is_causal,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              order_output,
+                                                              ov::element::dynamic);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ sdpa }, ov::ParameterVector{ input_a, input_b, input_c });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -124,7 +142,7 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion4) {
 
         auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(tranpose_a, tranpose_b, tranpose_c, is_causal);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ sdpa }, ov::ParameterVector{ input_a, input_b, input_c });
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         manager.register_pass<TransposeFusion>();
     }
     {
@@ -135,9 +153,15 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion4) {
         auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
         auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
-        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c}, is_causal, order_a, order_b, order_c, order_output, ov::element::undefined);
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c},
+                                                              is_causal,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              order_output,
+                                                              ov::element::dynamic);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ sdpa }, ov::ParameterVector{ input_a, input_b, input_c });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }
@@ -157,7 +181,7 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion5) {
 
         auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(tranpose_a, tranpose_b, tranpose_c, is_causal);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{ sdpa }, ov::ParameterVector{ input_a, input_b, input_c });
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         manager.register_pass<TransposeFusion>();
     }
     {
@@ -173,7 +197,7 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion5) {
 
         auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(tranpose_a, tranpose_b, tranpose_c, is_causal);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ sdpa }, ov::ParameterVector{ input_a, input_b, input_c });
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }

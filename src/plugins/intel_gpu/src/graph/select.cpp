@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "select_inst.h"
@@ -95,7 +95,7 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                                 3,
                                 "");
 
-    bool allow_new_shape_infer = network.get_program()->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool allow_new_shape_infer = network.get_program()->get_config().get_allow_new_shape_infer();
     // Broadcast check is performed in ngraph shape infer of select when allow_new_shape_infer=true
     if (!allow_new_shape_infer) {
         if (node.get_primitive()->broadcast_spec.m_type == ov::op::AutoBroadcastType::NONE) {

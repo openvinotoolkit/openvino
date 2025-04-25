@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ private:
                                                              params.axesTensor.shape,
                                                              params.axesTensor.data.data());
         const auto roll = std::make_shared<op::v7::Roll>(data, shift, axes);
-        return std::make_shared<Model>(NodeVector{roll}, ParameterVector{data});
+        return std::make_shared<Model>(OutputVector{roll}, ParameterVector{data});
     }
 };
 

@@ -1,32 +1,32 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::FakeQuantize>& fq_node,
+inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq_node,
                                           float threshold = 0.0001f) {
     auto levels = fq_node->get_levels();
-    auto input_low = ov::as_type_ptr<ov::opset8::Constant>(fq_node->get_input_node_shared_ptr(1))->cast_vector<float>();
+    auto input_low = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(1))->cast_vector<float>();
     auto input_high =
-        ov::as_type_ptr<ov::opset8::Constant>(fq_node->get_input_node_shared_ptr(2))->cast_vector<float>();
+        ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(2))->cast_vector<float>();
     auto output_low =
-        ov::as_type_ptr<ov::opset8::Constant>(fq_node->get_input_node_shared_ptr(3))->cast_vector<float>();
+        ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(3))->cast_vector<float>();
     auto output_high =
-        ov::as_type_ptr<ov::opset8::Constant>(fq_node->get_input_node_shared_ptr(4))->cast_vector<float>();
+        ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(4))->cast_vector<float>();
 
     std::vector<float> cl, ch, isc, ish, osc, osh;
-    for (size_t i = 0; i < input_low.size(); i++) {
-        cl.push_back(input_low[i]);
+    for (float i : input_low) {
+        cl.push_back(i);
     }
-    for (size_t i = 0; i < input_high.size(); i++) {
-        ch.push_back(input_high[i]);
+    for (float i : input_high) {
+        ch.push_back(i);
     }
 
     for (size_t i = 0; i < std::max(input_low.size(), input_high.size()); i++) {
@@ -104,5 +104,4 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
     return outScale;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

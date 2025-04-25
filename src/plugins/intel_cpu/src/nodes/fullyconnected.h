@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -39,10 +40,10 @@ struct FCTensorParallelConfig {
 
 class FullyConnected : public Node {
 public:
-    FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     bool canBeInPlace() const override {
@@ -72,7 +73,7 @@ public:
                                                size_t OC,
                                                size_t G,
                                                ov::element::Type inferencePrecision) noexcept;
-    static ov::element::TypeVector getSupportedCompressedWeightsTypes();
+    static ov::element::TypeVector getSupportedCompressedWeightsTypes(bool apply_fp8 = false);
     static ov::element::TypeVector getSupportedCompressedActivationsTypes();
 
     bool isExecutable() const override {
@@ -80,7 +81,7 @@ public:
     }
 
     void prepareParams() override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool canBeExecutedInInt8() const override;
     void keepWeightsNonTransposed(bool weightsNonTransposed) {
         this->attrs.weightsNonTransposed = weightsNonTransposed;
@@ -93,7 +94,7 @@ protected:
     void toNumaNodeImpl(int numaID) override;
 
 private:
-    enum InputId : size_t {
+    enum InputId : uint8_t {
         DATA = 0,
         WEIGHTS,
         BIAS,
@@ -111,7 +112,7 @@ private:
 
     void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
-    void initTensorParallelConfig(const GraphContext::CPtr context);
+    void initTensorParallelConfig(const GraphContext::CPtr& context);
     void needUpdateTensorParalelConfig();
     void needPrepareParamsForTensorParallel();
     void initTensorParallelSync();
@@ -119,11 +120,9 @@ private:
     void needSplitMemoryForTensorParallel();
 
     FCAttrs attrs;
-    PostOps postOps;
     MemoryArgs memory;
     ExecutorFactoryPtr<FCAttrs> factory;
     ExecutorPtr executor = nullptr;
-    std::string errorPrefix;
 
     FCTensorParallelConfig tp_cfg;
 };

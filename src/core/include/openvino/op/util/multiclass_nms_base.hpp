@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,6 +87,7 @@ class OPENVINO_API AttributeAdapter<op::util::MulticlassNmsBase::SortResultType>
 public:
     AttributeAdapter(op::util::MulticlassNmsBase::SortResultType& value)
         : EnumAttributeAdapterBase<op::util::MulticlassNmsBase::SortResultType>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::util::MulticlassNmsBase::SortResultType>");
 };

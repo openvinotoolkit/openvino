@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ struct jit_uni_topk_kernel {
 
 class TopK : public Node {
 public:
-    TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~TopK() override = default;
 
     void getSupportedDescriptors() override;
@@ -84,8 +84,8 @@ public:
     void prepareParams() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
     bool canBeInPlace() const override {
         return false;
     }
@@ -110,7 +110,7 @@ private:
                           float* dst_data,
                           int32_t* dst_idx,
                           const VectorDims& in_dims,
-                          std::function<float(float, float)> compare) const;
+                          std::function<bool(float, float)> compare) const;
     void preset_params();
     void prepare_original_idx();
 
@@ -146,8 +146,6 @@ private:
     std::vector<uint8_t> vec_process_idx_ptr;
 
     std::shared_ptr<jit_uni_topk_kernel> topk_kernel = nullptr;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

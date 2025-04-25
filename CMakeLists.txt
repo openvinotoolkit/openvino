@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -41,9 +41,18 @@ if(POLICY CMP0149)
     cmake_policy(SET CMP0149 NEW)
 endif()
 
+if(POLICY CMP0177)
+    # install() DESTINATION paths are normalized.
+    cmake_policy(SET CMP0177 NEW)
+endif()
+
+# set CMAKE_POLICY_VERSION_MINIMUM to avoid errors from 3rd party dependencies
+# after cmake is updated to 4.0
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 project(OpenVINO
         DESCRIPTION "OpenVINO toolkit"
-        HOMEPAGE_URL "https://docs.openvino.ai/2024/home.html"
+        HOMEPAGE_URL "https://docs.openvino.ai/2025/index.html"
         LANGUAGES C CXX)
 
 find_package(OpenVINODeveloperScripts REQUIRED

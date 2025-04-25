@@ -15,10 +15,6 @@ inputs:
     description: 'If the runner is self-hosted'
     required: false
     default: 'true'
-  show-cache-info:
-    description: 'If the action should show the share space occupied by cache'
-    required: false
-    default: 'false'
 runs:
   using: 'composite'
   steps:
@@ -75,13 +71,3 @@ runs:
         $pipVersion = python3 -c "import pip; print(pip.__version__)"
         Write-Host "Using pip version: $pipVersion"
         "PIP_CACHE_DIR=${{ inputs.pip-cache-path }}/$pipVersion" >> $env:GITHUB_ENV
-
-    - if: ${{ inputs.show-cache-info == 'true' }}
-      name: Get pip cache info
-      shell: bash
-      run: |
-        echo "Cache size: "
-        du -h -d2 ${{ env.PIP_CACHE_DIR }}
-        echo "Cache info: "
-        python3 -m pip cache info
-      continue-on-error: true

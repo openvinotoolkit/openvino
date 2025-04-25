@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #ifdef OV_CORE_USE_XBYAK_JIT
 #    include "openvino/core/parallel.hpp"
 #    include "openvino/reference/utils/registers_pool.hpp"
+#    include "openvino/util/common_util.hpp"
 #endif  // OV_CORE_USE_XBYAK_JIT
 
 namespace ov {
@@ -822,77 +823,79 @@ void ComputeHash<isa>::fold_to_64(const Vmm& v_dst) {
 
 size_t compute_hash(const void* src, size_t size) {
 #ifdef OV_CORE_USE_XBYAK_JIT
-    if (Generator::mayiuse(avx2)) {
-        uint64_t result = 0lu;
+    if (util::may_i_use_dynamic_code()) {
+        if (Generator::mayiuse(avx2)) {
+            uint64_t result = 0lu;
 
-        // Parallel section
-        constexpr uint64_t min_wa_per_thread = 131072lu;  // 2^17
-        const uint64_t size_u64 = static_cast<uint64_t>(size);
-        if (size_u64 >= min_wa_per_thread * 2lu) {
-            static auto first_thr_kernel = Generator::mayiuse(avx512_core)
-                                               ? jit::ComputeHash<avx512_core>::create({jit::FIRST_THREAD})
-                                               : jit::ComputeHash<avx2>::create({jit::FIRST_THREAD});
-            static auto n_thr_kernel = Generator::mayiuse(avx512_core)
-                                           ? jit::ComputeHash<avx512_core>::create({jit::N_THREAD})
-                                           : jit::ComputeHash<avx2>::create({jit::N_THREAD});
-            static auto final_fold_kernel = Generator::mayiuse(avx512_core)
-                                                ? jit::ComputeHash<avx512_core>::create({jit::FINAL_FOLD})
-                                                : jit::ComputeHash<avx2>::create({jit::FINAL_FOLD});
+            // Parallel section
+            constexpr uint64_t min_wa_per_thread = 131072lu;  // 2^17
+            const uint64_t size_u64 = static_cast<uint64_t>(size);
+            if (size_u64 >= min_wa_per_thread * 2lu) {
+                static auto first_thr_kernel = Generator::mayiuse(avx512_core)
+                                                   ? jit::ComputeHash<avx512_core>::create({jit::FIRST_THREAD})
+                                                   : jit::ComputeHash<avx2>::create({jit::FIRST_THREAD});
+                static auto n_thr_kernel = Generator::mayiuse(avx512_core)
+                                               ? jit::ComputeHash<avx512_core>::create({jit::N_THREAD})
+                                               : jit::ComputeHash<avx2>::create({jit::N_THREAD});
+                static auto final_fold_kernel = Generator::mayiuse(avx512_core)
+                                                    ? jit::ComputeHash<avx512_core>::create({jit::FINAL_FOLD})
+                                                    : jit::ComputeHash<avx2>::create({jit::FINAL_FOLD});
 
-            static const uint64_t max_thr_num = 2lu;
-            uint64_t thr_num = std::min(size_u64 / min_wa_per_thread, max_thr_num);
-            const uint64_t el_per_thread =
-                first_thr_kernel->get_vlen() * ((size_u64 / thr_num) / first_thr_kernel->get_vlen());
-            std::vector<uint8_t> intermediate(thr_num * first_thr_kernel->get_vlen());
+                static const uint64_t max_thr_num = 2lu;
+                uint64_t thr_num = std::min(size_u64 / min_wa_per_thread, max_thr_num);
+                const uint64_t el_per_thread =
+                    first_thr_kernel->get_vlen() * ((size_u64 / thr_num) / first_thr_kernel->get_vlen());
+                std::vector<uint8_t> intermediate(thr_num * first_thr_kernel->get_vlen());
 
-            parallel_nt_static(static_cast<int>(thr_num), [&](const int ithr, const int nthr) {
-                uint64_t start = el_per_thread * ithr;
-                if (start >= size_u64) {
-                    return;
-                }
-                uint64_t work_amount = (el_per_thread + start > size_u64) ? size_u64 - start : el_per_thread;
+                parallel_nt_static(static_cast<int>(thr_num), [&](const int ithr, const int nthr) {
+                    uint64_t start = el_per_thread * ithr;
+                    if (start >= size_u64) {
+                        return;
+                    }
+                    uint64_t work_amount = (el_per_thread + start > size_u64) ? size_u64 - start : el_per_thread;
+
+                    jit::ComputeHashCallArgs args;
+
+                    args.src_ptr = reinterpret_cast<const uint8_t*>(src) + first_thr_kernel->get_vlen() * ithr;
+                    args.dst_ptr = &(intermediate[first_thr_kernel->get_vlen() * ithr]);
+                    args.k_ptr = jit::K_PULL;
+                    args.work_amount = work_amount;
+                    args.size = size_u64;
+                    args.threads_num = thr_num;
+
+                    if (ithr == 0) {
+                        (*first_thr_kernel)(&args);
+                    } else {
+                        (*n_thr_kernel)(&args);
+                    }
+                });
 
                 jit::ComputeHashCallArgs args;
-
-                args.src_ptr = reinterpret_cast<const uint8_t*>(src) + first_thr_kernel->get_vlen() * ithr;
-                args.dst_ptr = &(intermediate[first_thr_kernel->get_vlen() * ithr]);
+                args.work_amount = size_u64 - el_per_thread * thr_num;
+                args.src_ptr = reinterpret_cast<const uint8_t*>(src) + size_u64 - args.work_amount;
+                args.dst_ptr = &result;
                 args.k_ptr = jit::K_PULL;
-                args.work_amount = work_amount;
                 args.size = size_u64;
-                args.threads_num = thr_num;
+                args.intermediate_ptr = intermediate.data();
 
-                if (ithr == 0) {
-                    (*first_thr_kernel)(&args);
-                } else {
-                    (*n_thr_kernel)(&args);
-                }
-            });
+                (*final_fold_kernel)(&args);
+            } else {
+                static auto single_thr_kernel = Generator::mayiuse(avx512_core)
+                                                    ? jit::ComputeHash<avx512_core>::create({jit::SINGLE_THREAD})
+                                                    : jit::ComputeHash<avx2>::create({jit::SINGLE_THREAD});
 
-            jit::ComputeHashCallArgs args;
-            args.work_amount = size_u64 - el_per_thread * thr_num;
-            args.src_ptr = reinterpret_cast<const uint8_t*>(src) + size_u64 - args.work_amount;
-            args.dst_ptr = &result;
-            args.k_ptr = jit::K_PULL;
-            args.size = size_u64;
-            args.intermediate_ptr = intermediate.data();
+                jit::ComputeHashCallArgs args;
+                args.src_ptr = src;
+                args.dst_ptr = &result;
+                args.k_ptr = jit::K_PULL;
+                args.work_amount = size_u64;
+                args.size = size_u64;
 
-            (*final_fold_kernel)(&args);
-        } else {
-            static auto single_thr_kernel = Generator::mayiuse(avx512_core)
-                                                ? jit::ComputeHash<avx512_core>::create({jit::SINGLE_THREAD})
-                                                : jit::ComputeHash<avx2>::create({jit::SINGLE_THREAD});
+                (*single_thr_kernel)(&args);
+            }
 
-            jit::ComputeHashCallArgs args;
-            args.src_ptr = src;
-            args.dst_ptr = &result;
-            args.k_ptr = jit::K_PULL;
-            args.work_amount = size_u64;
-            args.size = size_u64;
-
-            (*single_thr_kernel)(&args);
+            return result;
         }
-
-        return result;
     }
 
 #endif  // OV_CORE_USE_XBYAK_JIT

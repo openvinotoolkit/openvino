@@ -30,13 +30,15 @@ size_t SetBufferRegGroup::get_buffer_idx(const BufferExpressionPtr& target, cons
 bool SetBufferRegGroup::can_be_in_one_reg_group(const UnifiedLoopInfo::LoopPortInfo& lhs_info,
                                                 const UnifiedLoopInfo::LoopPortInfo& rhs_info) {
     const auto equal_element_type_sizes = lhs_info.desc.data_size == rhs_info.desc.data_size;
-    OPENVINO_ASSERT(lhs_info.port.expr_port && rhs_info.port.expr_port, "Expression ports are nullptr!");
+    OPENVINO_ASSERT(lhs_info.port.get_expr_port() && rhs_info.port.get_expr_port(), "Expression ports are nullptr!");
     const auto equal_invariant_shape_paths =
-        MarkInvariantShapePath::getInvariantPortShapePath(*lhs_info.port.expr_port) ==
-        MarkInvariantShapePath::getInvariantPortShapePath(*rhs_info.port.expr_port);
-    const auto equal_is_incremented = lhs_info.port.is_incremented == rhs_info.port.is_incremented;
+        MarkInvariantShapePath::getInvariantPortShapePath(*lhs_info.port.get_expr_port()) ==
+        MarkInvariantShapePath::getInvariantPortShapePath(*rhs_info.port.get_expr_port());
+    const auto lhs_is_incremented = lhs_info.port.is_incremented();
+    const auto rhs_is_incremented = rhs_info.port.is_incremented();
+    const auto equal_is_incremented = lhs_is_incremented == rhs_is_incremented;
     return equal_invariant_shape_paths && equal_is_incremented &&
-           (equal_element_type_sizes || !lhs_info.port.is_incremented || (lhs_info.desc.ptr_increment == 0 && lhs_info.desc.finalization_offset == 0));
+           (equal_element_type_sizes || !lhs_is_incremented || (lhs_info.desc.ptr_increment == 0 && lhs_info.desc.finalization_offset == 0));
 }
 
 bool SetBufferRegGroup::are_adjacent(const BufferMap::value_type& lhs, const BufferMap::value_type& rhs) {
@@ -113,7 +115,7 @@ SetBufferRegGroup::BufferMap SetBufferRegGroup::get_buffer_loop_neighbours(const
 
     const auto& loop_inputs = loop_info->get_input_ports_info();
     for (const auto& port_info : loop_inputs) {
-        const auto& parent_output = port_info.port.expr_port->get_port_connector_ptr()->get_source().get_expr();
+        const auto& parent_output = port_info.port.get_expr_port()->get_port_connector_ptr()->get_source().get_expr();
         if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(parent_output)) {
             if (buffer_neighbours.count(buffer_expr) > 0) {
                 const auto& port_desc = port_info.desc;
@@ -127,7 +129,7 @@ SetBufferRegGroup::BufferMap SetBufferRegGroup::get_buffer_loop_neighbours(const
 
     const auto& loop_outputs = loop_info->get_output_ports_info();
     for (const auto& port_info : loop_outputs) {
-        const auto& consumer_inputs = port_info.port.expr_port->get_port_connector_ptr()->get_consumers();
+        const auto& consumer_inputs = port_info.port.get_expr_port()->get_port_connector_ptr()->get_consumers();
         for (const auto& consumer_input : consumer_inputs) {
             const auto& child_expr = consumer_input.get_expr();
             if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(child_expr))

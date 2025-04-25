@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,7 @@
 
 using namespace dnnl::impl::cpu;
 
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
-namespace random_uniform {
+namespace ov::intel_cpu::kernel::random_uniform {
 
 #define GET_PHILOX_OFFSET(field) offsetof(PhiloxGeneratorCallArgs, field)
 
@@ -22,16 +19,16 @@ namespace random_uniform {
     func(vector, aux_register);
 
 #define BROADCAST_PARAM(func, vector, aux_register, param_args_offset) \
-    mov(aux_register, ptr[r64_params + param_args_offset]);            \
+    mov(aux_register, ptr[r64_params + (param_args_offset)]);          \
     func(vector, ptr[aux_register]);
 
-#define INIT_ARR(A, V, R, T)                                                               \
-    static const T A[8] = {V, V, V, V, V, V, V, V};                                        \
-    if (isa == x64::avx2) {                                                                \
-        mov(R, reinterpret_cast<uintptr_t>(A));                                            \
-    } else {                                                                               \
-        static const T* A##_aligned = A + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T); \
-        mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                  \
+#define INIT_ARR(A, V, R, T)                                                                 \
+    static const T A[8] = {V, V, V, V, V, V, V, V};                                          \
+    if (isa == x64::avx2) {                                                                  \
+        mov(R, reinterpret_cast<uintptr_t>(A));                                              \
+    } else {                                                                                 \
+        static const T* A##_aligned = (A) + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T); \
+        mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                    \
     }
 
 union FloatAsBits {
@@ -1413,7 +1410,4 @@ template class MersenneTwisterGenerator<x64::sse41>;
 #undef GET_MERSENNE_OFFSET
 #undef GET_PHILOX_OFFSET
 
-}  // namespace random_uniform
-}  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::kernel::random_uniform

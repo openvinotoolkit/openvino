@@ -16,6 +16,9 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing_through::run(program& p) {
+    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions())
+        return;
+
     auto try_fuse_through = [&](program_node& node) -> std::vector<program_node*> {
         // This function tries to fuse peer_node to first non reorder or reshape previous primitive.
         // It returns chain of primitives (reshapes and reorders) including potential fused_node (e.g. Conv, FC, etc)
@@ -45,8 +48,8 @@ void prepare_primitive_fusing_through::run(program& p) {
             if (node->is_type<reshape>() && node->get_dependencies().front().first->is_type<reduce>())
                 return false;
 
-            // Not to raise up target node through reshape where the size of dimension is changed (e.g. Unsqueeze)
-            if (node->is_type<reshape>() &&
+            // Not to raise up target node through reshape or reorder where the size of dimension is changed (e.g. Unsqueeze or Squeeze)
+            if ((node->is_type<reshape>() || node->is_type<reorder>()) &&
                 node->get_output_pshape().size() != node->get_input_pshape(0).size())
                 return false;
 

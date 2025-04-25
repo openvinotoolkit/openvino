@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
  */
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include "common/c_types_map.hpp"
@@ -16,8 +17,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DnnlMemoryDesc;
 class DnnlBlockedMemoryDesc;
@@ -26,8 +26,17 @@ class IMemory;
 
 class DnnlExtensionUtils {
 public:
+    struct throw_tag {};
+    struct nothrow_tag {};
+
+public:
     static uint8_t sizeOfDataType(dnnl::memory::data_type dataType);
-    static dnnl::memory::data_type ElementTypeToDataType(const ov::element::Type& elementType);
+    static dnnl::memory::data_type ElementTypeToDataType(const ov::element::Type& elementType,
+                                                         throw_tag tag = throw_tag{});
+
+    static std::optional<dnnl::memory::data_type> ElementTypeToDataType(const ov::element::Type& elementType,
+                                                                        nothrow_tag) noexcept;
+
     static ov::element::Type DataTypeToElementType(const dnnl::memory::data_type& dataType);
     static Dim convertToDim(const dnnl::memory::dim& dim);
     static dnnl::memory::dim convertToDnnlDim(const Dim& dim);
@@ -73,8 +82,9 @@ public:
                 return true;
             }
 
-            if (!itpd.next_impl())
+            if (!itpd.next_impl()) {
                 break;
+            }
         }
 
         return false;
@@ -89,12 +99,14 @@ public:
 
             if (comparator(descImplType)) {
                 func(itpd);
-                if (first_match)
+                if (first_match) {
                     break;
+                }
             }
 
-            if (!itpd.next_impl())
+            if (!itpd.next_impl()) {
                 break;
+            }
         }
 
         return;
@@ -116,5 +128,4 @@ public:
                                                 const std::shared_ptr<DnnlMemoryDesc>& dstDesc);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

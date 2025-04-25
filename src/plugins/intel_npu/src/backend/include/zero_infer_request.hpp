@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,11 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "zero_pipeline.hpp"
-#include "zero_profiling.hpp"
-#include "zero_remote_tensor.hpp"
+#include "zero_tensor.hpp"
 
 namespace intel_npu {
 
@@ -36,7 +36,6 @@ public:
 
 private:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
-    std::vector<uint8_t> get_raw_profiling_data() const;
 
     /**
      * @brief Check the received tensor and set the Level Zero tensor accordingly
@@ -62,29 +61,31 @@ private:
     std::shared_ptr<ov::ITensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
     std::vector<std::shared_ptr<ov::ITensor>>& get_level_zero_inputs(size_t index) const;
 
-    std::optional<TensorData>& get_input_tensor_data(size_t index, size_t tensorNo = 0) const;
-    std::vector<std::optional<TensorData>>& get_input_tensors_data(size_t index) const;
+    std::shared_ptr<ov::ITensor> create_tensor(ov::element::Type type,
+                                               const ov::Shape& shape,
+                                               const ov::Allocator& allocator = {}) const override;
+
+    void add_state(const IODescriptor& descriptor, size_t tensorIndex) const override;
+
+    void update_pipeline_if_memory_changed();
+    void update_states_if_memory_changed();
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
     const Config _config;
     Logger _logger;
 
+    const std::vector<ArgumentDescriptor>& _graphInputDescriptors;
+    const std::vector<ArgumentDescriptor>& _graphOutputDescriptors;
+
     // A copy of each tensor is needed to maintain the original L0 memory allocation in case the user provides another
     // memory area for the tensor.
     mutable std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
 
-    mutable std::vector<std::vector<std::optional<TensorData>>> _inputTensorsData;
-    mutable std::vector<std::optional<TensorData>> _outputTensorsData;
-
-    ze_device_properties_t _properties = {};
     std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
     std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;
 
-    zeroProfiling::ProfilingPool _profilingPool;
-    zeroProfiling::ProfilingQuery _profilingQuery;
-    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npuProfiling;
     std::unique_ptr<Pipeline> _pipeline;
 
     bool _pipelineIsCreated = false;

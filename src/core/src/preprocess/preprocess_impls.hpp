@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <openvino/core/preprocess/input_info.hpp>
-#include <openvino/core/preprocess/output_info.hpp>
-#include <openvino/opsets/opset8.hpp>
-
 #include "color_utils.hpp"
+#include "openvino/core/preprocess/input_info.hpp"
+#include "openvino/core/preprocess/output_info.hpp"
+#include "openvino/op/parameter.hpp"
 #include "preprocess_steps_impl.hpp"
 
 namespace ov {
@@ -261,8 +260,8 @@ private:
 /// \brief InputInfoImpl - internal data structure
 struct InputInfo::InputInfoImpl {
     struct InputInfoData {
-        std::vector<std::shared_ptr<opset8::Parameter>> m_new_params;
-        std::shared_ptr<opset8::Parameter> m_param;
+        std::vector<std::shared_ptr<op::v0::Parameter>> m_new_params;
+        std::shared_ptr<op::v0::Parameter> m_param;
         Layout m_model_layout;
         Layout m_tensor_layout;
         std::vector<Output<Node>> as_nodes() const {
@@ -270,7 +269,7 @@ struct InputInfo::InputInfoImpl {
             std::transform(m_new_params.begin(),
                            m_new_params.end(),
                            std::back_inserter(res),
-                           [](const std::shared_ptr<opset8::Parameter>& param) {
+                           [](const std::shared_ptr<op::v0::Parameter>& param) {
                                return param;
                            });
             return res;
@@ -305,7 +304,7 @@ struct InputInfo::InputInfoImpl {
 
     bool build(const std::shared_ptr<Model>& model,
                std::tuple<std::unordered_set<std::string>, bool>& existing_names,
-               std::list<std::shared_ptr<opset8::Parameter>>& parameters_list);
+               std::list<std::shared_ptr<op::v0::Parameter>>& parameters_list);
 
     void dump(std::ostream& str,
               const std::shared_ptr<Model>& model,

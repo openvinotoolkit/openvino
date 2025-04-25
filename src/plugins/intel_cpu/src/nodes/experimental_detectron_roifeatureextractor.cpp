@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "experimental_detectron_roifeatureextractor.h"
 
 #include <algorithm>
-#include <openvino/opsets/opset6.hpp>
+#include <cmath>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 // implementation taken from Caffe2
@@ -80,8 +80,8 @@ void pre_calc_for_bilinear_interpolate(const int height,
                         x = 0;
                     }
 
-                    int y_low = static_cast<int>(y);
-                    int x_low = static_cast<int>(x);
+                    auto y_low = static_cast<int>(y);
+                    auto x_low = static_cast<int>(x);
                     int y_high = 0;
                     int x_high = 0;
 
@@ -165,9 +165,11 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
         T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
 
         // We use roi_bin_grid to sample the grid and mimic integral
-        int roi_bin_grid_h =
-            (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(ceil(roi_height / pooled_height));  // e.g., = 2
-        int roi_bin_grid_w = (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(ceil(roi_width / pooled_width));
+        int roi_bin_grid_h = (sampling_ratio > 0)
+                                 ? sampling_ratio
+                                 : static_cast<int>(std::ceil(roi_height / pooled_height));  // e.g., = 2
+        int roi_bin_grid_w =
+            (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(std::ceil(roi_width / pooled_width));
 
         // We do average (integral) pooling inside a bin
         const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
@@ -255,9 +257,8 @@ void reord(const float* src_data, const int* ranks, const int n, const int step,
 void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level, const int levels_num) {
     rois_per_level.clear();
     rois_per_level.resize(levels_num, 0);
-    for (size_t i = 0; i < ids.size(); ++i) {
-        assert(0 <= ids[i] && ids[i] < levels_num);
-        rois_per_level[ids[i]]++;
+    for (int id : ids) {
+        rois_per_level[id]++;
     }
     for (int i = 1; i < levels_num; ++i) {
         rois_per_level[i] += rois_per_level[i - 1];
@@ -271,7 +272,7 @@ bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::s
                                                                     std::string& errorMessage) noexcept {
     try {
         const auto roiFeatureExtractor =
-            std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+            ov::as_type_ptr<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
         if (!roiFeatureExtractor) {
             errorMessage = "Only opset6 ExperimentalDetectronROIFeatureExtractor operation is supported";
             return false;
@@ -283,15 +284,14 @@ bool ExperimentalDetectronROIFeatureExtractor::isSupportedOperation(const std::s
 }
 
 ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(const std::shared_ptr<ov::Node>& op,
-                                                                                   const GraphContext::CPtr context)
+                                                                                   const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto roiFeatureExtractor =
-        std::dynamic_pointer_cast<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
+    const auto roiFeatureExtractor = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronROIFeatureExtractor>(op);
     const auto& attr = roiFeatureExtractor->get_attrs();
     output_dim_ = attr.output_size;
     pyramid_scales_ = attr.pyramid_scales;
@@ -302,20 +302,22 @@ ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtract
 }
 
 void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (size_t i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
+    }
 
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronROIFeatureExtractor::execute(dnnl::stream strm) {
+void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
@@ -377,6 +379,4 @@ bool ExperimentalDetectronROIFeatureExtractor::created() const {
     return getType() == Type::ExperimentalDetectronROIFeatureExtractor;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,9 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/platform.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 void serializeToCout(const Graph& graph);
 void serializeToXML(const Graph& graph, const std::string& path);
@@ -56,9 +56,11 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
 
         // If all output precisions are the same, we store the name only once
         if (!isAllEqual) {
-            for (size_t i = 1; i < node->getChildEdges().size(); i++)
+            for (size_t i = 1; i < node->getChildEdges().size(); i++) {
                 outputPrecisionsStr +=
-                    "," + std::string(node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
+                    "," + static_cast<std::string>(
+                              node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
+            }
         }
     } else {
         // Branch to correctly handle output nodes
@@ -189,8 +191,9 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
             to_hold.push_back(return_node);
         }
 
-        for (auto&& kvp : meta_data)
+        for (auto&& kvp : meta_data) {
             return_node->get_rt_info()[kvp.first] = kvp.second;
+        }
         return_node->set_friendly_name(node->getName());
 
         return return_node;
@@ -203,10 +206,12 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
         node2layer[node] = nodes.back();
     }
 
-    for (auto&& kvp : paramsMap)
+    for (auto&& kvp : paramsMap) {
         params.push_back(kvp.second);
-    for (auto&& kvp : resultsMap)
+    }
+    for (auto&& kvp : resultsMap) {
         results.push_back(kvp.second);
+    }
 
     auto holder = !results.empty() ? results[0] : std::make_shared<ov::op::v0::Result>();
     for (auto& node : to_hold) {
@@ -220,8 +225,9 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 void serialize(const Graph& graph) {
     const std::string& path = graph.getConfig().debugCaps.execGraphPath;
 
-    if (path.empty())
+    if (path.empty()) {
         return;
+    }
 
     if (path == "cout") {
         serializeToCout(graph);
@@ -235,12 +241,12 @@ void serialize(const Graph& graph) {
 }
 
 void serializeToXML(const Graph& graph, const std::string& path) {
-    if (path.empty())
+    if (path.empty()) {
         return;
+    }
 
-    std::string binPath;
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(path, binPath, ov::pass::Serialize::Version::IR_V10);
+    manager.register_pass<ov::pass::Serialize>(path, NULL_STREAM, ov::pass::Serialize::Version::IR_V10);
     manager.run_passes(graph.dump());
 }
 
@@ -260,18 +266,14 @@ void serializeToCout(const Graph& graph) {
                           << "/l=" << outConfs.front().getMemDesc()->serializeFormat();
             }
         }
-        std::cout << " ]" << std::endl;
+        std::cout << " ]" << '\n';
     }
 }
 
 void summary_perf(const Graph& graph) {
-    if (!graph.getGraphContext()) {
+    if (!graph.getGraphContext() || !graph.getConfig().debugCaps.summaryPerf) {
         return;
     }
-    const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
-
-    if (summaryPerf.empty() || !std::stoi(summaryPerf))
-        return;
 
     std::map<std::string, double> perf_by_type;
     std::map<NodePtr, double> perf_by_node;
@@ -280,54 +282,61 @@ void summary_perf(const Graph& graph) {
     for (auto& node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
         double avg = node->PerfCounter().avg();
         auto type = node->getTypeStr() + "_" + node->getPrimitiveDescriptorType();
-        auto name = node->getName();
 
         total += node->PerfCounter().count() * avg;
         total_avg += avg;
 
-        if (perf_by_type.count(type))
+        if (perf_by_type.count(type)) {
             perf_by_type[type] += avg;
-        else
+        } else {
             perf_by_type[type] = avg;
+        }
 
-        if (perf_by_node.count(node))
+        if (perf_by_node.count(node)) {
             perf_by_node[node] += avg;
-        else
+        } else {
             perf_by_node[node] = avg;
+        }
     }
 
-    if (total_avg < 1)
+    if (total_avg < 1) {
         return;
+    }
 
-    std::cout << "======= ENABLE_DEBUG_CAPS:OV_CPU_SUMMARY_PERF ======" << std::endl;
+    std::cout << "======= ENABLE_DEBUG_CAPS:OV_CPU_SUMMARY_PERF ======" << '\n';
     std::cout << "Summary of " << graph.GetName() << " @" << std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(&graph))
-              << std::endl;
-    std::cout << "     Total(us): " << (uint64_t)(total) << std::endl;
-    std::cout << " Total_avg(us): " << (uint64_t)(total_avg) << std::endl;
+              << '\n';
+    std::cout << "     Total(us): " << (uint64_t)(total) << '\n';
+    std::cout << " Total_avg(us): " << (uint64_t)(total_avg) << '\n';
     {
-        std::cout << " perf_by_type:" << std::endl;
+        std::cout << " perf_by_type:" << '\n';
         std::vector<std::pair<std::string, double>> A;
-        for (auto& it : perf_by_type)
-            A.push_back(it);
+        A.reserve(perf_by_type.size());
+        for (auto& it : perf_by_type) {
+            A.emplace_back(it);
+        }
         sort(A.begin(), A.end(), [](std::pair<std::string, double>& a, std::pair<std::string, double>& b) {
             return a.second > b.second;
         });
 
         for (auto& it : A) {
             std::stringstream ss;
-            int percentage = static_cast<int>(it.second * 100 / total_avg);
-            if (percentage == 0)
+            auto percentage = static_cast<int>(it.second * 100 / total_avg);
+            if (percentage == 0) {
                 break;
+            }
             ss << std::setw(10) << std::right << percentage << " % :  " << std::setw(8) << std::right << it.second
-               << "(us)  " << it.first << std::endl;
+               << "(us)  " << it.first << '\n';
             std::cout << ss.str();
         }
     }
     {
-        std::cout << " perf_by_node:" << std::endl;
+        std::cout << " perf_by_node:" << '\n';
         std::vector<std::pair<NodePtr, double>> A;
-        for (auto& it : perf_by_node)
-            A.push_back(it);
+        A.reserve(perf_by_node.size());
+        for (auto& it : perf_by_node) {
+            A.emplace_back(it);
+        }
         sort(A.begin(), A.end(), [](std::pair<NodePtr, double>& a, std::pair<NodePtr, double>& b) {
             return a.second > b.second;
         });
@@ -336,14 +345,16 @@ void summary_perf(const Graph& graph) {
             std::stringstream ss;
             auto percentage = it.second * 100 / total_avg;
             auto node = it.first;
-            if (node->PerfCounter().count() == 0)
+            if (node->PerfCounter().count() == 0) {
                 continue;
-            if (node->PerfCounter().avg() < 1)
+            }
+            if (node->PerfCounter().avg() < 1) {
                 continue;
+            }
             ss << std::setw(10) << std::right << std::fixed << std::setprecision(2) << percentage << " %  "
                << std::setw(8) << std::right << node->PerfCounter().avg() << "(us)x" << node->PerfCounter().count()
                << " #" << node->getExecIndex() << " " << node->getName() << " "
-               << node->getTypeStr() + "_" + node->getPrimitiveDescriptorType() << std::endl;
+               << node->getTypeStr() + "_" + node->getPrimitiveDescriptorType() << '\n';
             std::cout << ss.str();
         }
     }
@@ -357,11 +368,16 @@ void average_counters(const Graph& graph) {
      * - <nesting-level>_<graph-name>.csv
      * For example: 0_MyModel.csv
      */
+    if (!graph.getGraphContext()) {
+        DEBUG_LOG("graph.m_context is null. Don't dump average_counters.");
+        return;
+    }
 
     const std::string& path = graph.getConfig().debugCaps.averageCountersPath;
 
-    if (path.empty())
+    if (path.empty()) {
         return;
+    }
 
     static int graphIndex = 0;
     std::string fileName = path + "_" + std::to_string(graphIndex++) + ".csv";
@@ -379,7 +395,7 @@ void average_counters(const Graph& graph) {
         return std::chrono::microseconds(value).count() / 1000.0;
     };
 
-    auto printAverageCounter = [&toMs, &file](NodePtr node) {
+    auto printAverageCounter = [&toMs, &file](const NodePtr& node) {
         const uint64_t avg = node->PerfCounter().avg();
         const std::string status = avg > 0 ? "EXECUTED" : "NOT_RUN";
         const auto cpuTime = toMs(avg);
@@ -393,8 +409,9 @@ void average_counters(const Graph& graph) {
     };
 
     for (auto& node : graph.GetNodes()) {
-        if (node->isConstant())
+        if (node->isConstant()) {
             continue;
+        }
 
         total += printAverageCounter(node);
     }
@@ -408,5 +425,4 @@ void average_counters(const Graph& graph) {
 }
 
 #endif
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

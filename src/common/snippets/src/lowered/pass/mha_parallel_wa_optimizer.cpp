@@ -85,7 +85,9 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     return true;
 }
 
-std::unordered_set<lowered::ExpressionPtr> MHAParallelWAOptimizer::find_applicable_brgemms(const lowered::LinearIRCPtr& linear_ir) {
+std::unordered_set<lowered::ExpressionPtr> MHAParallelWAOptimizer::find_applicable_brgemms(
+    const lowered::LinearIRCPtr& linear_ir,
+    bool check_dynamic_wa) {
     auto is_brgemm = [](const lowered::ExpressionPtr& expr) {
         return ov::is_type<op::Brgemm>(expr->get_node());
     };
@@ -96,16 +98,16 @@ std::unordered_set<lowered::ExpressionPtr> MHAParallelWAOptimizer::find_applicab
         brgemm_it = std::find_if(std::next(brgemm_it), linear_ir->end(), is_brgemm);
     }
     const auto& loop_manager = linear_ir->get_loop_manager();
-    auto applicable_brgemm = [&loop_manager](const lowered::ExpressionPtr& expr) {
+    auto applicable_brgemm = [&loop_manager, check_dynamic_wa](const lowered::ExpressionPtr& expr) {
         const auto& loop_idces = expr->get_loop_ids();
         if (loop_idces.empty())
             return false;
         const auto& outermost_loop = loop_manager->get_loop_info(loop_idces[0]);
-        if (!snippets::utils::is_dynamic_value(outermost_loop->get_work_amount()))
+        if (check_dynamic_wa && !snippets::utils::is_dynamic_value(outermost_loop->get_work_amount()))
             return false;
         bool loop_by_m = true;
         outermost_loop->iterate_through_ports([&loop_by_m](const lowered::LoopPort& port) {
-            if (port.is_incremented && port.dim_idx != m_dim_M_idx)
+            if (port.is_processed() && port.get_dim_idx() != m_dim_M_idx)
                 loop_by_m = false;
         });
         return loop_by_m;

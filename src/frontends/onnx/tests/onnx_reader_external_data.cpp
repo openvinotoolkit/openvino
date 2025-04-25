@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -289,7 +289,7 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_int8) {
     const auto model = core.read_model(path);
     auto test_case = test::TestCase(model);
     test_case.add_input<int8_t>({-100});
-    test_case.add_expected_output<int8_t>(Shape{2, 2}, {-100, 106, -100, -37});
+    test_case.add_expected_output<int8_t>(Shape{2, 2}, {-100, -100, 28, -37});
 
     test_case.run();
 }

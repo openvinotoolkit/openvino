@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 VectorDims TileBroadcastCommon::calculateDenseStrides(const VectorDims& dims) {
     VectorDims strides(dims.size(), 1);
@@ -65,8 +64,10 @@ bool TileBroadcastCommon::canBeExecutedInBlockedLayout(VectorDims srcBlockedDims
                                                        VectorDims blockedRepeats,
                                                        const size_t elemsInBlock) {
     if (srcBlockedDims.empty() || blockedRepeats.empty() || elemsInBlock == 0lu ||
-        srcBlockedDims[1] == Shape::UNDEFINED_DIM || (blockedRepeats[1] != 1 && srcBlockedDims[1] % elemsInBlock != 0))
+        srcBlockedDims[1] == Shape::UNDEFINED_DIM ||
+        (blockedRepeats[1] != 1 && srcBlockedDims[1] % elemsInBlock != 0)) {
         return false;
+    }
 
     srcBlockedDims[1] = div_up(srcBlockedDims[1], elemsInBlock);
     srcBlockedDims.push_back(elemsInBlock);
@@ -102,7 +103,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
     size_t outDataShapeRank = node->getOutputShapeAtPort(0).getRank();
 
     NodeConfig config;
-    if (repeats.size() != outDataShapeRank && !repeats.empty())
+    if (repeats.size() != outDataShapeRank && !repeats.empty()) {
         OPENVINO_THROW(node->getTypeStr(),
                        " node with name ",
                        node->getName(),
@@ -111,6 +112,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
                        repeats.size(),
                        ", output shape rank: ",
                        outDataShapeRank);
+    }
 
     config.inConfs.resize(node->getParentEdges().size());
     config.inConfs[0].inPlace(-1);
@@ -131,13 +133,13 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
     auto pushDesc = [&](dnnl::memory::format_tag inFormat, dnnl::memory::format_tag outFormat) {
         config.inConfs[0].setMemDesc(
             std::make_shared<DnnlBlockedMemoryDesc>(node->getInputShapeAtPort(0), dataType, inFormat));
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].inPlace(-1);
-            config.outConfs[i].constant(false);
-            config.outConfs[i].setMemDesc(
+        for (auto& outConf : config.outConfs) {
+            outConf.inPlace(-1);
+            outConf.constant(false);
+            outConf.setMemDesc(
                 std::make_shared<DnnlBlockedMemoryDesc>(node->getOutputShapeAtPort(0), dataType, outFormat));
         }
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     };
 
     if (!repeats.empty() && inDataShape.getRank() == outDataShapeRank &&
@@ -175,7 +177,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
             config.outConfs[i].setMemDesc(
                 std::make_shared<CpuBlockedMemoryDesc>(precision, node->getOutputShapeAtPort(i)));
         }
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     } else {
         pushDesc(inFmt, outFmt);
     }
@@ -206,8 +208,9 @@ bool TileBroadcastCommon::prepareOptimizedParams(const Node* node,
     fillOptimizedDimsAndSrcStrides(srcBlockedDims, blockedRepeats, optimizedDims, optimizedSrcStrides);
 
     constexpr size_t maxNDims = 6lu;
-    if (optimizedDims.size() > maxNDims)
+    if (optimizedDims.size() > maxNDims) {
         return false;
+    }
 
     while (optimizedDims.size() < maxNDims) {
         optimizedDims.insert(optimizedDims.begin(), 1);
@@ -326,5 +329,4 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

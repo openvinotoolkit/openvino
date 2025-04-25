@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_impl_check/op_impl_check.hpp"
 #include "op_impl_check/single_op_graph.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "op_impl_check/op_impl_check.hpp"
+#include "openvino/op/ops.hpp"
 
 namespace ov {
 namespace test {
@@ -530,6 +531,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::Identity>
     const auto identity = std::make_shared<ov::op::v16::Identity>(params[0]);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(identity)};
     return std::make_shared<ov::Model>(results, params, "Identity");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::SegmentMax> &node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 9});
+    const auto segment_ids = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {2}, {4, 4});
+    const auto num_segments = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {5});
+    const auto SegmentMaxNode = std::make_shared<ov::op::v16::SegmentMax>(data, segment_ids, num_segments, ov::op::FillMode::ZERO);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(SegmentMaxNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "SegmentMaxGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Interpolate> &node) {
@@ -1937,6 +1947,18 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::STFT>& no
     const auto stft = std::make_shared<ov::op::v15::STFT>(data, window, frame_size, step_size, transpose_frames);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(stft)};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data, window}, "STFTGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::ISTFT>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{9, 2, 2});
+    const auto window = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{16});
+    const auto frame_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {16});
+    const auto step_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {4});
+    constexpr bool center = true;
+    constexpr bool normalized = true;
+    const auto stft = std::make_shared<ov::op::v16::ISTFT>(data, window, frame_size, step_size, center, normalized);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(stft)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, window}, "ISTFTGraph");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::StringTensorUnpack> &node) {

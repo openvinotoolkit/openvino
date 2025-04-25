@@ -10,8 +10,7 @@
 
 #include "openvino/core/visibility.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 static constexpr unsigned int FTZ_FLAG = 0x8000;
 static constexpr unsigned int DAZ_FLAG = 0x0040;
 
@@ -122,5 +121,4 @@ bool denormals_as_zero(bool on) {
 #    endif
 #endif  // OPENVINO_ARCH_X86_64
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

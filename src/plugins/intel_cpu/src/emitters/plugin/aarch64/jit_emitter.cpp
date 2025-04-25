@@ -12,9 +12,7 @@
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;
 
-namespace ov {
-namespace intel_cpu {
-namespace aarch64 {
+namespace ov::intel_cpu::aarch64 {
 
 const std::vector<size_t> jit_emitter::store_gpr_regs = {
     // Parameter/result registers
@@ -45,10 +43,10 @@ const std::vector<size_t> jit_emitter::store_gpr_regs = {
 static const std::vector<size_t> vec_regs = {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
                                              16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
 
-void jit_emitter::emit_code(const std::vector<size_t>& in_idxs,
-                            const std::vector<size_t>& out_idxs,
-                            const std::vector<size_t>& pool_vec_idxs,
-                            const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
+                                 const std::vector<size_t>& out_idxs,
+                                 const std::vector<size_t>& pool_vec_idxs,
+                                 const std::vector<size_t>& pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs);
@@ -61,18 +59,24 @@ void jit_emitter::emit_data() const {
     h->L(*l_table.get());
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
-    assert(sizeof(table_entry_val_t) == 4);
+    static_assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
-    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        const auto& te = (*it).second;  // get map entry for a given key
+    for (const auto& it : entry_map_) {
+        const auto& te = it.second;  // get map entry for a given key
         const auto len = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
-        for (size_t d = 0; d < len; d += sizeof(table_entry_val_t))
+        for (size_t d = 0; d < len; d += sizeof(table_entry_val_t)) {
             h->dd(te.val);
+        }
     }
 }
 
-std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+emitter_in_out_map jit_emitter::get_in_out_type() const {
+    return in_out_type_;
+}
+
+std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 
@@ -100,8 +104,8 @@ void jit_emitter::prepare_table() {
     // expect the same order when injecting the table entries in
     // prepare_table.
     size_t off = 0;
-    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        auto& te = (*it).second;
+    for (auto& it : entry_map_) {
+        auto& te = it.second;
         te.off = off;
         off += te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
     }
@@ -123,33 +127,41 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     }
 
     for (size_t idx = 0; idx < get_max_vecs_count(); idx++) {
-        if (aux_vec_idxs.size() >= get_aux_vecs_count())
+        if (aux_vec_idxs.size() >= get_aux_vecs_count()) {
             break;
+        }
 
         if (is_vec_input) {
-            if (std::find(in_idxs.begin(), in_idxs.end(), idx) != in_idxs.end())
+            if (std::find(in_idxs.begin(), in_idxs.end(), idx) != in_idxs.end()) {
                 continue;
+            }
         }
         if (is_vec_output) {
-            if (std::find(out_idxs.begin(), out_idxs.end(), idx) != out_idxs.end())
+            if (std::find(out_idxs.begin(), out_idxs.end(), idx) != out_idxs.end()) {
                 continue;
+            }
         }
 
-        if (std::find(in_idxs.begin(), in_idxs.end(), idx) != in_idxs.end())
+        if (std::find(in_idxs.begin(), in_idxs.end(), idx) != in_idxs.end()) {
             continue;
-        if (std::find(out_idxs.begin(), out_idxs.end(), idx) != out_idxs.end())
+        }
+        if (std::find(out_idxs.begin(), out_idxs.end(), idx) != out_idxs.end()) {
             continue;
+        }
 
-        if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) != aux_vec_idxs.end())
+        if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) != aux_vec_idxs.end()) {
             continue;
-        if (std::find(preserved_vec_idxs.begin(), preserved_vec_idxs.end(), idx) != preserved_vec_idxs.end())
+        }
+        if (std::find(preserved_vec_idxs.begin(), preserved_vec_idxs.end(), idx) != preserved_vec_idxs.end()) {
             continue;
+        }
 
         aux_vec_idxs.push_back(idx);
         preserved_vec_idxs.push_back(idx);
     }
-    if (aux_vec_idxs.size() < get_aux_vecs_count())
+    if (aux_vec_idxs.size() < get_aux_vecs_count()) {
         OV_CPU_JIT_EMITTER_THROW("Failed to allocate required number of vector registers");
+    }
 
     // gpr registers
     for (auto idx : pool_aux_gpr_idxs) {
@@ -160,31 +172,38 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     for (size_t gpr_idx = 0; gpr_idx <= end_gpr_idx; ++gpr_idx) {
         size_t _idx = end_gpr_idx - gpr_idx;  // we allocate from the end
 
-        if (aux_gpr_idxs.size() >= get_aux_gprs_count())
+        if (aux_gpr_idxs.size() >= get_aux_gprs_count()) {
             break;
+        }
         if ((_idx == Xbyak_aarch64::Operand::X18) || (_idx == Xbyak_aarch64::Operand::X23) ||
-            (_idx == Xbyak_aarch64::Operand::X24) || (_idx == Xbyak_aarch64::Operand::X28))
+            (_idx == Xbyak_aarch64::Operand::X24) || (_idx == Xbyak_aarch64::Operand::X28)) {
             continue;
+        }
 
         if (!is_vec_input) {
-            if (std::find(in_idxs.begin(), in_idxs.end(), _idx) != in_idxs.end())
+            if (std::find(in_idxs.begin(), in_idxs.end(), _idx) != in_idxs.end()) {
                 continue;
+            }
         }
         if (!is_vec_output) {
-            if (std::find(out_idxs.begin(), out_idxs.end(), _idx) != out_idxs.end())
+            if (std::find(out_idxs.begin(), out_idxs.end(), _idx) != out_idxs.end()) {
                 continue;
+            }
         }
 
-        if (std::find(aux_gpr_idxs.begin(), aux_gpr_idxs.end(), _idx) != aux_gpr_idxs.end())
+        if (std::find(aux_gpr_idxs.begin(), aux_gpr_idxs.end(), _idx) != aux_gpr_idxs.end()) {
             continue;
-        if (std::find(preserved_gpr_idxs.begin(), preserved_gpr_idxs.end(), _idx) != preserved_gpr_idxs.end())
+        }
+        if (std::find(preserved_gpr_idxs.begin(), preserved_gpr_idxs.end(), _idx) != preserved_gpr_idxs.end()) {
             continue;
+        }
 
         aux_gpr_idxs.push_back(_idx);
         preserved_gpr_idxs.push_back(_idx);
     }
-    if (aux_gpr_idxs.size() < get_aux_gprs_count())
+    if (aux_gpr_idxs.size() < get_aux_gprs_count()) {
         OV_CPU_JIT_EMITTER_THROW("Failed to allocate required number of general-purpose registers");
+    }
 
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
@@ -318,6 +337,4 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
     }
 }
 
-}  // namespace aarch64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::aarch64

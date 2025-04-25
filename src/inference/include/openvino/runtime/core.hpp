@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include <filesystem>
 #include <istream>
 #include <map>
 #include <memory>
@@ -24,10 +25,6 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
-
-#ifdef OPENVINO_CPP_VER_17
-#    include <filesystem>
-#endif
 
 namespace ov {
 
@@ -109,12 +106,10 @@ public:
                                           const std::string& bin_path = {},
                                           const ov::AnyMap& properties = {}) const;
 
-#ifdef OPENVINO_CPP_VER_17
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
         return read_model(model_path.string(), bin_path.string(), properties);
     }
-#endif
     /// @}
 
     /**
@@ -141,14 +136,12 @@ public:
         return read_model(model_path, bin_path, AnyMap{std::forward<Properties>(properties)...});
     }
 
-#ifdef OPENVINO_CPP_VER_17
     template <class Path,
               class... Properties,
               std::enable_if_t<std::is_same_v<Path, std::filesystem::path> && (sizeof...(Properties) > 0)>* = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path, Properties&&... properties) const {
         return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
     }
-#endif
     /// @}
 
     /**
@@ -250,12 +243,10 @@ public:
      */
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
-#ifdef OPENVINO_CPP_VER_17
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const AnyMap& properties = {}) const {
         return compile_model(model_path.string(), properties);
     }
-#endif
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     CompiledModel compile_model(const std::wstring& model_path, const AnyMap& properties = {});
@@ -283,12 +274,10 @@ public:
         return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
     }
 
-#ifdef OPENVINO_CPP_VER_17
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, Properties&&... properties) {
         return compile_model(model_path.string(), std::forward<Properties>(properties)...);
     }
-#endif
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     template <typename... Properties>
@@ -317,12 +306,10 @@ public:
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
 
-#ifdef OPENVINO_CPP_VER_17
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
         return compile_model(model_path.string(), device_name, properties);
     }
-#endif
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     CompiledModel compile_model(const std::wstring& model_path,
@@ -353,12 +340,10 @@ public:
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
-#ifdef OPENVINO_CPP_VER_17
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, Properties&&... properties) {
         return compile_model(model_path.string(), device_name, std::forward<Properties>(properties)...);
     }
-#endif
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     template <typename... Properties>
@@ -444,12 +429,10 @@ public:
      */
     void add_extension(const std::string& library_path);
 
-#ifdef OPENVINO_CPP_VER_17
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void add_extension(const Path& model_path) {
         add_extension(model_path.string());
     }
-#endif
     /// @}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

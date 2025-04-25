@@ -1,16 +1,17 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
 #include <memory>
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "low_precision/create_precisions_dependent_attribute.hpp"
 #include "low_precision/rt_info/avg_pool_precision_preserved_attribute.hpp"
 #include "low_precision/propagate_through_precision_preserved.hpp"
 #include "low_precision/update_shared_precision_preserved.hpp"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/op/avg_pool.hpp"
 
 using namespace ov;
 

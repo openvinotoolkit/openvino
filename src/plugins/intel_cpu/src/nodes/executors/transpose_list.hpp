@@ -17,8 +17,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "x64/jit_transpose.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct TransposeExecutorDesc {
     ExecutorType executorType;
@@ -32,7 +31,7 @@ public:
     TransposeExecutorFactory(const TransposeParams& transposeParams,
                              const std::vector<MemoryDescPtr>& srcDescs,
                              const std::vector<MemoryDescPtr>& dstDescs,
-                             const ExecutorContext::CPtr context)
+                             const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getTransposeExecutorsList()) {
             if (desc.builder->isSupported(transposeParams, srcDescs, dstDescs)) {
@@ -41,7 +40,7 @@ public:
         }
     }
 
-    ~TransposeExecutorFactory() = default;
+    ~TransposeExecutorFactory() override = default;
     virtual TransposeExecutorPtr makeExecutor(const TransposeParams& transposeParams,
                                               const std::vector<MemoryDescPtr>& srcDescs,
                                               const std::vector<MemoryDescPtr>& dstDescs,
@@ -55,5 +54,4 @@ private:
 using TransposeExecutorFactoryPtr = std::shared_ptr<TransposeExecutorFactory>;
 using TransposeExecutorFactoryCPtr = std::shared_ptr<const TransposeExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

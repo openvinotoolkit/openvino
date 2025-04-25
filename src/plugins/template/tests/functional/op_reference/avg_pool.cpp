@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,7 +106,7 @@ private:
                                                                exclude_pad,
                                                                rounding_type,
                                                                pad_type);
-        return std::make_shared<Model>(NodeVector{avgPool}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{avgPool}, ParameterVector{in});
     }
 };
 
@@ -341,7 +341,7 @@ private:
                                                                 exclude_pad,
                                                                 rounding_type,
                                                                 pad_type);
-        return std::make_shared<Model>(NodeVector{avgPool}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{avgPool}, ParameterVector{in});
     }
 };
 

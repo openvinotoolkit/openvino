@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ private:
 
         const auto op = std::make_shared<op::v15::SearchSorted>(sorted, values, params.rightMode);
 
-        return std::make_shared<Model>(NodeVector{op}, ParameterVector{sorted, values});
+        return std::make_shared<Model>(OutputVector{op}, ParameterVector{sorted, values});
     }
 };
 

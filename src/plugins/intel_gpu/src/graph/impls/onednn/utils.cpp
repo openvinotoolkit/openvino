@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,6 +73,17 @@ dnnl::memory::dims convert_gemm_dims(const std::vector<int32_t> &sizes, size_t d
         res.erase(res.begin(), res.begin() + 2);
     }
     return res;
+}
+
+dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l) {
+    switch (l.get_partial_shape().size()) {
+    case 2: return dnnl::memory::format_tag::ab;
+    case 3: return dnnl::memory::format_tag::abc;
+    case 4: return dnnl::memory::format_tag::abcd;
+    case 5: return dnnl::memory::format_tag::abcde;
+    case 6: return dnnl::memory::format_tag::abcdef;
+    default: OPENVINO_THROW("[GPU] Unsupported conversion from "+ l.to_short_string() + " to onednn format_tag");
+    }
 }
 
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
@@ -235,7 +246,7 @@ int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     auto f_padding = l.data_padding._lower_size[1];
     if (b_padding != 0) {
         auto input_pitches = l.get_pitches();
-        offset = b_padding * input_pitches[0];
+        offset = static_cast<int64_t>(b_padding) * input_pitches[0];
     } else if (f_padding != 0) {
         offset = f_padding;
         for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
@@ -262,7 +273,7 @@ int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     }
 }
 
-dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten) {
+dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten, bool use_strides) {
     dnnl::memory::dims dims;
     if (target_fmt == dnnl::memory::format_tag::ab && flatten) {
         dims = flatten_tensor(l.get_tensor());
@@ -273,6 +284,28 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     } else if (target_fmt == dnnl::memory::format_tag::abc) {
         dims.push_back(l.batch());
         dims.push_back(l.feature());
+        dims.push_back(l.spatial(1));
+    } else if (target_fmt == dnnl::memory::format_tag::acb) {
+        dims.push_back(l.batch());
+        dims.push_back(l.spatial(1));
+        dims.push_back(l.feature());
+    } else if (target_fmt == dnnl::memory::format_tag::abdc) {
+        dims.push_back(l.batch());
+        dims.push_back(l.feature());
+        dims.push_back(l.spatial(0));
+        dims.push_back(l.spatial(1));
+    } else if (target_fmt == dnnl::memory::format_tag::abced) {
+        dims.push_back(l.batch());
+        dims.push_back(l.feature());
+        dims.push_back(l.spatial(2));
+        dims.push_back(l.spatial(0));
+        dims.push_back(l.spatial(1));
+    } else if (target_fmt == dnnl::memory::format_tag::abcdfe) {
+        dims.push_back(l.batch());
+        dims.push_back(l.feature());
+        dims.push_back(l.spatial(3));
+        dims.push_back(l.spatial(2));
+        dims.push_back(l.spatial(0));
         dims.push_back(l.spatial(1));
     } else if (target_fmt == dnnl::memory::format_tag::ba) {
         dims.push_back(l.feature());
@@ -285,10 +318,53 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     }
 
     dnnl::memory::data_type dt = convert_data_type(l.data_type);
-    dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
-    dnnl::memory::desc res(dims, dt, fmt);
-
-    return res;
+    if (use_strides) {
+        dnnl::memory::dims strides;
+        OPENVINO_ASSERT(flatten == false, "The padded layout cannot be flattened.");
+        auto padded_dims = l.get_padded_dims();
+        if (target_fmt == dnnl::memory::format_tag::ab) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+        } else if (target_fmt == dnnl::memory::format_tag::abc) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+        } else if (target_fmt == dnnl::memory::format_tag::acb) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[2]);
+        } else if (target_fmt == dnnl::memory::format_tag::abdc) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[3]);
+        } else if (target_fmt == dnnl::memory::format_tag::abced) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[4]);
+        } else if (target_fmt == dnnl::memory::format_tag::abcdfe) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[0]);
+            strides.push_back(padded_dims[0] * padded_dims[1]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[3]);
+            strides.push_back(padded_dims[0] * padded_dims[1] * padded_dims[2] * padded_dims[3] * padded_dims[5]);
+        } else if (target_fmt == dnnl::memory::format_tag::ba) {
+            strides.push_back(1);
+            strides.push_back(padded_dims[1]);
+        } else {
+            auto pitches = l.get_pitches();
+            strides.assign(pitches.begin(), pitches.end());
+        }
+        dnnl::memory::desc res(dims, dt, strides);
+        return res;
+    } else {
+        dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
+        dnnl::memory::desc res(dims, dt, fmt);
+        return res;
+    }
 }
 static void get_identical_order(std::vector<std::vector<size_t>>& orders, std::vector<size_t> order,
                             size_t first, size_t depth) {
@@ -574,6 +650,7 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
     traits.internal_order = internal_order;
     traits.block_sizes = block_sizes;
     traits.logic_block_sizes = logic_block_sizes;
+    traits.desc_size = desc.get_size();
     traits.str = "custom";
 
     return traits;

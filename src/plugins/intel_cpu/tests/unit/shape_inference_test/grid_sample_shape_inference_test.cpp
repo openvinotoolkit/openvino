@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "utils.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "grid_sample_shape_inference.hpp"
 
 using namespace ov;

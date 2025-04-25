@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <float.h>
-
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -18,10 +17,7 @@
 #include "softmax.hpp"
 #include "softmax_kernel.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 void attn_softmax(void* a,
                   void* a_dst,
@@ -32,7 +28,7 @@ void attn_softmax(void* a,
                   bool select_nfltmax_at_0,
                   size_t len,
                   size_t total_size,
-                  ov::element::Type precision,
+                  [[maybe_unused]] ov::element::Type precision,
                   ov::element::Type attn_mask_prec,
                   ov::element::Type dst_precision) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
@@ -68,7 +64,4 @@ void attn_softmax(void* a,
                                dst_precision);
 }
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

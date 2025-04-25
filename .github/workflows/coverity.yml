@@ -192,7 +192,7 @@ jobs:
         run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-configure -c ${COVERITY_TOOL_DIR}/cov-analysis-linux64-2023.6.2/config/coverity_config.xml -lscc text
 
       - name: Upload Coverity build log
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: coverity_logs
@@ -200,7 +200,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload Coverity build archive
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: coverity_archive

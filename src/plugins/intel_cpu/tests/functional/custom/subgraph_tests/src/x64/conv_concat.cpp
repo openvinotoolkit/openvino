@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@ namespace Kernel_1x1 {
 
 /* ============= Kernel_1x1 (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2DConv = {
-    conv_sse42_2D_1x1,
     conv_avx2_2D_1x1,
     conv_avx512_2D_1x1
 };
@@ -84,7 +83,6 @@ commonConvParams dwConvParams2D = commonConvParams{kernelSize2D(), strides2D(), 
                                                    numOutChannels(), paddingType(), numOutChannels()};
 const ov::Shape inputShapesDW2D{1, 32, 16, 16};
 const std::vector<CPUSpecificParams> CPUParams2D = {
-    conv_sse42_dw_2D,
     conv_avx2_dw_2D,
     conv_avx512_dw_2D
 };
@@ -104,7 +102,6 @@ commonConvParams dwConvParams3D = commonConvParams{kernelSize3D(), strides3D(), 
                                                    numOutChannels(), paddingType(), numOutChannels()};
 const ov::Shape inputShapesDW3D{1, 32, 8, 16, 16};
 const std::vector<CPUSpecificParams> CPUParams3D = {
-    conv_sse42_dw_3D,
     conv_avx2_dw_3D,
     conv_avx512_dw_3D
 };
@@ -158,8 +155,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D, ConvConcatSubgraphTest
 namespace ConvolutionConcat {
 /* ============= Convolution (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
-    conv_ref_2D,
-    conv_sse42_2D,
     conv_avx2_2D,
     conv_avx512_2D
 };
@@ -176,7 +171,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, 
 
 /* ============= Convolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
-    conv_ref_3D,
     conv_avx2_3D,
     conv_avx512_3D
 };
@@ -195,8 +189,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D, ConvConcatSubgraphTest, params3D, 
 namespace GroupConvolutionConcat {
 /* ============= GroupConvolution (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
-    conv_ref_2D,
-    conv_sse42_2D,
     conv_avx2_2D,
     conv_avx512_2D
 };
@@ -213,7 +205,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D, ConvConcatSubgraphTest, param
 
 /* ============= GroupConvolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
-    conv_ref_3D,
     conv_avx2_3D,
     conv_avx512_3D
 };

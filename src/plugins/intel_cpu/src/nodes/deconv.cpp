@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@
 #include "input.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "utils/cpu_utils.hpp"
@@ -33,11 +32,13 @@
 #include <string>
 #include <vector>
 
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+
 using namespace dnnl;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 using DefaultDeconvDescs =
     std::pair<dnnl::convolution_backward_data::primitive_desc, dnnl::convolution_forward::primitive_desc>;
@@ -62,7 +63,7 @@ struct DeconvKey {
     dnnl::primitive_attr attr;
     impl_desc_type implType;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const DeconvKey& rhs) const;
 };
 
@@ -125,16 +126,43 @@ bool DeconvKey::operator==(const DeconvKey& rhs) const {
  * input. Since in case it exists, plugin should pass the input data to the shape inference function.
  *
  */
-class DeconfolutionShapeInferFactory : public ShapeInferFactory {
+class DeconvolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    DeconfolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
 
-    ShapeInferPtr makeShapeInfer() const override {
-        const auto port_mask = (m_op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK;
-        return make_shape_inference(m_op, port_mask);
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<DeconvolutionShapeInfer>(m_op);
     }
 
 private:
+    class DeconvolutionShapeInfer : public IShapeInfer {
+    public:
+        DeconvolutionShapeInfer(const std::shared_ptr<ov::Node>& op)
+            : m_shape_infer(make_shape_inference(op)),
+              m_port_mask((op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK) {}
+
+        Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                     const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+            return m_shape_infer->infer(input_shapes, data_dependency);
+        }
+
+        const ov::CoordinateDiff& get_pads_begin() override {
+            return m_shape_infer->get_pads_begin();
+        }
+
+        const ov::CoordinateDiff& get_pads_end() override {
+            return m_shape_infer->get_pads_end();
+        }
+
+        [[nodiscard]] port_mask_t get_port_mask() const override {
+            return m_port_mask;
+        };
+
+    private:
+        ShapeInferPtr m_shape_infer;
+        const port_mask_t m_port_mask;
+    };
+
     std::shared_ptr<ov::Node> m_op;
 };
 }  // namespace
@@ -142,8 +170,8 @@ private:
 bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
     try {
-        if (std::dynamic_pointer_cast<const ov::op::v1::ConvolutionBackpropData>(op) == nullptr &&
-            std::dynamic_pointer_cast<const ov::op::v1::GroupConvolutionBackpropData>(op) == nullptr) {
+        if (ov::as_type_ptr<const ov::op::v1::ConvolutionBackpropData>(op) == nullptr &&
+            ov::as_type_ptr<const ov::op::v1::GroupConvolutionBackpropData>(op) == nullptr) {
             errorMessage =
                 "Only opset1 ConvolutionBackpropData and GroupConvolutionBackpropData operations are supported";
             return false;
@@ -164,16 +192,16 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, DeconfolutionShapeInferFactory(op)) {
+Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+    : Node(op, context, DeconvolutionShapeInferFactory(op)) {
     std::string errorMessage;
-    errorPrefix = "Deconvolution node with name '" + getName() + "' ";
-    if (!isSupportedOperation(op, errorMessage))
-        OPENVINO_THROW_NOT_IMPLEMENTED(errorPrefix + errorMessage);
+    if (!isSupportedOperation(op, errorMessage)) {
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    }
 
     const auto& weightDims = getWeightDims();
 
-    if (auto convBackprop = std::dynamic_pointer_cast<const ov::op::v1::ConvolutionBackpropData>(op)) {
+    if (auto convBackprop = ov::as_type_ptr<const ov::op::v1::ConvolutionBackpropData>(op)) {
         algorithm = Algorithm::DeconvolutionCommon;
 
         IC = weightDims[0];
@@ -183,11 +211,11 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         groupNum = 1;
         withGroups = false;
 
-        for (size_t i = 0; i < convBackprop->get_strides().size(); i++) {
-            deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(convBackprop->get_strides()[i]));
+        for (size_t i : convBackprop->get_strides()) {
+            deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (size_t i = 0; i < convBackprop->get_dilations().size(); i++) {
-            deconvAttrs.dilation.push_back(static_cast<ptrdiff_t>(convBackprop->get_dilations()[i]) - 1);
+        for (size_t i : convBackprop->get_dilations()) {
+            deconvAttrs.dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         deconvAttrs.paddingL = convBackprop->get_pads_begin();
         deconvAttrs.paddingR = convBackprop->get_pads_end();
@@ -195,7 +223,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         deconvAttrs.outputPadding = convBackprop->get_output_padding();
 
         autoPad = one_of(convBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
-    } else if (auto groupConvBackprop = std::dynamic_pointer_cast<const ov::op::v1::GroupConvolutionBackpropData>(op)) {
+    } else if (auto groupConvBackprop = ov::as_type_ptr<const ov::op::v1::GroupConvolutionBackpropData>(op)) {
         algorithm = Algorithm::DeconvolutionGrouped;
 
         groupNum = weightDims[0];
@@ -205,11 +233,11 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         withGroups = groupNum > 1;
         isDW = withGroups && groupNum == OC && groupNum == IC;
 
-        for (size_t i = 0; i < groupConvBackprop->get_strides().size(); i++) {
-            deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(groupConvBackprop->get_strides()[i]));
+        for (size_t i : groupConvBackprop->get_strides()) {
+            deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (size_t i = 0; i < groupConvBackprop->get_dilations().size(); i++) {
-            deconvAttrs.dilation.push_back(static_cast<ptrdiff_t>(groupConvBackprop->get_dilations()[i]) - 1);
+        for (size_t i : groupConvBackprop->get_dilations()) {
+            deconvAttrs.dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         deconvAttrs.paddingL = groupConvBackprop->get_pads_begin();
         deconvAttrs.paddingR = groupConvBackprop->get_pads_end();
@@ -219,7 +247,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         autoPad = one_of(groupConvBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
     }
     for (size_t i = 0; i < deconvAttrs.dilation.size(); i++) {
-        deconvAttrs.kernel.push_back(weightDims[withGroups + 2 + i]);
+        deconvAttrs.kernel.push_back(weightDims[static_cast<int>(withGroups) + 2 + i]);
     }
 #if defined(OV_CPU_WITH_ACL)
     deconvAttrs.aclFastMath = context->getConfig().aclFastMath;
@@ -227,23 +255,27 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
-    if (externOutShape && (isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2))))
-        lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+    if (externOutShape) {
+        isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        if (isConstOutShape) {
+            lastOutputSpatialDims =
+                ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+        }
+    }
     if (externOutShape && isDynamicNode()) {
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
         if (getInputShapeAtPort(2).getStaticDims()[0] != spDimsNum ||
             (isConstOutShape && lastOutputSpatialDims.size() != spDimsNum)) {
-            OPENVINO_THROW(errorPrefix,
-                           "'output_shape' input has incorrect number of elements. Expected = ",
-                           spDimsNum);
+            THROW_CPU_NODE_ERR("'output_shape' input has incorrect number of elements. Expected = ", spDimsNum);
         }
     }
 
     size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
     auto weightDimsReversItr = weightDims.crbegin();
     is1x1 = true;
-    for (size_t i = 0; i < spatialRank; ++i)
+    for (size_t i = 0; i < spatialRank; ++i) {
         is1x1 = is1x1 && *(weightDimsReversItr++) == 1;
+    }
     // 1x1 deconv has some test case failed. The cause is upstream ONEDNN unsupported brgemm implementation cases are
     // enabled in forked ONEDNNN
     // https://github.com/openvinotoolkit/oneDNN/blob/117e287000b48a34a7218fcaa274a91571141728/src/common/convolution.cpp#L138.
@@ -262,8 +294,9 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 void Deconvolution::createDnnlCompatibleWeights() {
     MemoryPtr blob = getSrcMemoryAtPort(1);
 
-    if (!blob)
-        OPENVINO_THROW("Cannot get const weights blob for node ", getName(), ".");
+    if (!blob) {
+        THROW_CPU_NODE_ERR("Cannot get const weights blob.");
+    }
 
     weightIsConst = getParentEdgeAt(1)->getParent()->isConstant();
     auto blockedDims = getWeightDims();
@@ -273,8 +306,9 @@ void Deconvolution::createDnnlCompatibleWeights() {
     } else {
         order = {1, 0};
     }
-    for (size_t i = 2 + withGroups; i < blockedDims.size(); i++)
+    for (size_t i = 2 + static_cast<int>(withGroups); i < blockedDims.size(); i++) {
         order.push_back(i);
+    }
 
     auto desc = CpuBlockedMemoryDesc(DnnlExtensionUtils::DataTypeToElementType(blob->getDataType()),
                                      Shape(dnnlCompatibleWeiDims),
@@ -293,8 +327,9 @@ bool Deconvolution::canBeExecutedInInt8() const {
         return false;
     }
 
-    if (!withGroups && deconvAttrs.stride.back() > 3)
+    if (!withGroups && deconvAttrs.stride.back() > 3) {
         return false;
+    }
     if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
         const auto& inMaxDims = getOutputShapeAtPort(0).getMaxDims();
         if (std::any_of(inMaxDims.begin(), inMaxDims.end(), [](Dim dim) {
@@ -306,25 +341,30 @@ bool Deconvolution::canBeExecutedInInt8() const {
         // heuristicParam = IC^2 * SP
         size_t heuristicConst = 67108864;
         auto heuristicParam = IC * IC;
-        for (size_t i = 2; i < inMaxDims.size(); i++)
+        for (size_t i = 2; i < inMaxDims.size(); i++) {
             heuristicParam *= inMaxDims[i];
-        if (heuristicParam > heuristicConst)
+        }
+        if (heuristicParam > heuristicConst) {
             return false;
+        }
     }
 
     for (size_t i = 0; i < deconvAttrs.kernel.size(); i++) {
-        if (deconvAttrs.kernel[i] < deconvAttrs.stride[i])
+        if (deconvAttrs.kernel[i] < deconvAttrs.stride[i]) {
             return false;
+        }
     }
 
     // not supported in oneDNN
     int channelBlock = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) ? 16
                        : impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)      ? 8
                                                                             : 4;
-    if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0))
+    if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0)) {
         return false;
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) && deconvAttrs.stride.back() > 3)
+    }
+    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) && deconvAttrs.stride.back() > 3) {
         return false;
+    }
 
     ov::element::Type inPrecision = getOriginalInputPrecisionAtPort(0);
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inPrecision);
@@ -332,15 +372,17 @@ bool Deconvolution::canBeExecutedInInt8() const {
     ov::element::Type weiPrecision = getOriginalInputPrecisionAtPort(1);
     auto weightsDataType = DnnlExtensionUtils::ElementTypeToDataType(weiPrecision);
 
-    if (isDW && (inputDataType == dnnl_s8 || deconvAttrs.dilation.size() == 3))
+    if (isDW && (inputDataType == dnnl_s8 || deconvAttrs.dilation.size() == 3)) {
         return false;
+    }
 
     return (inputDataType == dnnl_s8 || inputDataType == dnnl_u8) && weightsDataType == dnnl_s8;
 }
 
 bool Deconvolution::canFuse(const NodePtr& node) const {
-    if (canBeExecutedInInt8())
+    if (canBeExecutedInInt8()) {
         return canFuseSimpleOperation(node);
+    }
     // Upstream ONEDNN conv_backward_data primitive can't support any post-ops, fork onednn added depthwise support in
     // conv_backward_data JIT implementation. ONEDNN deconv primitive can support most of post-ops, but the post-ops
     // implementation details are different. So current deconv implementation list in onednn has 2 kinds of implements:
@@ -408,7 +450,7 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                             auto upper_bound =
                                 deconvAttrs.stride[i] * static_cast<int32_t>(origInMaxDims[i + 2] - 1) - c1;
                             if (upper_bound < 0) {
-                                OPENVINO_THROW(errorPrefix, ": paddings for dummy shapes can't be computed");
+                                THROW_CPU_NODE_ERR("paddings for dummy shapes can't be computed");
                             }
                         }
 
@@ -439,43 +481,44 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
 }
 
 std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const Shape& dims) const {
-    if (dims.getRank() == 0) {
+    switch (dims.getRank()) {
+    case 0:
+    case 1:
         return {memory::format_tag::x};
-    } else if (dims.getRank() == 1) {
-        return {memory::format_tag::x};
-    } else if (dims.getRank() == 2) {
+    case 2:
         return {memory::format_tag::nc};
-    } else if (dims.getRank() == 3) {
+    case 3:
         // Ticket 156640
         if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx_fp16)) {
             return {memory::format_tag::ncw,
                     memory::format_tag::nCw8c,
                     memory::format_tag::nCw16c,
                     memory::format_tag::nwc};
-        } else {
-            return {memory::format_tag::tnc,
-                    memory::format_tag::ntc,
-                    memory::format_tag::ncw,
-                    memory::format_tag::nCw8c,
-                    memory::format_tag::nCw16c};
         }
-    } else if (dims.getRank() == 4) {
+        return {memory::format_tag::tnc,
+                memory::format_tag::ntc,
+                memory::format_tag::ncw,
+                memory::format_tag::nCw8c,
+                memory::format_tag::nCw16c};
+    case 4:
         return {memory::format_tag::nchw,
                 memory::format_tag::nChw8c,
                 memory::format_tag::nChw16c,
                 memory::format_tag::nhwc};
-    } else if (dims.getRank() == 5) {
+    case 5:
         return {memory::format_tag::ncdhw,
                 memory::format_tag::nCdhw8c,
                 memory::format_tag::nCdhw16c,
                 dnnl::memory::format_tag::ndhwc};
+    default:
+        return {memory::format_tag::any};
     }
-    return {memory::format_tag::any};
 }
 
 void Deconvolution::getSupportedDescriptors() {
-    if (!descs.empty())
+    if (!descs.empty()) {
         return;
+    }
     isInt8 = canBeExecutedInInt8();
     deconvAttrs.withBiasesParam = withBiases =
         externOutShape ? getOriginalInputsNumber() == 4 : getOriginalInputsNumber() == 3;
@@ -485,31 +528,37 @@ void Deconvolution::getSupportedDescriptors() {
     if (isInt8) {
         // TODO: We have to extend jit_avx512_core_x8s8s32x_deconv_fwd_kernel from oneDNN to support BF16 output data
         // type
-        if (ov::element::bf16 == inPrecision)
+        if (ov::element::bf16 == inPrecision) {
             inPrecision = ov::element::f32;
-        if (ov::element::bf16 == outPrecision)
+        }
+        if (ov::element::bf16 == outPrecision) {
             outPrecision = ov::element::f32;
+        }
     } else {
-        if (!inPrecision.is_real())
+        if (!inPrecision.is_real()) {
             inPrecision = ov::element::f32;
-        if (!outPrecision.is_real())
+        }
+        if (!outPrecision.is_real()) {
             outPrecision = ov::element::f32;
+        }
     }
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inPrecision);
     outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outPrecision);
-    if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)
+    if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16) {
         inputDataType = outputDataType = memory::data_type::bf16;
-    if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16)
+    }
+    if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16) {
         inputDataType = outputDataType = memory::data_type::f16;
+    }
     if (!fusedWith.empty()) {
         outputDataType = DnnlExtensionUtils::ElementTypeToDataType(
             fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0));
     }
     if (getParentEdges().size() != (withBiases ? (biasPort + 1) : biasPort)) {
-        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
+        THROW_CPU_NODE_ERR("has incorrect number of input edges");
     }
     if (getChildEdges().empty()) {
-        OPENVINO_THROW(errorPrefix, " has incorrect number of output edges");
+        THROW_CPU_NODE_ERR("has incorrect number of output edges");
     }
     VectorDims inDims, outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
@@ -565,7 +614,8 @@ void Deconvolution::getSupportedDescriptors() {
     // OV ConvBackWardData defines weight shape as [Conv_OC, Conv_IC, ....].
     // ONEDNN Deconv define weight shape as [Deconv_OC, Deconv_IC,...],
     // Deconv_OC = Conv_IC , Deconv_IC = Conv_OC
-    std::swap(dnnlCompatibleWeiDims[withGroups + 0], dnnlCompatibleWeiDims[withGroups + 1]);
+    std::swap(dnnlCompatibleWeiDims[static_cast<int>(withGroups) + 0],
+              dnnlCompatibleWeiDims[static_cast<int>(withGroups) + 1]);
     setPostOps(*attr, outShape.getStaticDims());
 
     if (isInt8) {
@@ -647,11 +697,11 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
             continue;
         }
 
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -684,10 +734,8 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
         for (size_t i = 0; i < inputShapes.size(); ++i) {
             if (port_mask & 1 << i) {
                 if (outSpDims.size() != getInputShapeAtPort(i).getStaticDims()[0]) {
-                    OPENVINO_THROW("Can't compute output shape for node with name: ",
-                                   getName(),
-                                   ", because the node has 'output_shape' input, but provided output spatial dims "
-                                   "number is incorrect");
+                    THROW_CPU_NODE_ERR(
+                        "the node has 'output_shape' input, but provided output spatial dims number is incorrect");
                 }
                 outSpDimsVecShape = {outSpDims.size()};
                 inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
@@ -701,15 +749,12 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
 
     auto result = shapeInference->infer(inputShapesRefs, inputValues);
     if (ShapeInferStatus::success != result.status) {
-        OPENVINO_THROW("Unexpected: Unexpected shape inference result status in node of type ",
-                       getTypeStr(),
-                       " with name ",
-                       getName());
+        THROW_CPU_NODE_ERR("Unexpected shape inference result status");
     }
     return std::move(result.dims.back());
 }
 
-void Deconvolution::execute(dnnl::stream strm) {
+void Deconvolution::execute(const dnnl::stream& strm) {
     if (useACL) {
         std::vector<MemoryCPtr> srcMemory;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
@@ -725,7 +770,7 @@ void Deconvolution::execute(dnnl::stream strm) {
     }
 
     if (!execPtr) {
-        OPENVINO_THROW("Can't execute Deconvolution node with name: ", getName(), ", because executor is not compiled");
+        THROW_CPU_NODE_ERR("executor is not compiled");
     }
 
     execPtr->exec(primArgs, strm);
@@ -764,19 +809,18 @@ dnnl::primitive_desc createDescriptorInternal(const dnnl::memory::desc& in_candi
                                                            convertDims(paddingL),
                                                            convertDims(paddingR),
                                                            attr);
-    } else {
-        return dnnl::deconvolution_forward::primitive_desc(engine,
-                                                           prop_kind::forward_inference,
-                                                           dnnl::algorithm::deconvolution_direct,
-                                                           in_candidate,
-                                                           wgh_candidate,
-                                                           out_candidate,
-                                                           convertDims(stride),
-                                                           convertDims(dilation),
-                                                           convertDims(paddingL),
-                                                           convertDims(paddingR),
-                                                           attr);
     }
+    return dnnl::deconvolution_forward::primitive_desc(engine,
+                                                       prop_kind::forward_inference,
+                                                       dnnl::algorithm::deconvolution_direct,
+                                                       in_candidate,
+                                                       wgh_candidate,
+                                                       out_candidate,
+                                                       convertDims(stride),
+                                                       convertDims(dilation),
+                                                       convertDims(paddingL),
+                                                       convertDims(paddingR),
+                                                       attr);
 }
 }  // namespace
 
@@ -814,13 +858,14 @@ const std::vector<impl_desc_type>& Deconvolution::getDefaultImplPriority() {
             impl_desc_type::jit_gemm, impl_desc_type::ref_any, impl_desc_type::ref,
     };
 
-    if (!asymmetricPaddingAnd1x1)
+    if (!asymmetricPaddingAnd1x1) {
         return priorities;
+    }
 
     static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
         std::vector<impl_desc_type> result;
         std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result), [](impl_desc_type type) {
-            return !(type & impl_desc_type::brgconv);
+            return (type & impl_desc_type::brgconv) == 0;
         });
         return result;
     }();
@@ -843,9 +888,9 @@ bool Deconvolution::isImplicit1x1PaddingAsymmetric(const VectorDims& inputDims) 
             return (i - 1) * s + 1 - o;
         };
         for (size_t i = 0; i < spatialRank; i++) {
-            int64_t inputDim = static_cast<int64_t>(inputDims[i + 2]);
-            int64_t outputDim = static_cast<int64_t>(lastOutputSpatialDims[i]);
-            int64_t stride = static_cast<int64_t>(deconvAttrs.stride[i]);
+            auto inputDim = static_cast<int64_t>(inputDims[i + 2]);
+            auto outputDim = static_cast<int64_t>(lastOutputSpatialDims[i]);
+            auto stride = static_cast<int64_t>(deconvAttrs.stride[i]);
             if (calPaddingEnd(inputDim, outputDim, stride) > 0) {
                 return true;
             }
@@ -858,15 +903,19 @@ void Deconvolution::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto wghMemPtr = getSrcMemoryAtPort(1);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
-        OPENVINO_THROW("Destination memory is undefined.");
-    if (!srcMemPtr || !srcMemPtr->isDefined())
-        OPENVINO_THROW("Input memory is undefined.");
-    if (!wghMemPtr || !wghMemPtr->isDefined())
-        OPENVINO_THROW("Weight memory is undefined.");
+    if (!dstMemPtr || !dstMemPtr->isDefined()) {
+        THROW_CPU_NODE_ERR("Destination memory is undefined.");
+    }
+    if (!srcMemPtr || !srcMemPtr->isDefined()) {
+        THROW_CPU_NODE_ERR("Input memory is undefined.");
+    }
+    if (!wghMemPtr || !wghMemPtr->isDefined()) {
+        THROW_CPU_NODE_ERR("Weight memory is undefined.");
+    }
     auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        OPENVINO_THROW("Preferable primitive descriptor is not set for node ", getName(), ".");
+    if (selected_pd == nullptr) {
+        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
+    }
 
     if (useACL) {
         if (isDynamicNode()) {
@@ -911,14 +960,16 @@ void Deconvolution::prepareParams() {
     MemoryPtr biasMemPtr = nullptr;
     DnnlMemoryDescCPtr biasDesc;
 
-    if (!dnnlCompatibleWeights)
+    if (!dnnlCompatibleWeights) {
         createDnnlCompatibleWeights();
+    }
     DnnlMemoryDescPtr wghDesc = dnnlCompatibleWeights->getDescWithType<DnnlMemoryDesc>();
 
     if (withBiases) {
         biasMemPtr = getSrcMemoryAtPort(biasPort);
-        if (!biasMemPtr || !biasMemPtr->isDefined())
+        if (!biasMemPtr || !biasMemPtr->isDefined()) {
             OPENVINO_THROW("Bias memory  memory is undefined.");
+        }
         biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
     }
     bool is1x1PaddingAsymmetric = false;
@@ -951,8 +1002,9 @@ void Deconvolution::prepareParams() {
             (one_of(srcDataType, memory::data_type::s8, memory::data_type::u8)) ? memory::data_type::s8 : srcDataType;
         auto wghDescAny =
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(weiDims), weiDataType, memory::format_tag::any);
-        if (key.bias)
+        if (key.bias) {
             dnnlBiasDesc = key.bias->getDnnlDesc();
+        }
 
         desc = createDescriptorInternal(key.inp0->getDnnlDesc(),
                                         wghDescAny,
@@ -972,8 +1024,9 @@ void Deconvolution::prepareParams() {
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             // Skip the brgemm implemenation for asymmetric padding case because of the accuracy issue.
-            if (key.isImplicit1x1PaddingAsymmetric && (impl_type & impl_desc_type::brgconv))
+            if (key.isImplicit1x1PaddingAsymmetric && (impl_type & impl_desc_type::brgconv)) {
                 continue;
+            }
             if (impl_type == key.implType) {
                 auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
                 execPtr = std::make_shared<DeconvDNNLExecutor>(prim_desc,
@@ -1032,8 +1085,9 @@ void Deconvolution::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
 
     execPtr = result.first;
-    if (!execPtr)
+    if (!execPtr) {
         OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+    }
 
     primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
@@ -1051,8 +1105,9 @@ void Deconvolution::prepareParams() {
         primArgs[DNNL_ARG_WEIGHTS] = dnnlCompatibleWeights->getPrimitive();
     }
 
-    if (withBiases)
+    if (withBiases) {
         primArgs[DNNL_ARG_BIAS] = biasMemPtr->getPrimitive();
+    }
 
     Node::appendPostOpArgs(*pAttrLocal, primArgs, postOpsArgs);
 
@@ -1080,8 +1135,9 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc
     dnnl::memory::desc bias_candidate;
 
     // grouping and autoblocking is not compatible
-    if ((withGroups && !isDW) && (dnnlInDesc.blocksExtended() || dnnlOutDesc.blocksExtended()))
+    if ((withGroups && !isDW) && (dnnlInDesc.blocksExtended() || dnnlOutDesc.blocksExtended())) {
         return;
+    }
 
     AttrPtr attr = initPrimitiveAttr();
     if (withBiases) {
@@ -1109,7 +1165,8 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_d
     if (idx == 2 && !withBiases) {
         // Expected dest shape;
         return std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape(getInputShapeAtPort(2).getStaticDims()));
-    } else if (idx > 0) {
+    }
+    if (idx > 0) {
         // weight and bias are exposed with the planar layout.
         // we need to store 'weight' input as edge,
         // because at this moment we can't simple replace internal blob with input, since we need to save weight data as
@@ -1154,7 +1211,7 @@ Deconvolution::DeconvDNNLExecutor::DeconvDNNLExecutor(const dnnl::deconvolution_
                                                       const dnnl::memory::desc& outMemDesc,
                                                       const dnnl::engine& engine,
                                                       bool constWeight)
-    : DnnlExecutor(pd) {
+    : DnnlExecutorLegacy(pd) {
     if (inMemDesc != getDnnlSrcDesc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
     }
@@ -1180,7 +1237,7 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {
         OPENVINO_THROW("Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements");
     }
-    const int32_t* outShapePtr = shapeMemPtr->getDataAs<const int32_t>();
+    const auto* outShapePtr = shapeMemPtr->getDataAs<const int32_t>();
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
     return outSpDims;
 }
@@ -1253,6 +1310,4 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
     pushDesc(LayoutType::ncsp);
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

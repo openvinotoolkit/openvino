@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,10 +77,10 @@ private:
 
         if (per_sample_weights) {
             const auto ess = std::make_shared<op::v15::EmbeddingBagPacked>(in, indices, per_sample_weights, reduction);
-            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
         } else {
             const auto ess = std::make_shared<op::v15::EmbeddingBagPacked>(in, indices, reduction);
-            return std::make_shared<Model>(NodeVector{ess}, ParameterVector{in});
+            return std::make_shared<Model>(OutputVector{ess}, ParameterVector{in});
         }
     }
 };

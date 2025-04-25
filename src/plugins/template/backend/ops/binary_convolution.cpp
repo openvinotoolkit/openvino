@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/reference/binary_convolution.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/binary_convolution.hpp"
 
 namespace bin_conv_v1 {
 template <ov::element::Type_t t_in, ov::element::Type_t t_f>
@@ -14,8 +16,8 @@ inline void evaluate(const std::shared_ptr<ov::op::v1::BinaryConvolution>& op,
     using T_IN = typename ov::element_type_traits<t_in>::value_type;
     using T_F = typename ov::element_type_traits<t_f>::value_type;
 
-    const auto in_data_ptr = static_cast<T_IN*>(inputs[0].data());
-    const auto filter_data_ptr = static_cast<T_F*>(inputs[1].data());
+    const auto in_data_ptr = static_cast<const T_IN*>(inputs[0].data());
+    const auto filter_data_ptr = static_cast<const T_F*>(inputs[1].data());
     auto out_data_ptr = static_cast<T_IN*>(outputs[0].data());
     const auto in_shape = inputs[0].get_shape();
     const auto filter_shape = inputs[1].get_shape();

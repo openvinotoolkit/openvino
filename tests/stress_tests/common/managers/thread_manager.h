@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ public:
 
     using TaskManager<Type>::TaskManager;
 
-    void run_parallel() final {
+    void run_parallel() override {
         // TODO: implement run_task function according to wait_task
         int numtasks = tasks.size();
         threads.reserve(numtasks);
@@ -28,9 +28,9 @@ public:
             }
     }
 
-    void wait_task(int task_index) final {
+    void wait_task(int task_index) override {
         if (threads.empty() ||
-            threads.size() < task_index ||
+            static_cast<int>(threads.size()) < task_index ||
             task_index < 0)
             throw std::out_of_range("Task index " + std::to_string(task_index) + " out of number of tasks");
 
@@ -44,9 +44,9 @@ public:
         }
     }
 
-    ManagerStatus get_task_status(int task_index) final {
+    ManagerStatus get_task_status(int task_index) override {
         if (threads.empty() ||
-            threads.size() < task_index ||
+            static_cast<int>(threads.size()) < task_index ||
             task_index < 0)
             throw std::out_of_range("Task index " + std::to_string(task_index) + " out of number of tasks");
 

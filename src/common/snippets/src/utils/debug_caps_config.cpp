@@ -11,16 +11,20 @@ namespace snippets {
 void DebugCapsConfig::readProperties() {
     auto readEnv = [](const char* envVar) {
         const char* env = std::getenv(envVar);
-        if (env && *env)
+        if (env && *env) {
             return env;
+        }
 
-        return (const char*)nullptr;
+        return static_cast<const char*>(nullptr);
     };
 
     const char* envVarValue = nullptr;
     if ((envVarValue = readEnv("OV_SNIPPETS_DUMP_LIR"))) {
         dumpLIR.parseAndSet(envVarValue);
         OPENVINO_ASSERT(!dumpLIR.passes.empty(), "Passes option in OV_SNIPPETS_DUMP_LIR must be provided.");
+    }
+    if ((envVarValue = readEnv("OV_SNIPPETS_DUMP_BRGEMM_PARAMS"))) {
+        dumpParams.parseAndSet(envVarValue);
     }
 }
 
@@ -36,6 +40,9 @@ void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
     };
 
     for (const auto& option : options) {
+        if (option.empty()) {
+            continue;
+        }
         const auto& parts = ov::util::split(option, '=');
         if (parts.size() > 2) {
             failed = true;

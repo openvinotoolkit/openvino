@@ -1,15 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_npu/utils/zero/zero_init.hpp"
 
-#include <loader/ze_loader.h>
 #include <ze_command_queue_npu_ext.h>
 
 #include <regex>
 
-#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
 #ifdef _WIN32
@@ -38,13 +36,15 @@ static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
             continue;
         }
 
-        if (property.version == extCurrentVersion) {
+        if (property.version >= extCurrentVersion) {
             functionExtName = property.name;
-            targetVersion = property.version;
+            targetVersion = extCurrentVersion;
             break;
         }
 
-        // Use the latest version supported by the driver.
+        // Use the latest version supported by the driver - We need to go through all the properties for older drivers
+        // that use specific names for different graph ext versions, e.g.: ZE_extension_graph_1_1,
+        // ZE_extension_graph_1_2
         if (property.version > targetVersion) {
             functionExtName = property.name;
             targetVersion = property.version;
@@ -135,7 +135,9 @@ void ZeroInitStructsHolder::initNpuDriver() {
     fallbackToZeDriverGet();
 }
 
-ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder", Logger::global().level()) {
+ZeroInitStructsHolder::ZeroInitStructsHolder()
+    : zero_api(ZeroApi::getInstance()),
+      log("NPUZeroInitStructsHolder", Logger::global().level()) {
     log.debug("ZeroInitStructsHolder - performing zeInit on NPU only");
     THROW_ON_FAIL_FOR_LEVELZERO("zeInit", zeInit(ZE_INIT_FLAG_VPU_ONLY));
 
@@ -210,24 +212,12 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
         OPENVINO_THROW("queryGraphExtensionVersion: Failed to find Graph extension in NPU Driver");
     }
 
-    // Use version that plugin can support as identifier to control workflow
-    if (graph_ext_version > target_graph_ext_version) {
-        log.warning("Graph extension version from driver is %d.%d. "
-                    "Larger than plugin max graph ext version %d.%d. "
-                    "Force to use plugin ext version with the new table to control flow!",
-                    ZE_MAJOR_VERSION(graph_ext_version),
-                    ZE_MINOR_VERSION(graph_ext_version),
-                    ZE_MAJOR_VERSION(target_graph_ext_version),
-                    ZE_MINOR_VERSION(target_graph_ext_version));
-        graph_ext_version = target_graph_ext_version;
-    }
-
-    const uint16_t supported_driver_ext_major_version = 1;
+    const uint16_t supported_driver_ext_major_version = ZE_MAJOR_VERSION(target_graph_ext_version);
     const uint16_t driver_ext_major_version = ZE_MAJOR_VERSION(graph_ext_version);
     if (supported_driver_ext_major_version != driver_ext_major_version) {
-        OPENVINO_THROW("Plugin supports only driver with extension major version ",
+        OPENVINO_THROW("Plugin supports only driver with graph extension major version ",
                        supported_driver_ext_major_version,
-                       "; discovered driver extension has major version ",
+                       "; discovered driver graph extension has major version ",
                        driver_ext_major_version);
     }
 
@@ -280,7 +270,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     if (driver_properties.driverVersion != WIN_DRIVER_NO_MCL_SUPPORT) {
 #endif
         [[maybe_unused]] std::string mutuable_command_list_ext_name;
-        std::tie(mutable_command_list_version, mutuable_command_list_ext_name) =
+        std::tie(mutable_command_list_ext_version, mutuable_command_list_ext_name) =
             queryDriverExtensionVersion(ZE_MUTABLE_COMMAND_LIST_EXP_NAME,
                                         ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_CURRENT,
                                         extProps,
@@ -290,8 +280,8 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 #endif
 
     log.debug("Mutable command list version %d.%d",
-              ZE_MAJOR_VERSION(mutable_command_list_version),
-              ZE_MINOR_VERSION(mutable_command_list_version));
+              ZE_MAJOR_VERSION(mutable_command_list_ext_version),
+              ZE_MINOR_VERSION(mutable_command_list_ext_version));
 
     // Load our profiling extension
     ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
@@ -312,14 +302,28 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
     ze_context_desc_t context_desc = {ZE_STRUCTURE_TYPE_CONTEXT_DESC, 0, 0};
     THROW_ON_FAIL_FOR_LEVELZERO("zeContextCreate", zeContextCreate(driver_handle, &context_desc, &context));
     log.debug("ZeroInitStructsHolder initialize complete");
+
+    // Obtain compiler-in-driver properties
+    compiler_properties.stype = ZE_STRUCTURE_TYPE_DEVICE_GRAPH_PROPERTIES;
+    auto result = graph_dditable_ext_decorator->pfnDeviceGetGraphProperties(device_handle, &compiler_properties);
+    THROW_ON_FAIL_FOR_LEVELZERO("pfnDeviceGetGraphProperties", result);
+}
+
+const std::shared_ptr<ZeroInitStructsHolder>& ZeroInitStructsHolder::getInstance() {
+    static std::shared_ptr<ZeroInitStructsHolder> instance = std::make_shared<ZeroInitStructsHolder>();
+    return instance;
 }
 
 ZeroInitStructsHolder::~ZeroInitStructsHolder() {
     if (context) {
         log.debug("ZeroInitStructsHolder - performing zeContextDestroy");
         auto result = zeContextDestroy(context);
-        if (ZE_RESULT_SUCCESS != result) {
-            log.error("zeContextDestroy failed %#X", uint64_t(result));
+        if (result != ZE_RESULT_SUCCESS) {
+            if (result == ZE_RESULT_ERROR_UNINITIALIZED) {
+                log.warning("zeContextDestroy failed to destroy the context; Level zero context was already destroyed");
+            } else {
+                log.error("zeContextDestroy failed %#X", uint64_t(result));
+            }
         }
     }
 }

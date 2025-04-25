@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ public:
 
     float get_gops(cldnn::data_types dt) const;
     bool use_unified_shared_memory() const;
+    virtual void set_mem_caps(memory_capabilities memory_capabilities) = 0;
 
     virtual ~device() = default;
 };

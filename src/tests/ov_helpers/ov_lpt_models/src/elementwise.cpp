@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ov_lpt_models/elementwise.hpp"
 
 #include "low_precision/layer_transformation.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
+#include "openvino/op/max_pool.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -109,7 +110,7 @@ std::shared_ptr<ov::Model> ElementwiseFunction::getOriginalSubgraphWithConvoluti
     result = std::make_shared<ov::opset1::Result>(result);
     result->set_friendly_name("result");
 
-    ov::ResultVector results{ std::dynamic_pointer_cast<ov::opset1::Result>(result) };
+    ov::ResultVector results{ ov::as_type_ptr<ov::opset1::Result>(result) };
     return std::make_shared<ov::Model>(results, ov::ParameterVector{ branch1.first, branch2.first }, "AddTransformation");
 }
 

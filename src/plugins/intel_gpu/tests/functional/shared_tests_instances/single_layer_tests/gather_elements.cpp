@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "single_op_tests/gather_elements.hpp"
 
 namespace {

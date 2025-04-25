@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ov_lpt_models/reduce.hpp"
+#include "openvino/op/reduce_mean.hpp"
 
 namespace LayerTestsDefinitions {
 

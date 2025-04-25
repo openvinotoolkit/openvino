@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict, Type
+from typing import Any, Iterator, Union, Optional, Dict
+from typing import Type as TypingType
 from pathlib import Path
+import traceback  # noqa: F811
 
 
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import Tensor
-from openvino._pyopenvino import Node
+from openvino._pyopenvino import Node, Tensor, Type
 
 from openvino.utils.data_helpers import (
     OVDict,
@@ -20,10 +22,28 @@ from openvino.utils.data_helpers import (
     _data_dispatch,
     tensor_from_file,
 )
+from openvino.package_utils import deprecatedclassproperty
 
 
-class Model:
+class ModelMeta(type):
+    def __dir__(cls) -> list:
+        return list(set(cls.__dict__.keys()) | set(dir(ModelBase)))
+
+    def __getattribute__(cls, name: str) -> Any:
+        if name == "__init__":
+            return getattr(ModelBase, name)
+        return super().__getattribute__(name)
+
+    def __getattr__(cls, name: str) -> Any:
+        # Return the attribute defined in _pyopenvino.Model if it exists
+        # otherwise AttributeError will be raised
+        return getattr(ModelBase, name)
+
+
+class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if not args and not kwargs:
+            self.__model = ModelBase()
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
                 self.__model = ModelBase(args[0])
@@ -45,25 +65,29 @@ class Model:
         return Model(self.__model.clone())
 
     def __copy__(self) -> "Model":
-        raise TypeError("Cannot copy 'openvino.runtime.Model'. Please, use deepcopy instead.")
+        raise TypeError("Cannot copy 'openvino.Model'. Please, use deepcopy instead.")
 
     def __deepcopy__(self, memo: Dict) -> "Model":
         """Returns a deepcopy of Model.
 
         :return: A copy of Model.
-        :rtype: openvino.runtime.Model
+        :rtype: openvino.Model
         """
         return Model(self.__model.clone())
 
     def __enter__(self) -> "Model":
         return self
 
-    def __exit__(self, exc_type: Type[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:
+    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:  # noqa: F811
         del self.__model
         self.__model = None
 
     def __repr__(self) -> str:
         return self.__model.__repr__()
+
+    def __dir__(self) -> list:
+        wrapper_methods = ["__copy__", "__deepcopy__", "__dict__", "__enter__", "__exit__", "__getattr__", "__weakref__"]
+        return dir(self.__model) + wrapper_methods
 
 
 class InferRequest(_InferRequestWrapper):
@@ -86,14 +110,14 @@ class InferRequest(_InferRequestWrapper):
 
         (1) `int`
         (2) `str`
-        (3) `openvino.runtime.ConstOutput`
+        (3) `openvino.ConstOutput`
 
         The allowed types of values in the `inputs` are:
 
         (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
-        (2) `openvino.runtime.Tensor`
+        (2) `openvino.Tensor`
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
+        Can be called with only one `openvino.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
@@ -168,14 +192,14 @@ class InferRequest(_InferRequestWrapper):
 
         (1) `int`
         (2) `str`
-        (3) `openvino.runtime.ConstOutput`
+        (3) `openvino.ConstOutput`
 
         The allowed types of values in the `inputs` are:
 
         (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
-        (2) `openvino.runtime.Tensor`
+        (2) `openvino.Tensor`
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
+        Can be called with only one `openvino.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
@@ -219,7 +243,7 @@ class InferRequest(_InferRequestWrapper):
         """Gets the compiled model this InferRequest is using.
 
         :return: a CompiledModel object
-        :rtype: openvino.runtime.ie_api.CompiledModel
+        :rtype: openvino.CompiledModel
         """
         return CompiledModel(super().get_compiled_model())
 
@@ -228,7 +252,7 @@ class InferRequest(_InferRequestWrapper):
         """Gets all outputs tensors of this InferRequest.
 
         :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        :rtype: Dict[openvino.ConstOutput, numpy.array]
         """
         return OVDict(super().results)
 
@@ -255,7 +279,7 @@ class CompiledModel(CompiledModelBase):
         The created request has allocated input and output tensors.
 
         :return: New InferRequest object.
-        :rtype: openvino.runtime.InferRequest
+        :rtype: openvino.InferRequest
         """
         return InferRequest(super().create_infer_request())
 
@@ -263,7 +287,7 @@ class CompiledModel(CompiledModelBase):
         """Gets state control interface for the underlaying infer request.
 
         :return: List of VariableState objects.
-        :rtype: List[openvino.runtime.VariableState]
+        :rtype: List[openvino.VariableState]
         """
         if self._infer_request is None:
             self._infer_request = self.create_infer_request()
@@ -294,14 +318,14 @@ class CompiledModel(CompiledModelBase):
 
         (1) `int`
         (2) `str`
-        (3) `openvino.runtime.ConstOutput`
+        (3) `openvino.ConstOutput`
 
         The allowed types of values in the `inputs` are:
 
         (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
-        (2) `openvino.runtime.Tensor`
+        (2) `openvino.Tensor`
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
+        Can be called with only one `openvino.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
@@ -339,14 +363,14 @@ class CompiledModel(CompiledModelBase):
 
         (1) `int`
         (2) `str`
-        (3) `openvino.runtime.ConstOutput`
+        (3) `openvino.ConstOutput`
 
         The allowed types of values in the `inputs` are:
 
         (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
-        (2) `openvino.runtime.Tensor`
+        (2) `openvino.Tensor`
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
+        Can be called with only one `openvino.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
@@ -418,7 +442,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
     a simple pipeline.
     """
 
-    def __iter__(self) -> Iterable[InferRequest]:
+    def __iter__(self) -> Iterator[InferRequest]:
         """Allows to iterate over AsyncInferQueue.
 
         Resulting objects are guaranteed to work with read-only methods like getting tensors.
@@ -426,7 +450,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         will put the parent AsyncInferQueue object in an invalid state.
 
         :return: a generator that yields InferRequests.
-        :rtype: Iterable[openvino.runtime.InferRequest]
+        :rtype: Iterable[openvino.InferRequest]
         """
         return (InferRequest(x) for x in super().__iter__())
 
@@ -440,7 +464,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
         :param i:  InferRequest id.
         :type i: int
         :return: InferRequests from the pool with given id.
-        :rtype: openvino.runtime.InferRequest
+        :rtype: openvino.InferRequest
         """
         return InferRequest(super().__getitem__(i))
 
@@ -456,14 +480,14 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
         (1) `int`
         (2) `str`
-        (3) `openvino.runtime.ConstOutput`
+        (3) `openvino.ConstOutput`
 
         The allowed types of values in the `inputs` are:
 
         (1) `numpy.ndarray` and all the types that are castable to it, e.g. `torch.Tensor`
-        (2) `openvino.runtime.Tensor`
+        (2) `openvino.Tensor`
 
-        Can be called with only one `openvino.runtime.Tensor` or `numpy.ndarray`,
+        Can be called with only one `openvino.Tensor` or `numpy.ndarray`,
         it will work only with one-input models. When model has more inputs,
         function throws error.
 
@@ -514,9 +538,9 @@ class Core(CoreBase):
     """
     def read_model(
         self,
-        model: Union[str, bytes, object],
-        weights: Union[object, str, bytes, Tensor] = None,
-        config: Optional[dict] = None
+        model: Union[str, bytes, object, io.BytesIO],
+        weights: Union[object, str, bytes, Tensor, io.BytesIO] = None,
+        config: Optional[Dict[str, Any]] = None
     ) -> Model:
         config = {} if config is None else config
         if isinstance(model, Model):
@@ -535,7 +559,7 @@ class Core(CoreBase):
         self,
         model: Union[Model, str, Path],
         device_name: Optional[str] = None,
-        config: Optional[dict] = None,
+        config: Optional[Dict[str, Any]] = None,
         *,
         weights: Optional[bytes] = None,
     ) -> CompiledModel:
@@ -552,7 +576,7 @@ class Core(CoreBase):
 
         :param model: Model acquired from read_model function or a path to a model in IR / ONNX / PDPD /
                       TF and TFLite format.
-        :type model: Union[openvino.runtime.Model, str, pathlib.Path]
+        :type model: Union[openvino.Model, str, pathlib.Path]
         :param device_name: Optional. Name of the device to load the model to. If not specified,
                             the default OpenVINO device will be selected by AUTO plugin.
         :type device_name: str
@@ -562,7 +586,7 @@ class Core(CoreBase):
         :param weights: Optional. Weights of model in memory to be loaded to the model.
         :type weights: bytes, optional, keyword-only
         :return: A compiled model.
-        :rtype: openvino.runtime.CompiledModel
+        :rtype: openvino.CompiledModel
         """
         if isinstance(model, Model):
             model = model._Model__model
@@ -589,7 +613,7 @@ class Core(CoreBase):
             self,
             model: Model,
             device_name: str,
-            config: Optional[dict] = None,
+            config: Optional[Dict[str, Any]] = None,
     ) -> dict:
         return super().query_model(model._Model__model,
                                    device_name,
@@ -599,7 +623,7 @@ class Core(CoreBase):
         self,
         model_stream: bytes,
         device_name: str,
-        config: Optional[dict] = None,
+        config: Optional[Dict[str, Any]] = None,
     ) -> CompiledModel:
         """Imports a compiled model from a previously exported one.
 
@@ -613,7 +637,7 @@ class Core(CoreBase):
                        (property name, property value) relevant only for this load operation.
         :type config: dict, optional
         :return: A compiled model.
-        :rtype: openvino.runtime.CompiledModel
+        :rtype: openvino.CompiledModel
 
         :Example:
 
@@ -652,13 +676,13 @@ class Core(CoreBase):
 def compile_model(
     model: Union[Model, str, Path],
     device_name: Optional[str] = "AUTO",
-    config: Optional[dict] = None,
+    config: Optional[Dict[str, Any]] = None,
 ) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 
     :param model: Model acquired from read_model function or a path to a model in IR / ONNX / PDPD /
                     TF and TFLite format.
-    :type model: Union[openvino.runtime.Model, str, pathlib.Path]
+    :type model: Union[openvino.Model, str, pathlib.Path]
     :param device_name: Optional. Name of the device to load the model to. If not specified,
                         the default OpenVINO device will be selected by AUTO plugin.
     :type device_name: str
@@ -666,10 +690,23 @@ def compile_model(
                     (property name, property value) relevant only for this load operation.
     :type config: dict, optional
     :return: A compiled model.
-    :rtype: openvino.runtime.CompiledModel
+    :rtype: openvino.CompiledModel
 
     """
     core = Core()
     if isinstance(model, Model):
         model = model._Model__model
     return core.compile_model(model, device_name, {} if config is None else config)
+
+
+@deprecatedclassproperty(
+    name="openvino.Type.undefined",  # noqa: N802, N805
+    version="2026.0",
+    message="Please use openvino.Type.dynamic instead.",
+    stacklevel=2,
+)
+def undefined_deprecated(self):  # type: ignore
+    return Type.dynamic
+
+
+Type.undefined = undefined_deprecated

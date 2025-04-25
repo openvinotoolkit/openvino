@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,11 @@
 #include "intel_gpu/primitives/border.hpp"
 #include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/bucketize.hpp"
+#include "intel_gpu/primitives/col2im.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/convert_color.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/ctc_greedy_decoder.hpp"
-#include "intel_gpu/primitives/ctc_loss.hpp"
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "intel_gpu/primitives/depth_to_space.hpp"
@@ -26,13 +26,11 @@
 #include "intel_gpu/primitives/experimental_detectron_topk_rois.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/gather.hpp"
 #include "intel_gpu/primitives/gather_elements.hpp"
 #include "intel_gpu/primitives/gather_tree.hpp"
 #include "intel_gpu/primitives/gemm.hpp"
 #include "intel_gpu/primitives/grid_sample.hpp"
 #include "intel_gpu/primitives/grn.hpp"
-#include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/lrn.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/multinomial.hpp"
@@ -68,7 +66,6 @@
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
-#include "intel_gpu/primitives/rope.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -109,7 +106,6 @@ REGISTER_OCL(gather_elements);
 REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
-REGISTER_OCL(group_normalization);
 REGISTER_OCL(kv_cache);
 REGISTER_OCL(paged_attention);
 REGISTER_OCL(lrn);
@@ -149,7 +145,6 @@ REGISTER_OCL(gather_tree);
 REGISTER_OCL(resample);
 REGISTER_OCL(grn);
 REGISTER_OCL(ctc_greedy_decoder);
-REGISTER_OCL(ctc_loss);
 REGISTER_OCL(cum_sum);
 REGISTER_OCL(embedding_bag);
 REGISTER_OCL(extract_image_patches);
@@ -160,7 +155,6 @@ REGISTER_OCL(eye);
 REGISTER_OCL(unique_count);
 REGISTER_OCL(unique_gather);
 REGISTER_OCL(scaled_dot_product_attention);
-REGISTER_OCL(rope);
 REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
 

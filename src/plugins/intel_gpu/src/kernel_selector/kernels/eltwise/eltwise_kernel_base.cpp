@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -310,11 +310,14 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 op += "(!" + input0_str + " != !" + input1_str + ")";
                 break;
             case EltwiseMode::FLOOR_MOD: {
+                auto input_0_type = params.inputs[0].GetDType();
                 auto input_1_type = params.inputs[1].GetDType();
-                if (input_1_type == kernel_selector::Datatype::F16 || input_1_type == kernel_selector::Datatype::F32) {
-                    op += "(" + input0_str + " - floor(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
+                if (input_0_type == input_1_type && (input_0_type == kernel_selector::Datatype::F16 || input_0_type == kernel_selector::Datatype::F32)) {
+                    op += "fmod(" + input0_str + ", " + input1_str + ")";
+                } else if (input_1_type == kernel_selector::Datatype::F16 || input_1_type == kernel_selector::Datatype::F32) {
+                    op += "(" + input0_str + " - trunc(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
                 } else {
-                    op += "(" + input0_str + " - floor(" + input0_str + " / convert_float(" + input1_str + ")) * " + input1_str + ")";
+                    op += "(" + input0_str + " - trunc(" + input0_str + " / convert_float(" + input1_str + ")) * " + input1_str + ")";
                 }
                 break;
             }

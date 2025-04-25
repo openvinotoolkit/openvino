@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ TEST(TransformationTests, ModDecompositionTests) {
     {
         auto mod = std::make_shared<op::v1::Mod>(data1, data2);
 
-        f = std::make_shared<ov::Model>(ov::NodeVector{mod}, ParameterVector{});
+        f = std::make_shared<ov::Model>(ov::OutputVector{mod}, ParameterVector{});
         auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         pass::Manager m;
         m.register_pass<ov::pass::InitUniqueNames>(unh);

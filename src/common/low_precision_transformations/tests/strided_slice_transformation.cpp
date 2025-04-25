@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -197,7 +197,6 @@ const std::vector<ov::PartialShape> inputShapes = {
     {1, 3, 24, 24},
     {-1, -1, -1, -1}
 };
-
 const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformationTestValues = {
     // U8: channel slice, per-tensor quantization
     {
@@ -237,7 +236,7 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
             ov::element::u8,
             {
                 {ov::element::f32},
-                {{128.f}, element::undefined, {1, 3, 1, 1}, false, 1ul, element::u8, true},
+                {{128.f}, element::dynamic, {1, 3, 1, 1}, false, 1ul, element::u8, true},
                 {3.f}
             }
         },
@@ -247,7 +246,7 @@ const std::vector<StridedSliceTransformationTestValues> stridedSliceTransformati
             ov::element::u8,
             {
                 {ov::element::f32},
-                {{128.f}, element::undefined, {}, false, 1ul, element::u8, true},
+                {{128.f}, element::dynamic, {}, false, 1ul, element::u8, true},
                 {3.f}
             }
         }

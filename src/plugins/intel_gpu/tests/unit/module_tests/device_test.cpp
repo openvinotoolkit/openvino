@@ -27,6 +27,9 @@ public:
         return this == other.get();
     }
 
+    void set_mem_caps(memory_capabilities memory_capabilities) override {
+        _mem_caps = memory_capabilities;
+    }
     ~dummy_device() = default;
 
 private:

@@ -3,8 +3,10 @@
 //
 
 #include "impls/cpu/cpu_impl_helpers.hpp"
+#include "assign_inst.h"
+#include "kv_cache_inst.h"
 #include "read_value_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
@@ -21,7 +23,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::read_value_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<read_value_impl>(*this);
+        return std::make_unique<read_value_impl>(*this);
     }
 
     read_value_impl() : parent() {}
@@ -61,6 +63,13 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             } else {
                 variable.get_memory()->fill(stream);
             }
+            if (!instance.get_user_insts().empty()) {
+                auto user_inst = instance.get_user_insts().front();
+                if (!(user_inst->get_node().is_type<assign>() || user_inst->get_node().is_type<kv_cache>()) &&
+                    instance.get_network().contains_state(variable_id)) {
+                    variable.set();
+                }
+            }
         }
 
         if (!instance.can_be_optimized()) {
@@ -88,7 +97,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
 
 public:
     static std::unique_ptr<primitive_impl> create(const read_value_node& arg, const kernel_impl_params& impl_param) {
-        return make_unique<read_value_impl>(arg);
+        return std::make_unique<read_value_impl>(arg);
     }
 };
 

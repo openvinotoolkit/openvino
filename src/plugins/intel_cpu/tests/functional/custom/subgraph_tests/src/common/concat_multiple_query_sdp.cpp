@@ -1,14 +1,22 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -152,9 +160,9 @@ public:
         auto unsqueezeK = std::make_shared<ov::op::v0::Unsqueeze>(concatK, unsquezeAxis);
         auto unsqueezeV = std::make_shared<ov::op::v0::Unsqueeze>(concatV, unsquezeAxis);
 
-        auto targetShape = ov::op::v0::Constant::create(qkvType, {1, 1, 1, 4, 1}, {1});
-        auto broadcastK = std::make_shared<ov::op::v1::Multiply>(unsqueezeK, targetShape);
-        auto broadcastV = std::make_shared<ov::op::v1::Multiply>(unsqueezeV, targetShape);
+        auto targetShape = ov::op::v0::Constant::create(element::i32, {5}, {1, 1, 1, 4, 1});
+        auto broadcastK = std::make_shared<ov::op::v3::Broadcast>(unsqueezeK, targetShape, op::BroadcastType::BIDIRECTIONAL);
+        auto broadcastV = std::make_shared<ov::op::v3::Broadcast>(unsqueezeV, targetShape, op::BroadcastType::BIDIRECTIONAL);
 
         auto target4D = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 0, 8, 64});
 

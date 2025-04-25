@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,7 @@
 #include <openvino/core/node.hpp>
 #include <openvino/op/op.hpp>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 /**
  * The operation flattens embedding tensor of token vectors and traverse it by a sliding window of size times the
  * original embedding sizes. Inputs:
@@ -34,5 +33,4 @@ public:
 private:
     size_t m_k;
 };
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

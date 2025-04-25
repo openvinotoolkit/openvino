@@ -24,7 +24,7 @@ permissions: read-all
 
 jobs:
   linters:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     steps:
       - name: Clone OpenVINO
@@ -32,7 +32,7 @@ jobs:
         timeout-minutes: 15
 
       - name: Setup Python
-        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: '3.9'
 
@@ -51,7 +51,7 @@ jobs:
           git diff > samples_diff.diff
         working-directory: samples/python
 
-      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: samples_diff
@@ -69,7 +69,7 @@ jobs:
           git diff > pyopenvino_diff.diff
         working-directory: src/bindings/python/src/openvino
 
-      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: pyopenvino_diff
@@ -87,7 +87,7 @@ jobs:
           git diff > wheel_diff.diff
         working-directory: src/bindings/python/wheel
 
-      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: wheel_diff
@@ -102,6 +102,11 @@ jobs:
       # Python API mypy check
       - name: Run mypy on Python API
         run: python -m mypy ./src/openvino --config-file ./setup.cfg
+        working-directory: src/bindings/python
+      
+      # Run pyright to assert no regressions in type hinting
+      - name: Run pyright on Python API
+        run: python -m pyright ./src/openvino -p ./pyproject.toml
         working-directory: src/bindings/python
 
         # layer_tests Flake code-style

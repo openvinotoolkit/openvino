@@ -1,18 +1,18 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "gemm_kernel.hpp"
 #define THROW_ERROR(...) OPENVINO_THROW("ACL gemm executor Init Failure '", __VA_ARGS__)
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 GemmKernel::GemmKernel(size_t M, size_t N, size_t K, bool b_transposed, ov::element::Type inType)
     : M(M),
       N(N),
       K(K),
       b_transposed(b_transposed) {
-    if (!one_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16))
+    if (!one_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16)) {
         THROW_ERROR("brgemm kernel only supports bf16, f16 and f32");
+    }
 
     if (inType == ov::element::f32) {
         format = arm_compute::Format::F32;
@@ -43,10 +43,11 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
                (size_t)(M * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
 
     arm_compute::TensorShape bShape;
-    if (b_transposed)
+    if (b_transposed) {
         bShape = shapeCast({K, N});
-    else
+    } else {
         bShape = shapeCast({N, K});
+    }
 
     bInfo.init(bShape,
                format,
@@ -78,10 +79,11 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
     bTensor.allocator()->import_memory(reinterpret_cast<void*>(b));
     cTensor.allocator()->import_memory(reinterpret_cast<void*>(c));
 
-    if (out == nullptr)
+    if (out == nullptr) {
         dstTensor.allocator()->allocate();
-    else
+    } else {
         dstTensor.allocator()->import_memory(out);
+    }
 
     if (b_transposed)
         aclGemmInfo.set_pretranspose_B(true);
@@ -96,5 +98,4 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
 
     return status;
 }
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "evaluate_node.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/op/identity.hpp"
 
 template <>
 bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,

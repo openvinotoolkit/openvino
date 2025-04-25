@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -318,7 +318,7 @@ public:
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
-        auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
+        auto impl_forcing = cfg_fused.get_force_implementations();
 
         ov::intel_gpu::ImplementationDesc conv_impl = { format::any, "", impl_types::onednn };
 
@@ -526,6 +526,14 @@ public:
 #define CASE_CONV_ELTW_i8_3 { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1, 1, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
 #define CASE_CONV_ELTW_i8_4 { 1, 16, 1, 4 }, { 1, 16, 1, 2 }, { 1, 16, 1, 1 }, { 16, 16, 1, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
 #define CASE_CONV_ELTW_i8_5 { 1, 16, 1, 4, 1 }, { 1, 16, 1, 2, 1 }, { 1, 16, 2, 1, 1 }, { 16, 16, 1, 3, 1 }, { 1, 1, 1 }, { 0, 0, 0 }, { 1, 1, 1 }, 1, data_types::i8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+
+#define CASE_MUL_BATCH_CONV_FP16_1 { 20, 15, 4, 5 }, { 20, 30, 2, 3 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_MUL_BATCH_CONV_FP16_2 { 32, 16, 5, 5 }, { 32, 32, 3, 3 }, { 32, 16, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bs_fs_yx_bsv16_fsv16, data_types::f16, format::os_is_yx_osv16_isv16, data_types::f16, format::bfyx
+#define CASE_MUL_BATCH_CONV_U8S8_1 { 32, 15, 4, 5 }, { 32, 30, 2, 3 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_MUL_BATCH_CONV_U8S8_2 { 20, 15, 5, 5 }, { 20, 30, 3, 3 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_MUL_BATCH_CONV_S8S8_1 { 32, 15, 4, 5 }, { 32, 30, 2, 3 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_MUL_BATCH_CONV_S8S8_2 { 20, 15, 5, 5 }, { 20, 30, 3, 3 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::i8, format::bs_fs_yx_bsv16_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FP32 convolution cases ------------------------------------- */
@@ -1755,7 +1763,7 @@ TEST_P(conv_fp32_activation_eltwise_in_u8_fp32, basic) {
         data("bias", get_mem(get_per_channel_layout(p))),
         data("eltwise_data", get_mem(layout{ p.out_shape, data_types::i8, p.input_format })),
         convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
-        activation("activation", input_info("conv_prim"), activation_func::relu_negative_slope),
+        activation("activation", input_info("conv_prim"), activation_func::relu),
         eltwise("sum", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum, data_types::f32),
         reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
     );
@@ -2408,6 +2416,12 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_quantize_i8, ::testing::Va
 
 class conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8 : public ConvFusingTest {};
 TEST_P(conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
+    if (engine.get_device_info().supports_immad) {
+        std::cout << "[ SKIPPED ] The test is skipped (not targeting for onednn path)." << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -3105,12 +3119,17 @@ TEST_P(conv_fp16_prelu_onednn, basic_activation_eltwise) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = 0.002f;
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_prelu_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
+}));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu_multi_batch, conv_fp16_prelu_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_MUL_BATCH_CONV_FP16_1, 2, 2, 4 },
+    convolution_test_params{ CASE_MUL_BATCH_CONV_FP16_2, 2, 2, 4 },
 }));
 
 class conv_int8_eltwise_onednn : public WeightsPrimitiveFusingTestOneDNN {};

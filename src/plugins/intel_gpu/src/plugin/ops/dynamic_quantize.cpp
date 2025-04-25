@@ -8,8 +8,7 @@
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
 
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateDynamicQuantizeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::DynamicQuantize>& op) {
     validate_inputs_count(op, {1});
@@ -28,5 +27,4 @@ static void CreateDynamicQuantizeOp(ProgramBuilder& p, const std::shared_ptr<ov:
 
 REGISTER_FACTORY_IMPL(internal, DynamicQuantize);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

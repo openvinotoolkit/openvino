@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
 import sys
 from functools import wraps
-from typing import Callable, Any
+from typing import Callable, Any, Optional
 from pathlib import Path
+import importlib.util
+from types import ModuleType
 
 
 def _add_openvino_libs_to_search_path() -> None:
@@ -91,7 +93,7 @@ class _ClassPropertyDescriptor(object):
 def classproperty(func: Any) -> _ClassPropertyDescriptor:
     if not isinstance(func, (classmethod, staticmethod)):
         func = classmethod(func)
-    return _ClassPropertyDescriptor(func)
+    return _ClassPropertyDescriptor(func)  # type: ignore
 
 
 def deprecatedclassproperty(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[[Any], _ClassPropertyDescriptor]:
@@ -113,3 +115,30 @@ def deprecatedclassproperty(name: Any = None, version: str = "", message: str = 
         _patch(func, deprecated(name, version, message, stacklevel))
         return func
     return decorator
+
+
+class LazyLoader:
+    """A class to lazily load a module, importing it only when an attribute is accessed."""
+
+    def __init__(self, module_name: str):
+        self.module_name = module_name
+        self._module: Optional[ModuleType] = None
+
+    def _load_module(self) -> None:
+        if self._module is None:
+            # Import the module and update sys.modules with the loaded module
+            self._module = importlib.import_module(self.module_name)
+            # Update the LazyLoader instance's __dict__ with the module's __dict__
+            # This ensures that subsequent attribute accesses use the module's attributes directly (by __getattribute__() )
+            self.__dict__.update(self._module.__dict__)
+
+    def __getattr__(self, item: str) -> Any:
+        self._load_module()
+        return getattr(self._module, item)
+
+    def __dir__(self) -> list:
+        self._load_module()
+        return dir(self._module)
+
+    def __repr__(self) -> str:
+        return f"<LazyLoader for module '{self.module_name}'>"

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/util/log.hpp"
 
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}

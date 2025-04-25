@@ -32,7 +32,7 @@ Installing OpenVINO Runtime with Conan Package Manager
    .. code-block:: sh
 
       [requires]
-      openvino/2024.4.0
+      openvino/2025.1.0
       [generators]
       CMakeDeps
       CMakeToolchain
@@ -72,7 +72,7 @@ Additional Resources
 * Learn more about :doc:`OpenVINO Workflow <../../../openvino-workflow>`.
 * To prepare your models for working with OpenVINO, see :doc:`Model Preparation <../../../openvino-workflow/model-preparation>`.
 * Learn more about :doc:`Inference with OpenVINO Runtime <../../../openvino-workflow/running-inference>`.
-* See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../learn-openvino/openvino-samples>`.
+* See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../get-started/learn-openvino/openvino-samples>`.
 * Check out the OpenVINO `product home page <https://software.intel.com/en-us/openvino-toolkit>`__.
 
 

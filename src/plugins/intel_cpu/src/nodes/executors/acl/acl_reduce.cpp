@@ -4,8 +4,7 @@
 
 #include "acl_reduce.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using namespace arm_compute;
 
@@ -24,12 +23,12 @@ static arm_compute::ReductionOperation getAclReductionOperationByAlgorithm(Algor
     }
 }
 
-AclReduceExecutor::AclReduceExecutor(const ExecutorContext::CPtr context) : ReduceExecutor(context) {}
+AclReduceExecutor::AclReduceExecutor(ExecutorContext::CPtr context) : ReduceExecutor(std::move(context)) {}
 
 bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
                              const std::vector<MemoryDescPtr>& srcDescs,
                              const std::vector<MemoryDescPtr>& dstDescs,
-                             const dnnl::primitive_attr& attr) {
+                             [[maybe_unused]] const dnnl::primitive_attr& attr) {
     if (reduceAttrs.operation != Algorithm::ReduceMax && reduceAttrs.operation != Algorithm::ReduceMin &&
         reduceAttrs.operation != Algorithm::ReduceSum && reduceAttrs.operation != Algorithm::ReduceProd &&
         reduceAttrs.operation != Algorithm::ReduceMean) {
@@ -63,11 +62,11 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
 
     std::function<std::unique_ptr<IFunction>(void)> exec_func;
     std::vector<int> castedAxes;
-    for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
-        int axis =
-            axisCast(reduceAttrs.axes[i], srcDims.size(), hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
-        if (hasSrcNspcLayout && axis == -1)
+    for (int axe : reduceAttrs.axes) {
+        int axis = axisCast(axe, srcDims.size(), hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
+        if (hasSrcNspcLayout && axis == -1) {
             return false;
+        }
         castedAxes.push_back(axis);
     }
     switch (reduceAttrs.operation) {
@@ -136,5 +135,4 @@ void AclReduceExecutor::exec(const std::vector<MemoryCPtr>& src,
     dstTensor.allocator()->free();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

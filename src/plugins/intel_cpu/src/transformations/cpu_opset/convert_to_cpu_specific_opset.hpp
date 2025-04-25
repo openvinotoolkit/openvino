@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,11 @@
 #include "common/pass/convert_to_swish_cpu.hpp"
 #include "common/pass/fc_bias_fusion.hpp"
 #include "common/pass/move_fc_reshape_to_weights.hpp"
+#include "common/pass/move_readvalue_inputs_to_subgraph.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
 #include "config.h"
-#include "itt.hpp"
 #include "nodes/fullyconnected.h"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -24,8 +25,7 @@
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const Config& config) {
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
@@ -70,9 +70,9 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
                              false);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);  // Need to clean up after the ConvertPrecision.
+    CPU_REGISTER_PASS_COMMON(manager, MoveReadValueInputsToSubgraph);
 
     manager.run_passes(model);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

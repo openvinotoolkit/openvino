@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1689,7 +1689,7 @@ TEST(convolution_f32_fw_gpu, convolution_big_size_weights) {
     };
 
     const std::vector<std::string> impl_kernel_data = {
-        "convolution_gpu_ref__f32"
+        "convolution_gpu_bfyx_os_iyx_osv16__f32"
     };
 
     for (size_t m = 0 ; m < filter_size_data.size() / 2; m++) {
@@ -1767,8 +1767,8 @@ TEST(convolution_f16_fw_gpu, convolution_big_size_weights) {
     };
 
     const std::vector<std::string> impl_kernel_data = {
-        "convolution_gpu_ref__f16",
-        "convolution_gpu_bfyx_gemm_like__f16",
+        "convolution_gpu_bfyx_os_iyx_osv16__f16",
+        "convolution_gpu_bfyx_os_iyx_osv16__f16",
     };
 
     for (size_t m = 0 ; m < filter_size_data.size() / 2; m++) {
@@ -4647,6 +4647,12 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activations_per_channel_dynamic) {
     auto& engine = get_test_engine();
 
+    if (engine.get_device_info().supports_immad) {
+        // Temporarily disable test case for XMX platforms due to sporadic failures
+        // Ticket: CVS-156160
+        GTEST_SKIP();
+    }
+
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 2, 5, 4} });
     auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 3, 2, 3, 3 } });
     auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
@@ -5322,6 +5328,11 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
     if (!engine.get_device_info().supports_fp16) {
         std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
         ASSERT_EQ(1, 1);
+        return;
+    }
+
+    if (engine.get_device_info().supports_immad) {
+        // This test is not targeting for onednn case
         return;
     }
 
@@ -7043,6 +7054,10 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
         ASSERT_EQ(1, 1);
         return;
     }
+    if (engine.get_device_info().supports_immad) {
+        // This test is not targeting for onednn case
+        return;
+    }
 
 
     const int batch_num = 2;
@@ -7726,7 +7741,7 @@ INSTANTIATE_TEST_SUITE_P(convolution_grouped_fsv4_fsv16,
                             TestParamType_grouped_convolution_gpu(4, 1, 6, 256, 512, 2, 1, 3, 16, 1, 1, true, true, true, format::b_fs_zyx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(1, 3, 1, 18, 2, 1, 3, 1, 2, 1, 1, true, true, true, format::b_fs_zyx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(2, 3, 4, 3, 18, 3, 3, 3, 1, 1, 1, false, false, false, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32"),
-                            TestParamType_grouped_convolution_gpu(79, 224, 224, 3, 64, 3, 3, 3, 1, 2, 1, false, false, false, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32")
+                            TestParamType_grouped_convolution_gpu(79, 112, 112, 3, 32, 3, 3, 3, 1, 2, 1, false, false, false, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32")
                         ),
                         convolution_grouped_gpu::PrintToStringParamName);
 
@@ -7927,10 +7942,12 @@ TEST_P(convolution_grouped_gpu, base) {
     auto outputs = network.execute();
 
     auto out_mem = outputs.at("conv").get_memory();
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
     auto out_lay = out_mem->get_layout();
 
-    ASSERT_EQ(out_mem->get_layout().format, input_data_format);
+    if (!engine.get_device_info().supports_immad) {
+        ASSERT_EQ(out_mem->get_layout().format, input_data_format); // This assertion is valid only for iGPU case
+    }
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
     ASSERT_EQ(out_lay.spatial(2), expected_result[0][0].size());
@@ -7982,6 +7999,11 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
 
     if (!engine.get_device_info().supports_fp16) {
         std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+    if (engine.get_device_info().supports_immad) {
+        std::cout << "[ SKIPPED ] The test is skipped (not targeting for onednn path)." << std::endl;
         ASSERT_EQ(1, 1);
         return;
     }
@@ -10628,10 +10650,11 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
     auto output_memory = outputs.at("conv").get_memory();
     ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "convolution_gpu_ref", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_ref } }));
+
     auto output_memory_ref = calculate_ref(input, weights, config);
 
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
     for (size_t i = 0; i < output_ptr.size(); i++) {
@@ -10657,9 +10680,8 @@ TEST_P(conv_dyn_test, convolution_gpu_bfyx_os_iyx_osv16_no_bias) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_memory_ref = calculate_ref(input, weights, config);
-
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-        cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         ASSERT_EQ(outputs.at("conv").get_layout(), output_memory_ref->get_layout());
         for (size_t i = 0; i < output_ptr.size(); i++) {

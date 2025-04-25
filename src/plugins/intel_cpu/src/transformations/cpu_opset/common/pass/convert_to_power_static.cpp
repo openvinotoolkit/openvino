@@ -1,15 +1,25 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "convert_to_power_static.hpp"
 
-#include <openvino/opsets/opset6.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/fully_connected.hpp"
@@ -20,8 +30,8 @@
 namespace {
 
 int getConstPort(const std::shared_ptr<ov::Node>& node) {
-    const auto const1 = std::dynamic_pointer_cast<ov::opset1::Constant>(node->get_input_node_shared_ptr(0));
-    const auto const2 = std::dynamic_pointer_cast<ov::opset1::Constant>(node->get_input_node_shared_ptr(1));
+    const auto const1 = ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(0));
+    const auto const2 = ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(1));
     int constPort = -1;
     if (const2) {
         constPort = 1;
@@ -41,8 +51,9 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp>& node) {
 
     const int nonConstPort = 1 - constPort;
     auto input_rank = node->get_input_partial_shape(nonConstPort).rank();
-    if (input_rank.is_dynamic())
+    if (input_rank.is_dynamic()) {
         return false;
+    }
     auto const_shape = node->get_input_shape(constPort);
     return ov::shape_size(const_shape) == 1 && input_rank.get_length() >= static_cast<int64_t>(const_shape.size()) &&
            !ov::intel_cpu::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
@@ -61,9 +72,10 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp>& node) {
 template <>
 bool isConvertableToPowerStatic(const std::shared_ptr<ov::opset1::Power>& node) {
     auto input_rank = node->get_input_partial_shape(0).rank();
-    if (input_rank.is_dynamic())
+    if (input_rank.is_dynamic()) {
         return false;
-    auto const_node = std::dynamic_pointer_cast<ov::opset1::Constant>(node->get_input_node_shared_ptr(1));
+    }
+    auto const_node = ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(1));
     return const_node &&
            input_rank.get_length() >= static_cast<ov::Dimension::value_type>(const_node->get_shape().size()) &&
            ov::shape_size(const_node->get_shape()) == 1;
@@ -74,21 +86,23 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
     const int constPort = getConstPort(node);
     const int nonConstPort = 1 - constPort;
     std::shared_ptr<ov::opset1::Constant> powerNode =
-        std::dynamic_pointer_cast<ov::opset1::Constant>(node->get_input_node_shared_ptr(constPort));
+        ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(constPort));
     const float value = powerNode->cast_vector<float>()[0];
-    if (std::is_same<BaseOp, ov::opset1::Power>::value) {
+    if (std::is_same_v<BaseOp, ov::opset1::Power>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 value,
                                                                 1.0f,
                                                                 0.0f,
                                                                 node->output(0).get_element_type());
-    } else if (std::is_same<BaseOp, ov::opset1::Add>::value) {
+    }
+    if (std::is_same_v<BaseOp, ov::opset1::Add>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 1.0f,
                                                                 1.0f,
                                                                 value,
                                                                 node->output(0).get_element_type());
-    } else if (std::is_same<BaseOp, ov::opset1::Subtract>::value) {
+    }
+    if (std::is_same_v<BaseOp, ov::opset1::Subtract>) {
         float scale = 1.0f;
         float shift = value;
         if (constPort == 0) {
@@ -101,15 +115,15 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
                                                                 scale,
                                                                 shift,
                                                                 node->output(0).get_element_type());
-    } else if (std::is_same<BaseOp, ov::opset1::Multiply>::value) {
+    }
+    if (std::is_same_v<BaseOp, ov::opset1::Multiply>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 1.f,
                                                                 value,
                                                                 0.0f,
                                                                 node->output(0).get_element_type());
-    } else {
-        OPENVINO_THROW("ConvertToPowerStatic: op type is not supported");
     }
+    OPENVINO_THROW("ConvertToPowerStatic: op type is not supported");
 }
 
 }  // namespace
@@ -134,21 +148,25 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
         auto node = m.get_match_root();
 
         std::shared_ptr<ov::Node> toReplace = node;
-        if (auto power = std::dynamic_pointer_cast<ov::opset1::Power>(node)) {
-            if (!isConvertableToPowerStatic(power))
+        if (auto power = ov::as_type_ptr<ov::opset1::Power>(node)) {
+            if (!isConvertableToPowerStatic(power)) {
                 return false;
+            }
             toReplace = convert(power);
-        } else if (auto add = std::dynamic_pointer_cast<ov::opset1::Add>(node)) {
-            if (!isConvertableToPowerStatic(add))
+        } else if (auto add = ov::as_type_ptr<ov::opset1::Add>(node)) {
+            if (!isConvertableToPowerStatic(add)) {
                 return false;
+            }
             toReplace = convert(add);
-        } else if (auto sub = std::dynamic_pointer_cast<ov::opset1::Subtract>(node)) {
-            if (!isConvertableToPowerStatic(sub))
+        } else if (auto sub = ov::as_type_ptr<ov::opset1::Subtract>(node)) {
+            if (!isConvertableToPowerStatic(sub)) {
                 return false;
+            }
             toReplace = convert(sub);
-        } else if (auto mult = std::dynamic_pointer_cast<ov::opset1::Multiply>(node)) {
-            if (!isConvertableToPowerStatic(mult))
+        } else if (auto mult = ov::as_type_ptr<ov::opset1::Multiply>(node)) {
+            if (!isConvertableToPowerStatic(mult)) {
                 return false;
+            }
             toReplace = convert(mult);
         } else {
             OPENVINO_THROW("ConvertToPowerStatic: op type is not supported");

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,7 @@
 #include "shape_inference/custom/ngram.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool Ngram::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -52,8 +50,9 @@ Ngram::Ngram(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 }
 
 void Ngram::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     idcesPrecision = getOriginalInputPrecisionAtPort(1);
     if (idcesPrecision != ov::element::i32 && idcesPrecision != ov::element::i64) {
@@ -71,8 +70,8 @@ void Ngram::prepareParams() {
     const auto& outDims = getDstMemoryAtPort(0)->getStaticDims();
     ;
 
-    idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<size_t>());
-    numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<size_t>());
+    idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<>());
+    numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<>());
     idcesStride = getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
     numIdces = srcIndicesDims[0];
 
@@ -98,7 +97,7 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
     return batchLenghts;
 }
 
-void Ngram::execute(dnnl::stream strm) {
+void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
 
@@ -108,7 +107,7 @@ void Ngram::execute(dnnl::stream strm) {
     } else if (idcesPrecision == ov::element::i64) {
         batchLenghts = computeBatchLenghts<std::int64_t>();
     } else {
-        OPENVINO_THROW("Unsupported idces precision: ", idcesPrecision);
+        THROW_CPU_NODE_ERR("Unsupported indices precision: ", idcesPrecision);
     }
 
     /* The following procedure applied to each batch:
@@ -134,13 +133,14 @@ void Ngram::execute(dnnl::stream strm) {
                        srcData + srcBatchBias + srcWindowBias,
                        dataSize * sizeof(float));
             dstWindowBias += dataSize + curRightPad;
-            if (curLeftPad == 0)
+            if (curLeftPad == 0) {
                 srcWindowBias += windowStride;
+            }
         }
     });
 }
 
-void Ngram::executeDynamicImpl(dnnl::stream strm) {
+void Ngram::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -148,6 +148,4 @@ bool Ngram::created() const {
     return getType() == Type::Ngram;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

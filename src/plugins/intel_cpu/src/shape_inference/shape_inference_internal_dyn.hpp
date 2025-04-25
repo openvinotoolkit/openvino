@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "shape_inference_cpu.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * Shape inference class for operations with internal dynamism. To reflect the fact that the output shapes may only be
@@ -22,17 +21,16 @@ public:
         return {{}, ShapeInferStatus::skip};
     }
 
-    port_mask_t get_port_mask() const override {
+    [[nodiscard]] port_mask_t get_port_mask() const override {
         return FULL_PORT_MASK;
     }
 };
 
 class InternalDynShapeInferFactory final : public ShapeInferFactory {
 public:
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<InternalDynShapeInfer>();
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -14,8 +14,7 @@
 #include "common/ref_convert.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct ConvertExecutorDesc {
     ExecutorType executorType;
@@ -29,7 +28,7 @@ public:
     ConvertExecutorFactory(const ConvertParams& convertParams,
                            const MemoryDescPtr& srcDesc,
                            const MemoryDescPtr& dstDesc,
-                           const ExecutorContext::CPtr context)
+                           const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getConvertExecutorsList()) {
             if (desc.builder->isSupported(convertParams, srcDesc, dstDesc)) {
@@ -38,7 +37,7 @@ public:
         }
     }
 
-    ~ConvertExecutorFactory() = default;
+    ~ConvertExecutorFactory() override = default;
     virtual ConvertExecutorPtr makeExecutor(const ConvertParams& convertParams,
                                             const MemoryDescPtr& srcDesc,
                                             const MemoryDescPtr& dstDesc,
@@ -52,5 +51,4 @@ private:
 using ConvertExecutorFactoryPtr = std::shared_ptr<ConvertExecutorFactory>;
 using ConvertExecutorFactoryCPtr = std::shared_ptr<const ConvertExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

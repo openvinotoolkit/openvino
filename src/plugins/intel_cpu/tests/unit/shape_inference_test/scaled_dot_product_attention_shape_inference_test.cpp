@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 #include "utils.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

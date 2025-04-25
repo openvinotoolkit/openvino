@@ -1,13 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include "transformation_context.hpp"
 #include "layer_transformation.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace ov {
 namespace pass {
@@ -42,16 +42,10 @@ public:
 
     WeightableLayerTransformation(const Params& params, const CanBeTransformedParams& canBeTransformedParams = {});
 
-    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
-    bool canConvolutionBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer,
-        const std::vector<ov::element::Type>& defaultPrecisions) const;
+    bool canBeTransformed(const std::shared_ptr<Node>& layer) const override;
+    bool canConvolutionBeTransformed(const std::shared_ptr<Node>& layer,
+                                     const ov::element::TypeVector& defaultPrecisions) const;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
-
-    static bool checkPrecisionOnActivation(
-        const std::shared_ptr<const ov::Node>& node,
-        const std::vector<ov::element::Type>& supportedPrecisionsOnActivations) {
-        return true;
-    }
 
     static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer,
         const bool reshapeIsRequired,

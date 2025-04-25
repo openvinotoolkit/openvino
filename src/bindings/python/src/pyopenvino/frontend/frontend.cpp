@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,7 +110,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                 :param model: Input model.
                 :type model: openvino.frontend.InputModel
                 :return: Fully converted OpenVINO Model.
-                :rtype: openvino.runtime.Model
+                :rtype: openvino.Model
              )");
 
     fem.def(
@@ -125,7 +125,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                 :param model: Partially converted OpenVINO model.
                 :type model: openvino.frontend.Model
                 :return: Fully converted OpenVINO Model.
-                :rtype: openvino.runtime.Model
+                :rtype: openvino.Model
              )");
 
     fem.def("convert_partially",
@@ -139,7 +139,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                 :param model : Input model.
                 :type model: openvino.frontend.InputModel
                 :return: Partially converted OpenVINO Model.
-                :rtype: openvino.runtime.Model
+                :rtype: openvino.Model
              )");
 
     fem.def("decode",
@@ -153,7 +153,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                 :param model : Input model.
                 :type model: openvino.frontend.InputModel
                 :return: OpenVINO Model after decoding.
-                :rtype: openvino.runtime.Model
+                :rtype: openvino.Model
              )");
 
     fem.def(
@@ -166,7 +166,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                 Runs normalization passes on function that was loaded with partial conversion.
 
                 :param model : Partially converted OpenVINO model.
-                :type model: openvino.runtime.Model
+                :type model: openvino.Model
              )");
 
     fem.def("get_name",

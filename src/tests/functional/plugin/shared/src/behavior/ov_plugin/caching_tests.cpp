@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,8 @@
 #include "common_test_utils/subgraph_builders/conv_bias.hpp"
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 #include "common_test_utils/subgraph_builders/matmul_bias.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -297,6 +299,7 @@ std::string CompileModelLoadFromFileTestBase::getTestCaseName(testing::TestParam
 }
 
 void CompileModelLoadFromFileTestBase::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ovModelWithName funcPair;
     std::tie(targetDevice, configuration) = GetParam();
     target_device = targetDevice;

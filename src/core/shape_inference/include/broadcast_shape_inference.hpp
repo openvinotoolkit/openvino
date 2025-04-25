@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -6,6 +6,7 @@
 #include "openvino/core/axis_vector.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "utils.hpp"
 
@@ -185,14 +186,14 @@ std::vector<TRShape> broadcast_base_shape_infer(const ov::op::util::BroadcastBas
     auto target_as_shape = get_input_const_data_as_shape<TRShape>(op, 1, ta);
 
     if (!target_as_shape) {
-        if (auto concat = ov::as_type_ptr<ov::opset1::Concat>(op->get_input_node_shared_ptr(1))) {
+        if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(op->get_input_node_shared_ptr(1))) {
             const auto concat_inputs = concat->input_values();
             if (concat->get_output_partial_shape(0).is_static() && concat->get_shape().size() == 1 &&
                 concat_inputs.size() == shape_size(concat->get_shape())) {
                 target_as_shape.emplace();
                 for (const auto& concat_input : concat_inputs) {
                     auto source_node_ptr = concat_input.get_node_shared_ptr();
-                    if (auto source_const_ptr = ov::as_type_ptr<ov::opset1::Constant>(source_node_ptr)) {
+                    if (auto source_const_ptr = ov::as_type_ptr<ov::op::v0::Constant>(source_node_ptr)) {
                         target_as_shape->push_back(source_const_ptr->get_axis_vector_val()[0]);
                     } else {
                         target_as_shape->push_back(Dimension::dynamic());

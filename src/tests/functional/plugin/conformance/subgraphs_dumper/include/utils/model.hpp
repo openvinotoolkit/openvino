@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,12 +91,12 @@ generate_model(ov::NodeVector& nodes,
                                 // cloned_in_node is parameter or constant, it could have only one input
                                 ov::replace_output_update_name(cloned_in_node->output(cloned_in_node_out_idx), orig_in_node->output(out_idx));
                                 if (ov::op::util::is_parameter(orig_in_node)) {
-                                    auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(orig_in_node);
+                                    auto param = ov::as_type_ptr<ov::op::v0::Parameter>(orig_in_node);
                                     model_parameters.push_back(param);
                                     node_input_info.insert({ orig_in_node->get_friendly_name(),
                                                              node_input_info[cloned_in_node_name]});
                                 } else if (ov::op::util::is_constant(orig_in_node)) {
-                                    auto op_to_replace = std::dynamic_pointer_cast<ov::op::v0::Constant>(orig_in_node);
+                                    auto op_to_replace = ov::as_type_ptr<ov::op::v0::Constant>(orig_in_node);
                                     auto param = convert_const_to_param(op_to_replace);
                                     if (param != nullptr) {
                                         model_parameters.push_back(param);
@@ -104,7 +104,7 @@ generate_model(ov::NodeVector& nodes,
                                     node_input_info.insert({ orig_in_node->get_friendly_name(),
                                                              node_input_info[cloned_in_node_name]});
                                 } else if (ov::op::util::is_sink(cloned_node)) {
-                                    model_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(cloned_node->shared_from_this()));
+                                    model_sinks.push_back(ov::as_type_ptr<ov::op::Sink>(cloned_node->shared_from_this()));
                                 }
                                 filled_input_idx++;
                                 // clean up replaced node data
@@ -114,10 +114,10 @@ generate_model(ov::NodeVector& nodes,
                                     model_output_nodes.erase(orig_in_node_name);
                                 }
                             } else if (ov::op::util::is_parameter(cloned_in_node)) {
-                                auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(cloned_in_node);
+                                auto param = ov::as_type_ptr<ov::op::v0::Parameter>(cloned_in_node);
                                 model_parameters.push_back(param);
                             } else if (ov::op::util::is_constant(cloned_in_node)) {
-                                auto op_to_replace = std::dynamic_pointer_cast<ov::op::v0::Constant>(cloned_in_node);
+                                auto op_to_replace = ov::as_type_ptr<ov::op::v0::Constant>(cloned_in_node);
                                 auto param = convert_const_to_param(op_to_replace);
                                 if (param != nullptr) {
                                     model_parameters.push_back(param);
@@ -140,7 +140,7 @@ generate_model(ov::NodeVector& nodes,
     for (const auto& out_node_name : model_output_nodes) {
         auto out_node = cloned_node_map[out_node_name.first];
         if (ov::op::util::is_output(out_node)) {
-            model_results.push_back(std::dynamic_pointer_cast<ov::op::v0::Result>(out_node));
+            model_results.push_back(ov::as_type_ptr<ov::op::v0::Result>(out_node));
         } else {
             for (const auto& out_port_id : out_node_name.second) {
                 model_results.push_back(std::make_shared<ov::op::v0::Result>(out_node->output(out_port_id)));

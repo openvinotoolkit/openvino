@@ -13,13 +13,12 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/graph_util.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size)
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric)
     : ov::pass::MatcherPass() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
 
@@ -29,14 +28,14 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
     auto fully_connected_compressed = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected_compressed3, fully_connected_compressed4});
 
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
 
-        auto m_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(m.get_match_root());
+        auto m_fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
         const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
@@ -56,7 +55,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         config.scale_dt = element::f16;
         config.group_sizes = shape_group_size;
 
-        GPU_DEBUG_IF(debug_config->dynamic_quantize_asym) {
+        if (asymmetric && group_size == UINT64_MAX) {
             config.quantization_type = QuantizationType::Asymmetric;
             config.quantization_dt = element::u8;
             config.zp_dt = element::u8; // it supports u8 only now
@@ -68,7 +67,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                 std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
 
         auto output_type = m_fc->get_output_type();
-        if (output_type == ov::element::undefined)
+        if (output_type.is_dynamic())
             output_type = m_fc->get_input_element_type(0);
 
         auto new_fc = std::make_shared<op::FullyConnectedCompressed>(dyn_quan->output(0),
@@ -90,5 +89,4 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

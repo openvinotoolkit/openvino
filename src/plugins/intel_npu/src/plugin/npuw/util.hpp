@@ -15,11 +15,18 @@ namespace ov {
 namespace npuw {
 namespace util {
 
-bool is_set(const std::size_t sub_idx, const std::string& opt, const std::size_t end_idx = SIZE_MAX);
+bool is_set(const std::size_t sub_idx,
+            const std::string& opt,
+            const std::size_t real_idx = SIZE_MAX,
+            const std::size_t end_idx = SIZE_MAX);
 
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
 ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node>& node);
+
+// In case of working with memory which will be detached later (Constant will be freed),
+// we need to explicitly create a tensor which owns the memory during the execution.
+ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 

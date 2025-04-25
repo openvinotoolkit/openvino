@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,23 +7,30 @@
 #include <tuple>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -31,6 +38,164 @@
 using namespace ov::op;
 using namespace ov::pass;
 using ov::OutputVector;
+
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> general_alibi_pattern() {
+    // Optional pattern to capture alibi slopes (based on pattern from bloom)
+    auto general_alibi = pattern::any_input();
+    auto general_sdpa_mask =
+        pattern::wrap_type<v1::Multiply>({pattern::any_input(), general_alibi});  // apply input position_ids
+    general_sdpa_mask = pattern::wrap_type<v1::Reshape>({general_sdpa_mask, pattern::any_input()});
+    general_sdpa_mask = pattern::wrap_type<v1::Reshape>({general_sdpa_mask, pattern::any_input()});
+    general_sdpa_mask = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), general_sdpa_mask});
+    return {general_alibi, general_sdpa_mask};
+}
+
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> jais_13b_alibi_pattern() {
+    auto jais_13b_alibi = pattern::any_input();
+    auto mirroring_abs = pattern::wrap_type<v0::Abs>({pattern::any_input()});
+    auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({mirroring_abs, pattern::any_input()});
+    auto jais_alibi_mask = pattern::wrap_type<v1::Multiply>({jais_13b_alibi, unsqueeze});
+    jais_alibi_mask = pattern::wrap_type<v3::Broadcast>({jais_alibi_mask, pattern::any_input()});
+    jais_alibi_mask = pattern::wrap_type<v0::Unsqueeze>({jais_alibi_mask, pattern::any_input()});
+    jais_alibi_mask = pattern::wrap_type<v1::Add>({pattern::any_input(), jais_alibi_mask});
+    return {jais_13b_alibi, jais_alibi_mask};
+}
+
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> baichuan2_13b_alibi_pattern() {
+    auto baichuan2_alibi = pattern::any_input();
+    // this slice expected to be replaced with Slice(alibi_const, start {1, 1}, stop {2, 2}, step {1, 1}, axes{1, 2});
+    auto alibi_slice_to_replace = pattern::wrap_type<v8::Slice>(
+        {baichuan2_alibi, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto alibi_path = pattern::wrap_type<v3::ShapeOf>({alibi_slice_to_replace});
+    alibi_path = pattern::wrap_type<v8::Gather>({alibi_path, pattern::any_input(), pattern::any_input()});
+    alibi_path = pattern::wrap_type<v0::Concat>({pattern::any_input(), pattern::any_input(), alibi_path});
+    alibi_path = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), alibi_path});
+    alibi_path = pattern::wrap_type<v0::Convert>({alibi_path});
+    alibi_path = pattern::wrap_type<v1::Multiply>({alibi_path, pattern::any_input()});
+    alibi_path = pattern::wrap_type<v1::Subtract>({pattern::any_input(), alibi_path});
+    alibi_path = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), alibi_path});
+    auto alibi_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({alibi_slice_to_replace, pattern::any_input()});
+    alibi_path = pattern::wrap_type<v1::Add>({alibi_path, alibi_unsqueeze});
+    auto mul = pattern::wrap_type<v1::Multiply>({pattern::any_input(), pattern::any_input()});
+    alibi_path = pattern::wrap_type<v8::Slice>(
+        {alibi_path, mul, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    return {baichuan2_alibi, alibi_path};
+}
+
+static std::shared_ptr<ov::Node> handle_general_alibi(const std::shared_ptr<ov::Node>& matched_general_alibi_slopes) {
+    std::shared_ptr<ov::Node> res_alibi_slopes =
+        std::make_shared<v1::Reshape>(matched_general_alibi_slopes,
+                                      v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
+                                      false);
+    if (res_alibi_slopes->get_element_type() != ov::element::f32) {
+        res_alibi_slopes = std::make_shared<v0::Convert>(res_alibi_slopes, ov::element::f32);
+    }
+
+    return res_alibi_slopes;
+}
+
+static std::shared_ptr<ov::Node> handle_jais_13b_alibi(const std::shared_ptr<ov::Node>& matched_jais_13b_alibi_slopes) {
+    // At the beginning, handling of jais13's alibi is the same as the general case
+    std::shared_ptr<ov::Node> res_alibi_slopes = handle_general_alibi(matched_jais_13b_alibi_slopes);
+
+    // For now there's no such case with Alibi slopes being not a Constant,
+    // however that may change in the future. That is why the presence of
+    // Abs is the main sign of the Jais-like topology, thus we need to multiply
+    // by -1. If we encounter the Alibi being a constant, we may do the additional
+    // checking of the values to be negative and, if it fails, we won't multiply
+    // the values by -1.
+    if (auto alibi_constant = ov::as_type_ptr<v0::Constant>(matched_jais_13b_alibi_slopes)) {
+        auto alibi_constant_values = alibi_constant->cast_vector<float>();
+        bool all_values_nagative =
+            std::all_of(alibi_constant_values.begin(), alibi_constant_values.end(), [&](float value) {
+                return value < 0.0;
+            });
+
+        if (all_values_nagative) {
+            res_alibi_slopes =
+                std::make_shared<v1::Multiply>(res_alibi_slopes,
+                                               v0::Constant::create(res_alibi_slopes->get_element_type(), {}, {-1}));
+        }
+    } else {
+        res_alibi_slopes =
+            std::make_shared<v1::Multiply>(res_alibi_slopes,
+                                           v0::Constant::create(res_alibi_slopes->get_element_type(), {}, {-1}));
+    }
+
+    return res_alibi_slopes;
+}
+
+static std::shared_ptr<ov::Node> handle_baichuan2_13b_alibi(
+    /* >>> alibi = np.reshape(alibi, (40, 4096, 4096))
+       >>> print(alibi[0][:][:])
+       [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+        ['0' '0.839844' '-inf' ... '-inf' '-inf' '-inf']
+        ['0' '0.839844' '1.67969' ... '-inf' '-inf' '-inf']
+        ...
+        ['0' '0.839844' '1.67969' ... '3440' '-inf' '-inf']
+        ['0' '0.839844' '1.67969' ... '3440' '3440' '-inf']
+        ['0' '0.839844' '1.67969' ... '3440' '3440' '3440']]
+       >>> print(alibi[1][:][:])
+       [['0' '-inf' '-inf' ... '-inf' '-inf' '-inf']
+        ['0' '0.707031' '-inf' ... '-inf' '-inf' '-inf']
+        ['0' '0.707031' '1.41406' ... '-inf' '-inf' '-inf']
+        ...
+        ['0' '0.707031' '1.41406' ... '2896' '-inf' '-inf']
+        ['0' '0.707031' '1.41406' ... '2896' '2896' '-inf']
+        ['0' '0.707031' '1.41406' ... '2896' '2896' '2896']]
+
+        etc.
+
+        Slicing from {1, 1} to {2, 2} gives us the expected alibi slope constant to pass it to PagedAttention:
+        >>> print(alibi[0][1][1])
+        0.839844
+        >>> print(line1[1][1][1])
+        0.707031
+
+        ALibi slopes constant's shape is [40, 4096, 4096]
+        Slicing means that we take only 1 value from each 4096 x 4096 matrix here
+        The resulting constant will be [40, 1, 1]
+        After that we need to insert Reshape to get the expected rank = 1 (shape [40])
+    */
+    const std::shared_ptr<ov::Node>& matched_baichuan2_13b_alibi_slopes) {
+    std::shared_ptr<ov::Node> res_alibi_slopes = matched_baichuan2_13b_alibi_slopes;
+
+    auto start = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
+    auto stop = v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 2});
+    auto step = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
+    auto axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 2});
+    // the Slice to extract the correct values
+    res_alibi_slopes = std::make_shared<v8::Slice>(res_alibi_slopes, start, stop, step, axes);
+    res_alibi_slopes = std::make_shared<v1::Reshape>(res_alibi_slopes,
+                                                     v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
+                                                     false);
+    if (res_alibi_slopes->get_element_type() != ov::element::f32) {
+        res_alibi_slopes = std::make_shared<v0::Convert>(res_alibi_slopes, ov::element::f32);
+    }
+
+    return res_alibi_slopes;
+}
+
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> handle_phi3_sliding_window() {
+    using namespace ov::pass::pattern;
+
+    auto offset = wrap_type<v0::Constant>();
+    auto t196 = wrap_type<v1::Add>({any_input(), offset});
+    auto t197 = pattern::optional<v0::Convert>(t196);
+    auto t200 = pattern::wrap_type<v4::Range>({t197, any_input(), any_input()});
+    auto t201 = pattern::wrap_type<v0::Unsqueeze>({t200, any_input()});
+    auto t202 = pattern::wrap_type<v1::GreaterEqual>({any_input(), t201});
+    auto t208 = pattern::wrap_type<v1::Select>({t202, any_input(), any_input()});
+    auto t209 = pattern::wrap_type<v1::Subtract>({any_input(), t208});
+    auto t210 = pattern::optional<v0::Convert>(t209);
+    auto t211 = pattern::wrap_type<v1::Select>({t210, any_input(), any_input()});
+    auto t213 = pattern::wrap_type<v0::Unsqueeze>({t211, any_input()});
+    auto t214 = pattern::wrap_type<v0::Unsqueeze>({t213, any_input()});
+    auto t218 = pattern::wrap_type<v3::Broadcast>({t214, any_input()});
+    auto t219 = pattern::wrap_type<v1::Select>({any_input(), any_input(), t218});
+    auto mask = pattern::wrap_type<v8::Slice>({t219, any_input(), any_input(), any_input(), any_input()});
+    return {mask, offset};
+}
 
 // Exactly copied the function from another file. Maybe should be moved to some general file
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const std::string& name) {
@@ -66,14 +231,17 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
 
 ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_parameters,
                                                          ParameterVector& model_remaining_params,
-                                                         const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                                                          ParameterVector& parameters_to_remove,
                                                          int& layer_index,
                                                          Output<Node> max_context_len,
-                                                         ParameterVector& block_indices_inputs,
+                                                         ParameterVector& block_indices_inputs_for_each_layer,
                                                          ResultVector& score_results,
-                                                         bool use_block_indices_inputs,
-                                                         bool use_score_outputs) {
+                                                         bool use_per_layer_block_indices_inputs,
+                                                         bool use_score_outputs,
+                                                         bool allow_cache_rotation,
+                                                         ParameterVector& rotated_block_indices_inputs_for_each_layer,
+                                                         ParameterVector& rotation_deltas_inputs_for_each_layer,
+                                                         std::shared_ptr<op::v0::Parameter> model_rotation_trig_lut) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = pattern::any_input();
@@ -141,19 +309,20 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         {std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped}), v_order});
 
     // Optional pattern to capture alibi slopes (based on pattern from bloom)
-    auto alibi = pattern::any_input();
-    auto sdpa_mask = pattern::wrap_type<v1::Multiply>({pattern::any_input(), alibi});  // apply input position_ids
-    sdpa_mask = pattern::wrap_type<v1::Reshape>({sdpa_mask, pattern::any_input()});
-    sdpa_mask = pattern::wrap_type<v1::Reshape>({sdpa_mask, pattern::any_input()});
-    sdpa_mask = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), sdpa_mask});
+    std::shared_ptr<ov::Node> general_alibi, general_alibi_mask;
+    std::tie(general_alibi, general_alibi_mask) = general_alibi_pattern();
 
     // For Jais (Jais-13b has a different pattern and handling of alibi slopes)
-    auto mirroring_abs = pattern::wrap_type<v0::Abs>({pattern::any_input()});
-    auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({mirroring_abs, pattern::any_input()});
-    auto alibi_mask = pattern::wrap_type<v1::Multiply>({alibi, unsqueeze});
-    alibi_mask = pattern::wrap_type<v3::Broadcast>({alibi_mask, pattern::any_input()});
-    alibi_mask = pattern::wrap_type<v0::Unsqueeze>({alibi_mask, pattern::any_input()});
-    alibi_mask = pattern::wrap_type<v1::Add>({pattern::any_input(), alibi_mask});
+    std::shared_ptr<ov::Node> jais_13b_alibi, jais_alibi_mask;
+    std::tie(jais_13b_alibi, jais_alibi_mask) = jais_13b_alibi_pattern();
+
+    // Baichuan2 13b case
+    std::shared_ptr<ov::Node> baichuan2_13b_alibi, baichuan2_13b_alibi_mask;
+    std::tie(baichuan2_13b_alibi, baichuan2_13b_alibi_mask) = baichuan2_13b_alibi_pattern();
+
+    // Phi3-xxx-instruct case
+    std::shared_ptr<ov::Node> phi3_mask, phi3_offset;
+    std::tie(phi3_mask, phi3_offset) = handle_phi3_sliding_window();
 
     auto q = pattern::any_input();
     auto scale_input = pattern::any_input();
@@ -162,7 +331,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::make_shared<pattern::op::Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
     auto v_to_sdpa =
         std::make_shared<pattern::op::Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
-    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(OutputVector{sdpa_mask, alibi_mask, pattern::any_input()});
+
+    auto mask_to_sdpa = std::make_shared<pattern::op::Or>(
+        OutputVector{phi3_mask, general_alibi_mask, jais_alibi_mask, baichuan2_13b_alibi_mask, pattern::any_input()});
 
     auto sdpa_with_4_inputs =
         pattern::wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -174,18 +345,19 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
     ov::matcher_pass_callback callback = [=,
                                           &kv_parameters,
                                           &model_remaining_params,
-                                          &sliding_window,
                                           &parameters_to_remove,
-                                          &block_indices_inputs,
+                                          &block_indices_inputs_for_each_layer,
                                           &score_results,
-                                          &layer_index](ov::pass::pattern::Matcher& m) {
+                                          &layer_index,
+                                          &rotated_block_indices_inputs_for_each_layer,
+                                          &rotation_deltas_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
 
         auto sdpa_node =
             pattern_map.at(pattern_map.count(sdpa_with_4_inputs) ? sdpa_with_4_inputs : sdpa_with_5_inputs).get_node();
         // E and Ev are from the SDPA specification at
-        // https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/scaled-dot-product-attention.html
+        // https://docs.openvino.ai/2025/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/scaled-dot-product-attention.html
         auto E = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];
         auto Ev = sdpa_node->get_input_tensor(2).get_partial_shape()[-1];  // in common case may not match E
 
@@ -335,58 +507,57 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         std::shared_ptr<Node> alibi_slopes;
-        if (pattern_map.find(alibi) != pattern_map.end()) {
-            alibi_slopes = std::make_shared<v1::Reshape>(pattern_map.at(alibi),
-                                                         v0::Constant::create(element::i64, Shape{1}, {-1}),
-                                                         false);
-            if (alibi_slopes->get_element_type() == element::f32) {
-                alibi_slopes = std::make_shared<v0::Convert>(alibi_slopes, element::f32);
-            }
-
-            // Jais-13b case
-            if (pattern_map.find(mirroring_abs) != pattern_map.end()) {
-                // For now there's no such case with Alibi slopes being not a Constant,
-                // however that may change in the future. That is why the presence of
-                // Abs is the main sign of the Jais-like topology, thus we need to multiply
-                // by -1. If we encounter the Alibi being a constant, we may do the additional
-                // checking of the values to be negative and, if it fails, we won't multiply
-                // the values by -1.
-                if (auto alibi_constant = ov::as_type_ptr<v0::Constant>(pattern_map.at(alibi).get_node_shared_ptr())) {
-                    auto alibi_constant_values = alibi_constant->cast_vector<float>();
-                    bool all_values_nagative =
-                        std::all_of(alibi_constant_values.begin(), alibi_constant_values.end(), [&](float value) {
-                            return value < 0.0;
-                        });
-
-                    if (all_values_nagative) {
-                        alibi_slopes = std::make_shared<v1::Multiply>(
-                            alibi_slopes,
-                            v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
-                    }
-                } else {
-                    alibi_slopes = std::make_shared<v1::Multiply>(
-                        alibi_slopes,
-                        v0::Constant::create(alibi_slopes->get_element_type(), {}, {-1}));
-                }
-            }
-
+        if (pattern_map.find(general_alibi) != pattern_map.end()) {
+            alibi_slopes = handle_general_alibi(pattern_map.at(general_alibi).get_node_shared_ptr());
+        } else if (pattern_map.find(jais_13b_alibi) != pattern_map.end()) {
+            alibi_slopes = handle_jais_13b_alibi(pattern_map.at(jais_13b_alibi).get_node_shared_ptr());
+        } else if (pattern_map.find(baichuan2_13b_alibi) != pattern_map.end()) {
+            alibi_slopes = handle_baichuan2_13b_alibi(pattern_map.at(baichuan2_13b_alibi).get_node_shared_ptr());
         } else {
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
 
         OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
         pa_arguments.insert(pa_arguments.end(), model_remaining_params.begin(), model_remaining_params.end());
+
+        std::shared_ptr<Node> sliding_window;
+        if (pattern_map.count(phi3_offset)) {
+            auto offset = pattern_map.at(phi3_offset).get_node_shared_ptr();
+            if (offset->get_element_type() != element::i32) {
+                offset = std::make_shared<v0::Convert>(offset, element::i32);
+            }
+            sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
+        } else {
+            sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
+        }
+
         std::initializer_list<std::shared_ptr<Node>> additional_params = {scale,
                                                                           sliding_window,
                                                                           alibi_slopes,
                                                                           max_context_len.get_node_shared_ptr()};
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
-        if (use_block_indices_inputs) {
+        if (use_per_layer_block_indices_inputs) {
             auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                                          "block_indices." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
-            block_indices_inputs.push_back(block_indices);
+            block_indices_inputs_for_each_layer.push_back(block_indices);
+        }
+
+        OPENVINO_ASSERT(pa_arguments.size() == 13);
+
+        if (allow_cache_rotation) {
+            auto rotated_block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                                 "rotated_block_indices." + std::to_string(layer_index - 1));
+            auto rotation_deltas = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, -1}),
+                                           "rotation_deltas." + std::to_string(layer_index - 1));
+
+            pa_arguments.insert(pa_arguments.begin() + 13, rotated_block_indices);
+            pa_arguments.insert(pa_arguments.begin() + 14, rotation_deltas);
+            pa_arguments.insert(pa_arguments.begin() + 15, model_rotation_trig_lut);
+
+            rotated_block_indices_inputs_for_each_layer.push_back(rotated_block_indices);
+            rotation_deltas_inputs_for_each_layer.push_back(rotation_deltas);
         }
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
@@ -437,6 +608,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             parameters_to_remove.push_back(param);
         }
 
+        pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
         replace_node(m.get_match_root(), pa_transpose);
         return true;
     };

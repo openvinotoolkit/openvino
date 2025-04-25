@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,8 +82,8 @@ inline void validate_colors(const ov::Tensor& expected, const ov::Tensor& actual
 #define CASE(X)                                                             \
     case X:                                                                 \
         validate_colors(                                                    \
-                static_cast<ov::fundamental_type_for<X>*>(expected.data()), \
-                static_cast<ov::fundamental_type_for<X>*>(actual.data()),   \
+                static_cast<const ov::fundamental_type_for<X>*>(expected.data()), \
+                static_cast<const ov::fundamental_type_for<X>*>(actual.data()),   \
                                                      expected.get_size(),   \
                                                      dev_threshold,         \
                                                      abs_threshold);        \
@@ -206,6 +206,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset13_tbl.hpp"
 #include "openvino/opsets/opset14_tbl.hpp"
 #include "openvino/opsets/opset15_tbl.hpp"
+#include "openvino/opsets/opset16_tbl.hpp"
 
 #include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG

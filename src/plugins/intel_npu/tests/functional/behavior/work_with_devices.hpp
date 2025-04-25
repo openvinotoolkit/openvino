@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "common/functions.h"
 #include "common/npu_test_env_cfg.hpp"
-#include "intel_npu/config/common.hpp"
-#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 
 using CompilerType = ov::intel_npu::CompilerType;

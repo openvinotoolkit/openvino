@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "convert_fq_rnn_to_quantized_rnn.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -69,8 +70,9 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto rnn = m.get_match_root();
-        if (!rnn || transformation_callback(rnn))
+        if (!rnn || transformation_callback(rnn)) {
             return false;
+        }
 
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& activation = pattern_map.at(X_m);
@@ -170,17 +172,18 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
         const auto& input_scale_output = pattern_map.at(input_scale_X);
         const auto& weights_scale_output = pattern_map.at(weights_scale_W);
         // extract constant values
-        const auto input_scale_constant =
-            std::dynamic_pointer_cast<op::v0::Constant>(input_scale_output.get_node_shared_ptr());
+        const auto input_scale_constant = ov::as_type_ptr<op::v0::Constant>(input_scale_output.get_node_shared_ptr());
         const auto weights_scale_constant =
-            std::dynamic_pointer_cast<op::v0::Constant>(weights_scale_output.get_node_shared_ptr());
+            ov::as_type_ptr<op::v0::Constant>(weights_scale_output.get_node_shared_ptr());
 
-        if (!input_scale_constant || !weights_scale_constant)
+        if (!input_scale_constant || !weights_scale_constant) {
             return false;
+        }
 
-        const float* input_scale_ptr = input_scale_constant->get_data_ptr<float>();
-        if (*input_scale_ptr == 0.f)
+        const auto* input_scale_ptr = input_scale_constant->get_data_ptr<float>();
+        if (*input_scale_ptr == 0.f) {
             OPENVINO_THROW("Cannot handle zero input scale");
+        }
 
         const float input_scale = 1 / *input_scale_ptr;
         std::vector<float> weights_scales = weights_scale_constant->get_vector<float>();
@@ -201,8 +204,8 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
 
         if (input_shift_it != pattern_map.end()) {
             const auto input_shift_constant =
-                std::dynamic_pointer_cast<op::v0::Constant>(input_shift_it->second.get_node_shared_ptr());
-            const float* input_shift_ptr = input_shift_constant->get_data_ptr<float>();
+                ov::as_type_ptr<op::v0::Constant>(input_shift_it->second.get_node_shared_ptr());
+            const auto* input_shift_ptr = input_shift_constant->get_data_ptr<float>();
             runtime_info["inputShift"] = *input_shift_ptr;
         }
 
@@ -225,8 +228,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
             std::shared_ptr<Node> multiply_input = new_convert;
             // dequantize with subtract
             if (subtract_it != pattern_map.end()) {
-                const auto subtract =
-                    std::dynamic_pointer_cast<op::v1::Subtract>(subtract_it->second.get_node_shared_ptr());
+                const auto subtract = ov::as_type_ptr<op::v1::Subtract>(subtract_it->second.get_node_shared_ptr());
                 multiply_input = subtract->clone_with_new_inputs({multiply_input, subtract->input_value(1)});
             }
 

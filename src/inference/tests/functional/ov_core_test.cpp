@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,7 +114,6 @@ TEST_F(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
 
 #endif
 
-#if defined(OPENVINO_CPP_VER_17) && defined(ENABLE_OV_IR_FRONTEND)
 namespace ov::test {
 TEST_F(CoreBaseTest, read_model_with_std_fs_path) {
     generate_test_model_files("test-model");
@@ -152,4 +151,3 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
     }
 }
 }  // namespace ov::test
-#endif

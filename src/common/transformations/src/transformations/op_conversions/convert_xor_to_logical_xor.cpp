@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/logical_xor.hpp"
 #include "openvino/op/xor.hpp"
@@ -16,7 +17,7 @@ ov::pass::ConvertXorToLogicalXor::ConvertXorToLogicalXor() {
     auto xor_v1 = pattern::wrap_type<ov::op::v0::Xor>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto xor_v1_node = std::dynamic_pointer_cast<ov::op::v0::Xor>(m.get_match_root());
+        auto xor_v1_node = ov::as_type_ptr<ov::op::v0::Xor>(m.get_match_root());
         if (!xor_v1_node)
             return false;
 

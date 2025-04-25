@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -36,7 +36,7 @@ class OVDict(Mapping):
     This class is a dict-like object. It provides possibility to
     address data tensors with three key types:
 
-    * `openvino.runtime.ConstOutput` - port of the output
+    * `openvino.ConstOutput` - port of the output
     * `int` - index of the output
     * `str` - names of the output
 

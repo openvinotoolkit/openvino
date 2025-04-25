@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -6,6 +6,7 @@ import platform
 import numpy as np
 import pytest
 import torch
+from packaging import version
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -369,3 +370,36 @@ class TestTrickyNorm(PytorchLayerTest):
     def test_tricky_norm(self, input_shape, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input_shape": input_shape}, use_convert_model=True, trace_model=True)
+
+
+class TestRMSNorm(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(2, 5, 10, 10).astype(np.float32),)
+
+    def create_model(self, normalized_shape, eps, gamma):
+        class aten_rms_norm(torch.nn.Module):
+            def __init__(self, normalized_shape, eps, gamma) -> None:
+                super().__init__()
+                self.rms = torch.nn.RMSNorm(normalized_shape,
+                                            eps=eps,
+                                            elementwise_affine=gamma)
+
+            def forward(self, input_data):
+                return self.rms(input_data)
+
+        return aten_rms_norm(normalized_shape, eps, gamma), None, "aten::rms_norm"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.4"),
+                        reason="Not supported in PyTorch versions earlier than 2.4.")
+    @pytest.mark.parametrize("normalized_shape", [[10,],
+                                                  [10, 10],
+                                                  [5, 10, 10]])
+    @pytest.mark.parametrize('gamma', [True, False])
+    @pytest.mark.parametrize('eps', [None, 1e-5])
+    def test_rms_norm(self, ie_device, precision, ir_version,
+                      normalized_shape, eps, gamma):
+        self._test(*self.create_model(normalized_shape, eps, gamma),
+                   ie_device, precision, ir_version)

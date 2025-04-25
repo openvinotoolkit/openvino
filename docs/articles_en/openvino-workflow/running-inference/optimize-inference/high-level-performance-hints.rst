@@ -8,7 +8,7 @@ High-level Performance Hints
                  an inference device.
 
 
-Even though all :doc:`supported devices <../../../about-openvino/compatibility-and-support/supported-devices>` in OpenVINO™ offer low-level performance settings, utilizing them is not recommended outside of very few cases.
+Even though all :doc:`supported devices <../../../documentation/compatibility-and-support/supported-devices>` in OpenVINO™ offer low-level performance settings, utilizing them is not recommended outside of very few cases.
 The preferred way to configure performance in OpenVINO Runtime is using performance hints. This is a future-proof solution fully compatible with the :doc:`automatic device selection inference mode <../inference-devices-and-modes/auto-device-selection>` and designed with *portability* in mind.
 
 The hints also set the direction of the configuration in the right order. Instead of mapping the application needs to the low-level performance settings, and keeping an associated application logic to configure each possible device separately, the hints express a target scenario with a single config key and let the *device* configure itself in response.
@@ -32,7 +32,7 @@ Performance Hints: How It Works
 
 Internally, every device "translates" the value of the hint to the actual performance settings.
 For example, the ``ov::hint::PerformanceMode::THROUGHPUT`` selects the number of CPU or GPU streams.
-Additionally, the optimal batch size is selected for the GPU and the :doc:`automatic batching <../inference-devices-and-modes/automatic-batching>` is applied whenever possible. To check whether the device supports it, refer to the :doc:`Supported devices <../../../about-openvino/compatibility-and-support/supported-devices>` article.
+Additionally, the optimal batch size is selected for the GPU and the :doc:`automatic batching <../inference-devices-and-modes/automatic-batching>` is applied whenever possible. To check whether the device supports it, refer to the :doc:`Supported devices <../../../documentation/compatibility-and-support/supported-devices>` article.
 
 The resulting (device-specific) settings can be queried back from the instance of the ``ov:Compiled_Model``.
 Be aware that the ``benchmark_app`` outputs the actual settings for the ``THROUGHPUT`` hint. See the example of the output below:
@@ -124,7 +124,7 @@ While an application is free to create more requests if needed (for example to s
 Prefer Async API
 ################
 
-The API of the inference requests offers Sync and Async execution. The ``ov::InferRequest::infer()`` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread). The Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()`` (or callbacks). For more information on synchronous and asynchronous modes, refer to the :doc:`OpenVINO Inference Request <../integrate-openvino-with-your-application/inference-request>`.
+The API of the inference requests offers Sync and Async execution. The ``ov::InferRequest::infer()`` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread). The Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()`` (or callbacks). For more information on synchronous and asynchronous modes, refer to the :doc:`OpenVINO Inference Request <../inference-request>`.
 
 Although the synchronous API can be easier to start with, it is recommended to use the asynchronous (callbacks-based) API in production code. It is the most general and scalable way to implement the flow control for any possible number of requests. The ``THROUGHPUT`` and ``LATENCY`` performance hints automatically configure the Asynchronous pipeline to use the optimal number of processing streams and inference requests.
 
@@ -158,7 +158,7 @@ For example, use ``ov::hint::PerformanceMode::THROUGHPUT`` to prepare a general 
 Testing Performance of the Hints with the Benchmark_App
 #######################################################
 
-Using the :doc:`benchmark_app sample <../../../learn-openvino/openvino-samples/benchmark-tool>` is the best way to evaluate the functionality of the performance hints for a particular device:
+Using the :doc:`benchmark_app sample <../../../get-started/learn-openvino/openvino-samples/benchmark-tool>` is the best way to evaluate the functionality of the performance hints for a particular device:
 
 * benchmark_app **-hint tput** -d 'device' -m 'path to your model'
 * benchmark_app **-hint latency** -d 'device' -m 'path to your model'

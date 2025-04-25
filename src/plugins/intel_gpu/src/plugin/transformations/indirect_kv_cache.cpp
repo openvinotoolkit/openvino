@@ -41,8 +41,7 @@ void replace_node_unsafe(const std::shared_ptr<ov::Node>& target, const std::sha
 
 }  // namespace
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 IndirectGemmOpt::IndirectGemmOpt() {
     using namespace ov::pass::pattern;
@@ -65,11 +64,11 @@ IndirectGemmOpt::IndirectGemmOpt() {
         }
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto kv_cache_node = std::dynamic_pointer_cast<ov::intel_gpu::op::KVCache>(pattern_map.at(kv_cache).get_node_shared_ptr());
+        auto kv_cache_node = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(pattern_map.at(kv_cache).get_node_shared_ptr());
 
         auto beam_idx_node = pattern_map.at(beam_idx).get_node_shared_ptr();
         auto gather_input_node = pattern_map.at(gather_input).get_node_shared_ptr();
-        auto gather_node = std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr());
+        auto gather_node = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_past).get_node_shared_ptr());
         auto gather_axis = gather_node->get_axis();
         ov::replace_node(gather_node, gather_input_node);
 
@@ -88,7 +87,7 @@ IndirectGemmOpt::IndirectGemmOpt() {
         auto kv_cache_users = indirect_kv_cache->get_output_target_inputs(0);
         auto matmul_kv_cache_index = kv_cache_users.begin()->get_index();
 
-        auto gemm_node = std::dynamic_pointer_cast<op::Gemm>(m.get_match_root());
+        auto gemm_node = ov::as_type_ptr<op::Gemm>(m.get_match_root());
         auto order_in0 = gemm_node->get_input0_transpose_order();
         auto order_in1 = gemm_node->get_input1_transpose_order();
         auto order_out = gemm_node->get_output_transpose_order();
@@ -145,14 +144,14 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         }
         const auto& pattern_map = m.get_pattern_value_map();
 
-        auto kv_cache_node_0 = std::dynamic_pointer_cast<ov::intel_gpu::op::KVCache>(pattern_map.at(kv_cache_0).get_node_shared_ptr());
-        auto kv_cache_node_1 = std::dynamic_pointer_cast<ov::intel_gpu::op::KVCache>(pattern_map.at(kv_cache_1).get_node_shared_ptr());
+        auto kv_cache_node_0 = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(pattern_map.at(kv_cache_0).get_node_shared_ptr());
+        auto kv_cache_node_1 = ov::as_type_ptr<ov::intel_gpu::op::KVCache>(pattern_map.at(kv_cache_1).get_node_shared_ptr());
 
         auto beam_idx_node = pattern_map.at(beam_idx).get_node_shared_ptr();
         auto gather_input_node_0 = pattern_map.at(gather_input_0).get_node_shared_ptr();
         auto gather_input_node_1 = pattern_map.at(gather_input_1).get_node_shared_ptr();
-        auto gather_node_0 = std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past_0).get_node_shared_ptr());
-        auto gather_node_1 = std::dynamic_pointer_cast<ov::op::v8::Gather>(pattern_map.at(gather_past_1).get_node_shared_ptr());
+        auto gather_node_0 = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_past_0).get_node_shared_ptr());
+        auto gather_node_1 = ov::as_type_ptr<ov::op::v8::Gather>(pattern_map.at(gather_past_1).get_node_shared_ptr());
         auto gather_axis_0 = gather_node_0->get_axis();
         auto gather_axis_1 = gather_node_1->get_axis();
         OPENVINO_ASSERT(gather_axis_0 == gather_axis_1);
@@ -161,7 +160,7 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         ov::replace_node(gather_node_1, gather_input_node_1);
 
         auto indirect_kv_cache_0 = std::make_shared<op::KVCache>(gather_input_node_0,
-                                                                 kv_cache_node_0->get_input_node_shared_ptr(1),
+                                                                 kv_cache_node_0->input_value(1),
                                                                  beam_idx_node,
                                                                  kv_cache_node_0->get_variable(),
                                                                  kv_cache_node_0->get_concat_axis(),
@@ -169,7 +168,7 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
                                                                  kv_cache_node_0->get_output_element_type(0));
 
         auto indirect_kv_cache_1 = std::make_shared<op::KVCache>(gather_input_node_1,
-                                                                 kv_cache_node_1->get_input_node_shared_ptr(1),
+                                                                 kv_cache_node_1->input_value(1),
                                                                  beam_idx_node,
                                                                  kv_cache_node_1->get_variable(),
                                                                  kv_cache_node_1->get_concat_axis(),
@@ -183,7 +182,7 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         replace_node_unsafe(kv_cache_node_0, indirect_kv_cache_0);
         replace_node_unsafe(kv_cache_node_1, indirect_kv_cache_1);
 
-        auto sdpa = std::dynamic_pointer_cast<op::SDPA>(m.get_match_root());
+        auto sdpa = ov::as_type_ptr<op::SDPA>(m.get_match_root());
         auto order_in0 = sdpa->get_input0_transpose_order();
         auto order_in1 = sdpa->get_input1_transpose_order();
         auto order_in2 = sdpa->get_input2_transpose_order();
@@ -228,5 +227,4 @@ IndirectKVCache::IndirectKVCache() {
     add_matcher<IndirectGemmOpt>();
     add_matcher<IndirectSDPAOpt>();
 }
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

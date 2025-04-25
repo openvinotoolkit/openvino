@@ -1,11 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
 
 #include <array>
+#include <cfloat>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <vector>
 
 #include "common.hpp"
@@ -18,10 +21,7 @@
 #    include "arm_neon.h"
 #endif
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 #if defined(HAVE_AVX2)
 inline void exp_ps_avx2(__m256& src) {
@@ -241,7 +241,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm512_cvtepi8_epi32(v_maski8);
             auto kmask = _mm512_cmp_epi32_mask(v_maski32, v_zeroi32, _MM_CMPINT_NE);  // !=0
             kmask = _kxor_mask16(kmask, kmask_xor);                                   // reverse, mask at ==0
@@ -269,7 +269,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm512_cvtepi8_epi32(v_maski8);
             auto kmask = _mm512_cmp_epi32_mask(v_maski32, v_zeroi32, _MM_CMPINT_NE);  // !=0
             kmask = _kxor_mask16(kmask, kmask_xor);                                   // reverse, mask at ==0
@@ -342,7 +342,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm256_cvtepi8_epi32(v_maski8);
             v_maski32 = _mm256_cmpeq_epi32(v_maski32, v_zeroi32);                    // ==0
             v_maski32 = _mm256_xor_si256(v_maski32, v_mask_xor);                     // reverse, mask at ==0
@@ -371,7 +371,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm256_cvtepi8_epi32(v_maski8);
             v_maski32 = _mm256_cmpeq_epi32(v_maski32, v_zeroi32);                    // ==0
             v_maski32 = _mm256_xor_si256(v_maski32, v_mask_xor);                     // reverse, mask at ==0
@@ -436,16 +436,19 @@ inline void scale_add2_reduce_max(float* a,
             a[i] += alibi_lookup[i] * alibi_slope;
         }
 
-        if (has_attn_mask)
+        if (has_attn_mask) {
             a[i] += attn_mask[i];
+        }
 
         if (has_causal_mask) {
             if (select_nfltmax_at_0) {
-                if (causal_mask[i] == 0)
+                if (causal_mask[i] == 0) {
                     a[i] = -FLT_MAX;
+                }
             } else {
-                if (causal_mask[i] != 0)
+                if (causal_mask[i] != 0) {
                     a[i] = -FLT_MAX;
+                }
             }
         }
 
@@ -464,10 +467,61 @@ inline void scale_add2_reduce_max(ov::float16* a,
                                   size_t size,
                                   float alibi_slope,
                                   ov::float16& max) {
+    size_t i = 0;
+#    if defined(HAVE_SVE)
+    svfloat16_t v_max = svdup_n_f16(static_cast<float16_t>(-FLT_MAX));
+    svfloat16_t v_scale = svdup_n_f16(static_cast<float16_t>(scale));
+    svfloat16_t v_a;
+    svuint16_t v_zeroi16 = svdup_n_u16(0);
+    svfloat16_t v_nfltmax = svdup_n_f16(static_cast<float16_t>(-FLT_MAX));
+    svfloat16_t v_alibi_slope = svdup_n_f16(static_cast<float16_t>(alibi_slope));
+
+    svbool_t mask_xor = svptrue_b16();
+    if (!select_nfltmax_at_0)
+        mask_xor = svnot_z(svptrue_b16(), mask_xor);
+
+    svbool_t pg_f16 = svptrue_b16();
+    svbool_t pg_u8 = svptrue_b8();
+    svbool_t pg_u16 = svptrue_b16();
+    size_t inc = vec_len_f16_sve();
+
+    while (i < size) {
+        if (size - i < vec_len_f16_sve()) {
+            inc = size - i;
+            pg_f16 = svwhilelt_b16(0, static_cast<int>(inc));
+            pg_u8 = svwhilelt_b8(0, static_cast<int>(inc));
+            pg_u16 = svwhilelt_b16(0, static_cast<int>(inc));
+        }
+        v_a = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(a + i));
+        v_a = svmul_f16_z(pg_f16, v_a, v_scale);
+
+        if (has_alibi) {
+            svfloat16_t v_lookup = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(alibi_lookup + i));
+            v_a = svmla_f16_z(pg_f16, v_a, v_lookup, v_alibi_slope);
+        }
+
+        if (has_attn_mask) {
+            svfloat16_t v_mask = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(attn_mask + i));
+            v_a = svadd_f16_z(pg_f16, v_a, v_mask);
+        }
+
+        if (has_causal_mask) {
+            svuint8_t v_maski8 = svld1_u8(pg_u8, causal_mask + i);
+            svuint16_t v_maski16 = svtrn1_u16(svreinterpret_u16_u8(v_maski8), svdup_n_u16(0));
+            svbool_t kmask = svcmpeq_u16(pg_u16, v_maski16, v_zeroi16);
+            kmask = sveor_z(pg_u16, kmask, mask_xor);
+            v_a = svsel_f16(kmask, v_nfltmax, v_a);
+        }
+
+        v_max = svmax_f16_z(pg_f16, v_max, v_a);
+        svst1_f16(pg_f16, reinterpret_cast<float16_t*>(a + i), v_a);
+        i += inc;
+    }
+    max = svmaxv_f16(pg_f16, v_max);
+#    elif defined(HAVE_NEON_FP16)
     float16x8_t v_max = vdupq_n_f16(static_cast<float16_t>(-FLT_MAX));
     float16x8_t v_scale = vdupq_n_f16(static_cast<float16_t>(scale));
     float16x8_t v_a;
-    size_t i = 0;
     uint16x8_t v_zeroi16 = vdupq_n_u16(0);
     float16x8_t v_nfltmax = vdupq_n_f16(static_cast<float16_t>(-FLT_MAX));
     uint16x8_t mask_xor = vdupq_n_u16(select_nfltmax_at_0 ? 0xFFFF : 0);
@@ -500,6 +554,7 @@ inline void scale_add2_reduce_max(ov::float16* a,
         vst1q_f16(reinterpret_cast<float16_t*>(a + i), v_a);
     }
     max = vmaxvq_f16(v_max);
+#    endif
     // process tails
     for (; i < size; i++) {
         a[i] *= scale;
@@ -664,12 +719,11 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
     svfloat32_t v_a;
     svfloat32_t v_max = svdup_n_f32(max);
     svfloat32_t v_sum = svdup_n_f32(0.0f);
-    size_t vec_len_f32_sve = svcntw();
-    size_t inc = vec_len_f32_sve;
+    size_t inc = vec_len_f32_sve();
     svbool_t pg = svptrue_b32();
 
     while (i < size) {
-        if (size - i < vec_len_f32_sve) {
+        if (size - i < vec_len_f32_sve()) {
             inc = size - i;
             pg = svwhilelt_b32(0, static_cast<int>(inc));
         }
@@ -698,17 +752,54 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
 #    endif
 #endif
     for (; i < size; i++) {
-        a[i] = exp(a[i] - max);
+        a[i] = std::exp(a[i] - max);
         sum += a[i];
     }
 }
 
 #if defined(OPENVINO_ARCH_ARM64)
 inline void exp_reduce_sum_f32(ov::float16* a, const ov::float16 max, const size_t size, ov::float16& sum) {
+    size_t i = 0;
+#    if defined(HAVE_SVE)
+    svfloat32_t v_a;
+    svfloat32_t v_max = svdup_n_f32(static_cast<float>(max));
+    svfloat32_t v_sum = svdup_n_f32(0.0f);
+
+    svbool_t pg_f32 = svptrue_b32();
+    svbool_t pg_f16 = svptrue_b16();
+    svfloat16_t zero = svdup_n_f16(0.0);
+    size_t inc = vec_len_f32_sve();
+
+    while (i < size) {
+        if (size - i < vec_len_f16_sve())
+            pg_f16 = svwhilelt_b16(0, static_cast<int>(size - i));
+        if (size - i < vec_len_f32_sve()) {
+            pg_f32 = svwhilelt_b32(0, static_cast<int>(size - i));
+            inc = size - i;
+        }
+        // Load 16 elements and interleave with zeros so we have 8 elements with 0 in high parts
+        svfloat16_t v_a_f16 = svld1_f16(pg_f16, reinterpret_cast<const float16_t*>(a + i));
+        v_a_f16 = svzip1_f16(v_a_f16, zero);
+
+        // Convert to f32 and perform required operations
+        v_a = svcvt_f32_f16_z(pg_f16, v_a_f16);
+        v_a = svsub_f32_z(pg_f32, v_a, v_max);
+        v_a = exp_ps_sve(pg_f32, v_a);
+        v_sum = svadd_f32_z(pg_f32, v_sum, v_a);
+
+        // Convert to f16 and compact non-zero elements (even indices) to the low part
+        // so that we can store them in the result using svwhilelt
+        svfloat16_t v_result = svcvt_f16_f32_z(pg_f32, v_a);
+        v_result = svtbl_f16(v_result, svindex_u16(0, 2));
+
+        svst1_f16(svwhilelt_b16(0, static_cast<int>(inc)), reinterpret_cast<float16_t*>(a + i), v_result);
+        i += inc;
+    }
+    float total_sum = svaddv_f32(svptrue_b32(), v_sum);
+#    else
     float32x4_t v_a;
     float32x4_t v_max = vdupq_n_f32(static_cast<float>(max));
     float32x4_t v_sum = vdupq_n_f32(0.0f);
-    size_t i = 0;
 
     // Process 4 FP32 elements at a time
     for (; i + vec_len_f32_neon <= size; i += vec_len_f32_neon) {
@@ -728,7 +819,7 @@ inline void exp_reduce_sum_f32(ov::float16* a, const ov::float16 max, const size
 
     // Reduce sum
     float total_sum = vaddvq_f32(v_sum);
-
+#    endif
     // Handle remaining elements
     for (; i < size; ++i) {
         float val = exp(static_cast<float>(a[i] - max));
@@ -742,11 +833,32 @@ inline void exp_reduce_sum_f32(ov::float16* a, const ov::float16 max, const size
 
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 inline void exp_reduce_sum(ov::float16* a, const ov::float16 max, const size_t size, ov::float16& sum) {
+    size_t i = 0;
+#    if defined(HAVE_SVE)
+    svfloat16_t v_a;
+    svfloat16_t v_max = svdup_n_f16(max);
+    svfloat16_t v_sum = svdup_n_f16(0.0f);
+    svbool_t pg = svptrue_b16();
+    size_t inc = vec_len_f16_sve();
+
+    while (i < size) {
+        if (size - i < vec_len_f16_sve()) {
+            inc = size - i;
+            pg = svwhilelt_b16(0, static_cast<int>(inc));
+        }
+        v_a = svld1_f16(pg, reinterpret_cast<float16_t*>(a + i));
+        v_a = svsub_f16_z(pg, v_a, v_max);
+        v_a = exp_ps_sve_f16(pg, v_a);
+        v_sum = svadd_f16_m(pg, v_sum, v_a);
+        svst1_f16(pg, reinterpret_cast<float16_t*>(a + i), v_a);
+        i += inc;
+    }
+    sum = svaddv_f16(svptrue_b16(), v_sum);
+#    else
     const size_t vec_len_f16_neon = 8;
     float16x8_t v_a;
     float16x8_t v_max = vdupq_n_f16(max);
     float16x8_t v_sum = vdupq_n_f16(0.0f);
-    size_t i = 0;
 
     for (; i + vec_len_f16_neon <= size; i += vec_len_f16_neon) {
         v_a = vld1q_f16(reinterpret_cast<const float16_t*>(a + i));
@@ -761,7 +873,7 @@ inline void exp_reduce_sum(ov::float16* a, const ov::float16 max, const size_t s
     float16x4_t v_sum_final = vpadd_f16(v_sum_pair, v_sum_pair);
 
     sum += vget_lane_f16(v_sum_final, 0);
-
+#    endif
     for (; i < size; ++i) {
         a[i] = static_cast<ov::float16>(exp(static_cast<float>(a[i] - max)));
         sum += a[i];
@@ -808,11 +920,11 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
 #elif defined(OPENVINO_ARCH_ARM64)
 #    if defined(HAVE_SVE)
     svfloat32_t v_scale = svdup_n_f32(val);
-    size_t inc = vec_len_f32_sve;
+    size_t inc = vec_len_f32_sve();
     svbool_t pg = svptrue_b32();
 
     while (i < size) {
-        if (size - i < vec_len_f32_sve) {
+        if (size - i < vec_len_f32_sve()) {
             inc = size - i;
             pg = svwhilelt_b32(0, static_cast<int>(inc));
         }
@@ -837,8 +949,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
 }
 
 template <typename T,
-          typename = typename std::
-              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+          typename = std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
 inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t size) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
@@ -864,6 +975,7 @@ inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t si
     }
 #endif
 }
+
 #if defined(OPENVINO_ARCH_ARM64)
 inline void multiply_scalar(ov::float16* a, float* a_dst, const ov::float16 val, const size_t size) {
     float16x4_t v_a_f16;
@@ -902,21 +1014,40 @@ inline void multiply_scalar_f32(ov::float16* a, ov::float16* a_dst, const ov::fl
     }
 }
 #endif
+
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
 inline void multiply_scalar(ov::float16* a, ov::float16* a_dst, const ov::float16 val, const size_t size) {
+    size_t i = 0;
+#    if defined(HAVE_SVE)
+    svfloat16_t v_scale = svdup_n_f16(val);
+    size_t inc = vec_len_f16_sve();
+    svbool_t pg = svptrue_b16();
+
+    while (i < size) {
+        if (size - i < vec_len_f16_sve()) {
+            inc = size - i;
+            pg = svwhilelt_b16(0, static_cast<int>(inc));
+        }
+        svfloat16_t v_a = svld1_f16(pg, reinterpret_cast<float16_t*>(a + i));
+        v_a = svmul_f16_z(pg, v_a, v_scale);
+        svst1_f16(pg, reinterpret_cast<float16_t*>(a_dst + i), v_a);
+        i += inc;
+    }
+#    else
     float16x8_t v_a, v_res;
     float16x8_t v_val = vdupq_n_f16(val);
-    size_t i = 0;
     for (; i + vec_len_f16_neon <= size; i += vec_len_f16_neon) {
         v_a = vld1q_f16(reinterpret_cast<const float16_t*>(a + i));
         v_res = vmulq_f16(v_a, v_val);
         vst1q_f16(reinterpret_cast<float16_t*>(a_dst + i), v_res);
     }
+#    endif
     for (; i < size; ++i) {
         a_dst[i] = a[i] * val;
     }
 }
 #endif
+
 template <typename T>
 inline void attn_softmax_kernel(T* a,
                                 void* a_dst,
@@ -1016,18 +1147,21 @@ inline void attn_softmax_kernel<float>(float* a,
     if (dst_precision == ov::element::f32) {
         multiply_scalar(a, reinterpret_cast<float*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len)
+        if (total_size > len) {
             memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
+        }
     } else if (dst_precision == ov::element::bf16) {
         multiply_scalar(a, static_cast<ov::bfloat16*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len)
+        if (total_size > len) {
             memset(static_cast<ov::bfloat16*>(a_dst) + len, 0, sizeof(ov::bfloat16) * (total_size - len));
+        }
     } else {
         multiply_scalar(a, static_cast<ov::float16*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
-        if (total_size > len)
+        if (total_size > len) {
             memset(static_cast<ov::float16*>(a_dst) + len, 0, sizeof(ov::float16) * (total_size - len));
+        }
     }
 }
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
@@ -1148,7 +1282,4 @@ inline void attn_softmax_kernel<ov::float16>(ov::float16* a,
 }
 #endif
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

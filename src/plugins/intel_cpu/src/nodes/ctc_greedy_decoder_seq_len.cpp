@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,7 @@
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 bool CTCGreedyDecoderSeqLen::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                   std::string& errorMessage) noexcept {
@@ -28,56 +26,62 @@ bool CTCGreedyDecoderSeqLen::isSupportedOperation(const std::shared_ptr<const ov
     return true;
 }
 
-CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    errorPrefix = "CTCGreedyDecoderSeqLen layer with name '" + op->get_friendly_name() + "' ";
-    if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 3)
-        OPENVINO_THROW(errorPrefix, "has invalid number of input edges: ", getOriginalInputsNumber());
-    if (getOriginalOutputsNumber() != 2)
-        OPENVINO_THROW(errorPrefix, "has invalid number of outputs edges: ", getOriginalOutputsNumber());
+    if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 3) {
+        THROW_CPU_NODE_ERR("has invalid number of input edges: ", getOriginalInputsNumber());
+    }
+    if (getOriginalOutputsNumber() != 2) {
+        THROW_CPU_NODE_ERR("has invalid number of outputs edges: ", getOriginalOutputsNumber());
+    }
 
     const auto& dataDims = getInputShapeAtPort(DATA_INDEX).getDims();
     const auto& seqDims = getInputShapeAtPort(SEQUENCE_LENGTH_INDEX).getDims();
-    if (!dimsEqualWeak(dataDims[0], seqDims[0]))
-        OPENVINO_THROW(errorPrefix, "has invalid input shapes.");
+    if (!dimsEqualWeak(dataDims[0], seqDims[0])) {
+        THROW_CPU_NODE_ERR("has invalid input shapes.");
+    }
 
     auto greedyDecOp = ov::as_type_ptr<const ov::op::v6::CTCGreedyDecoderSeqLen>(op);
     mergeRepeated = greedyDecOp->get_merge_repeated();
 }
 
 void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16))
-        OPENVINO_THROW(errorPrefix, "has unsupported 'data' input precision: ", inDataPrecision);
+    if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", inDataPrecision);
+    }
 
     ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
-    if (seqLenPrecision != ov::element::i32 && seqLenPrecision != ov::element::i64)
-        OPENVINO_THROW(errorPrefix, "has unsupported 'sequence_length' input precision: ", seqLenPrecision);
+    if (seqLenPrecision != ov::element::i32 && seqLenPrecision != ov::element::i64) {
+        THROW_CPU_NODE_ERR("has unsupported 'sequence_length' input precision: ", seqLenPrecision);
+    }
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
     inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
-    for (size_t i = 1; i < inputShapes.size(); ++i)
+    for (size_t i = 1; i < inputShapes.size(); ++i) {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
+    }
 
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
                          impl_desc_type::ref_any);
 }
 
-void CTCGreedyDecoderSeqLen::execute(dnnl::stream strm) {
-    const float* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
-    const int* sequenceLengths = getSrcDataAtPortAs<const int>(SEQUENCE_LENGTH_INDEX);
-    int* decodedClasses = getDstDataAtPortAs<int>(DECODED_CLASSES_INDEX);
-    int* decodedClassesLength = getDstDataAtPortAs<int>(DECODED_CLASSES_LENGTH_INDEX);
+void CTCGreedyDecoderSeqLen::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
+    const auto* sequenceLengths = getSrcDataAtPortAs<const int>(SEQUENCE_LENGTH_INDEX);
+    auto* decodedClasses = getDstDataAtPortAs<int>(DECODED_CLASSES_INDEX);
+    auto* decodedClassesLength = getDstDataAtPortAs<int>(DECODED_CLASSES_LENGTH_INDEX);
 
     const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
     ;
@@ -88,17 +92,18 @@ void CTCGreedyDecoderSeqLen::execute(dnnl::stream strm) {
     const size_t TC = T * C;
 
     int blankIndex = C - 1;
-    if (inputShapes.size() > BLANK_INDEX)
+    if (inputShapes.size() > BLANK_INDEX) {
         blankIndex = (getSrcDataAtPortAs<const int>(BLANK_INDEX))[0];
+    }
 
     size_t workAmount = 0;
     for (size_t b = 0; b < B; b++) {
         if (sequenceLengths[b] > static_cast<int>(T)) {
             std::string errorMsg =
-                errorPrefix + ". Sequence length " + std::to_string(sequenceLengths[b]) +
+                "Sequence length " + std::to_string(sequenceLengths[b]) +
                 " cannot be greater than according decoded classes dimension size " +
                 std::to_string(getChildEdgeAt(DECODED_CLASSES_INDEX)->getMemory().getStaticDims()[1]);
-            OPENVINO_THROW(errorMsg);
+            THROW_CPU_NODE_ERR(errorMsg);
         }
         workAmount += sequenceLengths[b];
     }
@@ -109,8 +114,9 @@ void CTCGreedyDecoderSeqLen::execute(dnnl::stream strm) {
     auto threadBody = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
         splitter(workAmount, nthr, ithr, start, end);
-        if (start >= end)
+        if (start >= end) {
             return;
+        }
         size_t tStart = 0lu, bStart = 0lu;
         for (; bStart < B; bStart++) {
             tStart += sequenceLengths[bStart];
@@ -172,7 +178,7 @@ bool CTCGreedyDecoderSeqLen::created() const {
     return getType() == Type::CTCGreedyDecoderSeqLen;
 }
 
-void CTCGreedyDecoderSeqLen::executeDynamicImpl(dnnl::stream strm) {
+void CTCGreedyDecoderSeqLen::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
@@ -180,6 +186,4 @@ bool CTCGreedyDecoderSeqLen::needPrepareParams() const {
     return false;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

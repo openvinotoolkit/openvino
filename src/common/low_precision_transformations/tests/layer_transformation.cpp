@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "layer_transformation.hpp"
-
-#include "openvino/opsets/opset1.hpp"
 #include "low_precision/network_helper.hpp"
 #include "simple_low_precision_transformer.hpp"
 
@@ -33,6 +31,11 @@ TestTransformationParams::TestTransformationParams(
     if (precisionsOnWeights.size() == 0ul) {
         THROW_TRANSFORMATION_EXCEPTION << "precisions on weights are not specisifed";
     }
+}
+
+TestTransformationParams& TestTransformationParams::setDeqPrecision(const element::Type deqPrecision) {
+    this->deqPrecision = deqPrecision;
+    return *this;
 }
 
 TestTransformationParams& TestTransformationParams::setUpdatePrecisions(const bool updatePrecisions) {

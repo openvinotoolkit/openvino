@@ -16,7 +16,11 @@ std::string SplitDimensionMTest::getTestCaseName(testing::TestParamInfo<SplitDim
     const auto& input = obj.param.input;
     const auto& reference = obj.param.reference;
     std::ostringstream result;
-    result << "Batch=" << input.cur_batch << "_";
+    if (input.cur_batch.has_value()) {
+        result << "Batch=" << input.cur_batch.value() << "_";
+    } else {
+        result << "Batch=no_batch_dim_";
+    }
     result << "CurM=" << input.cur_m << "_";
     result << "OptimalParallelWorkAmount=" << input.concurrency << "_";
     result << "IsSplit=" << reference.is_split << "_";
@@ -31,7 +35,12 @@ TEST_P(SplitDimensionMTest, SplitDimensionM) {
 
     // last_dim is fixed since it doesn't affect the SplitDimensionM result.
     static const size_t last_dim = 1024;
-    ov::Shape shape = {input.cur_batch, input.cur_m, last_dim};
+    ov::Shape shape;
+    if (input.cur_batch.has_value()) {
+        shape = {input.cur_batch.value(), input.cur_m, last_dim};
+    } else {
+        shape = {input.cur_m, last_dim};
+    }
     size_t batch_m_dim, new_m_dim;
     bool result = ov::snippets::pass::SplitDimensionM::split(shape,
                                                              input.concurrency,
@@ -48,17 +57,31 @@ TEST_P(SplitDimensionMTest, SplitDimensionM) {
 namespace SplitDimensionMInstantiation {
 const std::vector<SplitDimensionMParams> split_dimension_cases = {
     // Negative test cases: split is not needed
-    {InputData{40 /*cur_batch*/, 32 /*cur_m*/, 40 /*concurrency*/}, ReferenceData{false /*is_split*/}},
-    {InputData{65, 32, 40}, ReferenceData{false}},
+    {InputData{{40} /*cur_batch*/, 32 /*cur_m*/, 40 /*concurrency*/}, ReferenceData{false /*is_split*/}},
+    {InputData{{65}, 32, 40}, ReferenceData{false}},
 
     // Positive test cases
-    {InputData{20 /*cur_batch*/, 32 /*cur_m*/, 40 /*concurrency*/}, ReferenceData{true /*is_split*/, 2 /*batch_m*/, 16 /*kernel_m*/}},
-    {InputData{30, 60, 40}, ReferenceData{true, 2, 30}},
-    {InputData{10, 100, 40}, ReferenceData{true, 4, 25}},
-    {InputData{15, 45, 40}, ReferenceData{true, 5, 9}},
-    {InputData{25, 50, 40}, ReferenceData{true, 2, 25}},
-    {InputData{5, 16384, 40}, ReferenceData{true, 8, 2048}},
-    {InputData{5, 16384, 32}, ReferenceData{true, 32, 512}},
+    {InputData{{20} /*cur_batch*/, 32 /*cur_m*/, 40 /*concurrency*/}, ReferenceData{true /*is_split*/, 2 /*batch_m*/, 16 /*kernel_m*/}},
+    {InputData{{30}, 60, 40}, ReferenceData{true, 2, 30}},
+    {InputData{{10}, 100, 40}, ReferenceData{true, 4, 25}},
+    {InputData{{15}, 45, 40}, ReferenceData{true, 5, 9}},
+    {InputData{{25}, 50, 40}, ReferenceData{true, 2, 25}},
+    {InputData{{5}, 16384, 40}, ReferenceData{true, 8, 2048}},
+    {InputData{{5}, 16384, 32}, ReferenceData{true, 32, 512}},
+    {InputData{{48}, 4097, 32}, ReferenceData{true, 17, 241}},
+    {InputData{{48}, 6600, 32}, ReferenceData{true, 200, 33}},
+    {InputData{{12}, 128, 16}, ReferenceData{true, 4, 32}},
+    {InputData{{16}, 384, 60}, ReferenceData{true, 12, 32}},
+    {InputData{{16}, 384, 24}, ReferenceData{true, 12, 32}},
+    // 2D shape
+    {InputData{std::nullopt, 32, 40}, ReferenceData{false}},
+    {InputData{std::nullopt, 60, 40}, ReferenceData{true, 60, 1}},
+    {InputData{std::nullopt, 100, 40}, ReferenceData{true, 50, 2}},
+    {InputData{std::nullopt, 45, 40}, ReferenceData{true, 45, 1}},
+    {InputData{std::nullopt, 50, 40}, ReferenceData{true, 50, 1}},
+    {InputData{std::nullopt, 16384, 40}, ReferenceData{true, 512, 32}},
+    {InputData{std::nullopt, 16384, 32}, ReferenceData{true, 32, 512}},
+    {InputData{std::nullopt, 4097, 32}, ReferenceData{false, 4097, 32}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_SplitDimensionM,

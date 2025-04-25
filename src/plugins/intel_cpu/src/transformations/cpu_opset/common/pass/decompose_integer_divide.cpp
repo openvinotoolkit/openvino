@@ -3,17 +3,19 @@
 
 #include "decompose_integer_divide.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 DecomposeIntegerDivide::DecomposeIntegerDivide() {
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::opset1::Divide>(),
                                                                   "DecomposeIntegerDivide"),
                      [](ov::pass::pattern::Matcher& m) {
-                         auto divide = std::dynamic_pointer_cast<ov::opset1::Divide>(m.get_match_root());
+                         auto divide = ov::as_type_ptr<ov::opset1::Divide>(m.get_match_root());
                          if (!divide) {
                              return false;
                          }
@@ -31,5 +33,4 @@ DecomposeIntegerDivide::DecomposeIntegerDivide() {
                      });
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

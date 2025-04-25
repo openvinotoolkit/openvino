@@ -1,16 +1,24 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rnn_sequences_optimization.hpp"
 
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace {
@@ -63,8 +71,9 @@ bool transform(const std::shared_ptr<ov::Node>& sequenceOp) {
         ov::replace_node(sequenceOp->get_input_node_shared_ptr(0), reshape1);
 
         const auto& seqTargetInputs = sequenceOp->get_output_target_inputs(0);
-        if (seqTargetInputs.empty())
+        if (seqTargetInputs.empty()) {
             return false;
+        }
         auto transposeAfter = seqTargetInputs.begin()->get_node()->shared_from_this();
 
         auto lstmOutShape = ov::op::util::make_try_fold<ov::opset1::ShapeOf>(sequenceOp->output(0));
@@ -95,8 +104,9 @@ ov::intel_cpu::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
             return false;
         }
         // Bidirectional cases are not supported
-        if (gruSequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+        if (gruSequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             return false;
+        }
 
         return transform(gruSequence);
     };
@@ -115,8 +125,9 @@ ov::intel_cpu::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
             return false;
         }
         // Bidirectional cases are not supported
-        if (rnnSequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
+        if (rnnSequence->get_direction() == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
             return false;
+        }
 
         return transform(rnnSequence);
     };
@@ -133,9 +144,8 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
         auto checkSequence = [](const std::shared_ptr<ov::Node>& node) {
             if (auto lstm5 = ov::as_type_ptr<ov::opset5::LSTMSequence>(node)) {
                 return lstm5->get_direction() != ov::op::RecurrentSequenceDirection::BIDIRECTIONAL;
-            } else {
-                return false;
             }
+            return false;
         };
 
         std::shared_ptr<ov::Node> lstmSequence = m.get_match_root();
@@ -146,6 +156,7 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
     this->register_matcher(m, callback);
 }
 
+// NOLINTNEXTLINE(modernize-use-equals-default)
 ov::intel_cpu::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
     ADD_MATCHER_FOR_THIS(OptimizeLSTMSequenceTransposes)
     ADD_MATCHER_FOR_THIS(OptimizeRNNSequenceTransposes)

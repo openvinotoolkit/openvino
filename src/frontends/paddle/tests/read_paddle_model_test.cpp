@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
     const auto result = std::make_shared<ov::opset1::Result>(add->output(0));
     result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
 
-    const auto reference = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data}, "Model0");
+    const auto reference = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data}, "Model0");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NONE);
     const FunctionsComparator::Result res = func_comparator(function, reference);
     ASSERT_TRUE(res.valid) << res.message;
@@ -104,7 +104,7 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
     const auto result = std::make_shared<ov::opset1::Result>(add->output(0));
     result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
 
-    const auto reference = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data}, "Model0");
+    const auto reference = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data}, "Model0");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NAMES);
     const FunctionsComparator::Result res = func_comparator(function, reference);
     ASSERT_TRUE(res.valid) << res.message;
@@ -135,7 +135,7 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCoreWstring) {
     relu->output(0).get_tensor().add_names({"relu_0.tmp_0"});
     const auto result = std::make_shared<ov::opset1::Result>(relu->output(0));
     result->set_friendly_name("relu_0.tmp_0/Result");
-    const auto reference = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data}, "Model0");
+    const auto reference = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data}, "Model0");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NAMES);
     const FunctionsComparator::Result res = func_comparator(function, reference);
     ASSERT_TRUE(res.valid) << res.message;

@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pooling_inst.h"
+#include "fully_connected_inst.h"
 #include "program_node.h"
 #include "pass_manager.h"
 #include "convolution_inst.h"
@@ -14,6 +15,52 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 
 void prepare_padding::run(program& p) {
+    if (p.get_config().get_use_onednn()) {
+        const auto allow_new_shape_infer = p.get_config().get_allow_new_shape_infer();
+        for (const auto& node : p.get_processing_order()) {
+            if (!node->is_type<fully_connected>())
+                continue;
+
+            if (node->get_preferred_impl_type() != impl_types::onednn)
+                continue;
+
+            auto& weight_node = node->get_dependency(1);
+            if (weight_node.is_type<data>()
+                && weight_node.is_constant()
+                && (weight_node.get_output_layout(0).data_type == cldnn::data_types::u4
+                    || weight_node.get_output_layout(0).data_type == cldnn::data_types::i4)) {
+                const size_t alignment = 2;
+                auto weight_layout = weight_node.get_output_layout(0);
+                const auto const_shape = weight_layout.get_partial_shape().to_shape();
+                OPENVINO_ASSERT(const_shape.size() > 0, "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
+                int32_t inner_most_idx = static_cast<int32_t>(const_shape.size()) - 1;
+                if (!allow_new_shape_infer) {
+                    // Get the innermost index after trimming trailing elements in the canonicalized legacy shape such as [4, 64, 1, 1].
+                    while (inner_most_idx > 0 && const_shape[inner_most_idx] == 1) {
+                        --inner_most_idx;
+                    }
+                    OPENVINO_ASSERT(const_shape[inner_most_idx] % alignment == 0, "inner most dimension for the legacy shape should be even.");
+                }
+
+                if (const_shape[inner_most_idx] % alignment != 0) {
+                    auto weight_in_layout  = weight_layout.convert_to_weights_layout(false);
+                    auto weight_out_layout = weight_in_layout;
+                    std::vector<int32_t> new_paddings(const_shape.size(), 0);
+                    new_paddings[inner_most_idx] = 1;
+                    weight_out_layout.data_padding = padding::max(weight_out_layout.data_padding, padding({0}, new_paddings));
+                    auto weights_reorder_params = std::make_shared<WeightsReorderParams>(weight_in_layout, weight_out_layout, false, false);
+
+                    auto new_reorder = std::make_shared<reorder>("padding_reorder_for_" + weight_node.id(),
+                                                                    weight_node.id(), weights_reorder_params);
+                    auto& new_reorder_node = p.get_or_create(new_reorder);
+                    p.add_intermediate(new_reorder_node, *node, weight_node);
+
+                    new_reorder_node.recalc_output_layouts(false);
+                }
+            }
+        }
+    }
+
     if (output_size_handling_enabled) {
         // Prepare upper padding for primitives that support output_size parameter.
         for (const auto& node : p.get_processing_order()) {

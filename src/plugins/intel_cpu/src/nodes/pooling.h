@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace node {
 
 class Pooling : public Node {
 public:
-    Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
@@ -29,8 +29,8 @@ public:
     }
 
     void prepareParams() override;
-    void execute(dnnl::stream strm) override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -38,7 +38,7 @@ protected:
     AttrPtr initPrimitiveAttr() override;
 
 private:
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    using executorPtr = std::shared_ptr<DnnlExecutorLegacy>;
     executorPtr dnnlExecPtr = nullptr;
 
     void setPostOps(dnnl::primitive_attr& attr);

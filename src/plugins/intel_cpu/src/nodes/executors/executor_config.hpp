@@ -5,19 +5,13 @@
 #pragma once
 
 #include "memory_arguments.hpp"
-#include "post_ops.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace executor {
+namespace ov::intel_cpu::executor {
 
 template <typename Attrs>
 struct Config {
     MemoryDescArgs descs;
     Attrs attrs;
-    PostOps postOps;
 };
 
-}  // namespace executor
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::executor

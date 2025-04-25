@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -124,13 +124,6 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_num_streams;
 
 /**
- * @brief Read-write property to set/get the name for setting CPU affinity per thread option.
- * @ingroup ov_property_c_api
- */
-OPENVINO_C_VAR(const char*)
-ov_property_key_affinity;
-
-/**
  * @brief Read-write property<int32_t string> to set/get the maximum number of threads that can be used
  * for inference tasks.
  * @ingroup ov_property_c_api
@@ -246,3 +239,10 @@ ov_property_key_enable_mmap;
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_auto_batch_timeout;
+
+/**
+ * @brief Read-write property to configure config file for GPU
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_intel_gpu_config_file;

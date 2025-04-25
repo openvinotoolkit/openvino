@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class MHANode : public ov::op::Op {
 public:
@@ -19,7 +18,7 @@ public:
             const ov::Output<ov::Node>& in1,
             const ov::Output<ov::Node>& in2,
             const ov::Output<ov::Node>& in3,
-            const std::vector<float>& mul_scales,
+            std::vector<float> mul_scales,
             bool is_mul_first,
             const ov::element::Type output_type);
 
@@ -27,12 +26,12 @@ public:
             const ov::Output<ov::Node>& in1,
             const ov::Output<ov::Node>& in2,
             const ov::Output<ov::Node>& in3,
-            const std::vector<float>& mul_scales,
+            std::vector<float> mul_scales,
             bool is_mul_first,
-            const std::vector<float>& fq_scales0,
-            const std::vector<float>& fq_scales1,
-            const std::vector<float>& fq_scales2,
-            const std::vector<float>& fq_scales3,
+            std::vector<float> fq_scales0,
+            std::vector<float> fq_scales1,
+            std::vector<float> fq_scales2,
+            std::vector<float> fq_scales3,
             const ov::element::Type fq0_output_type,
             const ov::element::Type fq1_output_type,
             const ov::element::Type fq2_output_type,
@@ -92,5 +91,4 @@ private:
     ov::element::Type fq2_output_type;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

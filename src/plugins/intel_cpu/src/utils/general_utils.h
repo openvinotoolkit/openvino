@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,15 @@
 
 namespace ov {
 namespace intel_cpu {
+
+#if defined(__clang__) || defined(__GNUC__)
+#    define OV_CPU_FUNCTION_NAME __PRETTY_FUNCTION__
+#elif defined(_MSC_VER)
+#    define OV_CPU_FUNCTION_NAME __FUNCSIG__
+#else
+// Fallback
+#    define OV_CPU_FUNCTION_NAME __func__
+#endif
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {
@@ -148,7 +157,7 @@ inline ov::element::Type getMaxPrecision(std::vector<ov::element::Type> precisio
                                  });
     }
 
-    return ov::element::undefined;
+    return ov::element::dynamic;
 }
 
 inline std::vector<std::string> split(const std::string& str, char delim) {

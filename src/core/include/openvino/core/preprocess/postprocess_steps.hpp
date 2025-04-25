@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,13 @@ class OPENVINO_API PostProcessSteps final {
 public:
     /// \brief Default destructor
     ~PostProcessSteps();
+
+    /// \brief Add clamp postprocess operation. Clamp each element of input to the specified range [min_value,max_value]
+    /// \param min_value Minimum value to clamp to.
+    /// \param max_value Maximum value to clamp to.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PostProcessSteps& clamp(double min_value, double max_value);
 
     /// \brief Add convert element type post-process operation
     ///

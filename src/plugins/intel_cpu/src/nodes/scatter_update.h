@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,19 +76,20 @@ public:
 
 class ScatterUpdate : public Node {
 public:
-    ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     bool created() const override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool canBeInPlace() const override {
         return false;
     }
 
     bool needPrepareParams() const override;
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
+    bool neverExecute() const override;
     bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -137,8 +138,6 @@ private:
     // In ov::PartialShape with rank 0 (scalars) is converted to ov::intel_cpu::Shape with rank 1.
     // Add flag set in constructor for workaround for ScatterNDUpdates
     bool isUpdateScalar = false;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

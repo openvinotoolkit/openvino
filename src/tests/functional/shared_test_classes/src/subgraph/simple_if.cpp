@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,12 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/split.hpp"
 
 namespace ov {
 namespace test {

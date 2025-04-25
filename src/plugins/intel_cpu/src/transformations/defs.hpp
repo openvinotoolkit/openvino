@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 #define CPU_REGISTER_PASS_COMMON(MANAGER, PASS, ...) MANAGER.register_pass<PASS>(__VA_ARGS__);
 
@@ -75,5 +74,4 @@ namespace intel_cpu {
 
 #endif  // OPENVINO_ARCH_ARM || OPENVINO_ARCH_ARM64
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

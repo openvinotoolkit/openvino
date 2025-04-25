@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,9 +45,7 @@ TEST_P(ExecGraphRemoveParameterNode, RemoveParameterNode) {
   auto mul = std::make_shared<ov::op::v1::Multiply>(input2, input);
   auto sum = std::make_shared<ov::op::v1::Add>(mul, input);
 
-  auto function = std::make_shared<ov::Model>(
-      ov::NodeVector{sum}, ov::ParameterVector{input2, input},
-      "SimpleNet");
+  auto function = std::make_shared<ov::Model>(ov::OutputVector{sum}, ov::ParameterVector{input2, input}, "SimpleNet");
 
   // Load into plugin and get exec graph
   auto core = ov::Core();

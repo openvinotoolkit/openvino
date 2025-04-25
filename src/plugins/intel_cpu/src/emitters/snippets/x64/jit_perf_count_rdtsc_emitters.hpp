@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -8,8 +8,7 @@
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_perf_count_rdtsc_start_emitter : public jit_emitter {
 public:
@@ -37,6 +36,6 @@ private:
     std::shared_ptr<ov::intel_cpu::PerfCountRdtscEnd> m_end_node = nullptr;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
+
 #endif  // SNIPPETS_DEBUG_CAPS

@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "normalize.h"
 
+#include <memory>
 #include <shape_inference/shape_inference_pass_through.hpp>
+#include <utility>
 
 #include "common/cpu_memcpy.h"
 #include "common/primitive_hashing_utils.hpp"
@@ -18,7 +20,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
 #include "utils/cpu_utils.hpp"
@@ -34,11 +35,8 @@ using namespace Xbyak;
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_normalize_call_args, field)
 #endif
-#define THROW_ERROR(...) OPENVINO_THROW("NormalizeL2 layer with name '", getName(), "' ", __VA_ARGS__)
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 namespace {
 
 struct NormalizeKey {
@@ -46,7 +44,7 @@ struct NormalizeKey {
     dnnl::primitive_attr kernel_attrs;
     VectorDims dims;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const NormalizeKey& rhs) const;
 };
 
@@ -135,13 +133,13 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
             if (isa == cpu::x64::sse41) {
                 hsum_store(vmm_sqr_sum);
             } else if (isa == cpu::x64::avx2) {
-                Xbyak::Ymm ymm_sqr_sum = Xbyak::Ymm(vmm_sqr_sum.getIdx());
+                auto ymm_sqr_sum = Xbyak::Ymm(vmm_sqr_sum.getIdx());
                 vextractf128(xmm_aux1, ymm_sqr_sum, 0);
                 vextractf128(xmm_aux2, ymm_sqr_sum, 1);
                 uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
                 hsum_store(xmm_aux1);
             } else {
-                Xbyak::Zmm zmm_sqr_sum = Xbyak::Zmm(vmm_sqr_sum.getIdx());
+                auto zmm_sqr_sum = Xbyak::Zmm(vmm_sqr_sum.getIdx());
                 vextractf32x4(xmm_aux1, zmm_sqr_sum, 0);
                 vextractf32x4(xmm_aux2, zmm_sqr_sum, 1);
                 uni_vaddps(xmm_aux1, xmm_aux1, xmm_aux2);
@@ -200,8 +198,9 @@ private:
         default:
             assert(!"unknown dst_dt");
         }
-        if (!isFloatCompatible(src_dt))
+        if (!isFloatCompatible(src_dt)) {
             uni_vcvtdq2ps(vmm_src, vmm_src);
+        }
     }
 };
 
@@ -224,11 +223,12 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this,
-                                                                                                post_op.eltwise.alg,
-                                                                                                post_op.eltwise.alpha,
-                                                                                                post_op.eltwise.beta,
-                                                                                                post_op.eltwise.scale));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+                                                                                            post_op.eltwise.alg,
+                                                                                            post_op.eltwise.alpha,
+                                                                                            post_op.eltwise.beta,
+                                                                                            post_op.eltwise.scale,
+                                                                                            data_type::f32));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
             } else if (post_op.is_quantization()) {
@@ -241,8 +241,9 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
             }
         }
 
-        if (mayiuse(avx512_core))
-            uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa));
+        if (mayiuse(avx512_core)) {
+            uni_vcvtneps2bf16 = std::make_unique<jit_uni_vcvtneps2bf16>(this, isa);
+        }
 
         this->preamble();
 
@@ -254,8 +255,9 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
             mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
         }
-        if (isa == avx512_core)
+        if (isa == avx512_core) {
             uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+        }
 
         if (jcp_.is_nchw) {
             normalize_nchw();
@@ -267,10 +269,12 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
         this->postamble();
 
-        if (uni_vcvtneps2bf16)
+        if (uni_vcvtneps2bf16) {
             uni_vcvtneps2bf16->emit_data();
-        for (auto& inj : eltwise_injectors)
+        }
+        for (auto& inj : eltwise_injectors) {
             inj->prepare_table();
+        }
     }
 
 private:
@@ -310,7 +314,7 @@ private:
 
     std::unique_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16 = nullptr;
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
@@ -545,8 +549,9 @@ private:
         default:
             assert(!"unknown dst_dt");
         }
-        if (!isFloatCompatible(src_dt))
+        if (!isFloatCompatible(src_dt)) {
             uni_vcvtdq2ps(vmm_src, vmm_src);
+        }
     }
 
     inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
@@ -577,8 +582,8 @@ private:
     }
 
     inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
-        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
+        auto ymm_dst = Ymm(vmm_dst.getIdx());
+        auto xmm_dst = Xmm(vmm_dst.getIdx());
 
         if (dst_dt == memory::data_type::f32) {
             uni_vmovups(op, vmm_dst);
@@ -593,13 +598,15 @@ private:
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vpermq(ymm_dst, ymm_dst, 0x08);
+                }
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vmovq(op, xmm_dst);
-                else
+                } else {
                     movd(op, xmm_dst);
+                }
             }
         } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
@@ -607,13 +614,15 @@ private:
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vpermq(ymm_dst, ymm_dst, 0x08);
+                }
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41)
+                if (isa != cpu::x64::sse41) {
                     vmovq(op, xmm_dst);
-                else
+                } else {
                     movd(op, xmm_dst);
+                }
             }
         }
     }
@@ -660,14 +669,16 @@ private:
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                if (eltwise_injectors.size() <= eltwise_inj_idx || eltwise_injectors[eltwise_inj_idx] == nullptr)
+                if (eltwise_injectors.size() <= eltwise_inj_idx || eltwise_injectors[eltwise_inj_idx] == nullptr) {
                     assert(!"Invalid eltwise injectors.");
+                }
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
                 if (depthwise_injectors.size() <= depthwise_inj_idx ||
-                    depthwise_injectors[depthwise_inj_idx] == nullptr)
+                    depthwise_injectors[depthwise_inj_idx] == nullptr) {
                     assert(!"Invalid depthwise injectors.");
+                }
                 mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
 
@@ -682,8 +693,9 @@ private:
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 if (quantization_injectors.size() <= quantization_inj_idx ||
-                    quantization_injectors[quantization_inj_idx] == nullptr)
+                    quantization_injectors[quantization_inj_idx] == nullptr) {
                     assert(!"Invalid quantization injectors.");
+                }
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || isFloatCompatible(dst_dt) || i != p.len() - 1;
 
@@ -743,12 +755,14 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
         const auto isSupportedAxes = [](const std::vector<size_t>& axes, const size_t inputRank) {
             if (axes.size() == 1 && axes[0] == 1) {
                 return true;
-            } else if (axes.size() == inputRank - 1) {
+            }
+            if (axes.size() == inputRank - 1) {
                 auto sortAxes = axes;
                 std::sort(sortAxes.begin(), sortAxes.end());
                 for (size_t i = 0; i < sortAxes.size(); i++) {
-                    if (sortAxes[i] != i + 1)
+                    if (sortAxes[i] != i + 1) {
                         return false;
+                    }
                 }
                 return true;
             }
@@ -772,18 +786,19 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
     return true;
 }
 
-NormalizeL2::NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+NormalizeL2::NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        THROW_ERROR(" has incorrect number of input/output edges");
+    if (inputShapes.size() != 2 || outputShapes.size() != 1) {
+        THROW_CPU_NODE_ERR("has incorrect number of input/output edges");
+    }
 
     if (getInputShapeAtPort(DATA).getRank() > 4 || getInputShapeAtPort(DATA).getRank() < 2) {
-        THROW_ERROR("has invalid input shape. Normalize supports from 2D to 4D blobs.");
+        THROW_CPU_NODE_ERR("has invalid input shape. Normalize supports from 2D to 4D blobs.");
     }
 
     auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(op);
@@ -796,8 +811,9 @@ NormalizeL2::NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext
 }
 
 void NormalizeL2::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA);
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(DATA);
@@ -807,10 +823,11 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
     }
 
     if (inputPrecision == ov::element::bf16 || outputPrecision == ov::element::bf16) {
-        if (!mayiuse(avx512_core))
+        if (!mayiuse(avx512_core)) {
             inputPrecision = outputPrecision = ov::element::f32;
-        else
+        } else {
             inputPrecision = outputPrecision = ov::element::bf16;
+        }
     }
 
     if (one_of(ov::element::f16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
@@ -823,7 +840,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
                 ov::element::f16,
                 ov::element::i8,
                 ov::element::u8)) {
-        THROW_ERROR("has unsupported input precision: ", inputPrecision);
+        THROW_CPU_NODE_ERR("has unsupported input precision: ", inputPrecision);
     }
     if (!one_of(outputPrecision,
                 ov::element::f32,
@@ -831,7 +848,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
                 ov::element::f16,
                 ov::element::i8,
                 ov::element::u8)) {
-        THROW_ERROR("has unsupported output precision: ", outputPrecision);
+        THROW_CPU_NODE_ERR("has unsupported output precision: ", outputPrecision);
     }
 
     attrs.input_prec = inputPrecision;
@@ -856,7 +873,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
         config.inConfs[1].setMemDesc(std::move(a));
         a = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(DATA));
         config.outConfs[0].setMemDesc(std::move(a));
-        supportedPrimitiveDescriptors.push_back({config, impl_type});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     };
 
     impl_desc_type impl_type = impl_desc_type::unknown;
@@ -872,8 +889,9 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
             }
         }
     }
-    if (canBeInplace)
+    if (canBeInplace) {
         config.inConfs[0].inPlace(0);
+    }
     pushDesc(LayoutType::ncsp, impl_type);
 }
 
@@ -881,28 +899,32 @@ bool NormalizeL2::canFuse(const NodePtr& node) const {
     return !attrs.cornerCase && canFuseSimpleOperation(node);
 }
 
-void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights) {
+void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs,
+                             const VectorDims& dims,
+                             [[maybe_unused]] bool initWeights) {
     dnnl::post_ops ops;
 
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
+        int channelAxis = 1;
+
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs);
+            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs);
+            eltwiseNode->appendPostOps(ops, dims, postOpsDataPtrs, channelAxis);
             continue;
         }
 
-        OPENVINO_THROW("Fusing of ",
-                       NameFromType(node->getType()),
-                       " operation to ",
-                       NameFromType(this->getType()),
-                       " node is not implemented");
+        THROW_CPU_NODE_ERR("Fusing of ",
+                           NameFromType(node->getType()),
+                           " operation to ",
+                           NameFromType(this->getType()),
+                           " node is not implemented");
     }
 
     kernel_attrs.set_post_ops(ops);
@@ -911,12 +933,15 @@ void NormalizeL2::setPostOps(dnnl::primitive_attr& kernel_attrs, const VectorDim
 void NormalizeL2::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(DATA);
     auto srcMemPtr = getSrcMemoryAtPort(DATA);
-    if (!dstMemPtr)
-        THROW_ERROR("can't get destination memory");
-    if (!srcMemPtr)
-        THROW_ERROR("can't get input memory");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR("has nullable preferable primitive descriptor");
+    if (!dstMemPtr) {
+        THROW_CPU_NODE_ERR("can't get destination memory");
+    }
+    if (!srcMemPtr) {
+        THROW_CPU_NODE_ERR("can't get input memory");
+    }
+    if (getSelectedPrimitiveDescriptor() == nullptr) {
+        THROW_CPU_NODE_ERR("has nullable preferable primitive descriptor");
+    }
 
     if (!attrs.cornerCase) {
         if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
@@ -928,15 +953,20 @@ void NormalizeL2::createPrimitive() {
         } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
             attrs.layout = LayoutType::nspc;
         } else {
-            THROW_ERROR("has selected layout which is not supported");
+            THROW_CPU_NODE_ERR("has selected layout which is not supported");
         }
     }
 
     if (inputShapesDefined()) {
-        if (needPrepareParams())
+        if (needPrepareParams()) {
             prepareParams();
+        }
         updateLastInputDims();
     }
+}
+
+bool NormalizeL2::neverExecute() const {
+    return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(0);
 }
 
 bool NormalizeL2::isExecutable() const {
@@ -958,22 +988,23 @@ void NormalizeL2::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
-        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
+        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
     }
 
     execPtr = result.first;
 }
 
-void NormalizeL2::executeDynamicImpl(dnnl::stream strm) {
+void NormalizeL2::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NormalizeL2::execute(dnnl::stream strm) {
-    if (!execPtr)
-        THROW_ERROR("doesn't have a compiled executor.");
+void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
+    if (!execPtr) {
+        THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
+    }
 
-    const uint8_t* src_ptr = getSrcDataAtPortAs<const uint8_t>(DATA);
-    uint8_t* dst_ptr = getDstDataAtPortAs<uint8_t>(DATA);
+    const auto* src_ptr = getSrcDataAtPortAs<const uint8_t>(DATA);
+    auto* dst_ptr = getDstDataAtPortAs<uint8_t>(DATA);
     execPtr->exec(src_ptr, dst_ptr, postOpsDataPtrs.data());
 }
 
@@ -982,11 +1013,10 @@ void NormalizeL2::execute(dnnl::stream strm) {
 template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2CornerCaseExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
-    NormalizeL2CornerCaseExecutor(const VectorDims& dims) {
-        workAmount = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
-    }
+    NormalizeL2CornerCaseExecutor(const VectorDims& dims)
+        : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())) {}
 
-    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) override {
+    void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, [[maybe_unused]] const void** post_ops_data) override {
         normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
     }
 
@@ -1034,25 +1064,29 @@ public:
 
         if (mayiuse(cpu::x64::avx512_core)) {
             blk_size = 16;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_core>(jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx512_core>(jcp, *kernel_attrs.get()));
+            normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_core>>(jcp);
+            normalize_kernel =
+                std::make_shared<jit_uni_normalize_kernel_f32<cpu::x64::avx512_core>>(jcp, *kernel_attrs.get());
         } else if (mayiuse(cpu::x64::avx2)) {
             blk_size = 8;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *kernel_attrs.get()));
+            normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>>(jcp);
+            normalize_kernel = std::make_shared<jit_uni_normalize_kernel_f32<cpu::x64::avx2>>(jcp, *kernel_attrs.get());
         } else if (mayiuse(cpu::x64::sse41)) {
             blk_size = jcp.is_blk ? 8 : 4;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *kernel_attrs.get()));
+            normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>>(jcp);
+            normalize_kernel =
+                std::make_shared<jit_uni_normalize_kernel_f32<cpu::x64::sse41>>(jcp, *kernel_attrs.get());
         } else {
             OPENVINO_THROW("Jit Executor for NormalizeL2 cannot create kernels!");
         }
 
-        if (normalize_kernel)
+        if (normalize_kernel) {
             normalize_kernel->create_ker();
+        }
 
-        if (normalize_modulo_kernel)
+        if (normalize_modulo_kernel) {
             normalize_modulo_kernel->create_ker();
+        }
     }
 
     void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, const void** post_ops_data) override {
@@ -1346,8 +1380,8 @@ class NormalizeL2::NormalizeL2ReferenceExecutor : public NormalizeL2::NormalizeL
 public:
     NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs,
                                  const dnnl::primitive_attr& kernel_attrs,
-                                 const VectorDims& dims)
-        : dims(dims),
+                                 VectorDims dims)
+        : dims(std::move(dims)),
           kernel_attrs(kernel_attrs),
           attrs(attrs) {
         if (attrs.layout != LayoutType::ncsp) {
@@ -1456,7 +1490,7 @@ private:
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         // reinterpret cast from (pointer to const void) to (pointer to const pointer to const float)
-        const float** post_ops_data = reinterpret_cast<const float**>(post_ops_data_);
+        const auto** post_ops_data = reinterpret_cast<const float**>(post_ops_data_);
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
@@ -1549,22 +1583,22 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
     const NormalizeL2Attrs& attrs,
     const dnnl::primitive_attr& kernel_attrs,
     const VectorDims& dims) {
-    if (attrs.cornerCase)
+    if (attrs.cornerCase) {
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
 #if defined(OPENVINO_ARCH_X86_64)
-    else if (mayiuse(cpu::x64::sse41))
+    }
+    if (mayiuse(cpu::x64::sse41)) {
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
 #endif
-    else if (attrs.layout == LayoutType::ncsp)
+    } else if (attrs.layout == LayoutType::ncsp) {
         return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
-    else
+    } else {
         OPENVINO_THROW("'NormalizeL2' cannot create Executor");
+    }
 }
 
 bool NormalizeL2::created() const {
     return getType() == Type::NormalizeL2;
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

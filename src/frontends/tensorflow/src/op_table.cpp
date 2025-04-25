@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,6 +144,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Cos", CreatorFunction(translate_unary_op<v0::Cos>)},
         {"Cosh", CreatorFunction(translate_unary_op<v0::Cosh>)},
         {"Erf", CreatorFunction(translate_unary_op<v0::Erf>)},
+        {"Erfc", CreatorFunction(translate_erfc_op)},
         {"Exp", CreatorFunction(translate_unary_op<v0::Exp>)},
         {"Floor", CreatorFunction(translate_unary_op<v0::Floor>)},
         {"Invert", CreatorFunction(translate_unary_op<v13::BitwiseNot>)},
@@ -176,7 +177,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"RightShift", CreatorFunction(translate_binary_op<v15::BitwiseRightShift>)},
         {"LeftShift", CreatorFunction(translate_binary_op<v15::BitwiseLeftShift>)},
         {"Div", CreatorFunction(translate_div_op)},
-        {"Equal", CreatorFunction(translate_binary_op<v1::Equal>)},
+        {"Equal", CreatorFunction(translate_equal_op)},
         {"FloorMod", CreatorFunction(translate_binary_op<v1::FloorMod>)},
         {"Greater", CreatorFunction(translate_binary_op<v1::Greater>)},
         {"GreaterEqual", CreatorFunction(translate_binary_op<v1::GreaterEqual>)},
@@ -380,7 +381,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Softmax", CreatorFunction(translate_softmax_op)},
         {"SpaceToDepth", CreatorFunction(translate_space_to_depth_op)},
         {"SparseReshape", CreatorFunction(translate_sparse_reshape_op)},
-        {"SparseSegmentMean", CreatorFunction(translate_sparse_segment_mean_op)},
+        {"SparseSegmentMean", CreatorFunction(translate_sparse_segment_op)},
+        {"SparseSegmentSqrtN", CreatorFunction(translate_sparse_segment_op)},
         {"SparseTensorDenseAdd", CreatorFunction(translate_sparse_tensor_dense_add_op)},
         {"SparseTensorDenseMatMul", CreatorFunction(translate_sparse_tensor_dense_mat_mul_op)},
         {"SparseToDense", CreatorFunction(translate_sparse_to_dense_op)},
@@ -414,6 +416,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TensorListReserve", CreatorFunction(translate_tensor_list_reserve_op)},
         {"TensorListResize", CreatorFunction(translate_tensor_list_resize_op)},
         {"TensorListConcatV2", CreatorFunction(translate_tensor_list_concat_v2_op)},
+        {"TensorScatterAdd", CreatorFunction(translate_tensor_scatter_add_op)},
         {"TensorScatterUpdate", CreatorFunction(translate_tensor_scatter_update_op)},
         {"Tile", CreatorFunction(translate_tile_op)},
         {"ToBool", CreatorFunction(translate_tobool_op)},

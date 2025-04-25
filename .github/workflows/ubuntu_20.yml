@@ -89,18 +89,20 @@ jobs:
       os: 'ubuntu_20_04'
       build-contrib: true
       build-debian-packages: true
-      build-js: true
+      build-js: false
       build-rpm-packages: false
-      cmake-options: |- 
-            -G "Ninja Multi-Config" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCPACK_GENERATOR=TGZ \
-            -DENABLE_WHEEL=ON \
+      build-additional-python-packages: true
+      cmake-options: >- 
+            -G 'Ninja Multi-Config'
+            -DENABLE_CPPLINT=OFF
+            -DENABLE_NCC_STYLE=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_SYSTEM_OPENCL=ON
+            -DCMAKE_VERBOSE_MAKEFILE=ON
+            -DCPACK_GENERATOR=TGZ
+            -DENABLE_WHEEL=ON
+            -DENABLE_PYTHON=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   CXX_Unit_Tests:
@@ -168,7 +170,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_20
-    needs: [Smart_CI, Build, Debian_Packages, Samples]
+    needs: [Smart_CI, Build, Debian_Packages, Samples, CXX_Unit_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

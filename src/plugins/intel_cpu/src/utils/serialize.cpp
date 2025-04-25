@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "serialize.hpp"
 
+#include <utility>
+
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 ////////// ModelSerializer //////////
 
@@ -39,7 +40,7 @@ ModelDeserializer::ModelDeserializer(std::istream& model_stream,
     : m_istream(model_stream),
       m_model_builder(std::move(fn)),
       m_decript_from_string(decript_from_string),
-      m_model_buffer(model_buffer) {
+      m_model_buffer(std::move(model_buffer)) {
     if (m_decript_from_string) {
         m_cache_decrypt.m_decrypt_str = decrypt_fn.m_decrypt_str;
     } else {
@@ -73,7 +74,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr) + hdr_pos) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          (hdr.model_size = file_size - hdr.model_offset);
+                          ((hdr.model_size = file_size - hdr.model_offset) != 0u);
     if (!is_valid_model) {
         OPENVINO_THROW("[CPU] Could not deserialize by device xml header.");
     }
@@ -135,7 +136,7 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr) + hdr_pos) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          (hdr.model_size = file_size - hdr.model_offset);
+                          ((hdr.model_size = file_size - hdr.model_offset) != 0u);
     if (!is_valid_model) {
         OPENVINO_THROW("[CPU] Could not deserialize by device xml header.");
     }
@@ -192,5 +193,4 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     set_info(root, model);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

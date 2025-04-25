@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #endif  // OPENVINO_ARCH_X86_64
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum class NMSBoxEncodeType { CORNER, CENTER };
 
@@ -110,7 +109,7 @@ private:
     Xbyak::Opmask k_mask = Xbyak::Opmask(7);
     Xbyak::Opmask k_mask_one = Xbyak::Opmask(6);
 
-    std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector_f32<isa>> exp_injector;
+    std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector<isa>> exp_injector;
 
     inline void hard_nms();
 
@@ -146,5 +145,4 @@ private:
 
 #endif  // OPENVINO_ARCH_X86_64
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

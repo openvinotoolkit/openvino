@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -18,10 +18,10 @@ from tests.utils.helpers import (
     create_filenames_for_ir,
     create_filename_for_test)
 from openvino import Model, Shape, Core, Tensor, serialize
-from openvino.runtime import ConstOutput
+from openvino import ConstOutput
 
-import openvino.runtime.opset13 as ops
 import openvino.properties as props
+import openvino.properties.hint as hints
 
 
 def test_get_property(device):
@@ -226,7 +226,7 @@ def test_inputs_docs(device):
     compiled_model = generate_relu_compiled_model(device)
 
     input_0 = compiled_model.inputs[0]
-    assert input_0.__doc__ == "openvino.runtime.ConstOutput represents port/node output."
+    assert input_0.__doc__ == "openvino.ConstOutput represents port/node output."
 
 
 def test_infer_new_request_numpy(device):
@@ -315,6 +315,7 @@ def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
         xml = f.read()
 
     compiled = core.compile_model(model=xml, weights=weights, device_name=device)
+    assert isinstance(compiled.outputs[0], ConstOutput)
     _ = compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
 
 
@@ -328,3 +329,16 @@ def test_memory_release(device):
     # Release memory and perform inference again
     compiled_model.release_memory()
     request.infer({0: input_tensor, 1: input_tensor})
+
+
+def test_set_property_set_type():
+    model = get_relu_model([1, 3, 32, 32])
+    core = Core()
+    set_model = set()
+    set_model.add(hints.ModelDistributionPolicy.TENSOR_PARALLEL)
+    core.set_property("CPU", {hints.model_distribution_policy: set_model})
+    core.compile_model(model, "CPU")
+    out_set_model = core.get_property("CPU", hints.model_distribution_policy)
+    assert len(out_set_model) > 0
+    for item in out_set_model:
+        assert item == hints.ModelDistributionPolicy.TENSOR_PARALLEL

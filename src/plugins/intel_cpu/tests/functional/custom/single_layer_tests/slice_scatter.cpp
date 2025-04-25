@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
+#include "openvino/op/slice_scatter.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -123,14 +124,14 @@ protected:
             auto stepNode =
                 std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{sliceParams.step.size()});
 
-            params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(startNode));
-            params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(stopdNode));
-            params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(stepNode));
+            params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(startNode));
+            params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(stopdNode));
+            params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(stepNode));
             if (!sliceParams.axes.empty()) {
                 // With axes parameter
                 auto axesNode =
                     std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{sliceParams.axes.size()});
-                params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(axesNode));
+                params.push_back(ov::as_type_ptr<ov::op::v0::Parameter>(axesNode));
                 sliceNode = std::make_shared<ov::op::v15::SliceScatter>(params[0],
                                                                         params[1],
                                                                         startNode,

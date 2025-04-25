@@ -1,10 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/roi_align_rotated.hpp"
+
 #include "evaluate_node.hpp"
 #include "evaluates_map.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/roi_align.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 #include "openvino/reference/roi_align.hpp"
 
 template <ov::element::Type_t ET>

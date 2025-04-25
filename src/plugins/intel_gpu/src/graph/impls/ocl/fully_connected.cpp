@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -183,6 +183,11 @@ public:
             if (with_zp) {
                 params.has_decompression_zp = true;
                 params.decompression_zero_point = convert_data_tensor(updated_impl_param.input_layouts[3]);
+                if (updated_impl_param.input_layouts[3].get_linear_size() == 1 &&
+                    primitive->decompression_zero_point_scalar.has_value()) {
+                    params.scalar_zp = true;
+                    params.zp_value = primitive->decompression_zero_point_scalar.value();
+                }
             } else if (primitive->decompression_zero_point_scalar.has_value()) {
                 params.has_decompression_zp = true;
                 params.scalar_zp = true;
@@ -203,7 +208,8 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        params.dynamic_quantization_group_size = impl_param.get_program().get_config().get_property(ov::hint::dynamic_quantization_group_size);
+        params.dynamic_quantization_group_size =
+            impl_param.get_program().get_config().get_dynamic_quantization_group_size();
 
         return params;
     }
@@ -267,6 +273,8 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::f32, format::bs_fs_fsv8_bsv8),
         std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv8),
         std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv16),
+        std::make_tuple(data_types::i8, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
     });
 }
 

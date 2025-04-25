@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
 
 namespace ov {
 namespace test {

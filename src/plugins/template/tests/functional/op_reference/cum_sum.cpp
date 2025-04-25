@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,13 +111,13 @@ private:
         const auto data_param = std::make_shared<op::v0::Parameter>(data_type, data_shape);
         const auto axis_param = std::make_shared<op::v0::Parameter>(axis_type, axis_shape);
         const auto cum_sum = std::make_shared<op::v0::CumSum>(data_param, axis_param, execlusive, reverse);
-        return std::make_shared<ov::Model>(NodeVector{cum_sum}, ParameterVector{data_param, axis_param});
+        return std::make_shared<ov::Model>(OutputVector{cum_sum}, ParameterVector{data_param, axis_param});
     }
 
     static std::shared_ptr<Model> CreateFunction(const Shape& data_shape, const element::Type& data_type) {
         const auto data_param = std::make_shared<op::v0::Parameter>(data_type, data_shape);
         const auto cum_sum = std::make_shared<op::v0::CumSum>(data_param);
-        return std::make_shared<ov::Model>(NodeVector{cum_sum}, ParameterVector{data_param});
+        return std::make_shared<ov::Model>(OutputVector{cum_sum}, ParameterVector{data_param});
     }
 };
 

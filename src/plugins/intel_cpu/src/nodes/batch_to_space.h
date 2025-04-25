@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,17 +12,22 @@ namespace node {
 
 class BatchToSpace : public Node {
 public:
-    BatchToSpace(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    BatchToSpace(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
+
+    bool neverExecute() const override {
+        const auto& spd = getSelectedPrimitiveDescriptor();
+        return spd->hasZeroInputDims() || spd->hasZeroOutputDims();
+    }
 
     // output shape can potentially be empty
     bool isExecutable() const override {
         return !hasEmptyInputTensors() && !hasEmptyOutputTensors();
     }
 
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     bool needPrepareParams() const override {
@@ -31,7 +36,7 @@ public:
     bool needShapeInfer() const override {
         return true;
     };
-    void executeDynamicImpl(dnnl::stream strm) override;
+    void executeDynamicImpl(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -42,8 +47,6 @@ private:
 private:
     std::vector<size_t> blockShapeIn;
     std::vector<size_t> cropsBeginIn;
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

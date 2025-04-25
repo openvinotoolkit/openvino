@@ -1,5 +1,3 @@
-#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
-
 #include <low_precision/common/quantization_granularity_restriction.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
 #include <low_precision/convolution.hpp>
@@ -9,7 +7,10 @@
 #include <low_precision/multiply_to_group_convolution.hpp>
 #include <low_precision/network_helper.hpp>
 #include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <transformations/op_conversions/convert_subtract.hpp>
+
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/manager.hpp"
 
 namespace ov {
@@ -18,6 +19,7 @@ namespace device {
 
 class ConvertOpSet1ToDeviceSpecific: public ov::pass::ModelPass {
 public:
+    OPENVINO_MODEL_PASS_RTTI("ConvertOpSet1ToDeviceSpecific");
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override {
         return true;
     }
@@ -96,7 +98,7 @@ if (useLpt) {
 
     // Low precision transformations plugin specific configuration: transformation callbacks definition
     lptManager.get_pass_config()->set_callback<MarkupPrecisions>([](const std::shared_ptr<const ov::Node>& node) -> bool {
-        if (const auto multiply = std::dynamic_pointer_cast<const ov::opset1::Multiply>(node)) {
+        if (const auto multiply = ov::as_type_ptr<const ov::opset1::Multiply>(node)) {
             return !MultiplyToGroupConvolutionTransformation::canBeTransformedToGroupConvolution(multiply);
         }
         return false;

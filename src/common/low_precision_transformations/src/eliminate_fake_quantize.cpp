@@ -10,6 +10,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "itt.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -30,16 +31,16 @@ EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const P
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     const auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool EliminateFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool EliminateFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher& m) {
     const auto root = m.get_match_root();
-    if (!canBeTransformed(context, root)) {
+    if (!canBeTransformed(root)) {
         return false;
     }
 
@@ -51,7 +52,7 @@ bool check_interval(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
                     const std::shared_ptr<ov::opset1::Constant>& constant,
                     const float value,
                     const float max_diff,
-                    const bool exact_comparison) noexcept {
+                    const bool exact_comparison) {
     bool need_to_check_intervals = false;
     const auto& constant_values = constant->cast_vector<float>();
     for (const auto constant_value : constant_values) {
@@ -115,8 +116,8 @@ bool check_intervals(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuanti
 }
 } // namespace
 
-bool EliminateFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!CleanupTransformation::canBeTransformed(context, operation)) {
+bool EliminateFakeQuantizeTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!CleanupTransformation::canBeTransformed(operation)) {
         return false;
     }
 

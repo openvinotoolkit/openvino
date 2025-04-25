@@ -19,6 +19,7 @@ namespace pass {
  */
 class RuntimeOptimizer : public ConstPass {
 public:
+    OPENVINO_RTTI("RuntimeOptimizer", "0", ConstPass)
     RuntimeOptimizer() = default;
     RuntimeOptimizer(const RuntimeConfigurator* configurator) : m_configurator(configurator) {
         OPENVINO_ASSERT(configurator, "RuntimeConfigurator musn't be nullptr");

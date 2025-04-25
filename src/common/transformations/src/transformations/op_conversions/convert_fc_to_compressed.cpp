@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
@@ -71,8 +72,8 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         OPENVINO_ASSERT(pattern_map.count(weights_m));
         OPENVINO_ASSERT(pattern_map.count(bias_m));
         OPENVINO_ASSERT(pattern_map.count(convert_m));
-        auto fc = std::dynamic_pointer_cast<ov::op::internal::FullyConnected>(
-            pattern_map.at(fully_connected_m).get_node_shared_ptr());
+        auto fc =
+            ov::as_type_ptr<ov::op::internal::FullyConnected>(pattern_map.at(fully_connected_m).get_node_shared_ptr());
         if (!fc || transformation_callback(fc)) {
             return false;
         }
@@ -93,7 +94,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
             return false;
 
         auto reshape_const_to_2d = [has_transpose, grouped](std::shared_ptr<ov::Node> node) {
-            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             OPENVINO_ASSERT(constant != nullptr);
             ov::Shape current_shape = constant->get_shape();
             if (current_shape.size() <= 2)
@@ -109,7 +110,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         };
 
         auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
-            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             if (constant->get_element_type() != ov::element::u4 || !convert_u4zp_to_u8)
                 return std::dynamic_pointer_cast<ov::Node>(constant);
             return std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
@@ -157,7 +158,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         }
 
         fc_input_zp =
-            with_zero_point ? fc_input_zp : std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
+            with_zero_point ? fc_input_zp : std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
         ov::disable_constant_folding(fc_input_zp);
         result_nodes.push_back(fc_input_zp);
 

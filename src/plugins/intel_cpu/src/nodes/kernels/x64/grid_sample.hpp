@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 
 #include "jit_kernel_base.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 enum class GridSampleInterpolationMode { BILINEAR, BICUBIC, NEAREST };
 enum class GridSamplePaddingMode { ZEROS, BORDER, REFLECTION };
@@ -65,17 +64,23 @@ enum coord { w, h };
 
 class GridSampleKernelBase : public JitKernelBase {
 public:
-    void (*ker_)(const GridSamplesKernelExecArgs*);
+    void (*ker_)(const GridSamplesKernelExecArgs*){nullptr};
     void operator()(const GridSamplesKernelExecArgs* args) {
         assert(ker_);
         ker_(args);
     }
     explicit GridSampleKernelBase(const char* name,
                                   const GridSampleKernelConfParams& jcp,
-                                  dnnl::impl::cpu::x64::cpu_isa_t isa)
+                                  dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                  uint64_t vlen)
         : JitKernelBase(name, isa),
-          ker_(nullptr),
-          jcp(jcp) {}
+
+          jcp(jcp),
+          vlen(vlen),
+          dataTypeSize(jcp.inDataPrc.size()),
+          gridTypeSize(jcp.gridPrc.size()),
+          dataElPerVec(vlen / dataTypeSize),
+          gridElPerVec(vlen / gridTypeSize) {}
 
     virtual void create_ker() = 0;
     uint64_t getVecLen() {
@@ -189,5 +194,4 @@ private:
 #endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace kernel
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

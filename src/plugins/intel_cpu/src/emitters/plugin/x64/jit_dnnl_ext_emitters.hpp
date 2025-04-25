@@ -5,12 +5,15 @@
 #pragma once
 
 #include "jit_dnnl_emitters.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/round.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "utils/ngraph_utils.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_relu_emitter : public jit_dnnl_emitter {
 public:
@@ -157,14 +160,15 @@ public:
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
         auto gelu = getNgraphOpAs<ov::op::v7::Gelu>(n);
         ov::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
-        if (approximationMode == ov::op::GeluApproximationMode::ERF)
+        if (approximationMode == ov::op::GeluApproximationMode::ERF) {
             kind = dnnl_eltwise_gelu_erf;
-        else if (approximationMode == ov::op::GeluApproximationMode::TANH)
+        } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {
             kind = dnnl_eltwise_gelu_tanh;
-        else
+        } else {
             OPENVINO_THROW_NOT_IMPLEMENTED(
                 "Subgraph node doesn't support ngraph operation Gelu with approximation mode: ",
                 approximationMode);
+        }
 
         set_injector();
     }
@@ -179,17 +183,16 @@ public:
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
         const auto round = getNgraphOpAs<ov::op::v5::Round>(n);
         const auto mode = round->get_mode();
-        if ((mode != ov::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO) &&
-            (mode != ov::opset5::Round::RoundMode::HALF_TO_EVEN)) {
+        if ((mode != ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) &&
+            (mode != ov::op::v5::Round::RoundMode::HALF_TO_EVEN)) {
             OPENVINO_THROW_NOT_IMPLEMENTED("Round emitter doesn't support ngraph operation Round with mode: ",
                                            static_cast<int>(mode));
         }
 
-        kind = mode == ov::opset5::Round::RoundMode::HALF_AWAY_FROM_ZERO ? dnnl_eltwise_round_half_away_from_zero
+        kind = mode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO ? dnnl_eltwise_round_half_away_from_zero
                                                                          : dnnl_eltwise_round_half_to_even;
         set_injector();
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "detection_output_inst.h"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
 
@@ -46,7 +46,7 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::detection_output_impl)
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return make_unique<detection_output_impl>(*this);
+        return std::make_unique<detection_output_impl>(*this);
     }
 
     detection_output_impl() : parent() {}
@@ -858,7 +858,7 @@ public:
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
 
     static std::unique_ptr<primitive_impl> create(const detection_output_node& arg, const kernel_impl_params&) {
-        return make_unique<detection_output_impl>(arg);
+        return std::make_unique<detection_output_impl>(arg);
     }
 };
 

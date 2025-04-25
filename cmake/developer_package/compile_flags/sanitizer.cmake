@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -106,7 +106,7 @@ if(DEFINED SANITIZER_COMPILER_FLAGS)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} /Oy-")
     elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -g -fno-omit-frame-pointer")
-        if(CMAKE_COMPILER_IS_GNUCXX)
+        if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_CLANG_TIDY)
             # GPU plugin tests compilation is slow with -fvar-tracking-assignments on GCC.
             # Clang has no var-tracking-assignments.
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fno-var-tracking-assignments")

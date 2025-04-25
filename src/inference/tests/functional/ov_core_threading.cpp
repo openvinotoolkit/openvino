@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <fstream>
-#include <mutex>
 #include <thread>
 
 #include "common_test_utils/common_utils.hpp"
@@ -91,12 +90,12 @@ TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
 TEST_F(CoreThreadingTests, RegisterPlugin) {
     ov::Core core;
     std::atomic<int> index{0};
+    auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                          std::string("mock_engine") + OV_BUILD_POSTFIX);
     runParallel(
         [&]() {
             const std::string deviceName = std::to_string(index++);
-            core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                                                    std::string("mock_engine") + OV_BUILD_POSTFIX),
-                                 deviceName);
+            core.register_plugin(plugin_path, deviceName);
             core.get_versions(deviceName);
             core.unload_plugin(deviceName);
         },
@@ -107,20 +106,17 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
 TEST_F(CoreThreadingTests, RegisterPlugins) {
     ov::Core core;
     std::atomic<unsigned int> index{0};
+    auto file_prefix = ov::test::utils::generateTestFilePrefix();
+    auto plugin_path = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                          std::string("mock_engine") + OV_BUILD_POSTFIX);
 
-    auto getPluginXml = [&]() -> std::tuple<std::string, std::string> {
+    auto getPluginXml = [&]() -> std::tuple<std::filesystem::path, std::string> {
         std::string indexStr = std::to_string(index++);
-        std::string pluginsXML = "test_plugins" + indexStr + ".xml";
+        std::filesystem::path pluginsXML = file_prefix + indexStr + ".xml";
         std::ofstream file(pluginsXML);
 
         file << "<ie><plugins><plugin location=\"";
-        file << ov::test::utils::getExecutableDirectory();
-        file << ov::util::FileTraits<char>::file_separator;
-        file << ov::util::FileTraits<char>::library_prefix();
-        file << "mock_engine";
-        file << OV_BUILD_POSTFIX;
-        file << ov::util::FileTraits<char>::dot_symbol;
-        file << ov::util::FileTraits<char>::library_ext();
+        file << plugin_path;
         file << "\" name=\"";
         file << indexStr;
         file << "\"></plugin></plugins></ie>";
@@ -132,11 +128,11 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
     runParallel(
         [&]() {
-            std::string fileName, deviceName;
-            std::tie(fileName, deviceName) = getPluginXml();
-            core.register_plugins(fileName);
+            const auto& [fileName, deviceName] = getPluginXml();
+            core.register_plugins(fileName.string());
             core.get_versions(deviceName);
-            ASSERT_EQ(0, std::remove(fileName.c_str()));
+            core.unload_plugin(deviceName);
+            std::filesystem::remove(fileName);
         },
         1000);
 }
@@ -169,61 +165,16 @@ TEST_F(CoreThreadingTests, GetAvailableDevices) {
 }
 
 #if defined(ENABLE_OV_IR_FRONTEND)
-
-namespace ov {
-namespace test {
-namespace util {
-class Barrier {
-private:
-    std::mutex m_mutex;
-    std::condition_variable m_cv;
-    size_t m_count;
-    const size_t m_expected;
-    size_t m_wait_id;
-
-public:
-    explicit Barrier(std::size_t count) : m_count{count}, m_expected{count}, m_wait_id{} {}
-
-    void arrive_and_wait() {
-        std::unique_lock<std::mutex> lock(m_mutex);
-
-        if (--m_count == 0) {
-            ++m_wait_id;
-            m_count = m_expected;
-            m_cv.notify_all();
-        } else {
-            const auto wait_id = m_wait_id;
-            m_cv.wait(lock, [this, wait_id] {
-                return wait_id != m_wait_id;
-            });
-        }
-    }
-};
-}  // namespace util
-}  // namespace test
-}  // namespace ov
-
 // tested function: read_model and add_extension
 TEST_F(CoreThreadingTests, ReadModel) {
     ov::Core core;
     auto model = core.read_model(modelName, weightsName);
-
     constexpr size_t threads_num = 12;
-    ov::test::util::Barrier sync_point(threads_num);
 
     runParallel(
         [&]() {
             safeAddExtension(core);
-            // Add the extension and read model are thread-safe when use separately.
-            // The barrier is required here to wait until all threads add extensions to core before read model.
-            // The read_model loads Frontend which check extension vector and assume it want change. If extension vector
-            // is expanded then all iterators are invalidated and can result in segfault when frontend check extensions
-            // to be added in frontend.
-            sync_point.arrive_and_wait();
             std::ignore = core.read_model(modelName, weightsName);
-
-            // sync before next iteration (modification of extensions vector)
-            sync_point.arrive_and_wait();
         },
         100,
         threads_num);

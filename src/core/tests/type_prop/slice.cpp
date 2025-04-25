@@ -1,12 +1,15 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "openvino/op/slice.hpp"
 
 #include <numeric>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/subtract.hpp"
 #include "sequence_generator.hpp"
 
 using namespace ov;
@@ -1239,20 +1242,20 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                                 SliceV8IntervalParams({{10, 1024}}, {{20, 30}}, {{10, 15}}, 0, 0, -2, {{0, 10}})));
 
 TEST_P(SliceV8IntervalTest, start_stop_as_interval) {
-    using namespace ov::opset9;
-
-    const auto p_start = std::make_shared<Parameter>(element::i64, start_shape);
-    const auto shape_of_start = std::make_shared<ShapeOf>(p_start);
+    const auto p_start = std::make_shared<op::v0::Parameter>(element::i64, start_shape);
+    const auto shape_of_start = std::make_shared<op::v3::ShapeOf>(p_start);
     const auto start =
-        std::make_shared<Subtract>(shape_of_start, Constant::create(element::i64, Shape{1}, {start_offset}));
+        std::make_shared<op::v1::Subtract>(shape_of_start,
+                                           op::v0::Constant::create(element::i64, Shape{1}, {start_offset}));
 
-    const auto p_stop = std::make_shared<Parameter>(element::i64, stop_shape);
-    const auto shape_of_stop = std::make_shared<ShapeOf>(p_stop);
+    const auto p_stop = std::make_shared<op::v0::Parameter>(element::i64, stop_shape);
+    const auto shape_of_stop = std::make_shared<op::v3::ShapeOf>(p_stop);
     const auto stop =
-        std::make_shared<Subtract>(shape_of_stop, Constant::create(element::i64, Shape{1}, {stop_offset}));
+        std::make_shared<op::v1::Subtract>(shape_of_stop,
+                                           op::v0::Constant::create(element::i64, Shape{1}, {stop_offset}));
 
-    const auto data = std::make_shared<Parameter>(element::f32, data_shape);
-    const auto steps = Constant::create(element::i64, Shape{1}, {step});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, data_shape);
+    const auto steps = op::v0::Constant::create(element::i64, Shape{1}, {step});
 
     const auto op = make_op(data, start, stop, steps);
 

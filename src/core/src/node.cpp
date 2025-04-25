@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,11 +14,13 @@
 #include "itt.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/util/log.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
 
@@ -166,10 +168,9 @@ void ov::Node::safe_delete(NodeVector& nodes, bool recurse) {
         if (input.has_output()) {
             // This test adds 1 to the actual count, so a count of 2 means this input is the only
             // reference to the node.
-            auto node = input.get_output().get_node();
-            if (node.use_count() == 2) {
+            if (auto node = input.get_output().get_node(); node.use_count() == 2) {
                 // Move the node from the input to nodes so we don't trigger a deep recursive delete
-                nodes.push_back(node);
+                nodes.push_back(std::move(node));
             }
             input.remove_output();
         }
@@ -296,7 +297,7 @@ void ov::Node::set_friendly_name(const string& name) {
 
 ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
     OPENVINO_ASSERT(index < m_inputs.size(), idx_txt, index, out_of_range_txt);
-    return m_inputs[index].get_output().get_node().get();
+    return m_inputs[index].get_output().get_raw_pointer_node();
 }
 
 std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
@@ -533,6 +534,7 @@ bool ov::Node::match_value(ov::pass::pattern::Matcher* matcher,
         (matcher->is_strict_mode() &&
          (!pattern_value.get_element_type().compatible(graph_value.get_element_type()) ||
           !pattern_value.get_partial_shape().compatible(graph_value.get_partial_shape())))) {
+        OPENVINO_LOG_NODE1(matcher, pattern_value, graph_value);
         return false;
     }
     return match_node(matcher, graph_value);
@@ -547,11 +549,17 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
     // Not exact matching allows using base classes in the patterns and successfully matching such
     // patterns
     // with sub-graph of descent nodes types.
-    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
-        matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
-        auto& pattern_map = matcher->get_pattern_value_map();
-        pattern_map[shared_from_this()] = graph_value;
-        return true;
+    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info())) {
+        OPENVINO_LOG_NODE2(matcher);
+        if (matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
+            auto& pattern_map = matcher->get_pattern_value_map();
+            pattern_map[shared_from_this()] = graph_value;
+            OPENVINO_LOG_NODE3(matcher);
+            return true;
+        }
+        OPENVINO_LOG_NODE4(matcher);
+    } else {
+        OPENVINO_LOG_NODE5(matcher, shared_from_this(), graph_value);
     }
     return false;
 }
@@ -594,7 +602,7 @@ ov::Output<ov::Node> ov::Node::output(size_t output_index) {
         OPENVINO_THROW(node_idx_out_of_range_txt);
     }
 
-    return Output<Node>(this, output_index);
+    return {this, output_index};
 }
 
 ov::Output<const ov::Node> ov::Node::output(size_t output_index) const {
@@ -719,14 +727,13 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
         nodes.push_back(input.get_node_shared_ptr());
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
         void* data = (void*)constant->get_data_ptr();
-        auto tensor = ov::Tensor(input.get_element_type(), input.get_shape(), data);
-        input_tensors.push_back(tensor);
+        input_tensors.emplace_back(input.get_element_type(), input.get_shape(), data);
     }
 
     TensorVector output_tensors;
     for (const auto& output : outputs()) {
         const auto& et = output.get_element_type();
-        if (et != element::undefined && et.is_static()) {
+        if (et.is_static()) {
             output_tensors.emplace_back(output);
         } else {
             output_tensors.emplace_back();
@@ -770,10 +777,12 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     auto id = original_id;
     visitor.on_attribute("ID", id);
     if (id != original_id) {
-        m_ref = visitor.get_registered_node(id);
+        m_ref = visitor.get_registered_node(std::move(id));
     }
     return true;
 }
+
+AttributeAdapter<std::shared_ptr<ov::Node>>::~AttributeAdapter() = default;
 
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 
@@ -798,4 +807,17 @@ bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor) {
     }
     return true;
 }
+
+AttributeAdapter<ov::NodeVector>::~AttributeAdapter() = default;
+
+namespace op::util {
+bool input_sources_are_equal(const std::shared_ptr<ov::Node>& lhs,
+                             const std::shared_ptr<ov::Node>& rhs,
+                             const size_t input_index) {
+    const auto& lhs_source = lhs->get_input_descriptor(input_index).get_output();
+    const auto& rhs_source = rhs->get_input_descriptor(input_index).get_output();
+    return lhs_source.get_raw_pointer_node() == rhs_source.get_raw_pointer_node() &&
+           lhs_source.get_index() == rhs_source.get_index();
+}
+}  // namespace op::util
 }  // namespace ov

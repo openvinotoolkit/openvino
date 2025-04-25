@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "fully_connected_inst.h"
@@ -66,14 +66,14 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
     }
 
     if (input_layout.data_type == data_types::f32 &&
-        (input_layout.format == format::bfyx || input_layout.format == format::bfzyx) &&
+        one_of<cldnn::format>(input_layout.format, {format::bfyx, format::bfzyx, format::bfwzyx}) &&
         no_spatial_padding &&
         input_layout.batch() != 8)
         return input_layout.format;
 
     auto input_pitches = input_layout.get_pitches();
     if (input_layout.data_type == data_types::f16 &&
-        (input_layout.format == format::bfyx || input_layout.format == format::bfzyx) &&
+        (input_layout.format == format::bfyx || input_layout.format == format::bfzyx || input_layout.format == format::bfwzyx) &&
         no_spatial_padding &&
         input_pitches[0] % 2 == 0 &&
         input_layout.batch() != 16)
@@ -118,9 +118,10 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         return reshapeSize;
     };
 
-    int64_t feature = input_pshape[std::min(desc->input_size, static_cast<size_t>(4)) - 1].get_length();
+    size_t feature_idx = supports_immad ? desc->input_size : std::min(desc->input_size, static_cast<size_t>(4));
+    int64_t feature = input_pshape[feature_idx - 1].get_length();
 
-    if (desc->input_size == 3) {
+    if (desc->input_size == 3 && !supports_immad) {
         feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
     }
 
@@ -128,25 +129,28 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
     }
 
-    auto output_size = tensor();
-
-    // If immad is supported, spatial dimensions are reshaped to 2d in order to select oneDnn impl,
-    // because oneDnn doesn't support spatial dimensions for output.
     if (supports_immad) {
-        if (desc->input_size > 3) {
-            input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+        ov::PartialShape out_pshape = {input_layout.batch(), weights_layout.batch(), 1, 1};
+        if (desc->input_size == 3) {
+            out_pshape = {input_layout.batch(), input_layout.feature(), weights_layout.batch(), 1};
+        } else if (desc->input_size == 4) {
+            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(1), weights_layout.batch()};
+        } else if (desc->input_size == 5) {
+            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(2), input_layout.spatial(1), weights_layout.batch()};
+        } else if (desc->input_size == 6) {
+            out_pshape = {input_layout.batch(), input_layout.feature(), input_layout.spatial(3),
+                          input_layout.spatial(2), input_layout.spatial(1), weights_layout.batch()};
         }
 
-        output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
-        if (desc->input_size == 3) {
-            output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
-        }
+        format output_format = get_preferred_format(node, impl_param);
+
+        return layout(out_pshape, output_type, output_format);
     } else {
         if (desc->input_size > 5) {
             input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
         }
 
-        output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
+        auto output_size = tensor(input_layout.batch(), weights_layout.batch(), 1, 1);
         if (desc->input_size == 3) {
             output_size = tensor(input_layout.batch(), input_layout.feature(), 1, weights_layout.batch());
         } else if (desc->input_size == 4) {
@@ -154,11 +158,11 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         } else if (desc->input_size == 5) {
             output_size = tensor(input_layout.batch(), input_layout.feature(), weights_layout.batch(), input_layout.spatial(1), input_layout.spatial(2));
         }
+
+        format output_format = get_preferred_format(node, impl_param);
+
+        return layout(output_type, output_format, output_size);
     }
-
-    format output_format = get_preferred_format(node, impl_param);
-
-    return layout(output_type, output_format, output_size);
 }
 
 template<typename ShapeType>
@@ -214,6 +218,10 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 }
 
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
+    if (can_apply_single_batch_optimization(orig_impl_param)) {
+        return std::move(orig_impl_param);
+    }
+
     // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
     const auto& orig_input_layout = orig_impl_param.get_input_layout();
@@ -242,16 +250,37 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
                 can_apply_fake_alignment = false;
                 break;
             }
+            auto fuse_op_input_shape = fused_op_input_layout.get_shape();
+
             // Check fused desc's input has full tensor, then do not fake alignment
-            if (orig_output_layout.get_shape() == fused_op_input_layout.get_shape()) {
+            if (orig_output_layout.get_shape() == fuse_op_input_shape) {
                 can_apply_fake_alignment = false;
                 break;
+            }
+
+            if (fuse_op_input_shape.size() > 2) {
+                auto fuse_op_batch_size = std::accumulate(fuse_op_input_shape.begin(),
+                                                          fuse_op_input_shape.end() - 1,
+                                                          size_t{1},
+                                                          std::multiplies<size_t>());
+                if (fuse_op_batch_size > 1) {
+                    GPU_DEBUG_TRACE_DETAIL << "unable to apply fake-alignment: "
+                                           << orig_impl_param.typed_desc<fully_connected>()->id
+                                           << " " << input_shape
+                                           << " + " << fuse_op_input_shape << std::endl;
+                    can_apply_fake_alignment = false;
+                    break;
+                }
             }
         }
     }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
+    auto prim = orig_impl_param.typed_desc<fully_connected>();
+    if (prim != nullptr && prim->weights_rank > 2) {
+        can_apply_fake_alignment = false;
+    }
+
+    GPU_DEBUG_IF(orig_impl_param.get_program().get_config().get_disable_fake_alignment()) {
         can_apply_fake_alignment = false;
     }
 
@@ -270,8 +299,9 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         if (orig_impl_param.dev_type == cldnn::device_type::integrated_gpu) {
             auto weights_layout_dt = orig_impl_param.weights_layout.value().data_type;
             auto is_4bit = weights_layout_dt == data_types::i4 || weights_layout_dt == data_types::u4;
+            auto is_8bit = weights_layout_dt == data_types::i8 || weights_layout_dt == data_types::u8;
             auto is_extra_alignment_needed = batch_size >= 256;
-            fake_align_base = is_4bit && is_extra_alignment_needed ? 64 : 16;
+            fake_align_base = (is_4bit || is_8bit) && is_extra_alignment_needed ? 64 : 16;
         }
 
         std::fill(input_shape.begin(), input_shape.end() - 1, 1);
@@ -324,6 +354,32 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     node_info->dump(primitive_description);
 
     return primitive_description.str();
+}
+
+bool fully_connected_inst::can_apply_single_batch_optimization(const kernel_impl_params& impl_param) {
+    if (impl_param.output_layouts.empty() || impl_param.output_layouts[0].is_dynamic())
+        return false;
+
+    // Only support i4/u4 weight so far
+    if (impl_param.weights_layout) {
+        auto weights_layout_dt = impl_param.weights_layout.value().data_type;
+        if (weights_layout_dt != data_types::i4 && weights_layout_dt != data_types::u4) {
+            return false;
+        }
+    }
+
+    // Don't support swiglu fused
+    if (impl_param.fused_desc.size() > 0) {
+        for (const auto& f : impl_param.fused_desc) {
+            if (f.is_type<swiglu>())
+                return false;
+        }
+    }
+
+    // Single batch
+    auto shape = impl_param.output_layouts[0].get_partial_shape().to_shape();
+    auto shape_size = ov::shape_size(shape);
+    return one_of(shape_size, shape) && (shape_size % 16 == 0);
 }
 
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class PowerStaticNode : public ov::op::Op {
 public:
@@ -19,7 +18,7 @@ public:
                     const float& power,
                     const float& scale,
                     const float& shift,
-                    const ov::element::Type output_type = ov::element::undefined);
+                    const ov::element::Type output_type = ov::element::dynamic);
 
     void validate_and_infer_types() override;
 
@@ -42,5 +41,4 @@ private:
     ov::element::Type m_output_type;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,6 @@ static program::ptr build_program(engine& engine,
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
-    config.set_property(ov::intel_gpu::max_dynamic_batch(1));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
 
     return program::build_program(engine, body_topology, config, false, false, true);
@@ -837,7 +836,7 @@ static void test_loop_gpu_multiple_shapes(ov::PartialShape body_input_layout,
         permute("permute1", input_info("input_origin"), {0, 1, 2, 3}),
         concatenation("input1", {input_info("permute1"), input_info("input_origin")}, 0),
         loop("loop",
-             {input_info(actual_iteration_count_id), input_info(initial_condition_id), input_info("input1"), input_info("input2")}, 
+             {input_info(actual_iteration_count_id), input_info(initial_condition_id), input_info("input1"), input_info("input2")},
              body_program, trip_count_id, initial_condition_id, actual_iteration_count_id,
              input_primitive_maps, output_primitive_maps, back_edges,
              num_iterations, body_current_iteration_id, body_execution_condition_id, 2),
@@ -1105,7 +1104,6 @@ static void test_loop_gpu_wo_trip_count_update_primitive_id(ov::PartialShape bod
     auto body_program = build_program(engine, body, body_execution_condition_id, output_primitive_maps, back_edges, true);
 
     auto const_shape = engine.allocate_memory({ov::PartialShape{4}, data_types::i32, format::bfyx});
-    
 
     std::vector<int32_t> body_input_layouts;
     for (size_t i = 0; i < body_input_layout.size(); i++) {

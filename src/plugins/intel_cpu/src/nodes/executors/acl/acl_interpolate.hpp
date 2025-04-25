@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,7 @@
 #include "arm_compute/runtime/Tensor.h"
 #include "nodes/executors/interpolate.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ACLInterpolateExecutor : public InterpolateExecutor {
 public:
@@ -24,7 +23,7 @@ public:
               const std::vector<MemoryPtr>& dst,
               const void* post_ops_data_) override;
 
-    impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type getImplType() const override {
         return implType;
     }
 
@@ -39,11 +38,11 @@ private:
 
 class ACLInterpolateExecutorBuilder : public InterpolateExecutorBuilder {
 public:
-    bool isSupported(const InterpolateAttrs& interpolateAttrs,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override;
+    [[nodiscard]] bool isSupported(const InterpolateAttrs& interpolateAttrs,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   const std::vector<MemoryDescPtr>& dstDescs) const override;
 
-    InterpolateExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] InterpolateExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<ACLInterpolateExecutor>(context);
     }
 
@@ -52,5 +51,4 @@ private:
                                          const std::vector<MemoryDescPtr>& srcDescs,
                                          const std::vector<MemoryDescPtr>& dstDescs);
 };
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

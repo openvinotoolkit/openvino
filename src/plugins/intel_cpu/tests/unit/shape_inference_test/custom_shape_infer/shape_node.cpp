@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/shape_of.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -43,4 +43,3 @@ TEST(CpuShapeInfer, v3ShapeOf5DTest) {
 } // namespace unit_test
 } // namespace intel_cpu
 } // namespace ov
-

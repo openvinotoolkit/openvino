@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,8 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/search_sorted.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

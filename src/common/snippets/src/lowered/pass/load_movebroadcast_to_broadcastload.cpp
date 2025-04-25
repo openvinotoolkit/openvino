@@ -47,10 +47,10 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LinearIR& linear_ir, lowered::LinearI
             const auto& load_parent_node = load_expr->get_input_port_connector(0)->get_source().get_expr()->get_node();
             const auto& outshape = move_broadcast->get_output_partial_shape(0);
             const auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load_parent_node, *outshape.rbegin(), load->get_offset());
-            // insert at position of load_expr. As BroadcastMove and Load will be removed, preserve expr_it.
-            expr_it = std::next(expr_it);
-            linear_ir.replace_with_node({ load_expr, expr }, broadcastload, load_expr->get_loop_ids(), linear_ir.find(load_expr));
-            expr_it = std::prev(expr_it);
+            auto live_regs = load_expr->get_live_regs();
+            expr_it = linear_ir.replace_with_node({ load_expr, expr }, broadcastload, load_expr->get_loop_ids(), linear_ir.find(load_expr));
+            // Note: We have to set live regs manually, since this transformation is applied after all register-related passes.
+            expr_it->get()->set_live_regs(std::move(live_regs));
             modified |= true;
         }
     }

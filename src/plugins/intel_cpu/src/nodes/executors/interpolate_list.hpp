@@ -13,8 +13,7 @@
 #include "common/primitive_cache.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct InterpolateExecutorDesc {
     ExecutorType executorType;
@@ -28,7 +27,7 @@ public:
     InterpolateExecutorFactory(const InterpolateAttrs& InterpolateAttrs,
                                const std::vector<MemoryDescPtr>& srcDescs,
                                const std::vector<MemoryDescPtr>& dstDescs,
-                               const ExecutorContext::CPtr context)
+                               const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
         for (auto& desc : getInterpolateExecutorsList()) {
             if (desc.builder->isSupported(InterpolateAttrs, srcDescs, dstDescs)) {
@@ -37,7 +36,7 @@ public:
         }
     }
 
-    ~InterpolateExecutorFactory() = default;
+    ~InterpolateExecutorFactory() override = default;
     virtual InterpolateExecutorPtr makeExecutor(const InterpolateAttrs& interpolateAttrs,
                                                 const std::vector<MemoryDescPtr>& srcDescs,
                                                 const std::vector<MemoryDescPtr>& dstDescs,
@@ -80,5 +79,4 @@ private:
 using InterpolateExecutorFactoryPtr = std::shared_ptr<InterpolateExecutorFactory>;
 using InterpolateExecutorFactoryCPtr = std::shared_ptr<const InterpolateExecutorFactory>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

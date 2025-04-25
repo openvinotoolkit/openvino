@@ -52,6 +52,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     const uint scale_idx = OUTPUT1_GET_INDEX_SAFE(b, f, out_y, x);
 #endif
 
+    half grp_max = 0.001h;
     half max_val = INPUT0_VAL_MIN;
     half min_val = INPUT0_VAL_MAX;
     for (int b_off = 0; b_off < (GROUP_SIZE_DIM0 == 1 ? 1 : INPUT0_BATCH_NUM); b_off++) {
@@ -62,8 +63,8 @@ KERNEL(dynamic_quantize_gpu_ref)(
         const uint offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, x);
         half val = input[offset];
 #if ASYMMETRIC_QUANTIZATION
-        max_val = fmax(max_value, val);
-        min_val = fmin(min_value, val);
+        max_val = fmax(max_val, val);
+        min_val = fmin(min_val, val);
 #else
         half abs_val = fabs(val);
         max_val = fmax(max_val, abs_val);
@@ -97,14 +98,21 @@ KERNEL(dynamic_quantize_gpu_ref)(
     }
     }
     }
+#if !ASYMMETRIC_QUANTIZATION
+    max_val = fmax(max_val, grp_max);
+#endif
 
 #if ASYMMETRIC_QUANTIZATION
-    OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_val - min_val));
+    // If the range of input data is zero, it is adjusted to the minimum value(0.001).
+    ACCUMULATOR_TYPE diff_value = max_val == min_val ? (grp_max) : (max_val - min_val);
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
 #   if UNSIGNED_OUTPUT
-    OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale);
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_val * scale_tmp);
 #   else // !UNSIGNED_OUTPUT
-    OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(-min_val * scale) - CHAR_MAX;
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_val * scale_tmp) + CHAR_MIN;
 #   endif
+    OUTPUT1_TYPE scale = (OUTPUT1_TYPE)(scale_tmp);
+    OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
     max_val = work_group_reduce_max(max_val);
     OUTPUT1_TYPE scale = 127.0h / max_val;
@@ -153,6 +161,12 @@ KERNEL(dynamic_quantize_gpu_ref)(
 #if ASYMMETRIC_QUANTIZATION && GROUP_SCALES_WITH_ZP
     output_scale[scale_idx + 1] = zp;
 #elif ASYMMETRIC_QUANTIZATION
-    output_zp[scale_idx] = convert_uchar_rte(zp);
+    #if OUTPUT2_IS_FP
+        output_zp[scale_idx] = zp;
+    #elif UNSIGNED_OUTPUT
+        output_zp[scale_idx] = convert_uchar_rte(zp);
+    #else
+        output_zp[scale_idx] = convert_char_rte(zp);
+    #endif
 #endif
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,15 +9,14 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_ptr<op::util::ScatterElementsUpdateBase>& op) {
     validate_inputs_count(op, {4});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
+    auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
     OPENVINO_ASSERT(axes_constant, "Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     int64_t axis = ov::util::try_normalize_axis(axes_constant->cast_vector<int64_t>()[0],
@@ -45,5 +44,4 @@ static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_p
 REGISTER_FACTORY_IMPL(v3, ScatterElementsUpdate);
 REGISTER_FACTORY_IMPL(v12, ScatterElementsUpdate);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

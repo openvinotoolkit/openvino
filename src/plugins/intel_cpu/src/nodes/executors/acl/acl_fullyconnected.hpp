@@ -8,15 +8,11 @@
 #include "acl_fullyconnected_utils.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ACLFullyConnectedExecutor : public ACLCommonExecutor {
 public:
-    ACLFullyConnectedExecutor(const FCAttrs& attrs,
-                              const PostOps& postOps,
-                              const MemoryArgs& memory,
-                              const ExecutorContext::CPtr context);
+    ACLFullyConnectedExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
     static bool supports(const FCConfig& config);
 
@@ -36,5 +32,4 @@ private:
 
 using ACLFullyConnectedExecutorPtr = std::shared_ptr<ACLFullyConnectedExecutor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,7 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 static void CreateSelectOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Select>& op) {
     validate_inputs_count(op, {3});
@@ -84,5 +83,4 @@ static void CreateSelectOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
 
 REGISTER_FACTORY_IMPL(v1, Select);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

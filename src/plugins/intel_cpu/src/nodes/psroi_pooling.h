@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,12 @@ namespace node {
 
 class PSROIPooling : public Node {
 public:
-    PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override{};
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -46,8 +46,6 @@ private:
     int partSize = 1;
     float transStd = 1.f;
 
-    std::string errorPrefix;
-
     void unpackParams(const BlockedMemoryDesc& srcDesc,
                       const BlockedMemoryDesc& dstDesc,
                       int& hInputStride,
@@ -57,8 +55,8 @@ private:
                       int& inBlockSize,
                       int& outBlockSize,
                       int& outBlockCount,
-                      unsigned long& inputChannelsPadding,
-                      unsigned long& outputChannelsPadding);
+                      uint64_t& inputChannelsPadding,
+                      uint64_t& outputChannelsPadding);
 
     template <typename inputType, typename outputType>
     void executeAverage(const inputType* srcData,

@@ -15,8 +15,7 @@ namespace npuw {
 
 class LLMInferRequest final : public ov::ISyncInferRequest {
 public:
-    explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
-                             const ov::npuw::LLMCompiledModel::KVCacheDesc& kvcache_desc);
+    explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
     void infer() override;
 
@@ -33,6 +32,7 @@ public:
 
 private:
     void prepare_for_new_conversation();
+    void init_tensor(const ov::Output<const ov::Node>& port);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
@@ -44,7 +44,7 @@ private:
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
-    LLMCompiledModel::KVCacheDesc m_kvcache_desc;
+    std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
     bool m_need_copy_kvcache = false;
 
@@ -52,6 +52,9 @@ private:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+
+    // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
+    std::string m_input_ids_name;
 };
 
 }  // namespace npuw

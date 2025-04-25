@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ int readBmpImage(const char* fileName, BitMap* image) {
         CLEANUP_AND_RETURN(2);
     }
 
-    image->width = image->infoHeader.width;
+    image->width = (image->infoHeader.width > 0) ? image->infoHeader.width : 0;
     image->height = abs(image->infoHeader.height);
 
     if (image->infoHeader.bits != 24) {
@@ -80,8 +80,8 @@ int readBmpImage(const char* fileName, BitMap* image) {
         CLEANUP_AND_RETURN(4);
     }
 
-    int padSize = image->width & 3;
-    size_t row_size = (size_t)image->width * 3;
+    size_t padSize = (size_t)image->width & 3U;
+    size_t row_size = (size_t)image->width * 3U;
     char pad[3];
     size_t size = row_size * (size_t)image->height;
 

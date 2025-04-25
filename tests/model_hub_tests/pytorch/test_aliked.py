@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import math
@@ -8,7 +8,7 @@ import sys
 import tempfile
 
 import numpy as np
-import openvino.runtime.opset12 as ops
+import openvino.opset12 as ops
 import pytest
 import torch
 from openvino import convert_model, Model, PartialShape, Type

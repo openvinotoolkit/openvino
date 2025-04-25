@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,12 +78,12 @@ struct jit_uni_bin_conv_kernel {
 
 class BinaryConvolution : public Node {
 public:
-    BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    BinaryConvolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
-    void execute(dnnl::stream strm) override;
+    void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -129,8 +129,6 @@ private:
                           const std::vector<size_t>& s_str,
                           const std::vector<size_t>& w_str,
                           const std::vector<size_t>& d_str);
-
-    std::string errorPrefix;
 };
 
 }  // namespace node

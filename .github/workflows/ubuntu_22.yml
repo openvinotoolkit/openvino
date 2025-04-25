@@ -94,16 +94,17 @@ jobs:
       build-contrib: true
       build-debian-packages: true
       build-rpm-packages: false
-      cmake-options: |- 
-            -G "Ninja Multi-Config" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCPACK_GENERATOR=TGZ \
-            -DENABLE_WHEEL=ON \
+      build-additional-python-packages: true
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_CPPLINT=OFF
+            -DENABLE_NCC_STYLE=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_SYSTEM_OPENCL=ON
+            -DCMAKE_VERBOSE_MAKEFILE=ON
+            -DCPACK_GENERATOR=TGZ
+            -DENABLE_WHEEL=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   Debian_Packages:
@@ -133,12 +134,14 @@ jobs:
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}"}'
 
   Conformance:
-    needs: [ Build, Smart_CI ]
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 20 }}
+    needs: [ Docker, Build, Smart_CI ]
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 10 || 20 }}
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-22.04-16-cores
+    runs-on: aks-linux-16-cores-64gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -165,13 +168,13 @@ jobs:
       #
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -202,10 +205,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install Dependencies
-        run: |
-          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
-          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
+        run: python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
 
       #
       # Tests
@@ -231,7 +231,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -257,7 +257,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ matrix.TEST_TYPE == 'API' }}
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -271,7 +271,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -e HF_TOKEN"}'
       sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
 
   ONNX_Models:
@@ -282,7 +282,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-64gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -320,7 +320,7 @@ jobs:
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -330,7 +330,7 @@ jobs:
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -340,8 +340,18 @@ jobs:
     uses: ./.github/workflows/job_jax_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
+  Keras3_OpenVINO_Backend:
+    name: Keras 3 OpenVINO Backend Tests
+    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_keras3_backend.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
       python-version: '3.11'
 
   CPU_Functional_Tests:
@@ -353,6 +363,7 @@ jobs:
       runner: 'aks-linux-8-cores-32gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       python-version: '3.11'
+      scope: ${{ contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event_name)  && 'nightly' || 'smoke' }}
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
@@ -363,7 +374,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-16gb'
       model_scope: 'precommit'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
   TensorFlow_Models_Tests_Nightly_TF_HUB:
     name: TensorFlow TF Hub Models tests
@@ -373,7 +384,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_tf_hub'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
   TensorFlow_Models_Tests_Nightly_HF:
     name: TensorFlow Hugging Face Models tests
@@ -383,39 +394,37 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-64gb'
       model_scope: 'nightly_hf'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
-  # TODO: Switch back to self-hosted runners
-  # container:
-  #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
-  #   volumes:
-  #     - /mount:/mount
   PyTorch_Models_Tests:
     name: PyTorch Models tests
     if: ${{ github.event_name != 'schedule' && fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'ubuntu-22.04-8-cores'
+      runner: 'aks-linux-8-cores-64gb'
       model_scope: 'precommit'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
   PyTorch_Models_Tests_Nightly_Scope1:
     name: PyTorch Models Nightly Scope1 tests
     if: ${{ github.event_name == 'schedule' }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'ubuntu-22.04-16-cores'
+      runner: 'aks-linux-16-cores-64gb'
       model_scope: 'nightly_scope1'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
   PyTorch_Models_Tests_Nightly_Scope2:
     name: PyTorch Models Nightly Scope2 tests
     if: ${{ github.event_name == 'schedule' }}
-    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: 'ubuntu-22.04-16-cores'
+      runner: 'aks-linux-16-cores-64gb'
       model_scope: 'nightly_scope2'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
   JAX_Models_Tests_Precommit:
     name: JAX/Flax Models tests
@@ -425,7 +434,7 @@ jobs:
     with:
       runner: 'aks-linux-8-cores-16gb'
       model_scope: 'precommit'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
 
   NVIDIA_Plugin:
     name: NVIDIA plugin
@@ -460,27 +469,18 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+      - name: Download OpenVINO packages
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
-          name: openvino_package
+          pattern: "{openvino_package,openvino_developer_package}"
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO Developer package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: openvino_developer_package
-          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${INSTALL_DIR}
-            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          popd
-
-          pushd ${INSTALL_DIR}
-            pigz -dc openvino_developer_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          popd
+            pigz -dc openvino_package.tar.gz | tar -xf - -C ${{ env.INSTALL_DIR }}
+            mkdir -p ${{ env.OPENVINO_DEVELOPER_PACKAGE }} && pigz -dc developer_package.tar.gz | tar -xf - -C ${{ env.OPENVINO_DEVELOPER_PACKAGE }}
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -518,6 +518,17 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
+
+  GPU_Stub:
+    needs: [Build, Smart_CI]
+    runs-on: ubuntu-latest
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    steps:
+      - name: GPU stub
+        run: |
+          echo "This is only a stub to collect statistics of GPU runs filtered by Smart CI. 
+          It will help us to estimate hardware requirements"
+        shell: bash
 
   iGPU:
     name: iGPU Tests
@@ -558,7 +569,8 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU]
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU,
+            Keras3_OpenVINO_Backend]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

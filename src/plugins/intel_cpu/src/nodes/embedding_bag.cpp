@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,8 @@
 #include "common/cpu_memcpy.h"
 #include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 EmbeddingBag::EmbeddingBag(const std::shared_ptr<ov::Node>& op,
                            size_t requiredInputNum,
@@ -24,17 +21,19 @@ EmbeddingBag::EmbeddingBag(const std::shared_ptr<ov::Node>& op,
                            size_t defaultIndexIdx)
     : INDICES_IDX(indicesIdx),
       PER_SAMPLE_WEIGHTS_IDX(perSampleWeightsIdx),
-      DEFAULT_INDEX_IDX(defaultIndexIdx) {
-    _layerName = op->get_friendly_name();
+      DEFAULT_INDEX_IDX(defaultIndexIdx),
+      _layerName(op->get_friendly_name()) {
     std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
-    if (op->get_input_size() < requiredInputNum || op->get_output_size() != 1)
+    if (op->get_input_size() < requiredInputNum || op->get_output_size() != 1) {
         OPENVINO_THROW(logPrefix, "has incorrect number of input or output edges!");
+    }
     if ((op->get_input_size() > PER_SAMPLE_WEIGHTS_IDX)) {
         _withWeights = true;
     }
     if (_withWeights) {
-        if (op->get_input_shape(PER_SAMPLE_WEIGHTS_IDX) != op->get_input_shape(INDICES_IDX))
+        if (op->get_input_shape(PER_SAMPLE_WEIGHTS_IDX) != op->get_input_shape(INDICES_IDX)) {
             OPENVINO_THROW(logPrefix, "must have equal shapes for indices and per_sample_weights inputs.");
+        }
     }
 }
 
@@ -60,8 +59,9 @@ void EmbeddingBag::processData(const T* srcData,
     auto threadBody = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);
         splitter(outputBagsNum, nthr, ithr, start, end);
-        if (start >= end)
+        if (start >= end) {
             return;
+        }
 
         size_t indicesSize = 0lu;
         const int* indices = nullptr;
@@ -162,6 +162,4 @@ void EmbeddingBag::execute(const uint8_t* srcData,
     }
 }
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

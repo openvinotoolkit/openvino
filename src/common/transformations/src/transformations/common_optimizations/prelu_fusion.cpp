@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
@@ -171,7 +172,7 @@ ov::pass::PReluFusionAbsSubMulMulAdd::PReluFusionAbsSubMulMulAdd() {
 
     const auto equals_half = [](const Output<Node>& node) {
         float v;
-        const auto constant = dynamic_pointer_cast<ov::op::v0::Constant>(node.get_node_shared_ptr());
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node.get_node_shared_ptr());
         return constant && op::util::get_single_value(constant, v) && v == 0.5f;
     };
 

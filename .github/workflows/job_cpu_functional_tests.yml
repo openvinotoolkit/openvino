@@ -16,13 +16,18 @@ on:
         description: 'Python version to setup. E.g., "3.11"'
         type: string
         required: true
+      scope:
+        description: 'Defines tests scope {nightly | smoke}'
+        type: string
+        required: false
+        default: 'smoke'
 
 permissions: read-all
 
 jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
-    timeout-minutes: 30
+    timeout-minutes: 50
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
@@ -35,15 +40,16 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
+      GTEST_FILTER: ${{ inputs.scope == 'nightly' && '' || '--gtest_filter=*smoke*' }}
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -90,7 +96,7 @@ jobs:
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -106,18 +112,18 @@ jobs:
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 25
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 ${{ env.GTEST_FILTER }}
+        timeout-minutes: ${{ inputs.scope == 'nightly' && 125 || 40 }}
 
       - name: Save tests execution time
-        uses: actions/cache/save@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: test-results-functional-cpu

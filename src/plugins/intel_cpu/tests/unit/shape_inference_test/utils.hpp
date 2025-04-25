@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include <gtest/gtest.h>
 
-#include "openvino/op/ops.hpp"
 #include "openvino/op/parameter.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/static_shape.hpp"

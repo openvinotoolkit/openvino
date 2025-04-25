@@ -10,6 +10,8 @@
 
 namespace ov {
 
+OPENVINO_API void copy_weightless_cache_attr(const std::shared_ptr<Node>& from, const std::shared_ptr<Node>& to);
+
 /**
  * @brief Holds weightless caching attributes of a single constant.
  *
@@ -22,7 +24,7 @@ namespace ov {
  */
 class OPENVINO_API WeightlessCacheAttribute : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("WeightlessCacheAttribute");
+    OPENVINO_RTTI("WeightlessCacheAttribute", "0", RuntimeAttribute);
 
     WeightlessCacheAttribute() = delete;
 

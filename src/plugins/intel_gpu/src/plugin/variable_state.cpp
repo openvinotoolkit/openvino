@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::Ptr context, std::shared_ptr<cldnn::ShapePredictor> shape_predictor)
     : VariableStateBase{info.m_id, context}
@@ -99,6 +98,7 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
 }
 
 void VariableState::update_device_buffer() {
+    OPENVINO_ASSERT(m_context != nullptr, "m_context should not be null.");
     if (m_layout.is_dynamic() || m_layout.bytes_count() == 0) {
         m_shape_predictor->reset();
         m_memory.reset();
@@ -115,11 +115,13 @@ void VariableState::update_device_buffer() {
         m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
         actual_size = std::max(actual_size, alloc_layout.bytes_count());
     }
+
+    OPENVINO_ASSERT(m_memory != nullptr, "m_memory is nullptr!!!");
     m_memory = m_context->get_engine().reinterpret_buffer(*m_memory, m_layout);
 }
 
 ov::element::Type VariableState::get_user_specified_type() const {
-    return m_user_specified_type != ov::element::undefined ? m_user_specified_type : ov::element::Type(m_layout.data_type);
+    return m_user_specified_type != ov::element::dynamic ? m_user_specified_type : ov::element::Type(m_layout.data_type);
 }
 
 ov::SoPtr<ov::ITensor> VariableState::get_state() const {
@@ -136,5 +138,4 @@ ov::SoPtr<ov::ITensor> VariableState::get_state() const {
     return tensor;
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -1,11 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_left_shift.hpp"
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "utils.hpp"
@@ -73,6 +75,37 @@ OutputVector translate_bitwise_xor(const NodeContext& context) {
     return {xor_x};
 };
 
+OutputVector translate_bitwise_left_shift(const NodeContext& context) {
+    num_inputs_check(context, 2, 3);
+    Output<Node> x;
+    Output<Node> y;
+    std::tie(x, y) = get_inputs_with_promoted_types(context, 0, 1);
+    auto lshift = context.mark_node(std::make_shared<ov::op::v15::BitwiseLeftShift>(x, y))->output(0);
+    if (!context.input_is_none(2)) {
+        auto out = context.get_input(2);
+        if (out.get_element_type().is_dynamic() || lshift.get_element_type() != out.get_element_type()) {
+            lshift = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(lshift, out));
+        }
+        context.mutate_input(2, lshift);
+    }
+    return {lshift};
+};
+
+OutputVector translate_bitwise_right_shift(const NodeContext& context) {
+    num_inputs_check(context, 2, 3);
+    Output<Node> x;
+    Output<Node> y;
+    std::tie(x, y) = get_inputs_with_promoted_types(context, 0, 1);
+    auto rshift = context.mark_node(std::make_shared<ov::op::v15::BitwiseRightShift>(x, y))->output(0);
+    if (!context.input_is_none(2)) {
+        auto out = context.get_input(2);
+        if (out.get_element_type().is_dynamic() || rshift.get_element_type() != out.get_element_type()) {
+            rshift = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(rshift, out));
+        }
+        context.mutate_input(2, rshift);
+    }
+    return {rshift};
+}
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

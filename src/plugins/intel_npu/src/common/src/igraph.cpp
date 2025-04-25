@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "intel_npu/common/igraph.hpp"
 
-#include "intel_npu/config/compiler.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 
 namespace {
 constexpr std::size_t BATCH_AXIS = 0;
@@ -17,14 +16,11 @@ namespace intel_npu {
 IGraph::IGraph(ze_graph_handle_t handle,
                NetworkMetadata metadata,
                const Config& config,
-               std::optional<std::vector<uint8_t>> blob)
+               std::unique_ptr<BlobContainer> blobPtr)
     : _handle(handle),
       _metadata(std::move(metadata)),
-      _logger("IGraph", config.get<LOG_LEVEL>()) {
-    if (blob.has_value()) {
-        _blob = std::move(*blob);
-    }
-}
+      _blobPtr(std::move(blobPtr)),
+      _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
 const NetworkMetadata& IGraph::get_metadata() const {
     return _metadata;
@@ -48,6 +44,10 @@ const std::vector<ArgumentDescriptor>& IGraph::get_output_descriptors() const {
 
 const std::shared_ptr<CommandQueue>& IGraph::get_command_queue() const {
     return _command_queue;
+}
+
+uint32_t IGraph::get_command_queue_group_ordinal() const {
+    return _command_queue_group_ordinal;
 }
 
 void IGraph::set_workload_type(const ov::WorkloadType workloadType) const {

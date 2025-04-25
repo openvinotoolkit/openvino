@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "expected_throw.hpp"
 
 #include "common/utils.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 using namespace ov::test::behavior;
 

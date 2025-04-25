@@ -6,8 +6,7 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class jit_horizon_emitter : public jit_emitter {
 public:
@@ -19,7 +18,7 @@ public:
         return 1;
     }
     static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& node = nullptr) {
+        [[maybe_unused]] const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::f32}};
     }
 
@@ -41,5 +40,4 @@ private:
     OpType m_op_type = OpType::max;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

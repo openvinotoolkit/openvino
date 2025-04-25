@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,7 @@ private:
         } else {
             throw std::runtime_error("Incorrect type of Conversion operation");
         }
-        return std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{in});
+        return std::make_shared<ov::Model>(ov::OutputVector{convert}, ov::ParameterVector{in});
     }
 };
 }  // namespace ConversionOpsRefTestDefinitions

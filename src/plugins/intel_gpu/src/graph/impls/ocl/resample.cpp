@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -185,6 +185,7 @@ attach_resample_impl::attach_resample_impl() {
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
 

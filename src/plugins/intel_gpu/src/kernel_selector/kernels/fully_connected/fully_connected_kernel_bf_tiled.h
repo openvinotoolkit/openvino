@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,4 +87,25 @@ protected:
 
     std::vector<tune_params> auto_tune_params;
 };
+
+namespace fc_kernel_bf_tiled_utils {
+using namespace kernel_selector;
+std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params);
+std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_params& params,
+                                                     bool needs_align,
+                                                     uint32_t align_b = 1,
+                                                     int32_t align_f = 1);
+size_t get_scale_group_size(const fully_connected_params& params);
+bool is_8bit_asym_wei(const fully_connected_params& params);
+bool is_weight_dyn_quantizable(const fully_connected_params& params);
+bool is_per_token_dynamic_quantize(const fully_connected_params& params);
+size_t get_dynamic_quantize_group_size(const fully_connected_params& params);
+bool should_dynamic_quantize(const fully_connected_params& params);
+bool is_weight_vertical(const fully_connected_params& params, size_t output_f);
+bool is_weight_horizontal(const fully_connected_params& params, size_t output_f);
+bool is_weight_small_kn(const fully_connected_params& params, size_t output_f);
+bool is_swiglu_fused(const fully_connected_params& params);
+bool is_suitable_outer_ofm(const fully_connected_params& params, size_t output_f);
+};  // namespace fc_kernel_bf_tiled_utils
+
 }  // namespace kernel_selector

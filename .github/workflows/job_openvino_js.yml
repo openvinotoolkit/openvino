@@ -26,7 +26,7 @@ jobs:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      OPENVINO_JS_DIR: ${{ github.workspace }}/openvino/src/bindings/js
+      OPENVINO_JS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node
       OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
       NODE_VERSION: 21
       DISPLAY: ':99'
@@ -38,31 +38,40 @@ jobs:
           sparse-checkout: |
             src/bindings/js
           path: 'openvino'
+      
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
-          echo "OPENVINO_JS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js" >> "$GITHUB_ENV"
+          echo "OPENVINO_JS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js/node" >> "$GITHUB_ENV"
           echo "OPENVINO_JS_LIBS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js/node/bin" >> "$GITHUB_ENV"
 
-      - name: Download OpenVINO JS package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+      - name: Download OpenVINO artifacts (JS)
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: openvino_js_package
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
+          merge-multiple: true
+
+      - name: Extract OpenVINO packages
+        run: pigz -dc openvino_js_package.tar.gz | tar -xf - -C ${OPENVINO_JS_LIBS_DIR}
+        working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
         if: runner.os != 'Linux' # Node is already installed in the Docker image
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Configure OpenVINO JS API
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm i
 
       - name: Test OpenVINO JS API
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test
 
       - name: Install electron deps and run Xvfb
@@ -72,5 +81,5 @@ jobs:
           Xvfb "$DISPLAY" &
 
       - name: E2E of openvino-node package
-        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test:e2e

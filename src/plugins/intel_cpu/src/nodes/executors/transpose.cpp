@@ -1,27 +1,29 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transpose.hpp"
 
+#include <utility>
 #include <vector>
 
 #include "openvino/core/parallel.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-TransposeExecutor::TransposeExecutor(const ExecutorContext::CPtr context) : context(context) {}
+TransposeExecutor::TransposeExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
 
 jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& params) {
     jit_permute_config_params jcp = {};
     VectorDims src_block_order = params.src_block_order;
     VectorDims src_block_strides(params.src_block_dims.size(), 1);
     VectorDims dst_block_strides(params.dst_block_dims.size(), 1);
-    for (int i = params.src_block_dims.size() - 2; i >= 0; i--)
+    for (int i = params.src_block_dims.size() - 2; i >= 0; i--) {
         src_block_strides[i] = src_block_strides[i + 1] * params.src_block_dims[i + 1];
-    for (int i = params.dst_block_dims.size() - 2; i >= 0; i--)
+    }
+    for (int i = params.dst_block_dims.size() - 2; i >= 0; i--) {
         dst_block_strides[i] = dst_block_strides[i + 1] * params.dst_block_dims[i + 1];
+    }
 
     VectorDims new_dst_block_strides = dst_block_strides;
     VectorDims new_dst_block_order = params.dst_block_order;
@@ -130,5 +132,4 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     return jcp;
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

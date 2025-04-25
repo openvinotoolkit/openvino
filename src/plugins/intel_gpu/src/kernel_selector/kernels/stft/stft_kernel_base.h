@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,12 +23,11 @@ class STFTKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
 
-    using DispatchData = CommonDispatchData;
-
 protected:
-    JitConstants GetJitConstants(const STFT_params& params) const;
-    static DispatchData SetDefault(const STFT_params& params);
+    virtual JitConstants GetJitConstants(const STFT_params& params) const;
+    virtual CommonDispatchData CalcLaunchConfig(const STFT_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
+    bool Validate(const Params& p) const override;
 };
 }  // namespace kernel_selector

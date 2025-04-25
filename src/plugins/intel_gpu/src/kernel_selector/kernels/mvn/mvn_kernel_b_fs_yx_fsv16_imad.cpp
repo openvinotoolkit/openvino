@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -227,7 +227,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                          dispatchData.item_groups * intermidiate_bytes);
     }
     {
@@ -251,7 +251,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                          intermidiate_bytes);
     }
     if (params.mvnNormalizeVariance) {
@@ -298,7 +298,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                          intermidiate_bytes);
     }
     {  // Final

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,19 +33,24 @@ public:
         bool inPlace = false;
     };
 
-    Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     Input(const Shape& shape,
           const ov::element::Type& prc,
           const std::string& name,
           const std::string& type,
-          const GraphContext::CPtr context);
+          const GraphContext::CPtr& context);
 
-    Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, const GraphContext::CPtr context);
+    Input(const MemoryDescPtr& memDesc,
+          const std::string& name,
+          const std::string& type,
+          const GraphContext::CPtr& context);
 
-    Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context, InputConfig config);
+    Input(const MemoryPtr& mem, const std::string& name, const std::string& type, const GraphContext::CPtr& context);
 
-    Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context, OutputConfig config);
+    Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const InputConfig& config);
+
+    Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context, const OutputConfig& config);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -53,12 +58,17 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     bool created() const override;
+    void resolveInPlaceEdges(Edge::LOOK look) override;
 
     void withMeanImage();
     MemoryCPtr getMemoryPtr() const;
 
-    void execute(dnnl::stream strm) override {}
-    void executeDynamicImpl(dnnl::stream strm) override {}
+    void execute(const dnnl::stream& strm) override {}
+    void executeDynamicImpl(const dnnl::stream& strm) override {}
+
+    bool neverExecute() const override {
+        return true;
+    }
     bool isExecutable() const override {
         return false;
     }

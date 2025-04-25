@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,7 @@
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/slice.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 static cldnn::activation_func GetActivationFunc(std::string name) {
     static const std::map<std::string, cldnn::activation_func> name_mapping = {
         {"sigmoid", cldnn::activation_func::logistic},
@@ -102,5 +101,4 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 REGISTER_FACTORY_IMPL(v4, LSTMCell);
 REGISTER_FACTORY_IMPL(v5, LSTMSequence);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu
