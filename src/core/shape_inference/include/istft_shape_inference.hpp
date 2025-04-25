@@ -65,7 +65,7 @@ std::vector<TRShape> shape_infer(const ISTFT* op,
                                "].");
 
         if (data_shape.is_static()) {
-            const auto& in_fft_dim = data_shape[data_shape.size() - 3];
+            const auto& in_fft_dim = data_shape[data_shape_rank.get_length() - 3];
             const auto expected_fft_dim = TDim(frame_size_val / 2 + 1);
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,

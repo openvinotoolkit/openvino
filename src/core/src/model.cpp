@@ -519,9 +519,8 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
     OutputVector outputs;
     std::map<RawNodeOutput, ov::Tensor> output_tensor_map;
     for (size_t i = 0; i < m_results.size(); ++i) {
-        auto result = m_results.at(i)->output(0);
-        output_tensor_map[result] = output_tensors.at(i);
-        outputs.push_back(result);
+        outputs.push_back(m_results.at(i)->output(0));
+        output_tensor_map[outputs.back()] = output_tensors.at(i);
     }
     for (const auto& m_sink : m_sinks) {
         outputs.push_back(m_sink);
