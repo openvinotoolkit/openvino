@@ -36,16 +36,6 @@ struct expert_mask_tmp_scratch {
     memory::ptr routing_weights;
     memory::ptr expert_info;
 
-    memory::ptr gate_addrs;
-    memory::ptr gate_scales_addrs;
-    memory::ptr gate_zp_addrs;
-    memory::ptr up_addrs;
-    memory::ptr up_scales_addrs;
-    memory::ptr up_zp_addrs;
-    memory::ptr down_addrs;
-    memory::ptr down_scales_addrs;
-    memory::ptr down_zp_addrs;
-
     layout x_layout;
     size_t max_size = 0;
 };

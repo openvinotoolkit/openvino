@@ -37,6 +37,17 @@ struct moe_expert : public primitive_base<moe_expert> {
             return param[0] == rhs.param[0] && param[1] == rhs.param[1] && param[2] == rhs.param[2];
         }
     };
+    struct scale_zp_mems {
+        memory::ptr gate_addrs;
+        memory::ptr gate_scales_addrs;
+        memory::ptr gate_zp_addrs;
+        memory::ptr up_addrs;
+        memory::ptr up_scales_addrs;
+        memory::ptr up_zp_addrs;
+        memory::ptr down_addrs;
+        memory::ptr down_scales_addrs;
+        memory::ptr down_zp_addrs;    
+    };
 
     /// @brief Constructs moe_expert primitive / layer.
     ///
@@ -44,10 +55,12 @@ struct moe_expert : public primitive_base<moe_expert> {
     /// @param inputs             A list of Input primitive ids (inputs).
     moe_expert(const primitive_id& id,
             const std::vector<input_info>& inputs,
-            const MOEExpert::Config& config, const std::vector<mlp_params>& param)
+            const MOEExpert::Config& config, const std::vector<mlp_params>& param,
+            const scale_zp_mems& scale_zp)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
           _config(config),
-          _mlp_params(param) {
+          _mlp_params(param),
+          _scale_zp(scale_zp) {
     }
 
     size_t get_hidden_size() const {
@@ -76,6 +89,7 @@ struct moe_expert : public primitive_base<moe_expert> {
 
     MOEExpert::Config _config;
     std::vector<mlp_params> _mlp_params;
+    scale_zp_mems _scale_zp;
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))

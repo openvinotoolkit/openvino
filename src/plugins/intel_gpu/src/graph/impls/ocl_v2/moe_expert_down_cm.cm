@@ -51,10 +51,14 @@ constexpr int BLOCK_SIZE = QK / 2;
 constexpr int SCALE_SIZE = sizeof(fp16);
 #define NUM_EXPERTS             8
 
-inline auto load_qblocks(const uint8_t* weight, const uint8_t* scale)
+inline auto load_qblocks(const uint8_t* weight, const uint8_t* scale, const uint8_t* zero_point, uint32_t zp_offset)
 {
     vector<uint8_t, BLOCK_SIZE* SBS> ybytes;   //128bytes
     ybytes.format<int>() = LSC_LOAD_0(int, (BLOCK_SIZE * SBS / 4))((int*)weight, 0);
+
+    vector<uint8_t, 4> zero_points;              //TODO size: SBS/2 = 1
+    zero_points.format<int>() = LSC_LOAD_0(int, 1)((int*)zero_point, zp_offset - (zp_offset % 4));
+    zero_points[0] = zero_points[zp_offset % 4];
 
     vector<fp16, SBS> scales; 
     scales.format<int>() = LSC_LOAD_0(int, (SBS / 2))((int*)scale, 0); //4 bytes 2x scale
@@ -64,21 +68,25 @@ inline auto load_qblocks(const uint8_t* weight, const uint8_t* scale)
     vector<fp16, QK* SBS> yvs;
 #pragma unroll
     for (int i = 0; i < SBS; ++i) {
+        int8_t zp = ((i % 2 == 0) ? (int8_t)(zero_points[i / 2] & (uint8_t)0xF) : (int8_t)(zero_points[i / 2] >> (uint8_t)4));
         vector<uint8_t, QK> uyv;
         // uyv.select<QK / 2, 1>(0) = ybytes.template select<QK / 2, 1>(i * QK / 2) & (uint8_t)0xF;
         // uyv.select<QK / 2, 1>(QK / 2) = ybytes.template select<QK / 2, 1>(i * QK / 2) >> (uint8_t)4;
         uyv.select<QK / 2, 2>(0) = ybytes.template select<QK / 2, 1>(i * QK / 2) & (uint8_t)0xF; // compatible
         uyv.select<QK / 2, 2>(1) = ybytes.template select<QK / 2, 1>(i * QK / 2) >> (uint8_t)4; // compatible
-        yvs.template select<QK, 1>(i * QK) = (uyv.format<int8_t>() - (int8_t)8) * scales[i];
+        yvs.template select<QK, 1>(i * QK) = (uyv.format<int8_t>() - (int8_t)zp) * scales[i];
     }
     return yvs;
 }
 
-inline auto load_qblock(const uint8_t* weight, const uint8_t* scale) {
+// C++ doesn't support function template partial specialization, so write a new version for SBS=1
+inline auto load_qblock(const uint8_t* weight, const uint8_t* scale, const uint8_t* zero_point, bool is_even) {
     vector<uint8_t, BLOCK_SIZE> ybytes;
     ybytes.format<int>() = LSC_LOAD_0(int, (BLOCK_SIZE / 4))((int*)weight, 0); //read 64 bytes
-    fp16 scales = *(const fp16*)scale;      // 1x scale
+    fp16 scales = *(const fp16*)scale;      // 1x scale   TODO pointer access
+    uint8_t zero_points = *(const uint8_t*)zero_point;
 
+    int8_t zp = ((is_even) ? (int8_t)(zero_points & (uint8_t)0xF) : (int8_t)(zero_points >> (uint8_t)4));
     vector<uint8_t, QK> uyv;
     // uyv.select<QK / 2, 1>(0) = ybytes & (uint8_t)0xF;
     // uyv.select<QK / 2, 1>(QK / 2) = ybytes >> (uint8_t)4;
@@ -88,6 +96,7 @@ inline auto load_qblock(const uint8_t* weight, const uint8_t* scale) {
 
     return yv;
 }
+
 template <typename IT, const int VS, const int GS, const int ES>
 void moe_forward_down_kernel(
     BUFFERINDEX(input),
@@ -95,6 +104,7 @@ void moe_forward_down_kernel(
     BUFFERINDEX(eweights),
     BUFFERINDEX(down_addrs),
     BUFFERINDEX(down_scales_addrs),
+    BUFFERINDEX(down_zp_addrs),
     BUFFERINDEX(output),
     const int num_experts,
     const int state_size,
@@ -129,12 +139,16 @@ void moe_forward_down_kernel(
 
     vector<int, 16> gpu_down_scales_addr = LSC_LOAD_0(int, 16)(down_scales_addrs, g_offset * 64);
     const uint8_t* scales = (const uint8_t*)gpu_down_scales_addr.format<unsigned long long>()[l_offset];
+  
+    vector<int, 16> gpu_down_zp_addr = LSC_LOAD_0(int, 16)(down_zp_addrs, g_offset * 64);
+    const uint8_t* zp1 = (const uint8_t*)gpu_down_zp_addr.format<unsigned long long>()[l_offset];
 
 
     int input_base_offset = eid * state_size * sizeof(IT);
 
     const uint8_t* weight_base = weight + nb * BLOCK_SIZE * vid;
     const uint8_t* scale_base = scales + nb * SCALE_SIZE * vid;
+    const uint8_t* zp1_base = zp1 + nb / 2 * vid;
 
     vector<IT, VS* ES> accvs{};
 
@@ -147,7 +161,8 @@ void moe_forward_down_kernel(
         for (int v = 0; v < VS; ++v) {
             vector<fp16, SBS* QK> yvs = load_qblocks(
                 weight_base + v * nb * BLOCK_SIZE + s * SBS * BLOCK_SIZE,
-                scale_base + v * nb * SCALE_SIZE + s * SBS * SCALE_SIZE
+                scale_base + v * nb * SCALE_SIZE + s * SBS * SCALE_SIZE,
+                zp1_base, v * nb / 2 + s * SBS / 2
             );
 
 #pragma unroll
@@ -167,8 +182,8 @@ void moe_forward_down_kernel(
         for (int v = 0; v < VS; ++v) {
             vector<fp16, QK> yv = load_qblock(
                 weight_base + v * nb * BLOCK_SIZE + b * BLOCK_SIZE,
-                scale_base + v * nb * SCALE_SIZE + b * SCALE_SIZE
-            );
+                scale_base + v * nb * SCALE_SIZE + b * SCALE_SIZE,
+                zp1_base + v * nb / 2 + b / 2,(b % 2 == 0));
 
 #pragma unroll
             for (int i = 0; i < QK; i += ES) {
@@ -209,6 +224,7 @@ _GENX_MAIN_ void KERNEL_NAME(
     BUFFERINDEX(eweights),          // shape: f16[8]
     BUFFERINDEX(down_addrs),        // shape: u64[128]
     BUFFERINDEX(down_scales_addrs), // shape: u64[128]
+    BUFFERINDEX(down_zp_addrs),
     BUFFERINDEX(output)) {          // shape: f16[8, 2048]
     const int VS = 4;
     const int GS = 4;
@@ -220,6 +236,7 @@ _GENX_MAIN_ void KERNEL_NAME(
         eweights,               // shape: f16[8]
         down_addrs,             // shape: u64[128]
         down_scales_addrs,      // shape: u64[128]
+        down_zp_addrs,
         output,                 // shape: f16[8, 2048]
         EXPERT_NUM,
         INTERMEDIATE_SIZE,      // const: 768

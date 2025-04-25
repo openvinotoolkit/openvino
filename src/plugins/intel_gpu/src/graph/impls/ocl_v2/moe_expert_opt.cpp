@@ -820,14 +820,41 @@ public:
             // const int output_size);   // 768
             // sycl::range<2> global_size(num_experts, output_size / VS * GS);
             // sycl::range<2> local_size(1, GS);
-            execute_stage({},
-                        instance,
-                        *cm_mlp_up,
-                        {hidden_states_mem_ptr, batch_mem_ptr, scratch.gate_addrs, scratch.up_addrs,
-                            scratch.gate_scales_addrs, scratch.up_scales_addrs},
-                        {scratch.up},
-                        {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size / 2 * 4)},
-                        {1, 4});
+            auto& cur_net = instance.get_network();
+            auto& stream = cur_net.get_stream();
+            int mask = 0;
+            auto p = std::getenv("CM_MASK");
+            if (p) {
+                mask = std::atoi(p);
+            }
+            const auto& scale_zps = moe->_scale_zp;
+
+            bool up_use_cl = !(mask & 1);
+            bool down_use_cl = !(mask & 2);
+            if (up_use_cl) {
+                execute_stage({},
+                              instance,
+                              *mlp_gate_up,
+                              {batch_mem_ptr, hidden_states_mem_ptr},
+                              {scratch.up},
+                              {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
+                              {1, subgroup_size, SUBGROUP_NUM});
+            } else {
+                execute_stage({},
+                              instance,
+                              *cm_mlp_up,
+                              {hidden_states_mem_ptr,
+                               batch_mem_ptr,
+                               scale_zps.gate_addrs,
+                               scale_zps.up_addrs,
+                               scale_zps.gate_scales_addrs,
+                               scale_zps.up_scales_addrs,
+                               scale_zps.gate_zp_addrs,
+                               scale_zps.up_zp_addrs},
+                              {scratch.up},
+                              {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size / 2 * 4)},
+                              {1, 4});
+            }
             // scratch.y = down(scratch.up) * weight[expert_no]
             //     BUFFERINDEX(input),                  // shape: f16[8, 1, 768]
             //     BUFFERINDEX(indexs),                 // shape: i64[8]   ??? i32
@@ -840,13 +867,23 @@ public:
             //     const int output_size                // const: 2048
             // sycl::range<2> global_size(num_experts, output_size / VS * GS);
             // sycl::range<2> local_size(1, GS);
-            execute_stage({},
-                        instance,
-                        *cm_mlp_down,
-                        {scratch.up, batch_mem_ptr, routing_mem_ptr, scratch.down_addrs, scratch.down_scales_addrs},
-                        {scratch.y},
-                        {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size / 4 * 4)},
-                        {1, 4});
+            if (down_use_cl) {
+                execute_stage({},
+                              instance,
+                              *mlp_down,
+                              {batch_mem_ptr, scratch.up, routing_mem_ptr},
+                              {scratch.y},
+                              {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
+                              {1, subgroup_size, SUBGROUP_NUM});
+            } else {
+                execute_stage({},
+                              instance,
+                              *cm_mlp_down,
+                              {scratch.up, batch_mem_ptr, routing_mem_ptr, scale_zps.down_addrs, scale_zps.down_scales_addrs, scale_zps.down_zp_addrs},
+                              {scratch.y},
+                              {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size / 4 * 4)},
+                              {1, 4});
+            }
             // global: [1, HIDDEN_SIZE/SUBGROUP_SIZE], local: [1, SUBGROUP_NUM]
             ret = execute_stage({},
                                 instance,
