@@ -160,14 +160,13 @@ void AsyncInferQueue::start_async_impl(const int handle,
                                        Napi::Object infer_data,
                                        Napi::Object user_data) {
     m_user_ids[handle] = std::make_pair(Napi::Persistent(user_data), deferred);
+    m_user_inputs[handle] = Napi::Persistent(infer_data);  // keep reference to inputs so they are not garbage collected
 
-    // TODO use parse_input_data(info[0].As<Napi::Value>());
+    // CVS-166764
     const auto& keys = infer_data.GetPropertyNames();
     for (uint32_t i = 0; i < keys.Length(); ++i) {
         auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
         auto value = infer_data.Get(input_name);
-        m_user_inputs[handle] = Napi::Persistent(
-            value.ToObject());  // keep reference to inputs so they are not garbage collected on js side
         auto tensor = value_to_tensor(value, m_requests[handle], input_name);
 
         m_requests[handle].set_tensor(input_name, tensor);

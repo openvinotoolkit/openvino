@@ -54,8 +54,7 @@ describe('Tests for AsyncInferQueue.', () => {
         console.error(`Job ${jobId} failed: ${err}`);
       } else {
         jobsDone[jobId].finished = true;
-        const result = request.getOutputTensor().data;
-        console.log(Array.from(result).slice(0, 3), jobId);
+        assert.ok(request instanceof ov.InferRequest);
       }
     }
 
@@ -80,7 +79,6 @@ describe('Tests for AsyncInferQueue.', () => {
       if (err) {
         console.error(`Job ${jobId} failed: ${err}`);
       } else {
-        console.log(`Job ${jobId} finished`);
         jobsDone[jobId].finished = true;
         const inferenceResult = request.getOutputTensor().data;
         // TODO add test for catching errors from callback
