@@ -822,7 +822,7 @@ public:
             // sycl::range<2> local_size(1, GS);
             auto& cur_net = instance.get_network();
             auto& stream = cur_net.get_stream();
-            int mask = 0;
+            int mask = 1;
             auto p = std::getenv("CM_MASK");
             if (p) {
                 mask = std::atoi(p);
