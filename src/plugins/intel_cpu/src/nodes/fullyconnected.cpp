@@ -606,16 +606,14 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         tp_cfg.cached_dst = split_horizontal(dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
         if (auto it = memory.find(ARG_DST | ARG_ATTR_SCALES); it != memory.end()) {
-            memory[ARG_DST | ARG_ATTR_SCALES] =
-                split_horizontal(it->second, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            memory[ARG_DST | ARG_ATTR_SCALES] = split_horizontal(it->second, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
         if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
             auto scale_mem = std::const_pointer_cast<IMemory>(it->second);
-            memory[ARG_WEI | ARG_ATTR_SCALES] =
-                attrs.weightsNonTransposed
-                    ? split_vertical(scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            memory[ARG_WEI | ARG_ATTR_SCALES] = attrs.weightsNonTransposed
+                                                    ? split_vertical(scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                                                    : split_horizontal(scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
         }
 
         if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {

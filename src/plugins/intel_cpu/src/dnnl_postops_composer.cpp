@@ -704,9 +704,7 @@ void DnnlPostOpsComposer::appendZeroPointsLegacy(const MemoryArgs& memory) {
     }
 }
 
-static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
-                                            bool needTranspose,
-                                            ov::element::Type dstPrc) {
+static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr, bool needTranspose, ov::element::Type dstPrc) {
     auto shape = paramsPtr->getShape().getStaticDims();
     if (shape.size() == 1 && shape[0] == 1) {
         shape.push_back(1);
