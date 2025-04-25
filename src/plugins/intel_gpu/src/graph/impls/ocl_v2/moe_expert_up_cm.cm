@@ -16,24 +16,6 @@
 
 namespace KERNEL_NAME {
 
-/*******************************************************************************
- * Copyright (c) 2022-2025 Intel Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *******************************************************************************/
-
-namespace KERNEL_NAME {
-
 #define GEN_KERNEL
 
 #undef CM_DEBUG
@@ -63,20 +45,19 @@ typedef half fp16;
 #endif
 
 
-constexpr int QK = 32; // compatible
-constexpr int SBS = 8; // compatible
+constexpr int QK = 128; // compatible
+constexpr int SBS = 2; // compatible
 constexpr int BLOCK_SIZE = QK / 2;
 constexpr int SCALE_SIZE = sizeof(fp16);
 #define NUM_EXPERTS             8
-#define NUM_MOE_MLP_LAYER       128
 
 inline auto load_qblocks(const uint8_t* weight, const uint8_t* scale)
 {
-    vector<uint8_t, BLOCK_SIZE* SBS> ybytes;
+    vector<uint8_t, BLOCK_SIZE* SBS> ybytes;   //128bytes
     ybytes.format<int>() = LSC_LOAD_0(int, (BLOCK_SIZE * SBS / 4))((int*)weight, 0);
 
-    vector<fp16, SBS> scales;
-    scales.format<int>() = LSC_LOAD_0(int, (SBS / 2))((int*)scale, 0);
+    vector<fp16, SBS> scales; 
+    scales.format<int>() = LSC_LOAD_0(int, (SBS / 2))((int*)scale, 0); //4 bytes 2x scale
     //vector<fp16, SBS> scales = LSC_LOAD(fp16, SBS, Cached, Cached)((fp16*)scale, 0);  compiler error
 
 
@@ -95,8 +76,8 @@ inline auto load_qblocks(const uint8_t* weight, const uint8_t* scale)
 
 inline auto load_qblock(const uint8_t* weight, const uint8_t* scale) {
     vector<uint8_t, BLOCK_SIZE> ybytes;
-    ybytes.format<int>() = LSC_LOAD_0(int, (BLOCK_SIZE / 4))((int*)weight, 0);
-    fp16 scales = *(const fp16*)scale;
+    ybytes.format<int>() = LSC_LOAD_0(int, (BLOCK_SIZE / 4))((int*)weight, 0); //read 64 bytes
+    fp16 scales = *(const fp16*)scale;      // 1x scale
 
     vector<uint8_t, QK> uyv;
     // uyv.select<QK / 2, 1>(0) = ybytes & (uint8_t)0xF;
@@ -122,6 +103,9 @@ void moe_forward_up_kernel(
     const int output_size,
     uint slmX
 ) {
+    //cm_slm_init(2 * GS * VS * sizeof(float));
+    //uint slmX = cm_slm_alloc(2 * GS * VS * sizeof(float));
+
     const int nb = state_size / QK;
     const int nsb = nb / SBS;
 
@@ -129,13 +113,11 @@ void moe_forward_up_kernel(
     const int tid = cm_local_id(1);
     const int vid = cm_group_id(1) * VS;
 
-    // get correct expert
-    //const uint8_t* weight1 = (const uint8_t*)(gate_addrs[indexs[eid]]);
-    //const uint8_t* weight2 = (const uint8_t*)(up_addrs[indexs[eid]]);
+    //64bit index
+    //vector<int, NUM_EXPERTS*2> indexs_vec = LSC_LOAD_0(int, NUM_EXPERTS * 2)(indexs, 0);
+    //int index = indexs_vec.format<unsigned long long>()[eid];
 
-    //const uint8_t* scales1 = (const uint8_t*)(gate_scales_addrs[indexs[eid]]);
-    //const uint8_t* scales2 = (const uint8_t*)(up_scales_addrs[indexs[eid]]);
-
+    //32bit index
     vector<int, NUM_EXPERTS> indexs_vec = LSC_LOAD_0(int, NUM_EXPERTS)(indexs, 0);
     int index = indexs_vec[eid];
 
@@ -163,7 +145,7 @@ void moe_forward_up_kernel(
     vector<IT, VS* ES> accvs2{};
 
     for (int s = tid; s < nsb; s += GS) {
-        vector<IT, SBS* QK> xvs;
+        vector<IT, SBS* QK> xvs;   //512 bytes
         xvs.format<int>().select<64, 1>(0) = LSC_LOAD_0(int, (SBS * QK / 4))((int*)input, s * SBS * QK * sizeof(IT));
         xvs.format<int>().select<64, 1>(64) = LSC_LOAD_0(int, (SBS * QK / 4))((int*)input, s * SBS * QK * sizeof(IT) + 256);
 
@@ -195,7 +177,7 @@ void moe_forward_up_kernel(
     }
 
     for (int b = nsb * SBS + tid; b < nb; b += GS) {
-        vector<IT, QK> xv;
+        vector<IT, QK> xv;  //256 bytes
         xv.format<int>() = LSC_LOAD_0(int, (QK / 2))((int*)input, b * QK * sizeof(IT));
 
 #pragma unroll
@@ -262,32 +244,29 @@ void moe_forward_up_kernel(
 }
 
 _GENX_MAIN_ void KERNEL_NAME(
-    BUFFERINDEX(input), 			// shape: f16[1, 2048]
-    BUFFERINDEX(indexs),			// shape: u64[8] ??? i32
-    BUFFERINDEX(gate_addrs),		// shape: u64[128]
-    BUFFERINDEX(up_addrs),			// shape: u64[128]
-    BUFFERINDEX(gate_scales_addrs),	// shape: f16[768, 2048/32=64] 
-    BUFFERINDEX(up_scales_addrs),	// shape: f16[768, 2048/32=64]
-    BUFFERINDEX(output)) {			// shape: f16[8, 1, 768]
-    //const int num_experts,
-    //const int state_size,     // 2048
-    //const int output_size) {  // 768
+    BUFFERINDEX(input),                 // shape: f16[1, 2048]
+    BUFFERINDEX(indexs),                // shape: i32[8]
+    BUFFERINDEX(gate_addrs),            // shape: u64[128]
+    BUFFERINDEX(up_addrs),              // shape: u64[128]
+    BUFFERINDEX(gate_scales_addrs),     // shape: f16[768, 2048/32=64] 
+    BUFFERINDEX(up_scales_addrs),       // shape: f16[768, 2048/32=64]
+    BUFFERINDEX(output)) {              // shape: f16[8, 1, 768]
     const int VS = 2;
     const int GS = 4;
     cm_slm_init(2 * GS * VS * sizeof(float));
     uint slmX = cm_slm_alloc(2 * GS * VS * sizeof(float));
 
     moe_forward_up_kernel<fp16, 2U, 4U, 32U>(
-        input, 			// shape: f16[1, 2048]
-        indexs,			// shape: u64[8] ??? i32
-        gate_addrs,		// shape: u64[128]
-        up_addrs,			// shape: u64[128]
-        gate_scales_addrs,	// shape: f16[768, 2048/32=64] 
-        up_scales_addrs,	// shape: f16[768, 2048/32=64]
-        output,			// shape: f16[8, 1, 768]
+        input,                 // shape: f16[1, 2048]
+        indexs,                // shape: i32[8]
+        gate_addrs,            // shape: u64[128]
+        up_addrs,              // shape: u64[128]
+        gate_scales_addrs,     // shape: f16[768, 2048/32=64] 
+        up_scales_addrs,       // shape: f16[768, 2048/32=64]
+        output,                // shape: f16[8, 1, 768]
         EXPERT_NUM,
-        HIDDEN_SIZE,     // 2048
-        INTERMEDIATE_SIZE,   // 768
+        HIDDEN_SIZE,           // 2048
+        INTERMEDIATE_SIZE,     // 768
         slmX);
 }
 
@@ -295,5 +274,4 @@ _GENX_MAIN_ void KERNEL_NAME(
 EXPORT_SIGNATURE(sgemm_kernel);
 #endif  //  CMRT_EMU
 
-}
 }
