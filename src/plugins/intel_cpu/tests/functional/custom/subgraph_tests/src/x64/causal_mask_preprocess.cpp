@@ -3,8 +3,8 @@
 //
 
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include <string>
 #include <tuple>
 
@@ -14,6 +14,24 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "transformations/utils/gen_pattern.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::gen_pattern;
@@ -144,7 +162,7 @@ static std::shared_ptr<ov::Model> buildCausalMaskPreprocess(const int max_seq_le
                                                    {{"batch_dims", 0}});  //  tensor_array<f32[?,1,?,..8192]>
     auto result = index_Gather;
 
-    return std::make_shared<ov::Model>(ov::NodeVector{result},
+    return std::make_shared<ov::Model>(ov::OutputVector{result},
                                        ov::ParameterVector{attention_mask, batch_size, cache_positions, kvLen});
 }
 

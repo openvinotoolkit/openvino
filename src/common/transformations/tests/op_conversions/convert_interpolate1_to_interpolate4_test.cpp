@@ -12,8 +12,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -36,7 +37,7 @@ TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4) {
 
         auto interpolate1 = std::make_shared<opset1::Interpolate>(data_node, out_shape_node, interpolate1_attr);
 
-        model = std::make_shared<Model>(NodeVector{interpolate1}, ParameterVector{data_node});
+        model = std::make_shared<Model>(OutputVector{interpolate1}, ParameterVector{data_node});
 
         manager.register_pass<ov::pass::ConvertInterpolate1ToInterpolate4>();
     }
@@ -64,7 +65,7 @@ TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4) {
                                                                   axes_node,
                                                                   interpolate4_attr);
 
-        model_ref = std::make_shared<Model>(NodeVector{interpolate4}, ParameterVector{data_node});
+        model_ref = std::make_shared<Model>(OutputVector{interpolate4}, ParameterVector{data_node});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -84,7 +85,7 @@ TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4_1) {
 
         auto interpolate1 = std::make_shared<opset1::Interpolate>(data_node, out_shape_node, interpolate1_attr);
 
-        model = std::make_shared<Model>(NodeVector{interpolate1}, ParameterVector{data_node});
+        model = std::make_shared<Model>(OutputVector{interpolate1}, ParameterVector{data_node});
 
         manager.register_pass<ov::pass::ConvertInterpolate1ToInterpolate4>();
     }
@@ -111,7 +112,7 @@ TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4_1) {
                                                                   axes_node,
                                                                   interpolate4_attr);
 
-        model_ref = std::make_shared<Model>(NodeVector{interpolate4}, ParameterVector{data_node});
+        model_ref = std::make_shared<Model>(OutputVector{interpolate4}, ParameterVector{data_node});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
@@ -129,7 +130,7 @@ TEST(TransformationTests, DynamiShapeInterpolate1To4) {
     interpolate1_attr.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     auto interpolate1 = std::make_shared<opset1::Interpolate>(data_node, out_shape_node, interpolate1_attr);
-    auto f = std::make_shared<Model>(NodeVector{interpolate1}, ParameterVector{data_node, out_shape_node});
+    auto f = std::make_shared<Model>(OutputVector{interpolate1}, ParameterVector{data_node, out_shape_node});
 
     auto manager = ov::pass::Manager();
     manager.register_pass<ov::pass::InitNodeInfo>();

@@ -151,6 +151,7 @@ OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_linspace);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_list_unpack);
+OP_CONVERTER(translate_logaddexp);
 OP_CONVERTER(translate_log1p);
 OP_CONVERTER(translate_log_sigmoid);
 OP_CONVERTER(translate_log_softmax);
@@ -547,6 +548,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::imag", common_translators::translate_imag},
         // aten::index - Supported in limited set of patterns
         {"aten::index_copy_", op::inplace_op<op::translate_index_copy_>},
+        {"aten::index_copy", op::translate_index_copy_},
         {"aten::index_fill_", op::inplace_op<op::translate_index_fill_>},
         {"aten::index_put", op::translate_index_put},
         {"aten::index_add", op::translate_index_add},
@@ -580,6 +582,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::linspace", op::translate_linspace},
         {"aten::log", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Log>, 1>},
         {"aten::log_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Log>>},
+        {"aten::logaddexp", op::translate_logaddexp},
         {"aten::logical_and", op::translate_and},
         {"aten::logical_or", op::translate_or},
         {"aten::logical_not", op::translate_not},
@@ -937,6 +940,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.index.Tensor", op::translate_index_fx},
         {"aten._unsafe_index.Tensor", op::translate_index_fx},
         {"aten.index_select.default", op::translate_index_select},
+        {"aten.index_copy.default", op::translate_index_copy_},
         {"aten.isfinite.default", op::translate_1to1_match_1_inputs<opset10::IsFinite>},
         {"aten.isinf.default", op::translate_1to1_match_1_inputs<opset10::IsInf>},
         {"aten.isnan.default", op::translate_1to1_match_1_inputs<opset10::IsNaN>},

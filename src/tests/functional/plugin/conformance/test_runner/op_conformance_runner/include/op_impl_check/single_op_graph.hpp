@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include "openvino/core/model.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/opsets/opset.hpp"
+
 namespace ov {
 namespace test {
 namespace op_conformance {
