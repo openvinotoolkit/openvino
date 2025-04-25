@@ -440,9 +440,6 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          deconv.get_output_layout().get_tensor(),
                                                                          desc->grouped_weights_shape);
 
-            deconv_with_bias_prim->pads_begin = desc->pads_begin;
-            deconv_with_bias_prim->pads_end = desc->pads_end;
-            deconv_with_bias_prim->out_padding = desc->out_padding;
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
             fuse_bias_f(deconv, new_deconv_node, bias_node, eltw_node);
         } else if (replace_candidate.is_type<fully_connected>()) {
