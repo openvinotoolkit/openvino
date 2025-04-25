@@ -147,9 +147,7 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
             return false;
         }
 
-        OutputVector args = {q_reshape->input_value(0),
-                             k_reshape->input_value(0),
-                             v_reshape->input_value(0)};
+        OutputVector args = {q_reshape->input_value(0), k_reshape->input_value(0), v_reshape->input_value(0)};
 
         // Config
         intel_cpu::SDPAWithTransposeReshape::Config config;
