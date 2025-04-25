@@ -109,6 +109,12 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
+RUN python3.9 -m pip install --upgrade pip setuptools wheel && \
+    python3.10 -m pip install --upgrade pip setuptools wheel && \
+    python3.11 -m pip install --upgrade pip setuptools wheel && \
+    python3.12 -m pip install --upgrade pip setuptools wheel && \
+    python3.13 -m pip install --upgrade pip setuptools wheel
+
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
 # Install Node
