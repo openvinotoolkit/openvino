@@ -74,8 +74,7 @@ void GetGRUActivationParams(const std::shared_ptr<T>& op,
     activation_params = {};
     auto op_activations = op->get_activations();
     if (!op_activations.empty()) {
-        if (op_activations.size() != 2)
-            OPENVINO_THROW("Wrong number of activations for GRUSeq op ", op->get_friendly_name());
+        OPENVINO_ASSERT(op_activations.size() == 2, "Wrong number of activations for GRUSeq op ", op->get_friendly_name());
         for (int i = 0; i < 2; i++) {
             auto af = GetActivationFunc(op_activations[i]);
             if (af == cldnn::activation_func::none)
