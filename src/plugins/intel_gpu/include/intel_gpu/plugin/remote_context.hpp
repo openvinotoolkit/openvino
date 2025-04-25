@@ -35,12 +35,16 @@ public:
     ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
     ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) override;
 
-    cldnn::engine& get_engine() { return *m_engine; }
-    const cldnn::engine& get_engine() const { return *m_engine; }
+    cldnn::engine& get_engine();
+    const cldnn::engine& get_engine() const;
+    const cldnn::device& get_device() { return *m_device; }
     ov::intel_gpu::gpu_handle_param get_external_queue() const { return m_external_queue; }
 
     cldnn::memory::ptr try_get_cached_memory(size_t hash);
     void add_to_cache(size_t hash, cldnn::memory::ptr memory);
+
+    void initialize();
+    bool is_initialized() const { return m_is_initialized; }
 
 private:
     std::shared_ptr<RemoteContextImpl> get_this_shared_ptr();
@@ -54,6 +58,7 @@ private:
 
     void init_properties();
 
+    std::shared_ptr<cldnn::device> m_device;
     std::shared_ptr<cldnn::engine> m_engine;
     ov::intel_gpu::gpu_handle_param m_va_display = nullptr;
     ov::intel_gpu::gpu_handle_param m_external_queue = nullptr;
@@ -63,6 +68,8 @@ private:
     static const size_t cache_capacity = 100;
     cldnn::LruCache<size_t, cldnn::memory::ptr> m_memory_cache = cldnn::LruCache<size_t, cldnn::memory::ptr>(cache_capacity);
     std::mutex m_cache_mutex;
+
+    bool m_is_initialized = false;
 
     ov::AnyMap properties;
 };
