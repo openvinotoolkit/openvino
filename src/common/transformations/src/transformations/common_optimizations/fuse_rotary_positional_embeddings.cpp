@@ -195,7 +195,7 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
 
 using symbol_variant = std::variant<float, int64_t, std::string>;
 
-static std::shared_ptr<ov::Node> NewGenConst(std::vector<symbol_variant> values) {
+static std::string ParseSymbolVariant(std::vector<symbol_variant> values) {
     std::vector<std::string> symbol_strings;
     symbol_strings.reserve(values.size());
     for (auto &value : values) {
@@ -208,7 +208,7 @@ static std::shared_ptr<ov::Node> NewGenConst(std::vector<symbol_variant> values)
         }
     }
 
-    return ov::pass::pattern::wrap_type<ov::opset1::Constant>(ov::pass::pattern::value_matches(ov::util::join(symbol_strings)));
+    return ov::util::join(symbol_strings);
 }
 
 static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
@@ -217,10 +217,10 @@ static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
                                              symbol_variant step,
                                              size_t axis) {
 
-    auto slice_start = NewGenConst({start});
-    auto slice_stop = NewGenConst({stop});
-    auto slice_step = NewGenConst({step});
-    auto slice_axis = NewGenConst({static_cast<int64_t>(axis)});
+    auto slice_start = ParseSymbolVariant({start});
+    auto slice_stop = ParseSymbolVariant({stop});
+    auto slice_step = ParseSymbolVariant({step});
+    auto slice_axis = ParseSymbolVariant({static_cast<int64_t>(axis)});
 
     auto opt1 = pattern::wrap_type<ov::opset8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
 
@@ -232,9 +232,9 @@ static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
     vend[axis] = stop;
     vstride[axis] = step;
 
-    auto begin = NewGenConst(vbegin);
-    auto end = NewGenConst(vend);
-    auto stride = NewGenConst(vstride);
+    auto begin = ParseSymbolVariant(vbegin);
+    auto end = ParseSymbolVariant(vend);
+    auto stride = ParseSymbolVariant(vstride);
 
     std::vector<int64_t> begin_mask(axis + 1, 1);
     std::vector<int64_t> end_mask(axis + 1, 1);
