@@ -767,7 +767,7 @@ TEST_P(ov_core_test_gpu, ov_core_set_get_property_gpu) {
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
-    const char* key_config = "ov_property_key_intel_gpu_config_file";
+    const char* key_config = ov_property_key_intel_gpu_config_file;
 
     OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_config, TEST_CUSTOM_OP_CONFIG_PATH));
 
