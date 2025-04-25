@@ -259,11 +259,21 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
             }
         }
 
+        auto attention_mask_it = pattern_map.find(attention_mask);
+        auto batch_size_it = pattern_map.find(batch_size);
+        auto cache_positions_it = pattern_map.find(cache_positions);
+        auto kvLen_it = pattern_map.find(kvLen);
+
+        if (attention_mask_it == pattern_map.end() || batch_size_it == pattern_map.end() ||
+            cache_positions_it == pattern_map.end() || kvLen_it == pattern_map.end()) {
+            return false;
+        }
+
         ov::OutputVector inputs{
-            pattern_map.find(attention_mask)->second,
-            pattern_map.find(batch_size)->second,
-            pattern_map.find(cache_positions)->second,
-            pattern_map.find(kvLen)->second,
+            attention_mask_it->second,
+            batch_size_it->second,
+            cache_positions_it->second,
+            kvLen_it->second,
         };
         auto replacement = std::make_shared<ov::intel_cpu::CausalMaskPreprocessNode>(inputs, config);
         ov::replace_node(root, replacement);
