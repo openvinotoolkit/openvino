@@ -203,13 +203,13 @@ jobs:
       - name: Ctest - OpenVINO unit tests
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+          set path=%path%;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
           ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${{ env.BUILD_DIR }} -V -L UNIT
 
       - name: Perform code tracing via ITT collector
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+          set path=%path%;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
 
           python3 ${{ env.OPENVINO_REPO }}\thirdparty\itt_collector\runtool\sea_runtool.py ^
           --bindir ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }} ^
@@ -255,7 +255,7 @@ jobs:
           Compress-Archive @compress
 
           $compress = @{
-            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary", "${{ env.INSTALL_DIR }}/runtime/3rdparty/tbb"
+            Path = "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/ov_cpu_func_tests.exe", "${{ env.OPENVINO_REPO }}/bin/intel64/${{ env.CMAKE_BUILD_TYPE }}/openvino_template_extension.dll", "${{ env.OPENVINO_REPO }}/src/tests/test_utils/functional_test_utils/layer_tests_summary"
             CompressionLevel = "Optimal"
             DestinationPath = "${{ env.BUILD_DIR }}/openvino_tests.zip"
           }
@@ -389,7 +389,7 @@ jobs:
       - name: Run with CC-ed runtime
         shell: cmd
         run: |
-          set path=%path%;${{ env.OPENVINO_REPO }}\temp\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
+          set path=%path%;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
           ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
 
   CPU_Functional_Tests:
@@ -447,7 +447,7 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         shell: cmd
         run: |
-          set path=%path%;${{ env.INSTALL_TEST_DIR }}\tbb\bin;${{ env.INSTALL_TEST_DIR }}\tbb;${{ env.INSTALL_TEST_DIR }}
+          set path=%path%;${{ env.INSTALL_TEST_DIR }}
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
         timeout-minutes: 60
 

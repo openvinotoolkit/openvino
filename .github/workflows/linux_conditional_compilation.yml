@@ -213,13 +213,10 @@ jobs:
             tar -cvf - install_dependencies/install_openvino_dependencies.sh | pigz > ${BUILD_DIR}/openvino_package.tar.gz
           popd
 
-          cp -v ${OPENVINO_REPO}/temp/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
           pushd ${INSTALL_TEST_DIR}
             tar -cvf - \
               tests/ov_cpu_func_tests \
               tests/libopenvino_template_extension.so \
-              tests/libhwloc* \
-              tests/libtbb* \
               tests/functional_test_utils/layer_tests_summary/* \
               | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
           popd
