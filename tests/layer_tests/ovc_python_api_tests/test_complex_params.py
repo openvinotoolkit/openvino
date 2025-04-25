@@ -6,9 +6,9 @@ import tempfile
 import unittest
 
 import numpy as np
-import openvino.runtime as ov
+import openvino as ov
 import pytest
-from openvino.runtime import PartialShape, Type, Dimension
+from openvino import PartialShape, Type, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.utils.tf_utils import save_to_pb
@@ -140,8 +140,8 @@ class TestComplexParams(CommonMOConvertTest):
 
     @staticmethod
     def create_ref_graph_with_comma_in_names():
-        from openvino.runtime.opset12 import relu, concat
-        from openvino.runtime.op import Parameter
+        from openvino.opset12 import relu, concat
+        from openvino.op import Parameter
         import openvino as ov
 
         parameter1 = Parameter(ov.Type.f32, ov.Shape([1, 3, 2, 2]))
