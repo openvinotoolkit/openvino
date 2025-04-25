@@ -1074,6 +1074,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.view_as_complex.default", op::translate_view_as_complex},
         {"aten.view_as_real.default", op::translate_view_as_real},
         {"aten.where.self", op::translate_where},
+        {"aten.zero.default", op::translate_zeros_like_fx},
         {"aten.zeros.default", op::translate_zeros_fx},
         {"aten.zeros.names", op::translate_zeros_fx},
         {"aten.zeros_like.default", op::translate_zeros_like_fx},
