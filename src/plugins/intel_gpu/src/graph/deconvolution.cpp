@@ -64,12 +64,12 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
                                        0,
                                        "User-defined size of output layout must be positive (>= 1)");
 
-        tensor output_size(input_layout.batch(),
-                           number_of_features,
-                           desc->output_size.spatial[0],
-                           desc->output_size.spatial[1],
-                           desc->output_size.spatial[2]);
-        return {data_type, out_fmt, output_size};
+        ov::PartialShape output_shape({input_layout.batch(),
+                                       number_of_features,
+                                       desc->output_size.spatial[0],
+                                       desc->output_size.spatial[1],
+                                       desc->output_size.spatial[2]});
+        return {output_shape, data_type, out_fmt};
     }
 
     int32_t off_factor = -2;
@@ -94,9 +94,9 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
             off_factor * pad[pad.size() - 3] + (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2));
     }
 
-    tensor output_size(input_layout.batch(),
-                       number_of_features, x, y, z);
-    return {data_type, out_fmt, output_size};
+    ov::PartialShape  output_shape({input_layout.batch(),
+                                   number_of_features, x, y, z});
+    return {output_shape, data_type, out_fmt};
 }
 
 template<typename ShapeType>
@@ -134,7 +134,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         out_fmt = node.get_preferred_output_fmt();
     }
 
-    if (desc->with_output_size) {
+    if (!node.get_program().is_new_shape_infer() && desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
                                        "User-defined output spatial X",
                                        desc->output_size.spatial[0],
@@ -154,12 +154,12 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
                                        0,
                                        "User-defined size of output layout must be positive (>= 1)");
 
-        tensor output_size(input_layout.batch(),
-                           number_of_features,
-                           desc->output_size.spatial[0],
-                           desc->output_size.spatial[1],
-                           desc->output_size.spatial[2]);
-        return {layout{output_type, out_fmt, output_size}};
+        ov::PartialShape output_shape({input_layout.batch(),
+                                       number_of_features,
+                                       desc->output_size.spatial[0],
+                                       desc->output_size.spatial[1],
+                                       desc->output_size.spatial[2]});
+        return {layout{output_shape, output_type, out_fmt}};
     }
 
     std::vector<ShapeType> input_shapes = {
