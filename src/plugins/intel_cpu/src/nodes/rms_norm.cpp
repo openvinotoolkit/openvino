@@ -12,7 +12,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/util/common_util.hpp"
 #include "ov_ops/rms.hpp"
 #include "shape_inference/custom/rms_norm.hpp"
@@ -157,7 +156,7 @@ void RMSNorm::createPrimitive() {
 
     RMSNormKey key = {precision, data_size, scale_size, m_eps};
 
-    auto builder = [&](const RMSNormKey& key) -> std::shared_ptr<Executor> {
+    auto builder = [&]([[maybe_unused]] const RMSNormKey& key) -> std::shared_ptr<Executor> {
 #ifdef OPENVINO_ARCH_X86_64
         return std::make_shared<RMSNormExecutor>(precision, data_size, scale_size, m_eps);
 #else
@@ -173,7 +172,7 @@ void RMSNorm::createPrimitive() {
     m_executor = result.first;
 }
 
-void RMSNorm::execute(const dnnl::stream& strm) {
+void RMSNorm::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
 

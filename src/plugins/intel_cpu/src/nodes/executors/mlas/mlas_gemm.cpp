@@ -65,7 +65,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
 
 // @todo use VERIFY macro for the checks
 bool MlasGemmExecutor::supports(const FCConfig& config) {
-    if (!config.postOps.empty()) {
+    if (!config.attrs.postOps.empty()) {
         DEBUG_LOG("MlasGemmExecutor: PostOps are not supported");
         return false;
     }
@@ -94,10 +94,7 @@ bool MlasGemmExecutor::supports(const FCConfig& config) {
     return true;
 }
 
-MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
-                                   const PostOps& postOps,
-                                   const MemoryArgs& memory,
-                                   const ExecutorContext::CPtr& context)
+MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context)
     : m_attrs(attrs),
       m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),

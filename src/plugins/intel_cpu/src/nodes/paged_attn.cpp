@@ -150,14 +150,11 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
-bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode) noexcept {
+bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode, const ov::element::Type precision) noexcept {
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
-    // for x86 platform, by-channel quantization is disabled by default until further accuracy data collect
-    bool byChannel = false;
-    if (mode == Config::CacheQuantMode::BY_CHANNEL) {
-        byChannel = true;
-    } else if (mode == Config::CacheQuantMode::BY_HIDDEN) {
+    bool byChannel = precision.is_integral();
+    if (mode == Config::CacheQuantMode::BY_HIDDEN) {
         byChannel = false;
     }
 #if defined(OPENVINO_ARCH_ARM64)
@@ -172,14 +169,14 @@ void PagedAttention::createPrimitive() {
     // in one model, kvCachePrecision could not be changed so no need to care whether it may be changed.
     PagedAttentionKey key = {rtPrecision};
 
-    auto builder = [&](const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
+    auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
         // Since we are quantize only last dim it's safe to use the last dim of KV.
         auto kCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode);
+        bool byChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, kCachePrecision);
         return make_pa_executor(rtPrecision,
                                 kCachePrecision,
                                 vCachePrecision,
@@ -199,7 +196,7 @@ void PagedAttention::createPrimitive() {
     m_executor = result.first;
 }
 
-void PagedAttention::execute(const dnnl::stream& strm) {
+void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto orginInputNumber = getOriginalInputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
     std::vector<MemoryPtr> outputs(m_hasScore ? 2 : 1);

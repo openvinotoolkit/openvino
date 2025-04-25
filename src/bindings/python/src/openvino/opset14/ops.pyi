@@ -1,9 +1,6 @@
 # type: ignore
-"""
-Factory functions for ops added to openvino opset14.
-"""
-from functools import partial
 from __future__ import annotations
+from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Type
 from openvino.utils.decorators import nameable_op
@@ -13,6 +10,9 @@ from openvino.utils.types import as_nodes
 import functools
 import openvino._pyopenvino
 import typing
+"""
+Factory functions for ops added to openvino opset14.
+"""
 __all__ = ['Node', 'NodeInput', 'TensorShape', 'Type', 'as_node', 'as_nodes', 'avg_pool', 'convert_promote_types', 'inverse', 'max_pool', 'nameable_op', 'partial']
 def avg_pool(*args, **kwargs) -> openvino._pyopenvino.Node:
     """

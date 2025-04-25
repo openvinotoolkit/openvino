@@ -134,7 +134,7 @@ Memory::Memory(MemoryDescPtr desc, MemoryBlockPtr block) : m_pMemDesc(std::move(
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
     }
-    bool memAllocated = m_memBlock->getRawPtr();
+    bool memAllocated = m_memBlock->getRawPtr() != nullptr;
 
     create(m_pMemDesc, nullptr, !memAllocated);
 }
@@ -178,7 +178,10 @@ void Memory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
 void Memory::nullify() {
     void* dataPtr = getData();
     if (dataPtr != nullptr) {
-        memset(dataPtr, 0, getDesc().getCurrentMemSize());
+        size_t memSize = getDesc().getCurrentMemSize();
+        OPENVINO_ASSERT(memSize != MemoryDesc::UNDEFINED_SIZE,
+                        "Invalid memory size detected during nullify operation.");
+        memset(dataPtr, 0, memSize);
     }
 }
 
@@ -278,7 +281,7 @@ StringMemory::StringMemory(MemoryDescPtr desc, const void* data) : m_mem_desc(st
     }
 }
 
-void StringMemory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
+void StringMemory::load(const IMemory& src, [[maybe_unused]] bool ftz, [[maybe_unused]] bool bf16saturation) const {
     if (src.getDesc().getPrecision() != element::string) {
         OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
     }
@@ -367,7 +370,8 @@ void* StringMemory::StringMemoryBlock::getRawPtr() const noexcept {
     return reinterpret_cast<void*>(m_data.get());
 }
 
-StaticMemory::StaticMemory(MemoryDescPtr desc, const void* data, bool pads_zeroing) : m_pMemDesc(std::move(desc)) {
+StaticMemory::StaticMemory(MemoryDescPtr desc, const void* data, [[maybe_unused]] bool pads_zeroing)
+    : m_pMemDesc(std::move(desc)) {
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] StaticMemory object cannot be created for string data.");
     }
@@ -411,7 +415,7 @@ const VectorDims& StaticMemory::getStaticDims() const {
     return getShape().getStaticDims();
 }
 
-void StaticMemory::redefineDesc(MemoryDescPtr desc) {
+void StaticMemory::redefineDesc([[maybe_unused]] MemoryDescPtr desc) {
     OPENVINO_THROW("Unexpected: Memory descriptor may not be modified in StaticMemory object");
 }
 
@@ -445,7 +449,7 @@ void* StaticMemory::StaticMemoryBlock::getRawPtr() const noexcept {
     return memBlockImpl.getRawPtr();
 }
 
-void StaticMemory::StaticMemoryBlock::setExtBuff(void* ptr, size_t size) {
+void StaticMemory::StaticMemoryBlock::setExtBuff([[maybe_unused]] void* ptr, [[maybe_unused]] size_t size) {
     OPENVINO_THROW("Unexpected: StaticMemoryBlock may not be modified");
 }
 

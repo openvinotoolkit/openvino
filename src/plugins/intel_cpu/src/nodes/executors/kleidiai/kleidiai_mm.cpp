@@ -36,7 +36,6 @@ bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
 }
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
-                                               const PostOps& postOps,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context)
     : m_attrs(attrs),

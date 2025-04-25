@@ -98,7 +98,6 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
                                                              const std::vector<ptrdiff_t>& effective_pad_begin,
                                                              const std::vector<ptrdiff_t>& effective_pad_end,
                                                              const std::vector<ptrdiff_t>& effective_dilation,
-                                                             const std::vector<ptrdiff_t>& data_pad_end,
                                                              const dnnl::primitive_attr& attr) {
     if (alg == dnnl::algorithm::undef) {
         OPENVINO_THROW("Unsupported pooling type");
@@ -488,18 +487,17 @@ void Pooling::prepareParams() {
                                                     key.effective_pad_begin,
                                                     key.effective_pad_end,
                                                     key.effective_dilation,
-                                                    key.data_pad_end,
                                                     key.attr);
 
             auto first_desc = dnnl::pooling_forward::primitive_desc(prim_desc.get());
             const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
             if (found) {
-                return std::make_shared<DnnlExecutor>(prim_desc);
+                return std::make_shared<DnnlExecutorLegacy>(prim_desc);
             }
 
             // use the first available
-            return std::make_shared<DnnlExecutor>(first_desc);
+            return std::make_shared<DnnlExecutorLegacy>(first_desc);
         };
 
         auto cache = context->getParamsCache();
@@ -595,7 +593,6 @@ dnnl::pooling_forward::primitive_desc Pooling::createDescriptorInternal(const dn
                                   poolingAttrs.effective_pad_begin,
                                   poolingAttrs.effective_pad_end,
                                   poolingAttrs.effective_dilation,
-                                  poolingAttrs.data_pad_end,
                                   *attr);
 }
 

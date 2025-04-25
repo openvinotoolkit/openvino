@@ -207,7 +207,6 @@ MemoryPtr acl_fc_executor::prepareWeightMemory(const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context,
                                                const FCAttrs& attrs,
                                                ACLFCAttrs& aclfcAttrs,
-                                               const PostOps& postOps,
                                                arm_compute::WeightFormat& expectedWeightFormat,
                                                arm_compute::TensorInfo& weiTensorInfo) {
     MemoryArgs memoryArgs;
@@ -239,7 +238,7 @@ MemoryPtr acl_fc_executor::prepareWeightMemory(const MemoryArgs& memory,
     }
     // TODO: ACLWeightFormatGenerator should be replaced with Reorder executor
     // that calls ACL NEReorder + NETranspose or dnnl::reorder depending on backend availability
-    auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, postOps, memoryArgs);
+    auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, memoryArgs);
     bool isNeededReorder = aclWeightsRepack->update(memoryArgs);
     expectedWeightFormat =
         isNeededReorder ? aclWeightsRepack->getOptImplWeightFormat() : arm_compute::WeightFormat::UNSPECIFIED;
@@ -286,16 +285,15 @@ static void initFCAttrs(const FCAttrs& attrs,
                         ACLTensorAttrs& aclTensorAttrs,
                         ACLFCAttrs& aclfcAttrs,
                         const MemoryArgs& memory,
-                        arm_compute::FullyConnectedLayerInfo& fullyConnectedLayerInfo,
-                        const PostOps& postOps) {
+                        arm_compute::FullyConnectedLayerInfo& fullyConnectedLayerInfo) {
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
     fullyConnectedLayerInfo.weights_trained_layout = getAclDataLayoutByMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
     aclfcAttrs.inputPrecision = memory.at(ARG_SRC)->getDescPtr()->getPrecision();
     fullyConnectedLayerInfo.transpose_weights = false;
     aclfcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
-    if (checkPostOps(postOps)) {
-        auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0]);
+    if (checkPostOps(attrs.postOps)) {
+        auto activation = std::dynamic_pointer_cast<ActivationPostOp>(attrs.postOps[0]);
         fullyConnectedLayerInfo.activation_info = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
                                                                          activation->alpha(),
                                                                          activation->beta(),
@@ -333,10 +331,8 @@ ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLTen
     return neCast;
 }
 
-acl_fc_executor::ACLWeightFormatGenerator::ACLWeightFormatGenerator(const FCAttrs& attrs,
-                                                                    const PostOps& postOps,
-                                                                    const MemoryArgs& memory) {
-    initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
+acl_fc_executor::ACLWeightFormatGenerator::ACLWeightFormatGenerator(const FCAttrs& attrs, const MemoryArgs& memory) {
+    initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo);
 }
 
 void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLShapes& aclMemoryShapes) {

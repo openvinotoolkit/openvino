@@ -18,8 +18,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DnnlMemoryDesc;
 class DnnlBlockedMemoryDesc;
@@ -84,8 +83,9 @@ public:
                 return true;
             }
 
-            if (!itpd.next_impl())
+            if (!itpd.next_impl()) {
                 break;
+            }
         }
 
         return false;
@@ -100,12 +100,14 @@ public:
 
             if (comparator(descImplType)) {
                 func(itpd);
-                if (first_match)
+                if (first_match) {
                     break;
+                }
             }
 
-            if (!itpd.next_impl())
+            if (!itpd.next_impl()) {
                 break;
+            }
         }
 
         return;
@@ -129,5 +131,4 @@ public:
     static dnnl::memory createMemoryPrimitive(const IMemory& mem, const dnnl::engine& eng);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
