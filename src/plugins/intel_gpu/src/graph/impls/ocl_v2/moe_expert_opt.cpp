@@ -845,12 +845,7 @@ public:
                               *cm_mlp_up,
                               {hidden_states_mem_ptr,
                                batch_mem_ptr,
-                               scale_zps.gate_addrs,
-                               scale_zps.up_addrs,
-                               scale_zps.gate_scales_addrs,
-                               scale_zps.up_scales_addrs,
-                               scale_zps.gate_zp_addrs,
-                               scale_zps.up_zp_addrs},
+                               scale_zps.gate_up_addrs},
                               {scratch.up},
                               {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size / 2 * 4)},
                               {1, 4});

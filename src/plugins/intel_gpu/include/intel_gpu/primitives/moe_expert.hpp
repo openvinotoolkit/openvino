@@ -38,12 +38,8 @@ struct moe_expert : public primitive_base<moe_expert> {
         }
     };
     struct scale_zp_mems {
-        memory::ptr gate_addrs;
-        memory::ptr gate_scales_addrs;
-        memory::ptr gate_zp_addrs;
-        memory::ptr up_addrs;
-        memory::ptr up_scales_addrs;
-        memory::ptr up_zp_addrs;
+        // [64bytes]->gate_addrs,up_addrs, gate_scales_addrs, up_scales_addrs,gate_zp_addrs ,up_zp_addrs, padding1, padding2
+        memory::ptr gate_up_addrs;
         memory::ptr down_addrs;
         memory::ptr down_scales_addrs;
         memory::ptr down_zp_addrs;    

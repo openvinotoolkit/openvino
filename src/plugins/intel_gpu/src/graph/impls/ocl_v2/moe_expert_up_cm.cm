@@ -101,12 +101,7 @@ template <typename IT, const int VS, const int GS, const int ES>
 void moe_forward_up_kernel(
     BUFFERINDEX(input),
     BUFFERINDEX(indexs),
-    BUFFERINDEX(gate_addrs),
-    BUFFERINDEX(up_addrs),
-    BUFFERINDEX(gate_scales_addrs),
-    BUFFERINDEX(up_scales_addrs),
-    BUFFERINDEX(gate_zp_addrs),
-    BUFFERINDEX(up_zp_addrs),
+    BUFFERINDEX(gate_addrs), //[64bytes][64][64][].... .....128 groups  : [64]->  gate_addrs,up_addrs, gate_scales_addrs, up_scales_addrs,gate_zp_addrs ,up_zp_addrs, padding1, padding2
     BUFFERINDEX(output),
     const int num_experts,
     const int state_size,
@@ -131,11 +126,17 @@ void moe_forward_up_kernel(
     vector<int, NUM_EXPERTS> indexs_vec = LSC_LOAD_0(int, NUM_EXPERTS)(indexs, 0);
     int index = indexs_vec[eid];
 
-    int g_offset = index / 8;
-    int l_offset = index % 8;
-    vector<int, 16> gpu_gate_addr = LSC_LOAD_0(int, 16)(gate_addrs, g_offset * 64);     //8  * 16
-    const uint8_t* weight1 = (uint8_t*)gpu_gate_addr.format<unsigned long long>()[l_offset];
+    //int g_offset = index / 8;
+    //int l_offset = index % 8;
+    vector<int, 16> gpu_expert_addrs = LSC_LOAD_0(int, 16)(gate_addrs, index * 64);     //each expert address size 
+    const uint8_t* weight1 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[0];
+    const uint8_t* weight2 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[1];
+    const uint8_t* scales1 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[2];
+    const uint8_t* scales2 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[3];
+    const uint8_t* zp1 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[4];
+    const uint8_t* zp2 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[5];
 
+#if 0
     vector<int, 16> gpu_up_addr = LSC_LOAD_0(int, 16)(up_addrs, g_offset * 64);     //8  * 16
     const uint8_t* weight2 = (uint8_t*)gpu_up_addr.format<unsigned long long>()[l_offset];
 
@@ -150,6 +151,7 @@ void moe_forward_up_kernel(
 
     vector<int, 16> gpu_up_zp_addr = LSC_LOAD_0(int, 16)(up_zp_addrs, g_offset * 64);     //8  * 16
     const uint8_t* zp2 = (uint8_t*)gpu_up_zp_addr.format<unsigned long long>()[l_offset];
+#endif
 
     const uint8_t* weight1_base = weight1 + nb * BLOCK_SIZE * vid;
     const uint8_t* scale1_base = scales1 + nb * SCALE_SIZE * vid;
@@ -268,11 +270,6 @@ _GENX_MAIN_ void KERNEL_NAME(
     BUFFERINDEX(input),                 // shape: f16[1, 2048]
     BUFFERINDEX(indexs),                // shape: i32[8]
     BUFFERINDEX(gate_addrs),            // shape: u64[128]
-    BUFFERINDEX(up_addrs),              // shape: u64[128]
-    BUFFERINDEX(gate_scales_addrs),     // shape: f16[768, 2048/32=64] 
-    BUFFERINDEX(up_scales_addrs),       // shape: f16[768, 2048/32=64]
-    BUFFERINDEX(gate_zp_addrs),
-    BUFFERINDEX(up_zp_addrs),
     BUFFERINDEX(output)) {              // shape: f16[8, 1, 768]
     const int VS = 2;
     const int GS = 4;
@@ -283,11 +280,6 @@ _GENX_MAIN_ void KERNEL_NAME(
         input,                 // shape: f16[1, 2048]
         indexs,                // shape: i32[8]
         gate_addrs,            // shape: u64[128]
-        up_addrs,              // shape: u64[128]
-        gate_scales_addrs,     // shape: f16[768, 2048/32=64] 
-        up_scales_addrs,       // shape: f16[768, 2048/32=64]
-        gate_zp_addrs,
-        up_zp_addrs,
         output,                // shape: f16[8, 1, 768]
         EXPERT_NUM,
         HIDDEN_SIZE,           // 2048
