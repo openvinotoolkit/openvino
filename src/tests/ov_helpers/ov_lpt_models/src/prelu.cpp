@@ -5,11 +5,11 @@
 #include "ov_lpt_models/prelu.hpp"
 
 #include <memory>
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/op/prelu.hpp"
 
 namespace ov {
 namespace builder {

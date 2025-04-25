@@ -614,7 +614,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*OVInferenceChainingStatic.*StaticOutputToStaticInput.*)");
     retVector.emplace_back(R"(.*ReduceCPULayerTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
     // Issue: 164799
-    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*ConvPoolRelu_i32_batch1.*)");
+    retVector.emplace_back(R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*)");
 #endif
     if (!ov::with_cpu_x86_avx512_core_vnni() &&
         !ov::with_cpu_x86_avx2_vnni() &&

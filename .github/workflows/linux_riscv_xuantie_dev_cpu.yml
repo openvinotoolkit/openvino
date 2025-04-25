@@ -192,7 +192,7 @@ jobs:
         
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -200,7 +200,7 @@ jobs:
           
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -225,7 +225,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           pattern: openvino_[package|tests]*
           path: ${{ env.INSTALL_DIR }}
@@ -244,7 +244,7 @@ jobs:
         timeout-minutes: ${{ inputs.testFilterType == 'SMOKE' && 125 || 25}}
 
   Overall_Status:
-    name: ci/gha_overall_status_linux_riscv
+    name: ci/gha_overall_status_linux_riscv_xuantie
     needs: [Smart_CI, Build, CPU_Functional_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest

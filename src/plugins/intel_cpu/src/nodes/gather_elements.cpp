@@ -10,7 +10,7 @@
 
 #include "common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/gather_elements.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
@@ -136,7 +136,7 @@ void GatherElements::directExecution() {
     parallel_nt(0, threadBody);
 }
 
-void GatherElements::execute(const dnnl::stream& strm) {
+void GatherElements::execute([[maybe_unused]] const dnnl::stream& strm) {
     switch (dataTypeSize_) {
     case sizeof(element_type_traits<ov::element::i32>::value_type):
         return directExecution<element_type_traits<ov::element::i32>::value_type>();
