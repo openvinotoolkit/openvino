@@ -206,7 +206,7 @@ void SubgraphExecutor::segfault_detector() {
 }
 #endif
 
-std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs(const dnnl::stream& strm,
+std::vector<MemoryPtr> SubgraphExecutor::separately_repack_inputs([[maybe_unused]] const dnnl::stream& strm,
                                                                   const std::vector<MemoryPtr>& src_mem_ptrs) {
     auto reordered_in_ptrs = src_mem_ptrs;
     size_t offset = m_internal_buffer_size;

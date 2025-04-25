@@ -598,7 +598,7 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
             auto select_bias = split_horizontal(bias, 0, tp_cfg.w_rank, tp_cfg.w_size);
             tp_cfg.cached_splited_bias = std::move(select_bias);
         } else {
-            tp_cfg.cached_splited_bias = MemoryDescUtils::makeEmptyMemory(context);
+            tp_cfg.cached_splited_bias = MemoryDescUtils::makeEmptyMemory();
         }
         memory[ARG_BIAS] = tp_cfg.cached_splited_bias;
         // dst

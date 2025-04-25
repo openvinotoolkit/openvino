@@ -617,7 +617,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
 #endif
 }
 
-void DFT::executeDynamicImpl(const dnnl::stream& strm) {
+void DFT::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
     THROW_CPU_NODE_ERR("doesn't support dynamic shapes");
 }
 }  // namespace ov::intel_cpu::node

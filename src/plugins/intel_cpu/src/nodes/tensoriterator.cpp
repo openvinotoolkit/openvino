@@ -250,7 +250,7 @@ DynamicBuffer::DynamicBuffer(MemoryPtr from_, std::vector<MemoryPtr> to_, const 
       map_rule(map_rule_),
       elem_size(from->getPrecision().size()) {}
 
-void DynamicBuffer::execute(const dnnl::engine& eng, const int iter) {
+void DynamicBuffer::execute([[maybe_unused]] const dnnl::engine& eng, const int iter) {
     if (from->getStaticDims()[map_rule.axis] != static_cast<size_t>(std::abs(map_rule.stride))) {
         OPENVINO_THROW("TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. ",
                        std::abs(map_rule.stride),

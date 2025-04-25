@@ -706,8 +706,7 @@ void DnnlPostOpsComposer::appendZeroPointsLegacy(const MemoryArgs& memory) {
 
 static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
                                             bool needTranspose,
-                                            ov::element::Type dstPrc,
-                                            const dnnl::engine& engine) {
+                                            ov::element::Type dstPrc) {
     auto shape = paramsPtr->getShape().getStaticDims();
     if (shape.size() == 1 && shape[0] == 1) {
         shape.push_back(1);
@@ -777,7 +776,7 @@ void DnnlPostOpsComposer::appendDecompressionScales(const MemoryCPtr& scales_ptr
         return;
     }
 
-    auto scaleMem = prepackDecompressionParams(scales_ptr, needTranspose, dstPrecision, engine);
+    auto scaleMem = prepackDecompressionParams(scales_ptr, needTranspose, dstPrecision);
     auto groupDims = getGroupDims(weiDims, scaleMem->getStaticDims());
     auto mask = getMask(weiDims, groupDims);
 
@@ -795,7 +794,7 @@ void DnnlPostOpsComposer::appendDecompressionZeroPoints(const MemoryCPtr& zero_p
         return;
     }
 
-    auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine);
+    auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision);
     auto groupDims = getGroupDims(weiDims, zeroPointsMem->getStaticDims());
     auto mask = getMask(weiDims, groupDims);
 
@@ -812,7 +811,7 @@ void DnnlPostOpsComposer::appendDecompressionScalesLegacy(const MemoryCPtr& scal
         return;
     }
 
-    auto scalesMem = prepackDecompressionParams(scales_ptr, needTranspose, dstPrecision, engine);
+    auto scalesMem = prepackDecompressionParams(scales_ptr, needTranspose, dstPrecision);
     attr.set_scales_dims(DNNL_ARG_WEIGHTS,
                          DnnlExtensionUtils::convertToDnnlDims(scalesMem->getStaticDims()),
                          DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
@@ -828,7 +827,7 @@ void DnnlPostOpsComposer::appendDecompressionZeroPointsLegacy(const MemoryCPtr& 
         return;
     }
 
-    auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision, engine);
+    auto zeroPointsMem = prepackDecompressionParams(zero_points_ptr, needTranspose, dstPrecision);
     attr.set_zero_points_dims(DNNL_ARG_WEIGHTS,
                               DnnlExtensionUtils::convertToDnnlDims(zeroPointsMem->getStaticDims()),
                               DnnlExtensionUtils::ElementTypeToDataType(dstPrecision));
@@ -904,7 +903,7 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const ScaleShiftPostOp& postOp
     }
 
     DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {depthwiseData.size()});
-    auto memory = std::make_shared<Memory>(engine, memoryDesc);
+    auto memory = std::make_shared<Memory>(memoryDesc);
     memcpy(memory->getData(), depthwiseData.data(), depthwiseData.size() * sizeof(float));
 
     cpuArgs[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = memory;
@@ -1008,7 +1007,7 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const FakeQuantizePostOp& post
     quantizationData.insert(quantizationData.end(), outputShift.begin(), outputShift.end());
 
     DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {quantizationData.size()});
-    auto memory = std::make_shared<Memory>(engine, memoryDesc);
+    auto memory = std::make_shared<Memory>(memoryDesc);
     memcpy(memory->getData(), quantizationData.data(), quantizationData.size() * sizeof(float));
     ops.append_quantization(alg, per_channel, all_default, offsets);
 

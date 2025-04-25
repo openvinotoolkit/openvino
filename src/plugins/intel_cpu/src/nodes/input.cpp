@@ -379,7 +379,7 @@ Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 void Input::cloneBlobIfRequired() {
     const auto prec = m_constOp->get_element_type();
     if (prec == ov::element::dynamic && shape_size(m_constOp->get_shape()) == 0) {
-        memoryPtr = MemoryDescUtils::makeEmptyMemory(context);
+        memoryPtr = MemoryDescUtils::makeEmptyMemory();
         return;
     }
 

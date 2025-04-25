@@ -873,7 +873,7 @@ struct ROIAlign::ROIAlignExecute {
         ctx.node.executeSpecified<srcT, dstT>();
     }
 };
-void ROIAlign::execute(const dnnl::stream& strm) {
+void ROIAlign::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = DnnlExtensionUtils::ElementTypeToDataType(getParentEdgeAt(0)->getMemory().getPrecision());
     auto outputPrec = DnnlExtensionUtils::ElementTypeToDataType(getChildEdgeAt(0)->getMemory().getPrecision());
     if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32))) {

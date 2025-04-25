@@ -62,6 +62,11 @@ public:
         m_primArgs[DNNL_ARG_SRC].set_data_handle(memory.at(ARG_SRC)->getData());
         m_primArgs[DNNL_ARG_DST].set_data_handle(memory.at(ARG_DST)->getData());
 
+        if (m_attrs.nonConstantWeights) {
+            m_primArgs[DNNL_ARG_WEIGHTS].set_data_handle(memory.at(ARG_WEI)->getData());
+            return;
+        }
+
         m_primArgs[DNNL_ARG_SCRATCHPAD].set_data_handle(m_scratchPadMemory->getData());
 
         m_primitive->execute(m_primArgs);
@@ -135,7 +140,7 @@ private:
                              const PrimitivePtr newPrimitive,
                              const MemoryPtr& memory) {
         if (m_attrs.nonConstantWeights) {  // non constant weights are handled by the primitive
-            m_primArgs[DNNL_ARG_WEIGHTS] = memory->getPrimitive();
+            m_primArgs[DNNL_ARG_WEIGHTS] = DnnlExtensionUtils::createMemoryPrimitive(memory, m_context->getEngine());
             return;
         }
 
@@ -160,7 +165,7 @@ private:
         auto update = [&memory, this](int cpuMemoryArg, int dnnlMemoryArg) {
             if (const auto arg = memory.find(cpuMemoryArg); arg != memory.end()) {
                 const auto& memory = arg->second;
-                m_primArgs[dnnlMemoryArg] = memory->getPrimitive();
+                m_primArgs[dnnlMemoryArg] = DnnlExtensionUtils::createMemoryPrimitive(memory, m_context->getEngine());
             }
         };
 
@@ -197,8 +202,10 @@ private:
             updateSrcMemory(srcDesc, newPrimitive, memory.at(ARG_SRC));
             updateDstMemory(dstDesc, newPrimitive, memory.at(ARG_DST));
         } else {
-            m_primArgs[DNNL_ARG_SRC] = memory.at(ARG_SRC)->getPrimitive();
-            m_primArgs[DNNL_ARG_DST] = memory.at(ARG_DST)->getPrimitive();
+            m_primArgs[DNNL_ARG_SRC] =
+                DnnlExtensionUtils::createMemoryPrimitive(memory.at(ARG_SRC), m_context->getEngine());
+            m_primArgs[DNNL_ARG_DST] =
+                DnnlExtensionUtils::createMemoryPrimitive(memory.at(ARG_DST), m_context->getEngine());
         }
 
         updateWeightsMemory(weiDesc, currentPrimitive, newPrimitive, memory.at(ARG_WEI));

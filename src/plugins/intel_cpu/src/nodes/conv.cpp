@@ -584,7 +584,7 @@ void Convolution::createPrimitive() {
     }
 
     if (!m_attrs.withBias) {
-        m_memory[ARG_BIAS] = MemoryDescUtils::makeEmptyMemory(context);
+        m_memory[ARG_BIAS] = MemoryDescUtils::makeEmptyMemory();
     }
 
     if (withDWConv) {
@@ -601,7 +601,7 @@ void Convolution::createPrimitive() {
     }
 
     if (!legacyOutputCompensation.empty()) {
-        m_memory[ARG_ATTR_ZERO_POINTS | ARG_DST] = memoryViewToVector(legacyOutputCompensation;
+        m_memory[ARG_ATTR_ZERO_POINTS | ARG_DST] = memoryViewToVector(legacyOutputCompensation);
     }
 
     if (!inputZeroPoints.empty()) {
