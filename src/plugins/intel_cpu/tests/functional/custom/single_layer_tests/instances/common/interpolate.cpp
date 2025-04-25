@@ -25,44 +25,38 @@ const std::vector<ShapeParams> shapeParams4D_Pillow_Smoke_nchw_as_nhwc = {
                 InputShape{{}, {{1, 4, 4, 3}}},
                 ov::test::utils::InputLayerType::CONSTANT,
                 {{2.0f, 4.0f}},
-                defaultAxes4D_pillow_nchw_as_nhwc.front()
+                defaultAxes4D_pillow_nchw_as_nhwc
         },
         ShapeParams{
                 ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
                 InputShape{{}, {{2, 16, 16, 4}}},
                 ov::test::utils::InputLayerType::CONSTANT,
                 {{2, 8}},
-                defaultAxes4D_pillow_nchw_as_nhwc.front()
+                defaultAxes4D_pillow_nchw_as_nhwc
         },
         ShapeParams{
                 ov::op::v11::Interpolate::ShapeCalcMode::SCALES,
                 InputShape{{-1, -1, -1, {2, 20}}, {{1, 4, 4, 11}, {2, 6, 5, 7}, {1,  4, 4, 11}}},
                 ov::test::utils::InputLayerType::CONSTANT,
                 {{1.25f, 0.75f}},
-                defaultAxes4D_pillow_nchw_as_nhwc.front()
+                defaultAxes4D_pillow_nchw_as_nhwc
         },
         ShapeParams{
                 ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
                 InputShape{{-1, -1, -1, {2, 20}}, {{1, 4, 4, 17}, {2, 10, 12, 3}, {1, 4, 4, 17}}},
                 ov::test::utils::InputLayerType::CONSTANT,
                 {{6, 8}},
-                defaultAxes4D_pillow_nchw_as_nhwc.front()
+                defaultAxes4D_pillow_nchw_as_nhwc
         }
 };
 
-const std::vector<std::vector<size_t>> pads4D_nchw_as_nhwc = {
+const std::vector<size_t> pads4D_nchw_as_nhwc = {
         {0, 0, 0, 0}
 };
 
 const std::vector<double> cubeCoefsPillow = {
         -0.5f,
 };
-
-std::vector<CPUSpecificParams> filterCPUInfoForDevice_pillow_nchw_as_nhwc() {
-    std::vector<CPUSpecificParams> resCPUParams;
-    resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"ref"}, "ref"});
-    return resCPUParams;
-}
 
 // bilinear pillow and bicubic pillow test case supported in spec(ov ref)
 const std::vector<ov::op::v11::Interpolate::CoordinateTransformMode> coordinateTransformModesPillow_Smoke = {
@@ -74,26 +68,18 @@ const auto interpolateCasesBilinearPillow_Smoke_nchw_as_nhwc = ::testing::Combin
         ::testing::ValuesIn(coordinateTransformModesPillow_Smoke),
         ::testing::ValuesIn(defNearestModes()),
         ::testing::ValuesIn(antialias()),
-        ::testing::ValuesIn(pads4D_nchw_as_nhwc),
-        ::testing::ValuesIn(pads4D_nchw_as_nhwc),
+        ::testing::Values(pads4D_nchw_as_nhwc),
+        ::testing::Values(pads4D_nchw_as_nhwc),
         ::testing::ValuesIn(cubeCoefsPillow));
-
-std::vector<ov::AnyMap> filterPillowAdditionalConfig() {
-    return {{}};
-}
-
-const std::vector<fusingSpecificParams> interpolateFusingPillowParamsSet{
-        emptyFusingSpec
-};
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBilinearPillow_LayoutAlign_Test, InterpolateLayerCPUTest,
                          ::testing::Combine(
                                  interpolateCasesBilinearPillow_Smoke_nchw_as_nhwc,
                                  ::testing::ValuesIn(shapeParams4D_Pillow_Smoke_nchw_as_nhwc),
                                  ::testing::Values(ElementType::f32),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice_pillow_nchw_as_nhwc()),
-                                 ::testing::ValuesIn(interpolateFusingPillowParamsSet),
-                                 ::testing::ValuesIn(filterPillowAdditionalConfig())),
+                                 ::testing::Values(CPUSpecificParams{{nchw, x, x}, {nchw}, {"ref"}, "ref"}),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(ov::AnyMap())),
                          InterpolateLayerCPUTest::getTestCaseName);
 
 const auto interpolateCasesBicubicPillow_Smoke_nchw_as_nhwc = ::testing::Combine(
@@ -101,8 +87,8 @@ const auto interpolateCasesBicubicPillow_Smoke_nchw_as_nhwc = ::testing::Combine
         ::testing::ValuesIn(coordinateTransformModesPillow_Smoke),
         ::testing::ValuesIn(defNearestModes()),
         ::testing::ValuesIn(antialias()),
-        ::testing::ValuesIn(pads4D_nchw_as_nhwc),
-        ::testing::ValuesIn(pads4D_nchw_as_nhwc),
+        ::testing::Values(pads4D_nchw_as_nhwc),
+        ::testing::Values(pads4D_nchw_as_nhwc),
         ::testing::ValuesIn(cubeCoefsPillow));
 
 INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBicubicPillow_LayoutAlign_Test, InterpolateLayerCPUTest,
@@ -110,12 +96,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateBicubicPillow_LayoutAlign_Test, Interp
                                  interpolateCasesBicubicPillow_Smoke_nchw_as_nhwc,
                                  ::testing::ValuesIn(shapeParams4D_Pillow_Smoke_nchw_as_nhwc),
                                  ::testing::Values(ElementType::f32),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice_pillow_nchw_as_nhwc()),
-                                 ::testing::ValuesIn(interpolateFusingPillowParamsSet),
-                                 ::testing::ValuesIn(filterPillowAdditionalConfig())),
+                                 ::testing::Values(CPUSpecificParams{{nchw, x, x}, {nchw}, {"ref"}, "ref"}),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(ov::AnyMap())),
                          InterpolateLayerCPUTest::getTestCaseName);
 
 }  // namespace
 } // namespace ov::test::Interpolate
-
-
