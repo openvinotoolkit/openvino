@@ -147,11 +147,13 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           get_input_element_type(12),
                           ".");
 
-    NODE_VALIDATION_CHECK( this,
-        get_input_partial_shape(13).rank().is_dynamic() || get_input_partial_shape(13).rank().get_length() == 1 || get_input_partial_shape(13).rank().get_length() == 0,
-        "Input `score_aggregation_window` should either have rank 1 or 0, but it has rank ",
-        get_input_partial_shape(13).rank().get_length(),
-        ".");
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(13).rank().is_dynamic() ||
+                              get_input_partial_shape(13).rank().get_length() == 1 ||
+                              get_input_partial_shape(13).rank().get_length() == 0,
+                          "Input `score_aggregation_window` should either have rank 1 or 0, but it has rank ",
+                          get_input_partial_shape(13).rank().get_length(),
+                          ".");
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(13).is_dynamic() || get_input_element_type(13) == element::i32,
                           "Element type of `score_aggregation_window` input should be i32, but it is ",

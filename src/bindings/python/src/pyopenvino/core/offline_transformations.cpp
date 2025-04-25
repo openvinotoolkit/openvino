@@ -143,7 +143,11 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "paged_attention_transformation",
-        [](py::object& ie_api_model, bool use_block_indices_inputs, bool use_score_outputs, bool allow_score_aggregation, bool allow_cache_rotation) {
+        [](py::object& ie_api_model,
+           bool use_block_indices_inputs,
+           bool use_score_outputs,
+           bool allow_score_aggregation,
+           bool allow_cache_rotation) {
             const auto model = Common::utils::convert_to_model(ie_api_model);
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::SDPAToPagedAttention>(use_block_indices_inputs,

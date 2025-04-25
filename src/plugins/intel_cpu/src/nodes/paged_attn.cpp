@@ -153,7 +153,6 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
                                    getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_TRIG_LUT)));
     }
 
-
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
 
