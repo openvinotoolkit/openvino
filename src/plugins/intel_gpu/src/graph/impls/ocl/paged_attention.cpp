@@ -688,9 +688,9 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         auto params = get_default_params<kv_cache_rotate_kernel_params_t>(impl_param, is_dynamic);
 
         const auto& key_cache_tensor = input_tensors[3];
-        const auto& rotated_block_indices_tensor = input_tensors[13];
-        const auto& rotation_deltas_tensor = input_tensors[14];
-        const auto& rotation_trig_lut_tensor = input_tensors[15];
+        const auto& rotated_block_indices_tensor = input_tensors[14];
+        const auto& rotation_deltas_tensor = input_tensors[15];
+        const auto& rotation_trig_lut_tensor = input_tensors[16];
 
         const auto inputs_number = 3;
         const auto outputs_number = 1;
@@ -706,9 +706,9 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset;
         std::map<size_t, size_t> in_tensor_to_offset_map = {
-            {0, in_offsets_map.at(13)},
-            {1, in_offsets_map.at(14)},
-            {2, in_offsets_map.at(15)},
+            {0, in_offsets_map.at(14)},
+            {1, in_offsets_map.at(15)},
+            {2, in_offsets_map.at(16)},
         };
         std::map<size_t, size_t> out_tensor_to_offset_map = {
             {0, in_offsets_map.at(3)},
