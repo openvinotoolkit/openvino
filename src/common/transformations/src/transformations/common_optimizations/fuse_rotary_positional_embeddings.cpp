@@ -522,36 +522,41 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
     this->register_matcher(m, callback);
 }
 
+auto const_idx_predicate = [](pattern::PatternSymbolMap&, const ov::Output<ov::Node>& out) {
+    if (auto const_node = ov::as_type_ptr<ov::opset1::Constant>(out.get_node_shared_ptr())) {
+        const auto& vec = const_node->get_vector<int32_t>();
+        int32_t v = 0;
+        for (size_t i = 0; i < vec.size(); i += 2, v++)
+            if (vec[i] != v || vec[i + 1] != v)
+                return false;
+        return true;
+    }
+    return false;
+};
+
+static std::shared_ptr<ov::Node> repeat_interleave_pattern(const ov::Output<ov::Node>& var_split_output) {
+    auto unsqueeze = pattern::wrap_type<ov::opset1::Reshape>({var_split_output, {"dim0", "dim1", "1", "32"}}) |
+                     pattern::wrap_type<ov::opset1::Unsqueeze>({var_split_output, 2});
+    // repeate cos/sin table
+    auto const_idx = pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
+    return pattern::wrap_type<ov::opset8::Gather>({unsqueeze, const_idx, 3}, {{"batch_dims", 0}});
+}
+
 ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     MATCHER_SCOPE(RoPEFusionGPTJ);
 
-    auto view_Reshape = pattern::any_input(pattern::rank_equals(4));
-    // view_Reshape : B,L,H,S
-    auto slice_Slice_965 = NewGenSlice(view_Reshape, 0, "ndims", 1, 3);
-    auto varsplit_view_Reshape =
-        pattern::wrap_type<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
-    varsplit_view_Reshape->set_output_size(2);
     auto gather_sin_cos = pattern::any_input(pattern::type_matches(ov::element::f32));
     auto varsplit = pattern::wrap_type<opset1::VariadicSplit>({gather_sin_cos, -1, {"ndims/2", "-1"}});
     varsplit->set_output_size(2);
-    // Reshape or UnSqueeze should both be support
-    auto unsqueeze_sin = pattern::wrap_type<opset1::Reshape>({varsplit->output(0), {"dim0", "dim1", "1", "32"}}) |
-                         pattern::wrap_type<opset1::Unsqueeze>({varsplit->output(0), 2});
-    auto unsqueeze_cos = pattern::wrap_type<opset1::Reshape>({varsplit->output(1), {"dim0", "dim1", "1", "32"}}) |
-                         pattern::wrap_type<opset1::Unsqueeze>({varsplit->output(1), 2});
-    // repeate cos/sin table
-    auto const_idx = makeConst(ov::element::i32, ov::PartialShape::dynamic(), [](const ov::op::v0::Constant& node) {
-        const auto& vec = node.get_vector<int32_t>();
-        int32_t v = 0;
-        for (size_t i = 0; i < vec.size(); i += 2, v++) {
-            if (vec[i] != v || vec[i + 1] != v)
-                return false;
-        }
-        return true;
-    });
-    auto repeat_interleave_sin = pattern::wrap_type<opset8::Gather>({unsqueeze_sin, const_idx, 3}, {{"batch_dims", 0}});
-    auto repeat_interleave_cos = pattern::wrap_type<opset8::Gather>({unsqueeze_cos, const_idx, 3}, {{"batch_dims", 0}});
+    auto repeat_interleave_sin = repeat_interleave_pattern(varsplit->output(0));
+    auto repeat_interleave_cos = repeat_interleave_pattern(varsplit->output(0));
 
+    auto view_Reshape = pattern::any_input(pattern::rank_equals(4));
+    auto slice_Slice_965 = NewGenSlice(view_Reshape, 0, "ndims", 1, 3);
+    // view_Reshape : B,L,H,S
+    auto varsplit_view_Reshape =
+        pattern::wrap_type<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
+    varsplit_view_Reshape->set_output_size(2);
     auto int32_max = std::numeric_limits<std::int32_t>::max();
     // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
     auto slice_Slice_1174 = NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 1, int32_max, 2, 3);
@@ -566,7 +571,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto Unsqueeze_28999 =
         pattern::wrap_type<opset1::Reshape>({slice_Slice_1168, {"-1", "1", "head_num", "32", "1"}}, {{"special_zero", false}});
     auto stack_1182 =
-        pattern::wrap_type<opset1::Concat>({Unsqueeze_28998 | Unsqueeze_65524, Unsqueeze_65525 | Unsqueeze_28999},
+        pattern::wrap_type<opset1::Concat>({Unsqueeze_65524 | Unsqueeze_28998 , Unsqueeze_65525 | Unsqueeze_28999},
                                            {{"axis", -1}});
 
     auto ShapeOf_169068 = pattern::wrap_type<opset1::ShapeOf>({stack_1182});
@@ -596,6 +601,13 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         auto root = m.get_match_root();
         auto symbols = m.get_symbols();
 
+        auto ndims = symbols["ndims"];
+        auto ndims_over_2 = symbols["ndims/2"];
+        if (!ndims.is_integer() || !ndims_over_2.is_integer() ||
+             ndims_over_2.i() * 2 != ndims.i()) {
+                return false;
+        }
+
         op::internal::RoPE::Config config;
         OutputVector new_args;
         NodeVector rt_from = {pattern_map.at(varsplit).get_node_shared_ptr(),
@@ -607,7 +619,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
                               pattern_map.at(mul_sin).get_node_shared_ptr(),
                               pattern_map.at(rotary_emb).get_node_shared_ptr(),
                               pattern_map.at(result).get_node_shared_ptr()};
-        // config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
+        config.rotary_ndims = static_cast<size_t>(ndims.i());
 
         // Fuse output transpose to Rope.
         auto root_target_inputs = root->output(0).get_target_inputs();
