@@ -45,6 +45,32 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     return m_ov_model;
 }
 
+/// @brief Sink operation that preserves another node from removing from the graph, when it is not possible to derive that target node op from Sink class
+class SinkHolder : public Sink {
+public:
+    OPENVINO_OP("SinkHolder", "util", ov::op::Sink);
+    SinkHolder() = default;
+    explicit SinkHolder(const OutputVector& arguments) : Sink(arguments) {}
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
+        check_new_args_count(this, new_args);
+        return std::make_shared<SinkHolder>(new_args);
+    }
+
+    void validate_and_infer_types() override {
+        set_output_type(0, element::u8, PartialShape({0}));
+    }
+
+    bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override {
+        // This op has a dummy output -- no need to evaluate
+        return true;
+    }
+
+    bool has_evaluate() const override {
+        return true;
+    }
+};
+
 std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model) {
     auto pytorch_model = std::dynamic_pointer_cast<pytorch::InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(pytorch_model != nullptr, "Invalid input model");
@@ -88,6 +114,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         auto tensor_map = std::make_shared<TensorMap>();  // tensor map of the current context
         auto mutated_tensors = std::make_shared<std::set<size_t>>();
         std::vector<size_t> inserted_params;
+        SinkVector sinks;
 
         if (input_model && input_model->m_requested_places.size() == 0) {
             // When we have input model we should use its inputs order to create Parameters
@@ -179,6 +206,12 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
 
             const bool has_inputs = !node->inputs().empty();
             const size_t in_tensor_id = has_inputs ? node->inputs().at(0) : 0;
+            if (converted_outputs.size() == 1) {
+                // Check if converted node is marked as a sink
+                if(converted_outputs.front().get_node()->get_rt_info().count("__sink__")) {
+                    sinks.push_back(std::make_shared<SinkHolder>(converted_outputs));
+                }
+            }
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
                 if (has_inputs && node->may_produce_alias(0, i)) {
@@ -303,7 +336,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                              }),
                               parameters->end());
         }
-        resulting_model = std::make_shared<Model>(results, *parameters);
+        resulting_model = std::make_shared<Model>(results, sinks, *parameters);
         // Did a conversion in a nested scope to automatically remove any holders of nodes except those in the graph
     }
 
