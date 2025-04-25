@@ -15,7 +15,7 @@ namespace ov::test::Interpolate {
 namespace {
 
 // pillow modes: planar layout with axis[1,2] executed as nhwc layout case
-const std::vector<std::vector<int64_t>> defaultAxes4D_pillow_nchw_as_nhwc = {
+const std::vector<int64_t> defaultAxes4D_pillow_nchw_as_nhwc = {
         {1, 2}
 };
 
