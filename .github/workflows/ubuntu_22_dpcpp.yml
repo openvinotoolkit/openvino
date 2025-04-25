@@ -1,8 +1,8 @@
 name: Linux (Ubuntu 22.04, Python 3.11, Intel DPC++ Compiler)
 on:
   workflow_dispatch:
-#  pull_request:
-#  merge_group:
+  pull_request:
+  merge_group:
 
 concurrency:
   # github.ref is not unique in post-commit
