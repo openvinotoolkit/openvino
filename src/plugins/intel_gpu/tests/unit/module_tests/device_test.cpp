@@ -27,7 +27,13 @@ public:
         return this == other.get();
     }
 
-    void set_mem_caps(memory_capabilities memory_capabilities) override {
+    void initialize() override {};
+
+    bool is_initialized() const override {
+        return true;
+    };
+
+    void set_mem_caps(const memory_capabilities& memory_capabilities) override {
         _mem_caps = memory_capabilities;
     }
     ~dummy_device() = default;

@@ -145,7 +145,8 @@ std::vector<device::ptr> ocl_device_detector::sort_devices(const std::vector<dev
 std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(void* user_context,
                                                                               void* user_device,
                                                                               int ctx_device_id,
-                                                                              int target_tile_id) const {
+                                                                              int target_tile_id,
+                                                                              bool initialize_devices) const {
     std::vector<device::ptr> devices_list;
     if (user_context != nullptr) {
         devices_list = create_device_list_from_user_context(user_context, ctx_device_id);
@@ -157,14 +158,17 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
 
     devices_list = sort_devices(devices_list);
 
+    bool initialize_device = user_context != nullptr || user_device != nullptr || initialize_devices;
     std::map<std::string, device::ptr> ret;
     uint32_t idx = 0;
     for (auto& dptr : devices_list) {
-        auto map_id = std::to_string(idx++);
-        ret[map_id] = dptr;
-
         auto root_device = std::dynamic_pointer_cast<ocl_device>(dptr);
         OPENVINO_ASSERT(root_device != nullptr, "[GPU] Invalid device type created in ocl_device_detector");
+
+        auto map_id = std::to_string(idx++);
+        ret[map_id] = std::make_shared<ocl_device>(root_device, initialize_device);
+
+        OPENVINO_ASSERT(root_device->is_initialized(), "[GPU] Device is not initialized");
 
         auto sub_devices = getSubDevices(root_device->get_device());
         if (!sub_devices.empty()) {
@@ -174,7 +178,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
                     sub_idx++;
                     continue;
                 }
-                auto sub_device_ptr = std::make_shared<ocl_device>(sub_device, cl::Context(sub_device), root_device->get_platform());
+                auto sub_device_ptr = std::make_shared<ocl_device>(sub_device, cl::Context(sub_device), root_device->get_platform(), initialize_device);
                 ret[map_id + "." + std::to_string(sub_idx++)] = sub_device_ptr;
             }
         }
@@ -184,7 +188,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
 
 std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     cl_uint num_platforms = 0;
-    // Get number of platforms availible
+    // Get number of platforms available
     cl_int error_code = clGetPlatformIDs(0, NULL, &num_platforms);
     if (num_platforms == 0 || error_code == CL_PLATFORM_NOT_FOUND_KHR) {
         return {};

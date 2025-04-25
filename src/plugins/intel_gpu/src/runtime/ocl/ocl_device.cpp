@@ -287,6 +287,8 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     bool nv_device_attr_supported = extensions.find("cl_nv_device_attribute_query") != std::string::npos;
     info.has_separate_cache = false;
     if (device_attr_supported) {
+        // TODO: check PCI bus info
+        // device.getInfo<CL_DEVICE_PCI_BUS_INFO_KHR>();
         info.ip_version = device.getInfo<CL_DEVICE_IP_VERSION_INTEL>();
         info.gfx_ver = parse_version(info.ip_version);
         info.device_id = device.getInfo<CL_DEVICE_ID_INTEL>();
@@ -379,14 +381,30 @@ memory_capabilities init_memory_caps(const cl::Device& device, const device_info
 
 }  // namespace
 
+void ocl_device::initialize_device(const cl::Device dev, const cl::Context& ctx) {
+    _context = ctx;
+    _device = dev;
+    _usm_helper = std::make_unique<cl::UsmHelper>(_context, _device, use_unified_shared_memory());
+    _is_initialized = true;
+}
 
-ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform)
-: _context(ctx)
-, _device(dev)
-, _platform(platform)
+ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::Platform& platform, bool initialize)
+: _platform(platform)
 , _info(init_device_info(dev, ctx))
-, _mem_caps(init_memory_caps(dev, _info))
-, _usm_helper(new cl::UsmHelper(_context, _device, use_unified_shared_memory())) {
+, _mem_caps(init_memory_caps(dev, _info)) {
+    if (initialize) {
+        initialize_device(dev, ctx);
+    }
+}
+
+ocl_device::ocl_device(const ocl_device::ptr other, bool initialize)
+: _platform(other->_platform)
+, _info(other->_info)
+, _mem_caps(other->_mem_caps) {
+    if (initialize) {
+        OPENVINO_ASSERT(other->is_initialized(), "[GPU] Can't initialize device because the source device is uninitialized");
+        initialize_device(other->_device, other->_context);
+    }
 }
 
 bool ocl_device::is_same(const device::ptr other) {
@@ -394,11 +412,39 @@ bool ocl_device::is_same(const device::ptr other) {
     if (!casted)
         return false;
 
-    return _device == casted->get_device() && _platform == casted->get_platform();
+    if (_device.get() && casted->_device.get() && _device != casted->_device)
+        return false;
+
+    if (_platform != casted->_platform)
+        return false;
+
+    if (_info.uuid.uuid == casted->_info.uuid.uuid)
+        return true;
+
+    return false;
 }
 
-void ocl_device::set_mem_caps(memory_capabilities memory_capabilities) {
+void ocl_device::set_mem_caps(const memory_capabilities& memory_capabilities) {
     _mem_caps = memory_capabilities;
+}
+
+void ocl_device::initialize() {
+    if (_is_initialized)
+        return;
+
+    ocl::ocl_device_detector detector;
+    auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, true);
+
+    for (auto& device : device_map) {
+        if (this->is_same(device.second)) {
+            if (auto casted = downcast<ocl_device>(device.second.get())) {
+                initialize_device(casted->get_device(), casted->get_context());
+                return;
+            }
+        }
+    }
+
+    OPENVINO_THROW("[GPU] Unable to initialize the requested device ", this->get_info().dev_name, ". Please ensure the device is available");
 }
 
 }  // namespace ocl

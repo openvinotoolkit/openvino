@@ -181,6 +181,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::string device_id = get_device_id(orig_config);
 
     auto context = get_default_context(device_id);
+    context->initialize();
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
@@ -200,6 +201,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& orig_config,
                                                           const ov::SoPtr<ov::IRemoteContext>& context) const {
     auto context_impl = get_context_impl(context);
+    context_impl->initialize();
+
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
@@ -216,7 +219,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     if (remote_properties.empty()) {
-        return get_default_context(m_default_device_id);
+        auto context = get_default_context(m_default_device_id);
+        context->initialize();
+
+        return context;
     }
     return std::make_shared<RemoteContextImpl>(get_default_contexts(), remote_properties);
 }
@@ -232,6 +238,9 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
 
     if (params.find(ov::device::id.name()) != params.end())
         device_id = params.at(ov::device::id.name()).as<std::string>();
+
+    auto context = get_default_context(device_id);
+    context->initialize();
 
     return get_default_context(device_id);
 }
@@ -310,6 +319,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
 
     auto context_impl = get_context_impl(context);
+    context_impl->initialize();
+
     auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
     // check ov::loaded_from_cache property and erase it due to not needed any more.
@@ -524,7 +535,22 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         return decltype(ov::range_for_streams)::value_type {range};
     } else if (name == ov::intel_gpu::memory_statistics) {
         const auto& ctx = get_default_context(device_id);
-        return decltype(ov::intel_gpu::memory_statistics)::value_type {ctx->get_engine().get_memory_statistics()};
+        if (!ctx->is_initialized()) {
+            decltype(ov::intel_gpu::memory_statistics)::value_type res;
+            auto add_zero_mem_usage = [&res](auto alloc_type) {
+                std::ostringstream oss;
+                oss << alloc_type;
+                res[oss.str()] = 0;
+            };
+            add_zero_mem_usage(cldnn::allocation_type::unknown);
+            add_zero_mem_usage(cldnn::allocation_type::cl_mem);
+            add_zero_mem_usage(cldnn::allocation_type::usm_host);
+            add_zero_mem_usage(cldnn::allocation_type::usm_shared);
+            add_zero_mem_usage(cldnn::allocation_type::usm_device);
+            return res;
+        } else {
+            return decltype(ov::intel_gpu::memory_statistics)::value_type {ctx->get_engine().get_memory_statistics()};
+        }
     } else if (name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {get_max_batch_size(options)};
     } else if (name == ov::intel_gpu::driver_version) {
@@ -650,7 +676,7 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
     auto context = get_default_contexts().at(device_id);
-    const auto& device_info = context->get_engine().get_device_info();
+    const auto& device_info = context->get_device().get_info();
     auto config = m_configs_map.at(device_id);
     config.set_property(ov::intel_gpu::partial_build_program(true));
     uint32_t n_streams = static_cast<uint32_t>(config.get_num_streams());
@@ -705,11 +731,14 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
         OPENVINO_THROW("[GPU_MAX_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type");
     }
 
+    // Initialize the context before use
+    context->initialize();
+
     config.finalize(context.get(), model.get());
 
     size_t base_batch_size = 16; // empirically decided for DG1
 
-    auto& engine = get_default_context(device_id)->get_engine();
+    auto& engine = context->get_engine();
 
     std::shared_ptr<ProgramBuilder> program;
 
@@ -788,7 +817,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
     auto context = get_default_contexts().at(device_id);
-    const auto& device_info = context->get_engine().get_device_info();
+    const auto& device_info = context->get_device().get_info();
 
     auto closest_pow_of_2 = [] (float x) {
         int lower_power = static_cast<int>(floor(std::log(x) / std::log(2)));
@@ -822,6 +851,9 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
                    << "gfx_version.major, " << device_info.gfx_ver.major
                    << "gfx_version.minor " << std::to_string(device_info.gfx_ver.minor)
                    << "Cache size " << std::to_string(device_info.max_global_cache_size) << std::endl;
+
+    // Initialize the context before use
+    context->initialize();
 
     size_t L3_cache_size = device_info.max_global_cache_size;
     auto config = m_configs_map.at(device_id);
