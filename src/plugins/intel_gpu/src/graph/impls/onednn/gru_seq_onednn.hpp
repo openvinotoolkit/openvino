@@ -20,7 +20,7 @@ struct GRUSeqImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<gru_seq>());
-        return true;// node.get_input_layout(0).format == cldnn::format::bfyx || node.get_input_layout(0).format == cldnn::format::fbyx;
+        return true;
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
@@ -29,7 +29,7 @@ struct GRUSeqImplementationManager : public ImplementationManager {
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
         size_t out_rank = node.get_output_layout().get_rank();
-        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+        for (size_t idx = 0 ; idx < node.get_dependencies().size(); idx++) {
             in_fmts[idx] = format::get_default_format(out_rank);
         }
         out_fmts[0] = format::ybfx;

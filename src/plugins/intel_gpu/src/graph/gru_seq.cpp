@@ -63,6 +63,7 @@ std::string gru_seq_inst::to_string(gru_seq_node const& node) {
 
     json_composite gru_seq_info;
     node_info->add("gru seq info", gru_seq_info);
+    node_info->add("linear before reset", desc->linear_before_reset);
     node_info->dump(primitive_description);
 
     return primitive_description.str();

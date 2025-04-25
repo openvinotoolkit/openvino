@@ -14,8 +14,7 @@
 
 #include <algorithm>
 #include <memory>
-namespace cldnn {
-namespace onednn {
+namespace cldnn::onednn {
 
 struct gru_seq_onednn : typed_primitive_onednn_impl<gru_seq> {
     using parent = typed_primitive_onednn_impl<gru_seq>;
@@ -109,8 +108,8 @@ protected:
     }
 
     static std::shared_ptr<dnnl::lbr_gru_forward::primitive_desc> get_gru_primitive_descriptor(const kernel_impl_params& impl_params, cldnn::engine& engine,
-                                                                                             const dnnl::primitive_attr& attr,
-                                                                                             ov::op::RecurrentSequenceDirection direction) {
+                                                                                               const dnnl::primitive_attr& attr,
+                                                                                               ov::op::RecurrentSequenceDirection direction) {
         auto prim = impl_params.typed_desc<gru_seq>();
         auto num_dir = static_cast<size_t>(prim->num_directions());
         assert(prim->linear_before_reset);
@@ -174,6 +173,7 @@ void save(BinaryOutputBuffer& ob) const override {
     parent::save(ob);
     const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
     auto prim = impl_params->typed_desc<gru_seq>();
+    ob << prim->linear_before_reset;
     ob << static_cast<int>(prim->direction);
     std::vector<uint8_t> prim_cache;
     prim_cache = _prim.get_cache_blob();
@@ -188,6 +188,9 @@ void save(BinaryOutputBuffer& ob) const override {
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         ov::op::RecurrentSequenceDirection direction;
         int dir;
+        bool linear_before_reset;
+        ib >> linear_before_reset;
+        OPENVINO_ASSERT(linear_before_reset);
         ib >> dir;
         direction = static_cast<ov::op::RecurrentSequenceDirection>(dir);
         dnnl::rnn_direction gru_desc_dir;
@@ -200,8 +203,7 @@ void save(BinaryOutputBuffer& ob) const override {
             gru_desc_dir = dnnl::rnn_direction::bidirectional_concat;
             num_dir = 2;
         }
-        const auto& src_shape = impl_params->get_input_layout(0).get_shape();
-        auto mod_src_shape = src_shape;
+        auto mod_src_shape = impl_params->get_input_layout(0).get_shape();
         std::swap(mod_src_shape[0], mod_src_shape[1]);
         auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0).clone_with_other_shape(mod_src_shape), dnnl::memory::format_tag::abc);
         auto initial_hidden_shape_mod = impl_params->get_input_layout(1).get_shape();
@@ -245,12 +247,12 @@ void save(BinaryOutputBuffer& ob) const override {
     }
 
     static std::unique_ptr<primitive_impl> create(const gru_seq_node& arg, const kernel_impl_params& impl_params) {
-            auto& engine = impl_params.prog->get_engine();
-            auto& config = impl_params.prog->get_config();
-            auto attr = impl_params.attrs_onednn;
-            auto direction = arg.direction();
-            auto prim_desc = get_gru_primitive_descriptor(impl_params, engine, *attr, direction);
-            return std::make_unique<gru_seq_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
+        auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
+        auto attr = impl_params.attrs_onednn;
+        auto direction = arg.direction();
+        auto prim_desc = get_gru_primitive_descriptor(impl_params, engine, *attr, direction);
+        return std::make_unique<gru_seq_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }
 };
 
@@ -259,8 +261,7 @@ std::unique_ptr<primitive_impl> GRUSeqImplementationManager::create_impl(const p
     return onednn::gru_seq_onednn::create(static_cast<const gru_seq_node&>(node), params);
 }
 
-}  // namespace onednn
-}  // namespace cldnn
+}  // namespace cldnn::onednn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::gru_seq_onednn)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gru_seq)

@@ -172,7 +172,7 @@ void post_optimize_weights::add_gru_weights_reorder(primitive_id input_id, std::
     std::vector<uint16_t> ord{0, 2, 1};
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{input_id}, ord);
     auto& permute_node = p.get_or_create(permute);
-    p.add_intermediate(permute_node, node, prev,  true);
+    p.add_intermediate(permute_node, node, prev, true);
     auto set_implementation_and_output = [this, &p](program_node& node) {
         node.get_output_layout(false);
         select_implementation(p, node);
