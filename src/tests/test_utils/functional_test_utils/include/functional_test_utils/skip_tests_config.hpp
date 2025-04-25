@@ -24,17 +24,6 @@ bool current_test_is_disabled();
 }  // namespace test
 }  // namespace ov
 
-// TODO: Remove after migration of internal components
-namespace FuncTestUtils {
-namespace SkipTestsConfig {
-
-inline bool currentTestIsDisabled() {
-    return ov::test::utils::current_test_is_disabled();
-}
-
-}  // namespace SkipTestsConfig
-}  // namespace FuncTestUtils
-
 #define SKIP_IF_CURRENT_TEST_IS_DISABLED()                                     \
     {                                                                          \
         if (ov::test::utils::current_test_is_disabled()) {                     \
