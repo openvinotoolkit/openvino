@@ -44,7 +44,7 @@ bool LoopPort::is_incremented() const {
 }
 
 size_t LoopPort::get_dim_idx() const {
-    assert(is_processed() && "NotProcessed LoopPort cannot call `get_dim_idx()`");
+    OPENVINO_ASSERT(is_processed(), "NotProcessed LoopPort cannot call `get_dim_idx()`");
     return m_dim_idx;
 }
 

@@ -199,7 +199,7 @@ VectorDims get_preordered_vdims(const VectorDims& shape, const std::vector<size_
 }
 
 VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port) {
-    assert(expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Input && "get_planar_vdims expects Expression Input port");
+    OPENVINO_ASSERT(expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Input, "get_planar_vdims expects Expression Input port");
     return get_planar_vdims(expr_port.get_descriptor_ptr()->get_shape(), expr_port.get_descriptor_ptr()->get_layout());
 }
 VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_port) {
