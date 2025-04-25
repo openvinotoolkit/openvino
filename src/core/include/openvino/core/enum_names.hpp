@@ -63,12 +63,18 @@ typename std::enable_if<std::is_convertible<Value, std::string>::value, Type>::t
     return EnumNames<Type>::as_enum(value);
 }
 
-namespace op
-{
-    enum class BroadcastType;
-} // namespace op
+namespace op {
+enum class BroadcastType;
+}  // namespace op
 
-extern template OPENVINO_API ov::op::BroadcastType as_enum<ov::op::BroadcastType, const char*>(const char* const&);
+#ifdef _MSC_VER
+#    define OPENVINO_API_EXTERN
+#else
+#    define OPENVINO_API_EXTERN OPENVINO_API
+#endif
+extern template OPENVINO_API_EXTERN ov::op::BroadcastType as_enum<ov::op::BroadcastType, const char*>(
+    const char* const&);
+#undef OPENVINO_API_EXTERN
 
 /// Returns the string matching the enum value
 template <typename Value>
