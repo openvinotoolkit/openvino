@@ -1,6 +1,6 @@
 # type: ignore
-from enum import Enum
 from __future__ import annotations
+from enum import Enum
 from openvino._pyopenvino import InputModel
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Place

@@ -274,7 +274,6 @@ void Config::update(const ConfigMap& options, OptionMode mode) {
 
         const auto opt = _desc->get(p.first, mode);
         _impl[opt.key().data()] = opt.validateAndParse(p.second);
-        OPENVINO_ASSERT("[ NOT_FOUND ] Option '", p.first.c_str(), "' is not supported for current configuration");
     }
 }
 

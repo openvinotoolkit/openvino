@@ -2895,7 +2895,7 @@ public:
         auto input1 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape{1, 2, 10, 10});
         auto constant = ov::op::v0::Constant::create(element_type, ov::Shape{1, 2, 10, 10}, {1});
         auto add = std::make_shared<ov::op::v1::Add>(input1, constant);
-        fn_ptr = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input1});
+        fn_ptr = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input1});
     }
     static std::string getTestCaseName(const testing::TestParamInfo<RemoteTensorDataTypesOptionsParams>& obj) {
         ov::element::Type_t elem_type;

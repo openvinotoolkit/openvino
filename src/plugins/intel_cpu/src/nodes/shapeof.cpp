@@ -4,7 +4,7 @@
 
 #include "shapeof.h"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "shape_inference/custom/shapeof.hpp"
 
 namespace ov::intel_cpu::node {

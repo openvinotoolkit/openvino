@@ -5,6 +5,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/op/concat.hpp"
 
 namespace ov {
 namespace test {

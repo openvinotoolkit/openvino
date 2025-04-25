@@ -5,7 +5,6 @@
 #include <memory>
 
 #include "openvino/core/visibility.hpp"
-#include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 
@@ -18,6 +17,7 @@
 #include "test_models/model_1.hpp"
 #include "test_models/model_2.hpp"
 #include "base_test.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace {
 
