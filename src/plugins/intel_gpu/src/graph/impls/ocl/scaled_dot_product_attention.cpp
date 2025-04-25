@@ -344,11 +344,15 @@ public:
             }
 
             std::vector<int64_t> extended_order(rank, 0);
-            extended_order[1] = 1;
+            const size_t num_heads_dim = 1;
+            // For 3D dimension, extend it to 4D by adding 1 for num_heads_dim
             for (size_t i = 0, j = 0; i < rank; ++i) {
-                if (i == 1) continue;
-                extended_order[i] = (order[j] == 0) ? 0 : order[j] + 1;
-                ++j;
+                if (i == num_heads_dim) {
+                    extended_order[num_heads_dim] = 1;
+                } else {
+                    extended_order[i] = (static_cast<size_t>(order[j]) < num_heads_dim) ? order[j] : order[j] + 1;
+                    j++;
+                }
             }
             return extended_order;
         };
@@ -421,7 +425,8 @@ public:
             if (pshape.size() == rank) {
                 return pshape;
             }
-            pshape.insert(pshape.begin() + 1, ov::Dimension(1));
+            const size_t num_heads_dim = 1;
+            pshape.insert(pshape.begin() + num_heads_dim, ov::Dimension(1));
             return pshape;
         };
 

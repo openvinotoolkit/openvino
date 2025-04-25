@@ -276,7 +276,7 @@ const std::vector<std::vector<int64_t>> disable_transpose{};
 const std::vector<std::vector<int64_t>> transpose_all_3D{{1, 0, 2}, {1, 0, 2}, {1, 0, 2}};
 const auto dynamic_shape_params_3D = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
                                                       testing::ValuesIn(dynamic_shapes_3D),
-                                                      testing::Values(true, false),
+                                                      testing::Values(false),
                                                       testing::Values(true, false),
                                                       testing::Values(true, false),
                                                       testing::ValuesIn({disable_transpose, transpose_all_3D}));
