@@ -53,12 +53,9 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
         const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
 
         OPENVINO_ASSERT(axis < rank, "Softmax has incorrect axis");
-        const auto& subtensor = [&]() {
-            std::vector<size_t> subtensor(rank, 1);
-            for (size_t i = axis; i < rank; ++i)
-                subtensor[i] = utils::get_full_dim_value();
-            return subtensor;
-        }();
+        std::vector<size_t> subtensor(rank, 1);
+        for (size_t i = axis; i < rank; ++i)
+            subtensor[i] = utils::get_full_dim_value();
 
         PortDescriptorUtils::set_port_descriptor(power->input(0), subtensor);
         PortDescriptorUtils::set_port_descriptor(power->output(0), subtensor);
