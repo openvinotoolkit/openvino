@@ -229,21 +229,22 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
     return node_tuple(kv_past_par, kv_current2, kv_current_reshaped, kv_concat);
 }
 
-ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_parameters,
-                                                         ParameterVector& model_wide_params,
-                                                         ParameterVector& parameters_to_remove,
-                                                         int& layer_index,
-                                                         Output<Node> max_context_len,
-                                                         ParameterVector& block_indices_inputs_for_each_layer,
-                                                         ResultVector& score_results,
-                                                         bool use_per_layer_block_indices_inputs,
-                                                         bool use_score_outputs,
-                                                         bool allow_cache_rotation,
-                                                         bool allow_score_aggregation,
-                                                         ParameterVector& rotated_block_indices_inputs_for_each_layer,
-                                                         ParameterVector& rotation_deltas_inputs_for_each_layer,
-                                                         std::shared_ptr<op::v0::Parameter> model_rotation_trig_lut,
-                                                         const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
+ov::pass::StateManagementPattern::StateManagementPattern(
+    ParameterVector& kv_parameters,
+    ParameterVector& model_wide_params,
+    ParameterVector& parameters_to_remove,
+    int& layer_index,
+    Output<Node> max_context_len,
+    ParameterVector& block_indices_inputs_for_each_layer,
+    ResultVector& score_results,
+    bool use_per_layer_block_indices_inputs,
+    bool use_score_outputs,
+    bool allow_cache_rotation,
+    bool allow_score_aggregation,
+    ParameterVector& rotated_block_indices_inputs_for_each_layer,
+    ParameterVector& rotation_deltas_inputs_for_each_layer,
+    std::shared_ptr<op::v0::Parameter> model_rotation_trig_lut,
+    const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = pattern::any_input();
@@ -519,7 +520,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
 
-
         OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
         pa_arguments.insert(pa_arguments.end(), model_wide_params.begin(), model_wide_params.end());
 
@@ -540,7 +540,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                                           max_context_len.get_node_shared_ptr()};
         pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
-
         if (use_per_layer_block_indices_inputs) {
             auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                                          "block_indices." + std::to_string(layer_index - 1));
@@ -548,12 +547,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             block_indices_inputs_for_each_layer.push_back(block_indices);
         }
 
-
         if (allow_score_aggregation) {
-            OPENVINO_ASSERT(optional_model_wide_params.find("score_aggregation_window") != optional_model_wide_params.end());
+            OPENVINO_ASSERT(optional_model_wide_params.find("score_aggregation_window") !=
+                            optional_model_wide_params.end());
             pa_arguments.insert(pa_arguments.end(), optional_model_wide_params.at("score_aggregation_window"));
-        }
-        else {
+        } else {
             pa_arguments.insert(pa_arguments.end(), v0::Constant::create(element::i32, Shape{0}, {}));
         }
 

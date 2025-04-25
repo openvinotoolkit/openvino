@@ -83,6 +83,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           "PagedAttensionExtension expects 14 or 17 inputs, but it has ",
                           get_input_size());
 
+<<<<<<< HEAD
     // format: Node*, input_idx, name, {rank_list}, {type_list}
     input_check(this, 0, "query", {2}, {});
     input_check(this, 1, "key", {2}, {});
@@ -97,7 +98,6 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 10, "sliding_window", {0}, {element::i32});
     input_check(this, 11, "alibi_slopes", {1}, get_real_types());
     input_check(this, 12, "max_context_len", {0}, {element::i32});
-
     input_check(this, 13, "score_aggregation_window", {0, 1}, {element::i32});
     if (get_input_size() == 17) {
         input_check(this, 14, "rotated_block_indices", {1}, {element::i32});

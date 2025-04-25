@@ -58,7 +58,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     if (m_allow_score_aggregation) {
-        auto score_aggregation_window = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "score_aggregation_window");
+        auto score_aggregation_window =
+            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "score_aggregation_window");
         optional_model_wide_params["score_aggregation_window"] = score_aggregation_window;
     }
 
@@ -133,7 +134,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     for (const auto& target : position_ids_target_inputs) {
         target.replace_source_output(unsqueezed_position_ids);
     }
-
 
     int layer_index = 0;
 
