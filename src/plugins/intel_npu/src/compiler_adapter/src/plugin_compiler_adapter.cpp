@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -16,7 +17,6 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "plugin_graph.hpp"
 
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {
@@ -96,13 +96,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         }
     }
 
-    return std::make_shared<PluginGraph>(_zeGraphExt,
-                                         _compiler,
-                                         _zeroInitStruct,
-                                         graphHandle,
-                                         std::move(networkDesc.metadata),
-                                         std::move(blobPtr),
-                                         config);
+    return std::make_shared<Graph>(_zeGraphExt,
+                                   _zeroInitStruct,
+                                   graphHandle,
+                                   std::move(networkDesc.metadata),
+                                   std::move(blobPtr),
+                                   config,
+                                   _compiler);
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
@@ -125,13 +125,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContain
             _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
     }
 
-    return std::make_shared<PluginGraph>(_zeGraphExt,
-                                         _compiler,
-                                         _zeroInitStruct,
-                                         graphHandle,
-                                         std::move(networkMeta),
-                                         std::move(blobPtr),
-                                         config);
+    return std::make_shared<Graph>(_zeGraphExt,
+                                   _zeroInitStruct,
+                                   graphHandle,
+                                   std::move(networkMeta),
+                                   std::move(blobPtr),
+                                   config,
+                                   _compiler);
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
