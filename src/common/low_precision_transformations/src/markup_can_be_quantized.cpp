@@ -5,8 +5,7 @@
 #include "low_precision/markup_can_be_quantized.hpp"
 
 #include <memory>
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
@@ -14,6 +13,10 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "itt.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 
 using namespace ov;
 

@@ -11,8 +11,17 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/batch_norm.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 using namespace ov;
@@ -54,7 +63,7 @@ std::shared_ptr<ov::Model> get_ref_model_with_dyn_shapes(ov::element::Type preci
     // Add `(input - mean) * gamma / sqrt(variance + eps)` and `beta`
     auto add = std::make_shared<ov::op::v1::Add>(mul, beta_aligned);
 
-    return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input, gamma, beta, mean, var});
+    return std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{input, gamma, beta, mean, var});
 }
 
 TEST_F(TransformationTestsF, BatchNormDecompositionStaticRankOpset1) {
@@ -68,7 +77,7 @@ TEST_F(TransformationTestsF, BatchNormDecompositionStaticRankOpset1) {
         auto var = opset1::Constant::create(precision, Shape{3}, {3});
         auto batch_norm = std::make_shared<opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
 
-        model = std::make_shared<ov::Model>(NodeVector{batch_norm}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{batch_norm}, ParameterVector{input});
         manager.register_pass<ov::pass::BatchNormDecomposition>();
         comparator.enable(FunctionsComparator::CONST_VALUES);
     }
@@ -81,7 +90,7 @@ TEST_F(TransformationTestsF, BatchNormDecompositionStaticRankOpset1) {
         auto add_const_2 = opset1::Constant::create(precision, {1, 3, 1, 1}, {3});
         auto add_2 = std::make_shared<opset1::Add>(mul, add_const_2);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{add_2}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{add_2}, ParameterVector{input});
     }
 }
 
@@ -96,7 +105,7 @@ TEST_F(TransformationTestsF, BatchNormDecompositionStaticRankOpset5) {
         auto var = opset1::Constant::create(precision, Shape{3}, {3});
         auto batch_norm = std::make_shared<opset5::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
 
-        model = std::make_shared<ov::Model>(NodeVector{batch_norm}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{batch_norm}, ParameterVector{input});
         manager.register_pass<ov::pass::BatchNormDecomposition>();
         comparator.enable(FunctionsComparator::CONST_VALUES);
     }
@@ -109,7 +118,7 @@ TEST_F(TransformationTestsF, BatchNormDecompositionStaticRankOpset5) {
         auto add_const_2 = opset1::Constant::create(precision, {1, 3, 1, 1}, {3});
         auto add_2 = std::make_shared<opset1::Add>(mul, add_const_2);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{add_2}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{add_2}, ParameterVector{input});
     }
 }
 
@@ -124,7 +133,7 @@ TEST_F(TransformationTestsF, BatchNormDecompositionDynamicShapesOpset1) {
         auto var = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
         auto batch_norm = std::make_shared<opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
 
-        model = std::make_shared<ov::Model>(NodeVector{batch_norm}, ParameterVector{input, gamma, beta, mean, var});
+        model = std::make_shared<ov::Model>(OutputVector{batch_norm}, ParameterVector{input, gamma, beta, mean, var});
         manager.register_pass<ov::pass::BatchNormDecomposition>();
         comparator.enable(FunctionsComparator::CONST_VALUES);
     }
@@ -142,7 +151,7 @@ TEST_F(TransformationTestsF, BatchNormDecompositionDynamicShapesOpset5) {
         auto var = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
         auto batch_norm = std::make_shared<opset5::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
 
-        model = std::make_shared<ov::Model>(NodeVector{batch_norm}, ParameterVector{input, gamma, beta, mean, var});
+        model = std::make_shared<ov::Model>(OutputVector{batch_norm}, ParameterVector{input, gamma, beta, mean, var});
         manager.register_pass<ov::pass::BatchNormDecomposition>();
         comparator.enable(FunctionsComparator::CONST_VALUES);
     }
@@ -159,7 +168,7 @@ TEST_F(TransformationTestsF, BatchNormDecompositionDynamicRank) {
         auto broadcast = std::make_shared<opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
         broadcast->set_friendly_name("broadcast");
 
-        model = std::make_shared<ov::Model>(NodeVector{broadcast}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{broadcast}, ParameterVector{input});
         manager.register_pass<ov::pass::BatchNormDecomposition>();
     }
 }

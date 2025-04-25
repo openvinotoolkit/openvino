@@ -8,8 +8,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "low_precision/network_helper.hpp"
 
 using namespace ov;
