@@ -525,22 +525,19 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
 ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     MATCHER_SCOPE(RoPEFusionGPTJ);
 
-    auto int32_max = std::numeric_limits<std::int32_t>::max();
-
     auto view_Reshape = pattern::any_input(pattern::rank_equals(4));
     // view_Reshape : B,L,H,S
     auto slice_Slice_965 = NewGenSlice(view_Reshape, 0, "ndims", 1, 3);
     auto varsplit_view_Reshape =
-        makePattern<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
+        pattern::wrap_type<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
     varsplit_view_Reshape->set_output_size(2);
-
     auto gather_sin_cos = pattern::any_input(pattern::type_matches(ov::element::f32));
-    auto varsplit = pattern::wrap_type<opset1::VariadicSplit>({gather_sin_cos, -1, {"ndims/2", -1}});
+    auto varsplit = pattern::wrap_type<opset1::VariadicSplit>({gather_sin_cos, -1, {"ndims/2", "-1"}});
     varsplit->set_output_size(2);
     // Reshape or UnSqueeze should both be support
-    auto unsqueeze_sin = pattern::wrap_type<opset1::Reshape>({varsplit->output(0), {"dim0", "dim1", 1, 32}}) |
+    auto unsqueeze_sin = pattern::wrap_type<opset1::Reshape>({varsplit->output(0), {"dim0", "dim1", "1", "32"}}) |
                          pattern::wrap_type<opset1::Unsqueeze>({varsplit->output(0), 2});
-    auto unsqueeze_cos = pattern::wrap_type<opset1::Reshape>({varsplit->output(1), {"dim0", "dim1", 1, 32}}) |
+    auto unsqueeze_cos = pattern::wrap_type<opset1::Reshape>({varsplit->output(1), {"dim0", "dim1", "1", "32"}}) |
                          pattern::wrap_type<opset1::Unsqueeze>({varsplit->output(1), 2});
     // repeate cos/sin table
     auto const_idx = makeConst(ov::element::i32, ov::PartialShape::dynamic(), [](const ov::op::v0::Constant& node) {
@@ -555,18 +552,19 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto repeat_interleave_sin = pattern::wrap_type<opset8::Gather>({unsqueeze_sin, const_idx, 3}, {{"batch_dims", 0}});
     auto repeat_interleave_cos = pattern::wrap_type<opset8::Gather>({unsqueeze_cos, const_idx, 3}, {{"batch_dims", 0}});
 
+    auto int32_max = std::numeric_limits<std::int32_t>::max();
     // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
     auto slice_Slice_1174 = NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 1, int32_max, 2, 3);
 
     auto neg_Multiply_1177 = pattern::wrap_type<opset1::Multiply>({slice_Slice_1174, -1.0f}, {{"auto_broadcast", "numpy"}});
     auto Unsqueeze_65524 = pattern::wrap_type<opset1::Unsqueeze>({neg_Multiply_1177, -1});
     auto Unsqueeze_28998 =
-        pattern::wrap_type<opset1::Reshape>({neg_Multiply_1177, {-1, 1, "head_num", 32, 1}}, {{"special_zero", false}});
+        pattern::wrap_type<opset1::Reshape>({neg_Multiply_1177, {"-1", "1", "head_num", "32", "1"}}, {{"special_zero", false}});
 
     auto slice_Slice_1168 = NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 0, int32_max, 2, 3);
     auto Unsqueeze_65525 = pattern::wrap_type<opset1::Unsqueeze>({slice_Slice_1168, -1});
     auto Unsqueeze_28999 =
-        pattern::wrap_type<opset1::Reshape>({slice_Slice_1168, {-1, 1, "head_num", 32, 1}}, {{"special_zero", false}});
+        pattern::wrap_type<opset1::Reshape>({slice_Slice_1168, {"-1", "1", "head_num", "32", "1"}}, {{"special_zero", false}});
     auto stack_1182 =
         pattern::wrap_type<opset1::Concat>({Unsqueeze_28998 | Unsqueeze_65524, Unsqueeze_65525 | Unsqueeze_28999},
                                            {{"axis", -1}});
@@ -609,7 +607,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
                               pattern_map.at(mul_sin).get_node_shared_ptr(),
                               pattern_map.at(rotary_emb).get_node_shared_ptr(),
                               pattern_map.at(result).get_node_shared_ptr()};
-        config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
+        // config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
 
         // Fuse output transpose to Rope.
         auto root_target_inputs = root->output(0).get_target_inputs();
