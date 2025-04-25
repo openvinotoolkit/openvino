@@ -4,6 +4,9 @@
 
 #include "openvino/core/partial_shape.hpp"
 
+#include <execinfo.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <iostream>
 #include <vector>
@@ -263,6 +266,16 @@ bool ov::PartialShape::merge_rank(const Rank& r) {
 
 ov::Shape ov::PartialShape::to_shape() const {
     if (is_dynamic()) {
+        const int maxFrames = 64;
+        void* buffer[maxFrames];
+
+        int numFrames = backtrace(buffer, maxFrames);
+        char** symbols = backtrace_symbols(buffer, numFrames);
+
+        std::cerr << "Stack trace:\n";
+        for (int i = 0; i < numFrames; ++i) {
+            std::cerr << symbols[i] << '\n';
+        }
         OPENVINO_THROW("to_shape was called on a dynamic shape.");
     }
 
