@@ -81,8 +81,6 @@ describe('Tests for AsyncInferQueue.', () => {
       } else {
         jobsDone[jobId].finished = true;
         const inferenceResult = request.getOutputTensor().data;
-        // TODO add test for catching errors from callback
-        // e.g. using here i instead of jobId
         const inputAt0 = jobId * (jobId % 2 === 0 ? 1 : -1);
         const resultAt0 = inputAt0 > 0 ? inputAt0 : 0; // relu function
         assert.strictEqual(inferenceResult[0], resultAt0);
@@ -147,6 +145,48 @@ describe('Tests for AsyncInferQueue.', () => {
     assert.throws(() => {
       inferQueue.startAsync({ 'data': generateImage() });
     }, /'startAsync' method called with incorrect parameters./);
+    inferQueue.release();
+  });
+
+  it('Test possibility to catch error in callback', async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+
+    function callback(request, jobId, err) {
+      if (err) {
+        console.error(`Job ${jobId} failed: ${err}`);
+      } else {
+        assert.ok(request instanceof ov.InferRequest);
+        assert.throws(() => {
+          // eslint-disable-next-line no-undef
+          jobsDone[jobId].finished = true;
+        }, /ReferenceError: jobsDone is not defined/);
+
+      }
+    }
+    inferQueue.setCallback(callback);
+    await inferQueue.startAsync({ 'data': generateImage() }, 'data');
+    inferQueue.release();
+  });
+
+  it('Test error in callback and rejected promise', async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+
+    function callback(request, jobId, err) {
+      if (err) {
+        console.error(`Job ${jobId} failed: ${err}`);
+      } else {
+        assert.ok(request instanceof ov.InferRequest);
+        // eslint-disable-next-line no-undef
+        jobsDone[jobId].finished = true; // throws ReferenceError
+      }
+    }
+
+    inferQueue.setCallback(callback);
+    await inferQueue.startAsync({ 'data': generateImage() }, 'data')
+      .catch((err) => {
+        assert(err instanceof Error);
+        assert.strictEqual(err.message, 'jobsDone is not defined');
+      });
     inferQueue.release();
   });
 

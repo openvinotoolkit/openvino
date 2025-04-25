@@ -114,11 +114,14 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                     if (exception_ptr == nullptr) {
                         auto ov_callback = [this](Napi::Env env, Napi::Function user_callback, int* handle) {
                             Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[*handle]);
-                            user_callback.Call({js_ir, m_user_ids[*handle].first.Value()});
                             const auto promise = m_user_ids[*handle].second;
-                            promise.Resolve(m_user_ids[*handle].first.Value());
-                            // returns before the promise's .then() is completed
-
+                            try {
+                                user_callback.Call({js_ir, m_user_ids[*handle].first.Value()});
+                                promise.Resolve(m_user_ids[*handle].first.Value());
+                                // returns before the promise's .then() is completed
+                            } catch (Napi::Error& e) {
+                                promise.Reject(Napi::Error::New(env, e.Message()).Value());
+                            }
                             {
                                 // Start async inference on the next request or add idle handle to queue
                                 std::lock_guard<std::mutex> lock(m_mutex);
