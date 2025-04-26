@@ -212,13 +212,13 @@ PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const Output<cons
     return out_descs[out.get_index()];
 }
 
-void PortDescriptorUtils::set_ignored_reg_type(const ov::Input<ov::Node>& in) {
+void PortDescriptorUtils::set_address_reg_type(const ov::Input<ov::Node>& in) {
     auto desc = get_port_descriptor_ptr(in);
     desc->set_reg_type(RegType::address);
     set_port_descriptor_ptr(in, desc);
 }
 
-void PortDescriptorUtils::set_ignored_reg_type(const ov::Output<ov::Node>& out) {
+void PortDescriptorUtils::set_address_reg_type(const ov::Output<ov::Node>& out) {
     auto desc = get_port_descriptor_ptr(out);
     desc->set_reg_type(RegType::address);
     set_port_descriptor_ptr(out, desc);

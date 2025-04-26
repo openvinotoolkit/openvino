@@ -40,6 +40,16 @@ private:
         snippets::lowered::LinearIR& linear_ir,
         const snippets::lowered::LinearIR::constExprIt& brgemm_it);
 
+    /**
+     * @brief Create new ports for not processed postops.
+     * @note Postop ports are supported by blocking pass only as not processed
+     */
+    static void create_not_processed_postops_ports(const snippets::lowered::ExpressionPtr& brgemm_expr,
+                                                   const snippets::lowered::LoopManagerPtr& loop_manager,
+                                                   size_t m_block,
+                                                   size_t n_block,
+                                                   size_t k_block);
+
     snippets::lowered::SpecificIterationHandlers get_k_loop_handlers(size_t work_amount,
                                                                      size_t block_size) const override;
 

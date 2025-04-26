@@ -91,8 +91,8 @@ public:
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<ov::Node>& out);
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<const ov::Node>& out);
 
-    static void set_ignored_reg_type(const ov::Input<ov::Node>& in);
-    static void set_ignored_reg_type(const ov::Output<ov::Node>& out);
+    static void set_address_reg_type(const ov::Input<ov::Node>& in);
+    static void set_address_reg_type(const ov::Output<ov::Node>& out);
 
     static void clean(const std::shared_ptr<ov::Node>& node);
 

@@ -329,12 +329,12 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         // Note: binary postop's output and the corresponding matmul's input are marked as ignored
         // since they shouldn't be processed by the common lowering pipeline,
         // and will be handled by the brgemm kernel itself
-        PortDescriptorUtils::set_ignored_reg_type(new_brgemm->inputs().back());
-        PortDescriptorUtils::set_ignored_reg_type(parameter_out);
+        PortDescriptorUtils::set_address_reg_type(new_brgemm->inputs().back());
+        PortDescriptorUtils::set_address_reg_type(parameter_out);
         if (pattern_map.count(m_rank_norm)) {
             const auto rank_norm = pattern_map.at(m_rank_norm).get_node_shared_ptr();
-            PortDescriptorUtils::set_ignored_reg_type(rank_norm->input(0));
-            PortDescriptorUtils::set_ignored_reg_type(rank_norm->output(0));
+            PortDescriptorUtils::set_address_reg_type(rank_norm->input(0));
+            PortDescriptorUtils::set_address_reg_type(rank_norm->output(0));
         }
 
         m_external_params.insert(ov::as_type_ptr<ov::op::v0::Parameter>(parameter_out.get_node_shared_ptr()));

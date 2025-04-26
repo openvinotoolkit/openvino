@@ -124,10 +124,9 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelReferenceExecutor::compile_ker
 
 brgemm_ref_kernel::brgemm_ref_kernel(BrgemmKernelConfig c) : m_config(std::move(c)) {
     OV_CPU_JIT_EMITTER_ASSERT(!m_config.is_with_comp(), "brgemm_ref_kernel doesn't currently support compensations");
-    OV_CPU_JIT_EMITTER_ASSERT(m_config.get_dt_in0() == dnnl_data_type_t::dnnl_f32 &&
-                                  m_config.get_dt_in1() == dnnl_data_type_t::dnnl_f32 &&
-                                  m_config.get_dt_out() == dnnl_data_type_t::dnnl_f32,
-                              "brgemm_ref_kernel currently supports only fp32 precisions");
+    OV_CPU_JIT_EMITTER_ASSERT(
+        everyone_is(dnnl_data_type_t::dnnl_f32, m_config.get_dt_in0(), m_config.get_dt_in1(), m_config.get_dt_out()),
+        "brgemm_ref_kernel currently supports only fp32 precisions");
 }
 
 void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t* args) const {
