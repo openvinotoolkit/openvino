@@ -45,6 +45,49 @@ LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear
     return std::prev(brgemm_it);
 }
 
+void BrgemmCPUBlocking::create_not_processed_postops_ports(const ov::snippets::lowered::ExpressionPtr& brgemm_expr,
+                                                           const ov::snippets::lowered::LoopManagerPtr& loop_manager,
+                                                           size_t m_block,
+                                                           size_t n_block,
+                                                           size_t k_block) {
+    const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
+    OPENVINO_ASSERT(brgemm, "BrgemmCPU is expected!");
+    const auto postops_inputs = brgemm->get_postop_inputs();
+    if (postops_inputs.empty()) {
+        return;
+    }
+    std::vector<LoopPort> new_ports;
+    const auto gemm_inputs_count = brgemm->get_gemm_inputs_count();
+    for (size_t i = gemm_inputs_count; i < gemm_inputs_count + postops_inputs.size(); ++i) {
+        const auto& postop_input_port = brgemm_expr->get_input_port(i);
+        postop_input_port.get_descriptor_ptr()->set_subtensor({get_full_dim_value(), get_full_dim_value()});
+        new_ports.push_back(LoopPort::create<LoopPort::Type::NotProcessed>(postop_input_port));
+    }
+
+    const auto& loop_ids = brgemm_expr->get_loop_ids();
+    size_t i = 0;
+    auto update_loop_info = [&]() {
+        OPENVINO_ASSERT(i < loop_ids.size(), "Attempt to access invalid loop id");
+        const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_ids[i++]);
+        const auto& in_ports = loop_info->get_input_ports();
+        OPENVINO_ASSERT(in_ports.size() > 1, "Invalid number of input loop ports");
+        std::vector<LoopPort> replacement_ports{in_ports.back()};
+        replacement_ports.insert(replacement_ports.end(), new_ports.begin(), new_ports.end());
+        loop_info->replace_with_new_ports(in_ports.back(), replacement_ports);
+    };
+    if (!is_full_dim_value(m_block)) {
+        update_loop_info();
+    }
+
+    if (!is_full_dim_value(n_block)) {
+        update_loop_info();
+    }
+
+    if (!is_full_dim_value(k_block)) {
+        update_loop_info();
+    }
+}
+
 size_t BrgemmCPUBlocking::get_default_n_blk([[maybe_unused]] size_t n) const {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
 }
@@ -90,46 +133,8 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                                                                     k_block);
 
     const auto& loop_manager = linear_ir.get_loop_manager();
-    // Note: postop ports are always created as not processed
-    auto create_not_processed_postops_ports = [&]() {
-        const auto postops_inputs = brgemm->get_postop_inputs();
-        if (postops_inputs.empty()) {
-            return;
-        }
-        std::vector<LoopPort> new_ports;
-        const auto gemm_inputs_count = brgemm->get_gemm_inputs_count();
-        for (size_t i = gemm_inputs_count; i < gemm_inputs_count + postops_inputs.size(); ++i) {
-            const auto& postop_input_port = brgemm_expr->get_input_port(i);
-            postop_input_port.get_descriptor_ptr()->set_subtensor({get_full_dim_value(), get_full_dim_value()});
-            new_ports.push_back(LoopPort::create<LoopPort::Type::NotProcessed>(postop_input_port));
-        }
-
-        const auto& loop_ids = brgemm_expr->get_loop_ids();
-        size_t i = 0;
-        LoopInfoPtr loop_info = nullptr;
-        auto update_loop_info = [&]() {
-            OPENVINO_ASSERT(i < loop_ids.size(), "Attempt to access invalid loop id");
-            loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_ids[i++]);
-            const auto& in_ports = loop_info->get_input_ports();
-            OPENVINO_ASSERT(in_ports.size() > 1, "Invalid number of input loop ports");
-            std::vector<LoopPort> replacement_ports{in_ports.back()};
-            replacement_ports.insert(replacement_ports.end(), new_ports.begin(), new_ports.end());
-            loop_info->replace_with_new_ports(in_ports.back(), replacement_ports);
-        };
-        if (!is_full_dim_value(m_block)) {
-            update_loop_info();
-        }
-
-        if (!is_full_dim_value(n_block)) {
-            update_loop_info();
-        }
-
-        if (!is_full_dim_value(k_block)) {
-            update_loop_info();
-        }
-    };
     if (stand_alone(type)) {
-        create_not_processed_postops_ports();
+        create_not_processed_postops_ports(brgemm_expr, loop_manager, m_block, n_block, k_block);
         return res;
     }
 
@@ -176,7 +181,7 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
             update_loop_info(LoopPort::create<LoopPort::Type::NotIncremented>(compens_port, 1));
         }
     }
-    create_not_processed_postops_ports();
+    create_not_processed_postops_ports(brgemm_expr, loop_manager, m_block, n_block, k_block);
     return true;
 }
 }  // namespace ov::intel_cpu::pass

@@ -16,9 +16,12 @@ jit_snippets_call_args::~jit_snippets_call_args() {
 }
 
 void jit_snippets_call_args::register_loops(const std::vector<loop_args_t>& loops) {
+    if (loops.empty()) {
+        return;
+    }
     const auto num_loops = loops.size();
     OPENVINO_ASSERT(num_loops <= PTRDIFF_MAX, "Requested allocation size { ", num_loops, " } exceeds PTRDIFF_MAX.");
-    OPENVINO_ASSERT(loop_args == nullptr, "Loop args already initialized");
+    OPENVINO_ASSERT(loop_args == nullptr, "Loop args are already initialized");
     loop_args = new loop_args_t[static_cast<ptrdiff_t>(num_loops)];
     std::copy(loops.begin(), loops.end(), loop_args);
 }
@@ -28,7 +31,7 @@ void jit_snippets_call_args::init_external_ptrs(const size_t size) {
         return;
     }
     OPENVINO_ASSERT(size <= PTRDIFF_MAX, "Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
-    OPENVINO_ASSERT(external_ptrs == nullptr, "External pointers already initialized");
+    OPENVINO_ASSERT(external_ptrs == nullptr, "External pointers are already initialized");
     external_ptrs = new const void*[static_cast<ptrdiff_t>(size)];
 }
 

@@ -35,8 +35,8 @@ public:
     };
     BrgemmCPU(const ov::OutputVector& inputs,
               BRGEMM_TYPE type,
-              const std::vector<PortDescriptor>& input_descs = {},
-              const PortDescriptor& output_desc = {0, 0},
+              const std::vector<MemoryAccess::PortDescriptor>& input_descs = {},
+              const MemoryAccess::PortDescriptor& output_desc = {0, 0},
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
               const std::vector<size_t>& layout_c = {},
