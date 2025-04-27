@@ -115,6 +115,7 @@ protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance) const {
         kernel_arguments_data args;
 
+        args.inputs.reserve(instance.inputs_memory_count());
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }

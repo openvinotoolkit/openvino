@@ -52,6 +52,7 @@
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
+#include "impls/ocl_v2/primitive_ocl_base.hpp"
 
 #include "json_object.h"
 #include <string>
@@ -1942,7 +1943,9 @@ void primitive_inst::prepare_primitive() {
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
     if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this) || _use_shared_kernels) {
         // For ocl_v2 impls we call set args based in flag in the execute() impl, so need to update the flag here
-        set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
+        if (dynamic_cast<ov::intel_gpu::ocl::PrimitiveImplOCL*>(_impl.get()) != nullptr) {
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
         set_arguments();
     }
     on_execute();
