@@ -289,24 +289,12 @@ std::unique_ptr<primitive_impl> ConvolutionImplementationManager::create_impl(co
                                                                         weights_input_layout.feature(),
                                                                         weights_input_layout.spatial(1) * weights_input_layout.spatial(0)});
                                                                         weights_reorder_params->set_input_layout(weights_input_layout);
-                auto weights_output_layout = weights_reorder_params->get_output_layout();
 
+                auto weights_output_layout = weights_reorder_params->get_output_layout();
                 weights_output_layout.set_partial_shape(ov::PartialShape{weights_output_layout.batch(),
                                                                          weights_output_layout.feature(),
                                                                          weights_output_layout.spatial(1) * weights_output_layout.spatial(0)});
-                weights_reorder_params->set_output_layout(weights_output_layout);
-            } else {
-                weights_input_layout.set_partial_shape(ov::PartialShape{weights_input_layout.group(),
-                                                                        weights_input_layout.batch(),
-                                                                        weights_input_layout.feature(),
-                                                                        weights_input_layout.spatial(1) * weights_input_layout.spatial(0)});
-                auto weights_output_layout = weights_reorder_params->get_output_layout();
-
-                weights_output_layout.set_partial_shape(ov::PartialShape{weights_input_layout.group(),
-                                                                         weights_output_layout.batch(),
-                                                                         weights_output_layout.feature(),
-                                                                         weights_output_layout.spatial(1) * weights_output_layout.spatial(0)});
-                weights_reorder_params->set_output_layout(weights_output_layout);
+                                                                         weights_reorder_params->set_output_layout(weights_output_layout);
             }
         }
     }
