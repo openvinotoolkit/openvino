@@ -252,7 +252,7 @@ void SyncInferRequest::enqueue() {
             auto events = prepare_batched_input(port_idx, port, m_batched_tensors.at(port.get_tensor_ptr()));
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
         } else {
-            cldnn::primitive_id internal_name = m_graph->input_port_index_to_internal(port_idx)[0];
+            cldnn::primitive_id internal_name = std::move(m_graph->input_port_index_to_internal(port_idx)[0]);
             auto events = prepare_input(internal_name, port_idx, port, m_user_inputs.at(port_idx));
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
         }
@@ -315,6 +315,7 @@ void SyncInferRequest::enqueue() {
 void SyncInferRequest::wait() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait");
     OPENVINO_ASSERT(!m_internal_outputs.empty(), "[GPU] Inference was not started!\n");
+    auto perf1 = LinuxPerf::Profile("wait");
 
     int64_t sync_total_time = 0;
     auto wait_start = std::chrono::high_resolution_clock::now();
@@ -325,6 +326,7 @@ void SyncInferRequest::wait() {
     // for in_order_queue, it is enough to call finish only once
     bool do_sync_per_output = (network.get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
     if (!do_sync_per_output) {
+        auto perf1 = LinuxPerf::Profile("finish");
         auto sync_start = std::chrono::high_resolution_clock::now();
         network.get_stream().finish();
         auto sync_end = std::chrono::high_resolution_clock::now();
@@ -426,6 +428,7 @@ void SyncInferRequest::wait() {
         // mapping remote blobs not needed -
         // let the user take care of them explicitly
         if (!is_remote_tensor_impl && output_memory) {
+            auto perf2 = LinuxPerf::Profile("out_cpu");
             if (!is_generic_remote) {
                 auto dst_ptr = static_cast<uint8_t*>(output_tensor->data());
                 bool same_mem = same_host_mem(output_memory, dst_ptr);
@@ -448,6 +451,7 @@ void SyncInferRequest::wait() {
                 }
             }
         } else if (is_remote_tensor_impl && is_dynamic) {
+            auto perf2 = LinuxPerf::Profile("out_remote");
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
             if (!m_graph->get_engine().is_the_same_buffer(*output_memory, *user_mem)) {
@@ -455,7 +459,7 @@ void SyncInferRequest::wait() {
             }
         }
     }
-
+    auto perf2 = LinuxPerf::Profile("wait_for");
     if (!copy_events.empty()) {
         auto& stream = network.get_stream();
         if (stream.get_queue_type() == QueueTypes::in_order) {
@@ -465,7 +469,7 @@ void SyncInferRequest::wait() {
             stream.wait_for_events(copy_events);
         }
     }
-
+    auto perf3 = LinuxPerf::Profile("reset");
     network.reset_output_remote_memory_ptrs();
 
     // finally collect profiling info
@@ -745,8 +749,15 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                                                                size_t input_idx,
                                                                const ov::Output<const ov::Node>& port,
                                                                const TensorWrapper& user_tensor_wrapper) {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
-    auto perf1 = LinuxPerf::Profile("SyncInferRequest::prepare_input: " + internal_name);
+    //OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
+    auto perf1 = LinuxPerf::Profile("pre " + internal_name);
+    if (internal_name.find("key_cache.") != std::string::npos || internal_name.find("value_cache.") != std::string::npos) {
+        auto device_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor_wrapper.ptr);
+        m_plugin_inputs[input_idx] = user_tensor_wrapper;
+        auto memory = device_tensor->get_memory();
+        m_graph->get_network()->set_input_data(internal_name, memory);
+        return {};
+    }
     auto pshape = port.get_partial_shape();
     auto is_dynamic = pshape.is_dynamic();
     auto user_tensor = user_tensor_wrapper.ptr;
@@ -877,6 +888,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     // std::cout << "prepare_input: " << internal_name << ", convert_needed = " << convert_needed << ", is_remote_tensor_impl = " << is_remote_tensor_impl
     //           << ", is_generic_remote = " << is_generic_remote << std::endl;
     if (convert_needed) {
+        auto perf1 = LinuxPerf::Profile("convert");
         if (is_remote_tensor_impl) {
             convert_and_copy(remote_tensor_impl_ptr->get_memory(), device_tensor->get_memory(), stream);
         } else {
@@ -884,6 +896,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         }
     } else {
         if (!is_remote_tensor_impl && !is_generic_remote) {
+            auto perf1 = LinuxPerf::Profile("copy_from", need_lockable_mem);
             auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
             if (!same_host_mem(memory, src_ptr)) {
                 // WA: Set need_lockable_mem as a blocking argument
@@ -893,6 +906,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                 ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
             }
         } else if (is_generic_remote) {
+            auto perf1 = LinuxPerf::Profile("copy_to");
             user_tensor->copy_to(device_tensor);
         }
     }
@@ -917,6 +931,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto user_tensor = user_tensor_wrapper.ptr;
     auto iremote_tensor_ptr = std::dynamic_pointer_cast<IRemoteTensor>(user_tensor);
     auto remote_tensor_impl_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor);
+    auto usm_tensor_ptr = std::dynamic_pointer_cast<USMHostTensor>(user_tensor);
     auto internal_name = m_output_names_map.at(output_idx);
     bool is_remote_tensor_impl = remote_tensor_impl_ptr != nullptr;
     bool is_generic_remote = iremote_tensor_ptr != nullptr && remote_tensor_impl_ptr == nullptr;
@@ -941,7 +956,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
 
     // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
-    if (is_remote_tensor_impl && !convert_needed) {
+    if ((is_remote_tensor_impl || usm_tensor_ptr) && !convert_needed) {
         m_plugin_outputs[output_idx] = user_tensor_wrapper;
     }
 
@@ -965,8 +980,13 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     if (m_plugin_outputs.find(output_idx) == m_plugin_outputs.end())
         return {};
 
-    auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
-    auto output_memory = output_tensor->get_memory();
+    cldnn::memory::ptr output_memory;
+    if (usm_tensor_ptr) {
+        output_memory = usm_tensor_ptr->get_impl()->get_memory();
+    } else {
+        auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
+        output_memory = output_tensor->get_memory();
+    }
     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
     return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || user_tensor));
 }

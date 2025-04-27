@@ -88,8 +88,8 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
     OPENVINO_ASSERT(op->get_config().expert_num == bodys.size());
     params.resize(bodys.size());
 
-    cldnn::layout ptr_layout(ov::PartialShape{op->get_config().expert_num}, cldnn::data_types::u64, cldnn::format::byfx);
-    cldnn::layout gate_up_ptr_layout(ov::PartialShape{op->get_config().expert_num * 64 / sizeof(uint64_t)}, cldnn::data_types::u64, cldnn::format::byfx);
+    cldnn::layout ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num)}, cldnn::data_types::u64, cldnn::format::byfx);
+    cldnn::layout gate_up_ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num * 64 / sizeof(uint64_t))}, cldnn::data_types::u64, cldnn::format::byfx);
     // [64bytes]->gate_addrs,up_addrs, gate_scales_addrs, up_scales_addrs,gate_zp_addrs,up_zp_addrs, padding1, padding2
     scale_zp.gate_up_addrs = p.get_engine().allocate_memory(gate_up_ptr_layout, cldnn::allocation_type::usm_device, false);
     scale_zp.down_addrs = p.get_engine().allocate_memory(ptr_layout, cldnn::allocation_type::usm_device, false);

@@ -4,7 +4,6 @@
 #define ENABLE_LINUX_PERF
 #endif
 
-#define ENABLE_LINUX_PERF
 #ifdef ENABLE_LINUX_PERF
 #include <linux/perf_event.h>
 #include <time.h>
@@ -640,7 +639,7 @@ struct PerfEventGroup : public IPerfEventDumper {
         }
     };
 
-    bool enable_dump_json = true;
+    bool enable_dump_json = false;
     int64_t dump_limit = 0;
     std::deque<ProfileData> all_dump_data;
     int serial;
@@ -1234,19 +1233,27 @@ inline int Init() {
 
 namespace LinuxPerf {
 
+// workaround `error: unused variable xxx [-Werror=unused-variable]`
+struct _unused {
+    _unused() {
+    }
+    ~_unused() {
+    }
+};
+
 template <typename ... Args>
-int Profile(const std::string& title, int id = 0, Args&&... args) {
-    return 0;
+_unused Profile(const std::string& title, int id = 0, Args&&... args) {
+    return {};
 }
 
 // overload accept sampling_probability, which can be used to disable profile in scope 
 template <typename ... Args>
-int Profile(float sampling_probability, const std::string& title, int id = 0, Args&&... args) {
-    return 0;
+_unused Profile(float sampling_probability, const std::string& title, int id = 0, Args&&... args) {
+    return {};
 }
 
-inline int Init() {
-    return 0;
+inline _unused Init() {
+    return {};
 }
 
 #endif

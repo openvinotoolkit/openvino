@@ -346,6 +346,7 @@ public:
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
     kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
     bool all_dependencies_cpu_impl() const;
+    virtual void update_shape();
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -433,7 +434,6 @@ protected:
     // _impl->execute() mainly for reshape (to update output memory if reshape_node.is_in_place() == true)
     virtual void on_execute() {}
 
-    virtual void update_shape();
     virtual void update_weights();
 
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);

@@ -676,6 +676,8 @@ public:
     int _hidden_size;
     int _intermediate_size;
     int _group_size;
+    bool _up_use_cl;
+    bool _down_use_cl;
 
     MoeExpertOptImpl() : PrimitiveImplOCL(MoeExpertOpt::get_type_info_static()) {}
     MoeExpertOptImpl(const program_node& node, const RuntimeParams& params) : MoeExpertOptImpl() {
@@ -717,14 +719,28 @@ public:
             }
         }
 
+        int mask = 1;
+        auto p = std::getenv("CM_MASK");
+        if (p) {
+            mask = std::atoi(p);
+        }
+        _up_use_cl = !(mask & 1);
+        _down_use_cl = !(mask & 2);
+
         add_stage(gather, params);
         add_stage(scatter, params);
         add_stage(mlp_gate_up, params);
         add_stage(mlp_down, params);
         add_stage(mlp_reduce, params);
-        add_stage(cm_mlp_reduce, params);
-        add_stage(cm_mlp_up, params);
-        add_stage(cm_mlp_down, params);
+        if (mask) {
+            add_stage(cm_mlp_reduce, params);
+        }
+        if (!_up_use_cl) {
+            add_stage(cm_mlp_up, params);
+        }
+        if (!_down_use_cl) {
+            add_stage(cm_mlp_down, params);
+        }
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -733,6 +749,8 @@ public:
         moe->_hidden_size = _hidden_size;
         moe->_intermediate_size = _intermediate_size;
         moe->_group_size = _group_size;
+        moe->_up_use_cl = _up_use_cl;
+        moe->_down_use_cl = _down_use_cl;
         return moe;
     }
 
@@ -820,18 +838,9 @@ public:
             // const int output_size);   // 768
             // sycl::range<2> global_size(num_experts, output_size / VS * GS);
             // sycl::range<2> local_size(1, GS);
-            auto& cur_net = instance.get_network();
-            auto& stream = cur_net.get_stream();
-            int mask = 1;
-            auto p = std::getenv("CM_MASK");
-            if (p) {
-                mask = std::atoi(p);
-            }
             const auto& scale_zps = moe->_scale_zp;
 
-            bool up_use_cl = !(mask & 1);
-            bool down_use_cl = !(mask & 2);
-            if (up_use_cl) {
+            if (_up_use_cl) {
                 execute_stage({},
                               instance,
                               *mlp_gate_up,
@@ -862,7 +871,7 @@ public:
             //     const int output_size                // const: 2048
             // sycl::range<2> global_size(num_experts, output_size / VS * GS);
             // sycl::range<2> local_size(1, GS);
-            if (down_use_cl) {
+            if (_down_use_cl) {
                 execute_stage({},
                               instance,
                               *mlp_down,
@@ -879,15 +888,26 @@ public:
                               {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size / 4 * 4)},
                               {1, 4});
             }
-            // global: [1, HIDDEN_SIZE/SUBGROUP_SIZE], local: [1, SUBGROUP_NUM]
-            ret = execute_stage({},
-                                instance,
-                                *cm_mlp_reduce,
-                                {scratch.y},
-                                {final_hidden_states_mem_ptr},
-                                {static_cast<size_t>(1), static_cast<size_t>(_hidden_size / subgroup_size)},
-                                {1, SUBGROUP_NUM},
-                                instance.needs_completion_event());
+            if (!_up_use_cl || !_down_use_cl) {
+                // global: [1, HIDDEN_SIZE/SUBGROUP_SIZE], local: [1, SUBGROUP_NUM]
+                ret = execute_stage({},
+                                    instance,
+                                    *cm_mlp_reduce,
+                                    {scratch.y},
+                                    {final_hidden_states_mem_ptr},
+                                    {static_cast<size_t>(1), static_cast<size_t>(_hidden_size / subgroup_size)},
+                                    {1, SUBGROUP_NUM},
+                                    instance.needs_completion_event());
+            } else {
+                ret = execute_stage({},
+                                    instance,
+                                    *mlp_reduce,
+                                    {scratch.y},
+                                    {final_hidden_states_mem_ptr},
+                                    {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
+                                    {1, 1024},
+                                    instance.needs_completion_event());
+            }
         } else {
             // scratch.up = up(x) * silu(gate(x))
             execute_stage({},
