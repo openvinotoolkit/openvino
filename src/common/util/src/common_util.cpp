@@ -61,7 +61,11 @@ std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::
 bool ov::util::may_i_use_dynamic_code() {
     HANDLE handle = GetCurrentProcess();
     PROCESS_MITIGATION_DYNAMIC_CODE_POLICY dynamic_code_policy = {0};
-    GetProcessMitigationPolicy(handle, ProcessDynamicCodePolicy, &dynamic_code_policy, sizeof(dynamic_code_policy));
+    try {
+        GetProcessMitigationPolicy(handle, ProcessDynamicCodePolicy, &dynamic_code_policy, sizeof(dynamic_code_policy));
+    } catch (std::exception&) {
+        return FALSE;
+    }
     return dynamic_code_policy.ProhibitDynamicCode != TRUE;
 }
 #endif
