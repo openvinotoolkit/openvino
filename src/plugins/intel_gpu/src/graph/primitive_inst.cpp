@@ -2070,9 +2070,7 @@ primitive_inst::primitive_inst(network& network)
     , _outputs({})
     , _reordered_weights_cache(network.get_weights_cache_capacity())
     , _mem_allocated(false)
-    , _type(nullptr) {
-        OPENVINO_ASSERT(0, "[SE] for debugging...");
-    }
+    , _type(nullptr) {}
 
 primitive_inst::primitive_inst(network & network, program_node const& node, bool allocate_memory)
     : _network(network)
@@ -2144,7 +2142,6 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     if (_node) {
         GPU_DEBUG_TRACE_DETAIL << get_node().type()->to_string(*_node) << "\n";
     }
-    OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr.");
     _impls_factory = std::make_shared<ImplementationsFactory>(_node);
     _impl_params->strm = get_network().get_stream_ptr();
     for (size_t i = 0; i < get_node().get_output_layouts().size(); ++i) {
