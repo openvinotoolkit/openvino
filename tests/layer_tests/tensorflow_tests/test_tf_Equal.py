@@ -114,7 +114,7 @@ class TestTFEqual(CommonTFLayerTest):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
                                              output_type=np.int32),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     test_data_int64 = [
@@ -139,7 +139,7 @@ class TestTFEqual(CommonTFLayerTest):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
                                              output_type=np.int64),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     # Values for checking important corner cases for float values
@@ -166,7 +166,7 @@ class TestTFEqual(CommonTFLayerTest):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
                                              output_type=np.float16),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     test_data_float32 = [
@@ -188,7 +188,7 @@ class TestTFEqual(CommonTFLayerTest):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
                                              output_type=np.float32),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     test_data_float64 = [
@@ -210,7 +210,7 @@ class TestTFEqual(CommonTFLayerTest):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
                                              output_type=np.float64),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
 

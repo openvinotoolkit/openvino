@@ -40,6 +40,5 @@ class TestTFRoll(CommonTFLayerTest):
         if ie_device == 'GPU':
             pytest.skip("Roll is not supported on GPU")
         self._test(*self.create_tf_roll_net(**params, ir_version=ir_version), ie_device,
-                   precision,
-                   temp_dir=temp_dir, ir_version=ir_version
+                   precision, temp_dir=temp_dir, ir_version=ir_version,
                    **params)
