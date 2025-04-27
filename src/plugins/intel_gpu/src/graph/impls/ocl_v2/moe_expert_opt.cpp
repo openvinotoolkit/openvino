@@ -365,6 +365,48 @@ struct onednn_linear {
     }
 };
 
+class MoeExpertOptSoftMaxTopK : public KernelGenerator {
+public:
+    MoeExpertOptSoftMaxTopK() : KernelGenerator("moe_expert_opt", "softmax_topk") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_expert>();
+        jit.make("SOFTMAX_TOPK_ENABLE", 1);
+        jit.make("TOP_K", desc->_config.topk);
+        jit.make("VALUE_NUM", desc->_config.expert_num);
+        jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
+        jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        if (params.is_dynamic()) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+
+            // auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
+
+            wgs.global[0] = wgs.local[0];
+            wgs.global[1] = wgs.local[1];
+        }};
+    }
+};
+
 class MoeExpertOptGather : public KernelGenerator {
 public:
     MoeExpertOptGather() : KernelGenerator("moe_expert_opt", "gather") {}
@@ -657,6 +699,7 @@ dnnl::memory convert2dnnl(const memory::ptr& ptr, const std::vector<int64_t>& di
 class MoeExpertOptImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoeExpertOptImpl)
+    Stage::Ptr softmax_topk = make_stage<MoeExpertOptSoftMaxTopK>();
     Stage::Ptr gather = make_stage<MoeExpertOptGather>();
     Stage::Ptr scatter = make_stage<MoeExpertOptScatter>();
     Stage::Ptr mlp_gate_up = make_stage<MoeExpertOptMLPGateUp>();
@@ -727,6 +770,7 @@ public:
         _up_use_cl = !(mask & 1);
         _down_use_cl = !(mask & 2);
 
+        add_stage(softmax_topk, params);
         add_stage(gather, params);
         add_stage(scatter, params);
         add_stage(mlp_gate_up, params);
@@ -810,6 +854,7 @@ public:
     }
 
     cldnn::event::ptr exec_batch1(typed_primitive_inst<moe_expert>& instance, expert_mask_tmp_scratch& scratch) {
+        bool fused_router_logic = instance.get_config().fused_router_logic;
         int max_topk = static_cast<int>(instance.get_config().topk);
         auto moe = instance.get_typed_desc<moe_expert>();
 
@@ -817,6 +862,11 @@ public:
         auto batch_mem_ptr = instance.input_memory_ptr(1);
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 2);
         auto routing_mem_ptr = instance.input_memory_ptr(3);
+
+        if (fused_router_logic) {
+            batch_mem_ptr = scratch.topk_id;
+            routing_mem_ptr = scratch.topk_weights;
+        }
 
         _hidden_size = static_cast<int>(moe->get_hidden_size());
         _intermediate_size = static_cast<int>(moe->get_intermediate_size());
@@ -1025,9 +1075,30 @@ public:
         return _kernels[key];
     }
 
+    // 0:final_hidden
+    // 1:topk-id       [num_tokens, TOP_K=8]  topk-id[i, j] the expert index of token i'th top-j route
+    // 2:hidden_states
+    // 3:router_weights [num_tokens, TOP_K=8]
+    //
+    //  with fused_router_logic, inputs 1 & 3 becomes router_logits[num_tokens, NUM_EXPERTS=128]
+    //  extra step Softmax_TopK is fused to give topk-id & router_weights
+    //
+    //     scratch.topk_id, scratch.full_router_weights = Softmax_TopK(router_logits)
+    //
+    //  generate expert_mask from topk-id
+    //        expert_mask.batch[i][j] : j'th token index for i'th expert
+    //        expert_mask.topk[i][j] : topk-output offset for j'th token for i'th expert, used to get weights
+    //        expert_mask.pred_flag[i]: bool, if expert i can be skipped
+    //
+    //     
+    //     scratch.x, scratch.routing_weights = gather(hidden_states, scratch.full_router_weights, expert_mask.batch, expert_mask.topk)
+    //     scratch.y = MLP(scratch.x, .gate/up/down) * scratch.routing_weights
+    //     scatter(final_hidden, scratch.y, expert_mask.batch)
+    //
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MoeExpertOptImpl::execute"));
         auto& instance = reinterpret_cast<typed_primitive_inst<moe_expert>&>(ins);
+        bool fused_router_logic = instance.get_config().fused_router_logic;
         int max_topk = static_cast<int>(instance.get_config().topk);
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
@@ -1042,6 +1113,31 @@ public:
             cur_net.set_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key, {});
         }
         expert_mask_tmp_scratch& scratch = cur_net.get_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key);
+
+        if (fused_router_logic) {
+            layout layout_topk_id(ov::PartialShape{batch * max_topk}, data_types::u32, cldnn::format::bfyx);
+            layout layout_topk_weights(ov::PartialShape{batch * max_topk}, data_types::f16, cldnn::format::bfyx);
+            if (scratch.topk_size < batch * max_topk) {
+                scratch.topk_id = instance.alloc_buf(scratch.topk_id.get(), layout_topk_id);
+                scratch.topk_weights = instance.alloc_buf(scratch.topk_weights.get(), layout_topk_weights);
+                scratch.topk_size = batch * max_topk;
+            }
+            scratch.topk_id_layout = layout_topk_id;
+            scratch.topk_weights_layout = layout_topk_weights;
+            scratch.topk_id = instance.reinterpret_buf(*scratch.topk_id, layout_topk_id);
+            scratch.topk_weights = instance.reinterpret_buf(*scratch.topk_weights, layout_topk_weights);
+
+            auto lws_size = moe->_config.expert_num;
+            
+            execute_stage(events,
+                          instance,
+                          *softmax_topk,
+                          {instance.input_memory_ptr(1)},
+                          {scratch.topk_id, scratch.topk_weights},
+                          {static_cast<size_t>(batch), static_cast<size_t>(lws_size)},
+                          {1, lws_size});
+        }
+
         if (batch == 1) {
             return exec_batch1(instance, scratch);
         }
@@ -1054,7 +1150,12 @@ public:
             auto dep = instance.dependencies()[1];
             // [batch, max_topk]
             auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
-            instance.get_expert_mask_from_memory(instance.pred_memory_ptr(), layout, stream, expert_mask);
+            auto topk_id_mem = instance.pred_memory_ptr();
+            if (fused_router_logic) {
+                topk_id_mem = scratch.topk_id;
+                layout = scratch.topk_id_layout;
+            }
+            instance.get_expert_mask_from_memory(topk_id_mem, layout, stream, expert_mask);
             {
                 const auto& shape = layout.get_shape();
                 int max_expert_num = static_cast<int>(moe->_config.expert_num),
@@ -1090,6 +1191,10 @@ public:
         auto final_hidden_states_layout = instance.get_output_layout(0);
         auto [expert_mask_mem_ptr, expert_mask_layout] = get_input_info(instance, 1);
         auto [routing_mem_ptr, routing_layout] = get_input_info(instance, 3);
+        if (fused_router_logic) {
+            routing_mem_ptr = scratch.topk_weights;
+            routing_layout = scratch.topk_weights_layout;
+        }
         auto get_best_lws = [](size_t hidden_size) {
             const size_t candidate[] = {128, 64, 32, 16, 8};
             for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {

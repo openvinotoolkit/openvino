@@ -5,8 +5,47 @@
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
 
+#if SOFTMAX_TOPK_ENABLE
 
-#if GATHER_ENABLE
+KERNEL(softmax_topk)(
+    const __global TYPE* input, // [input_batch, sort_in_num]
+    __global uint* output_index, // [input_batch, TOP_K]
+    __global TYPE* output_value // [input_batch, TOP_K]
+) {
+    // gws [batch, sort_in_num]
+    const uint batch = (uint)get_global_id(0);
+    const uint sort_index = (uint)get_global_id(1);
+    const uint sort_cnt = (uint)get_global_size(1);
+
+    input += batch * sort_cnt + sort_index;
+    float softmax_total = 0.0;
+    float softmax_current = 0.0;
+    
+    uint sort_position = 0;
+
+    __local TYPE local_input[VALUE_NUM];
+    TYPE in_value = as_half(intel_sub_group_block_read_us((const __global ushort*)(input)));
+    local_input[sort_index] = in_value;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    __attribute__((opencl_unroll_hint(8)))
+    for(uint i = 0; i < sort_cnt; i++) {
+        TYPE value = local_input[i];
+        softmax_total += native_exp(value);
+        if(value > in_value) {
+            sort_position++;
+        }
+    }
+
+    if (sort_position < TOP_K) {
+        output_value += batch * TOP_K;
+        output_index += batch * TOP_K;
+        output_value[sort_position] = exp(in_value) / softmax_total;
+        output_index[sort_position] = sort_index;
+    }
+}
+
+#elif GATHER_ENABLE
 KERNEL (gather_2d_ref)(
     const __global TYPE* src_tok,
     const __global TYPE* src_rweight,

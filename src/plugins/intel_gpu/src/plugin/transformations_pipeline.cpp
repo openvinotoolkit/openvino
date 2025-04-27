@@ -432,6 +432,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::FuseMoeExpertPlain>();
         manager.register_pass<ov::pass::FuseMoeExpertOneHot>();
+        if (std::getenv("MOE_XXX"))
+            manager.register_pass<ov::pass::FuseMoeExpertRoutingLogic>();
+        manager.register_pass<ov::pass::PrintModel>("xxx.cpp");
+
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
         // types are not supported by oneDNN)

@@ -1073,3 +1073,77 @@ ov::pass::FuseMoeExpertOneHot::FuseMoeExpertOneHot() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
+
+
+ov::pass::FuseMoeExpertRoutingLogic::FuseMoeExpertRoutingLogic() {
+    MATCHER_SCOPE(FuseMoeExpertRoutingLogic);
+
+    // param1: [batch*seq, 2048]
+    auto final_hidden_states = makePattern(ov::Rank(2));
+
+    auto router_logits = makePattern(ov::Rank(2));
+
+    // hidden_states_2d: f32[-1, 2048]
+    auto hidden_states_2d = makePattern(ov::Rank(2));
+
+    auto softmax_Softmax = makePattern<opset8::Softmax>({router_logits}, {{"axis", 1}});   
+        //  tensor_array<f32[?,128]> __module.model.model.layers.0.mlp/aten::softmax/Softmax(__module.model.model.layers.0.mlp.gate/ov_ext::linear/MatMul)
+    auto topk_TopK = makePattern<opset11::TopK>({softmax_Softmax, 8}, {{"axis", -1}, {"mode", "max"}, {"sort", "value"}, {"index_element_type", "i64"}, {"stable", false}});   
+    topk_TopK->set_output_size(2);
+
+        //  tensor_array<f32[?,8] i64[?,8]> __module.model.model.layers.0.mlp/aten::topk/TopK(__module.model.model.layers.0.mlp/aten::softmax/Softmax, 290)
+    auto sum_ReduceSum = makePattern<opset1::ReduceSum>({topk_TopK->output(0), {-1}}, {{"keep_dims", true}});   //  tensor_array<f32[?,1]> __module.model.model.layers.0.mlp/aten::sum/ReduceSum(__module.model.model.layers.0.mlp/aten::topk/TopK[0], Constant_2157)
+    auto div__Divide = makePattern<opset1::Divide>({topk_TopK->output(0),
+                                                sum_ReduceSum});   //  tensor_array<f32[?,8]> __module.model.model.layers.0.mlp/aten::div_/Divide(__module.model.model.layers.0.mlp/aten::topk/TopK[0], __module.model.model.layers.0.mlp/aten::sum/ReduceSum)
+
+    auto moe_expert_onehot = makePattern<ov::op::internal::MOEExpert2>({
+                                        final_hidden_states,
+                                        topk_TopK->output(1),
+                                        hidden_states_2d,
+                                        div__Divide});
+    auto result = moe_expert_onehot;
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        PatternValidator validator(m);
+        if (!validator) {
+            return false;
+        }
+
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+        // f32[batch*seq, 2048]
+        auto final_hidden_states_node = pattern_map.at(final_hidden_states).get_node_shared_ptr();
+        // f32[batch*seq, 8]
+        auto router_logits_node = pattern_map.at(router_logits).get_node_shared_ptr();
+        // f32[batch*seq, 2048]
+        auto hidden_states_2d_node = pattern_map.at(hidden_states_2d).get_node_shared_ptr();
+        // f32[batch*seq, 2048]
+        auto moe_node = pattern_map.at(moe_expert_onehot).get_node_shared_ptr();
+        // f32[batch*seq, 1, 2048]
+        //auto reshape_moe = pattern_map.at(reshape_Reshape_128).get_node_shared_ptr();
+
+        auto moe = ov::as_type_ptr<op::internal::MOEExpert2>(moe_node);
+
+        OutputVector new_args(4);
+        // final_hidden_states: f32[batch*seq, 2048]
+        // router_logits: i32[batch*seq, 128]
+        // hidden_states_2d: f32[batch*seq, 2048]
+        // router_logits: i32[batch*seq, 128]
+        new_args[0] = final_hidden_states_node;
+        new_args[1] = router_logits_node;
+        new_args[2] = hidden_states_2d_node;
+        new_args[3] = router_logits_node;
+        moe->set_arguments(new_args);
+
+        auto cfg = moe->get_config();
+        cfg.fused_router_logic = true;
+        moe->set_config(cfg);
+
+        moe->set_friendly_name(std::string("moe_expert_onehot_softmax_topk"));
+
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}

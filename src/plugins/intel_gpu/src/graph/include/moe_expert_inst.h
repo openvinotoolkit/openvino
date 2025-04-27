@@ -36,6 +36,12 @@ struct expert_mask_tmp_scratch {
     memory::ptr routing_weights;
     memory::ptr expert_info;
 
+    memory::ptr topk_id;
+    memory::ptr topk_weights;
+    layout topk_id_layout;
+    layout topk_weights_layout;
+    int topk_size = 0;
+
     layout x_layout;
     size_t max_size = 0;
 };
@@ -116,6 +122,8 @@ public:
     void update_output_memory(bool need_reset);
     void get_tmp_memory(data_types type, int m, int hidden_size, int inter_size, int topk, expert_mask_tmp_scratch& scratch);
 
+    memory::ptr alloc_buf(memory* curr_memory, layout& alloc_layout, allocation_type alloc_type = cldnn::allocation_type::usm_device);
+    memory::ptr reinterpret_buf(const memory& curr_memory, const layout& new_layout);
 private:
 };
 

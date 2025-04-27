@@ -80,28 +80,9 @@ void moe_expert_inst::copy_expert_mask_to_gpu(stream& stream,
         layout alloc_layout(ov::PartialShape{will_allocate}, ov::element::i32, cldnn::format::bfyx);
         auto alloc_type = _network.get_engine().get_lockable_preferred_memory_allocation_type();
         GPU_DEBUG_LOG << "=> allocate expert_mask to " << alloc_type << std::endl;
-        auto& pool = _network.get_memory_pool();
-        auto net_id = _network.get_id();
 
-        auto alloc_buf = [&](memory* curr_memory) {
-            if (_node->get_program().get_config().get_enable_memory_pool()) {
-                if (curr_memory != nullptr)
-                    pool.release_memory(curr_memory, _node->get_unique_id(), _node->id(), net_id);
-                return pool.get_memory(alloc_layout,
-                                       _node->id(),
-                                       _node->get_unique_id(),
-                                       net_id,
-                                       _runtime_memory_dependencies,
-                                       alloc_type,
-                                       false,
-                                       true,
-                                       _node->is_dynamic());
-            }
-            return pool.get_memory(alloc_layout, alloc_type, true);
-        };
-
-        expert_mask_mem.batch = alloc_buf(expert_mask_mem.batch.get());
-        expert_mask_mem.topk = alloc_buf(expert_mask_mem.topk.get());
+        expert_mask_mem.batch = alloc_buf(expert_mask_mem.batch.get(), alloc_layout, alloc_type);
+        expert_mask_mem.topk = alloc_buf(expert_mask_mem.topk.get(), alloc_layout, alloc_type);
         expert_mask_mem.max_size = expert_mask_mem.batch->size();
     }
     expert_mask_mem.batch = _network.get_engine().reinterpret_buffer(*expert_mask_mem.batch, new_layout);
@@ -117,6 +98,28 @@ void moe_expert_inst::copy_expert_mask_to_gpu(stream& stream,
     }
 }
 
+memory::ptr moe_expert_inst::alloc_buf(memory* curr_memory, layout& alloc_layout, allocation_type alloc_type) {
+    auto& pool = _network.get_memory_pool();
+    auto net_id = _network.get_id();
+    if (_node->get_program().get_config().get_enable_memory_pool()) {
+        if (curr_memory != nullptr)
+            pool.release_memory(curr_memory, _node->get_unique_id(), _node->id(), net_id);
+        return pool.get_memory(alloc_layout,
+                                _node->id(),
+                                _node->get_unique_id(),
+                                net_id,
+                                _runtime_memory_dependencies,
+                                alloc_type,
+                                false,
+                                true,
+                                _node->is_dynamic());
+    }
+    return pool.get_memory(alloc_layout, alloc_type, true);
+}
+memory::ptr moe_expert_inst::reinterpret_buf(const memory& curr_memory, const layout& new_layout) {
+    return _network.get_engine().reinterpret_buffer(curr_memory, new_layout);
+}
+
 void moe_expert_inst::get_tmp_memory(data_types type, int m, int hidden_size, int inter_size, int topk, expert_mask_tmp_scratch& scratch) {
     layout x_layout(ov::PartialShape{m, hidden_size}, type, cldnn::format::bfyx);
 
@@ -127,25 +130,6 @@ void moe_expert_inst::get_tmp_memory(data_types type, int m, int hidden_size, in
     layout gate_layout(ov::PartialShape{m, inter_size}, type, cldnn::format::bfyx);
     layout routing_layout(ov::PartialShape{m * topk}, type, cldnn::format::bfyx);
     if (new_size > scratch.max_size) {
-        auto& pool = _network.get_memory_pool();
-        auto net_id = _network.get_id();
-
-        auto alloc_buf = [&](memory* curr_memory, layout& alloc_layout, allocation_type alloc_type = cldnn::allocation_type::usm_device) {
-            if (_node->get_program().get_config().get_enable_memory_pool()) {
-                if (curr_memory != nullptr)
-                    pool.release_memory(curr_memory, _node->get_unique_id(), _node->id(), net_id);
-                return pool.get_memory(alloc_layout,
-                                       _node->id(),
-                                       _node->get_unique_id(),
-                                       net_id,
-                                       _runtime_memory_dependencies,
-                                       alloc_type,
-                                       false,
-                                       true,
-                                       _node->is_dynamic());
-            }
-            return pool.get_memory(alloc_layout, alloc_type, true);
-        };
         if (!scratch.expert_info) {
             auto expected_alloc_type = _network.get_engine().get_lockable_preferred_memory_allocation_type();
             GPU_DEBUG_LOG << "=> allocate expert_mask to " << expected_alloc_type << std::endl;
