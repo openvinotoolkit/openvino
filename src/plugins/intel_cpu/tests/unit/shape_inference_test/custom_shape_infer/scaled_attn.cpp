@@ -134,6 +134,7 @@ using SDPACpuShapeInferenceThrowExceptionTest = SDPACpuShapeInferenceTest;
 TEST_P(SDPACpuShapeInferenceThrowExceptionTest, wrong_attention_mask) {
     ov::intel_cpu::ScaledDotProductAttentionWithKVCache::Config config;
     config.permute_axes = permute_axes;
+    config.is_causal = causal;
     const auto op = make_op(args, config);
     std::ostringstream os;
     os << "attention_mask do not match q and k,";
