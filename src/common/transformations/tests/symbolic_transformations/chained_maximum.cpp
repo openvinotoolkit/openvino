@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, ChainedMaximumAC) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
 
-        model = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input, data});
+        model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
         manager.register_pass<pass::ChainedMaximumOptimization>();
@@ -50,7 +50,7 @@ TEST_F(TransformationTestsF, ChainedMaximumAC) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum);
 
-        model_ref = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input, data});
+        model_ref = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
     }
 }
 
@@ -69,7 +69,7 @@ TEST_F(TransformationTestsF, ChainedMaximumBC) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
 
-        model = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input, data});
+        model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
         manager.register_pass<pass::ChainedMaximumOptimization>();
@@ -85,7 +85,7 @@ TEST_F(TransformationTestsF, ChainedMaximumBC) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum);
 
-        model_ref = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input, data});
+        model_ref = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
     }
 }
 
@@ -104,7 +104,7 @@ TEST_F(TransformationTestsF, ChainedMaximumNegativeNoLabels) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
 
-        model = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input, data});
+        model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input, data});
         manager.register_pass<pass::ChainedMaximumOptimization>();
     }
 }
@@ -124,7 +124,7 @@ TEST_F(TransformationTestsF, ChainedMaximumNegativeDifferentLabels) {
         auto data = make_shared<v0::Parameter>(element::f32, PartialShape::dynamic());
         auto broadcast = make_shared<v1::Broadcast>(data, maximum_1);
 
-        model = make_shared<Model>(NodeVector{broadcast}, ParameterVector{input_0, input_1, data});
+        model = make_shared<Model>(OutputVector{broadcast}, ParameterVector{input_0, input_1, data});
         manager.set_per_pass_validation(false);
         manager.register_pass<pass::SymbolicPropagation>();
         manager.register_pass<pass::ChainedMaximumOptimization>();

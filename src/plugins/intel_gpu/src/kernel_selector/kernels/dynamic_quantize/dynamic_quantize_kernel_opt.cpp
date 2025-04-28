@@ -99,8 +99,6 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
         jit.AddConstant(MakeJitConstant("TOTAL_BLOCK_NUM", total_block_num));
         jit.AddConstant(MakeJitConstant("ALIGNED_BLOCK_NUM", aligned_block_num));
         jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
-    } else {
-        OPENVINO_ASSERT(false);
     }
 
     return jit;

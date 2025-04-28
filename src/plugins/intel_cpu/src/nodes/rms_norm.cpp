@@ -12,7 +12,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/util/common_util.hpp"
 #include "ov_ops/rms.hpp"
 #include "shape_inference/custom/rms_norm.hpp"

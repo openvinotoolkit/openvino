@@ -3,6 +3,10 @@
 //
 
 #include "shared_test_classes/subgraph/reshape_squeeze_reshape_relu.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 
 namespace ov {

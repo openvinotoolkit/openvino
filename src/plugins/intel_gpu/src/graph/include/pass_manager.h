@@ -322,10 +322,10 @@ public:
 
         if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) && ((node->can_be_optimized() && !node->is_runtime_skippable())
             || !dep->can_be_optimized())) {
-            node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+            node->add_memory_dependency(*dep);
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
-                node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+                node->add_memory_dependency(*dep);
             }
 
             for (const auto& subdep : dep->get_dependencies()) {

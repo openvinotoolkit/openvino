@@ -23,9 +23,9 @@
 #include "fake_quantize.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset11.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset11_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/static_shape.hpp"
 #include "utils/bfloat16.hpp"
@@ -3960,7 +3960,7 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
                         }
                     }
 
-                    if (!wsum) {
+                    if (wsum == 0.0f) {
                         setValue(out_ptr_ncdh, ox * dstDataSize, 0.f, outputPrec);
                     } else {
                         float dst_value = sum / wsum;

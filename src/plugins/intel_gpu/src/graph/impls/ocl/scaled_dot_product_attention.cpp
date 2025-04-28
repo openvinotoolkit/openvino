@@ -328,6 +328,13 @@ public:
             params.inputs[i] = convert_data_tensor(impl_param.get_input_layout(i));
         }
 
+        if (desc->scale_val.has_value()) {
+            data_inputs_num++;
+        }
+        if (desc->attn_mask_val.has_value()) {
+            data_inputs_num++;
+        }
+
         params.conf = get_sdpa_configuration(impl_param);
 
         params.input0_order = desc->input_q_transpose_order;
@@ -376,6 +383,8 @@ public:
         if (indirect && has_indirect_inputs(impl_param)) {
             params.beam_table.SetDynamicShapeOffset(in_offsets_map.at(get_beam_table_id(desc)));
         }
+
+        params.could_use_flashattn_v2 = impl_param.get_program().get_config().get_could_use_flashattn_v2();
 
         return params;
     }

@@ -4,13 +4,14 @@
 
 #include "batch_to_space.h"
 
-#include <openvino/opsets/opset2.hpp>
 #include <string>
 #include <vector>
 
 #include "dnnl_types.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
 #include "selective_build.h"
 
 namespace ov::intel_cpu::node {
