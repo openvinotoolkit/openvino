@@ -273,7 +273,7 @@ private:
             : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, _dataScales),
               antialias(interpAttrs.antialias),
               dataScales(_dataScales),
-              refinterpAttrs(interpAttrs) {}
+              refInterpAttrs(interpAttrs) {}
 
         void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) override;
 
