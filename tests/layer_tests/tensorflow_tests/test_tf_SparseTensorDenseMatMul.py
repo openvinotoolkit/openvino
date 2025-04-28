@@ -89,10 +89,8 @@ class TestSparseTensorDenseMatMul(CommonTFLayerTest):
     def test_sparse_tensor_dense_mat_mul(self, data_type, indices_type,
                                          adjoint_a, adjoint_b,
                                          a_shape, b_shape, nnz,
-                                         ie_device, precision, ir_version, temp_dir,
-                                         use_legacy_frontend):
+                                         ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_sparse_tensor_dense_mat_mul_net(data_type, indices_type,
                                                                 adjoint_a, adjoint_b,
                                                                 a_shape, b_shape, nnz),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

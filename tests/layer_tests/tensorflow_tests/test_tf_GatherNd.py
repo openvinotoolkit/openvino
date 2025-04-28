@@ -58,7 +58,6 @@ class TestGatherNd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_gather_nd_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_gather_nd_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_gather_nd_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

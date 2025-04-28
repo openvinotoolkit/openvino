@@ -24,9 +24,7 @@ class TestCastOp(CommonTFLayerTest):
     # output_type - type of output value
     # truncate - boolean flag of truncation
     # ir_version - common parameter
-    # use_legacy_frontend - common parameter
-    def create_cast_op_placeholder_const_net(self, input_shape, input_type, output_type, truncate, ir_version,
-                                             use_legacy_frontend):
+    def create_cast_op_placeholder_const_net(self, input_shape, input_type, output_type, truncate, ir_version):
         if (input_type == output_type):
             pytest.skip("Input and output types shouldn't be equal")
 
@@ -67,13 +65,10 @@ class TestCastOp(CommonTFLayerTest):
     @pytest.mark.parametrize("truncate", [False, True])
     @pytest.mark.nightly
     def test_cast_op_placeholder_const(self, params, input_type, output_type, truncate, ie_device, precision,
-                                       ir_version, temp_dir,
-                                       use_legacy_frontend):
+                                       ir_version, temp_dir):
         if ie_device == 'GPU' and output_type == np.float64:
             pytest.skip("accuracy mismatch float64 output_type on GPU")
         self._test(*self.create_cast_op_placeholder_const_net(**params, ir_version=ir_version,
-                                                              use_legacy_frontend=use_legacy_frontend,
                                                               input_type=input_type,
                                                               output_type=output_type, truncate=truncate),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

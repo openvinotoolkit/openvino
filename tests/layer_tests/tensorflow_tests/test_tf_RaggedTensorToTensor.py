@@ -52,7 +52,7 @@ class TestRaggedTensorToTensor(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_ragged_tensor_to_tensor(self, shape_type, shape_value, values_shape, values_type, default_value,
                                      row_partition_tensors, row_partition_types,
-                                     ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+                                     ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_ragged_tensor_to_tensor_net(shape_type=shape_type, shape_value=shape_value,
@@ -60,8 +60,7 @@ class TestRaggedTensorToTensor(CommonTFLayerTest):
                                                             default_value=default_value,
                                                             row_partition_tensors=row_partition_tensors,
                                                             row_partition_types=row_partition_types),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestRaggedTensorToTensorRowIds(CommonTFLayerTest):
@@ -106,7 +105,7 @@ class TestRaggedTensorToTensorRowIds(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_ragged_tensor_to_tensor(self, shape_type, shape_value, values_shape, values_type, default_value,
                                      row_partition_tensors, row_partition_types,
-                                     ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+                                     ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_ragged_tensor_to_tensor_net(shape_type=shape_type, shape_value=shape_value,
@@ -114,5 +113,4 @@ class TestRaggedTensorToTensorRowIds(CommonTFLayerTest):
                                                             default_value=default_value,
                                                             row_partition_tensors=row_partition_tensors,
                                                             row_partition_types=row_partition_types),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

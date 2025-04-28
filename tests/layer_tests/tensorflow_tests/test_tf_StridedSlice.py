@@ -45,12 +45,11 @@ class TestStridedSlice(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_strided_slice_basic(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_legacy_frontend):
+                                 temp_dir):
         if ie_device == 'GPU' and (params['input_shape'] == [1, 5, 5, 3] or params['input_shape'] == [3, 4, 5, 7]):
             pytest.skip("Invalid Batch offset: exceeds data for output issue on GPU")
         self._test(*self.create_strided_slice_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_squeeze_data = [
         dict(input_shape=[1, 5], begin_value=[0, 0], end_value=[1, 5], strides_value=[1, 1], begin_mask=0,
@@ -86,10 +85,9 @@ class TestStridedSlice(CommonTFLayerTest):
     @pytest.mark.parametrize('params', test_squeeze_data)
     @pytest.mark.nightly
     def test_strided_slice_replace_with_squeeze(self, params, ie_device, precision, ir_version,
-                                                temp_dir, use_legacy_frontend):
+                                                temp_dir):
         self._test(*self.create_strided_slice_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_unsqueeze_data = [
         dict(input_shape=[1, 5], begin_value=[0, 0], end_value=[1, 5], strides_value=[1, 1], begin_mask=0,
@@ -116,10 +114,9 @@ class TestStridedSlice(CommonTFLayerTest):
     @pytest.mark.parametrize('params', test_unsqueeze_data)
     @pytest.mark.nightly
     def test_strided_slice_replace_with_unsqueeze(self, params, ie_device, precision, ir_version,
-                                                  temp_dir, use_legacy_frontend):
+                                                  temp_dir):
         self._test(*self.create_strided_slice_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexStridedSlice(CommonTFLayerTest):
@@ -227,11 +224,9 @@ class TestComplexStridedSlice(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_strided_slice(self, params, ie_device, precision, ir_version, temp_dir,
-                                   use_legacy_frontend):
+    def test_complex_strided_slice(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.skip("accuracy issue on GPU")
         self._test(
             *self.create_complex_strided_slice_net(**params),
-            ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend)
+            ie_device, precision, ir_version, temp_dir=temp_dir)
