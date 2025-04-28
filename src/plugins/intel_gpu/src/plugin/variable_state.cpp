@@ -98,6 +98,7 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
 }
 
 void VariableState::update_device_buffer() {
+    OPENVINO_ASSERT(m_context != nullptr, "m_context should not be null.");
     if (m_layout.is_dynamic() || m_layout.bytes_count() == 0) {
         m_shape_predictor->reset();
         m_memory.reset();
@@ -114,6 +115,8 @@ void VariableState::update_device_buffer() {
         m_memory = m_context->get_engine().allocate_memory(alloc_layout, alloc_type, false);
         actual_size = std::max(actual_size, alloc_layout.bytes_count());
     }
+
+    OPENVINO_ASSERT(m_memory != nullptr, "m_memory is nullptr!!!");
     m_memory = m_context->get_engine().reinterpret_buffer(*m_memory, m_layout);
 }
 

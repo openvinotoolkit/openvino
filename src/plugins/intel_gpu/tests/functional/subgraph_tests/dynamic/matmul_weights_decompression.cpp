@@ -14,6 +14,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -131,7 +132,7 @@ protected:
                                                                        per_tensor_zp);
 
         auto mat_mul = std::make_shared<ov::op::v0::MatMul>(params[0], weights_subgraph);
-        return std::make_shared<ov::Model>(ov::NodeVector{mat_mul}, params, "MatmulWeightsDecompression");
+        return std::make_shared<ov::Model>(ov::OutputVector{mat_mul}, params, "MatmulWeightsDecompression");
     }
 
     std::shared_ptr<ov::Node> init_compressed_weights_subgraph(const ov::Shape& weights_shape,
@@ -428,5 +429,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                                             ::testing::ValuesIn(group_size),
                                             ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
                          MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_no_slm,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{2, 1, 1024}, {1, 1, 1024}, {2, 1, 1024}}},
+                                                                            {1024, 1}, 128}),  // shape
+                                            ::testing::Values(ov::element::u8),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(add_decompression_sub),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),  // per_tensor_zp
+                                            ::testing::ValuesIn(group_size),
+                                            ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
+                         MatmulWeightsDecompression::get_test_case_name);
+
 
 } // namespace

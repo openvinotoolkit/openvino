@@ -11,12 +11,14 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/gather.hpp"
 
 namespace ov {
 namespace pass {

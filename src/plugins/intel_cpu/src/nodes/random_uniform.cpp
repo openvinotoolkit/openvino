@@ -525,8 +525,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
                                                            const std::pair<uint64_t, uint64_t>& prev_state) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
     if (m_global_seed == 0lu && m_op_seed == 0lu) {
-        std::srand(static_cast<unsigned int>(std::time(nullptr)));
-        m_global_seed = std::rand();
+        m_global_seed = std::random_device{}();
     }
 
     uint64_t n_state = prev_state.first;
@@ -730,8 +729,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
 void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_count) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
     if (m_global_seed == 0lu && m_op_seed == 0lu) {
-        std::srand(static_cast<unsigned int>(std::time(nullptr)));
-        m_global_seed = std::rand();
+        m_global_seed = std::random_device{}();
     }
 
     const auto elements_consumed_per_one_output = m_mersenne_twister_optimization_enabled ? 1 : 2;
