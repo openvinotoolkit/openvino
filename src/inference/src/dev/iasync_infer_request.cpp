@@ -12,6 +12,10 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/variable_state.hpp"
 
+int total_infer = 0;
+int stream_infer = 0;
+int plugin_infer = 0;
+
 namespace {
 
 struct ImmediateStreamsExecutor : public ov::threading::ITaskExecutor {
@@ -22,7 +26,10 @@ struct ImmediateStreamsExecutor : public ov::threading::ITaskExecutor {
             std::vector<ov::threading::Task> tasks{std::move(task)};
             _streamsExecutor->run_and_wait(tasks);
         } else {
+            auto start = std::chrono::high_resolution_clock::now();
             _streamsExecutor->execute(std::move(task));
+            auto end = std::chrono::high_resolution_clock::now();
+            stream_infer = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
         }
     }
     std::shared_ptr<ov::threading::IStreamsExecutor> _streamsExecutor;
@@ -51,7 +58,11 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
     auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_request_executor);
     if (streams_executor != nullptr) {
         m_sync_pipeline = {{std::make_shared<ImmediateStreamsExecutor>(std::move(streams_executor)), [this] {
+                                auto start = std::chrono::high_resolution_clock::now();
                                 m_sync_request->infer();
+                                auto end = std::chrono::high_resolution_clock::now();
+                                plugin_infer =
+                                    std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
                             }}};
     }
 }
@@ -255,11 +266,18 @@ void ov::IAsyncInferRequest::stop_and_wait() {
 }
 
 void ov::IAsyncInferRequest::infer() {
+    auto start = std::chrono::high_resolution_clock::now();
     DisableCallbackGuard disableCallbackGuard{this};
     infer_impl([this] {
         infer_thread_unsafe();
     });
     wait();
+    auto end = std::chrono::high_resolution_clock::now();
+    total_infer = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    float pipeline_percentage = (total_infer - stream_infer) * 100.0 / total_infer;
+    float stream_percentage = (stream_infer - plugin_infer) * 100.0 / total_infer;
+    std::cout << "[sync infer] plugin cost " << plugin_infer << " us,stream cost " << stream_infer << " us, total cost "
+              << total_infer << " us, pipeline percentage=" << pipeline_percentage << "%, stream percentage=" << stream_percentage << "%" << std::endl;
 }
 
 void ov::IAsyncInferRequest::check_tensors() const {
