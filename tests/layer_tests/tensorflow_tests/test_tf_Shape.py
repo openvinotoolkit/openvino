@@ -50,15 +50,13 @@ class TestShape(CommonTFLayerTest):
     @pytest.mark.parametrize("out_type", [tf.int32, tf.int64])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_shape_basic(self, input_shape, input_type, out_type, ie_device, precision, ir_version, temp_dir,
-                         use_legacy_frontend):
+    def test_shape_basic(self, input_shape, input_type, out_type, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' and (input_shape == [] or input_type == str or input_type == np.str_):
             pytest.skip("scalar shape is not supported or string type is not supported on GPU")
         if input_shape == [] and out_type == tf.int64:
             pytest.skip('129100 - Hangs or segfault')
         self._test(*self.create_shape_net(input_shape=input_shape, input_type=input_type, out_type=out_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexShape(CommonTFLayerTest):
@@ -97,11 +95,9 @@ class TestComplexShape(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_shape(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_legacy_frontend):
+    def test_complex_shape(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' and params['input_shape'] == []:
             pytest.skip("scalar shape is not supported or string type is not supported on GPU")
         self._test(
             *self.create_complex_shape_net(**params),
-            ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend)
+            ie_device, precision, ir_version, temp_dir=temp_dir)
