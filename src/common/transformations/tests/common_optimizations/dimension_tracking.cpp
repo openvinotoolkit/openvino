@@ -14,7 +14,12 @@
 #include "common_test_utils/subgraph_builders/detection_output.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/divide_fusion.hpp"
 #include "transformations/init_node_info.hpp"
@@ -77,7 +82,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_Transpose_and_Convolution) {
                                                                  ov::CoordinateDiff{0, 0},
                                                                  ov::Strides{1, 1});
 
-    const auto& f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{data});
+    const auto& f = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
@@ -112,7 +117,7 @@ TEST(TransformationTests, AutoBatch_LabelPropagation_Convolution_Reshape) {
         std::make_shared<ov::opset1::Reshape>(conv,
                                               ov::opset1::Constant::create(ov::element::i64, {3}, {-1, 4, 6}),
                                               false);
-    const auto& model = std::make_shared<ov::Model>(ov::NodeVector{reshape}, ov::ParameterVector{data});
+    const auto& model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
@@ -138,7 +143,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_SingleMultiply) {
     const auto& constant = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4, 1, 1});
     const auto& mul = std::make_shared<ov::opset1::Multiply>(data, constant);
 
-    const auto& f = std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{data});
+    const auto& f = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
@@ -168,7 +173,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_Two_Outputs) {
                                                                  ov::CoordinateDiff{0, 0},
                                                                  ov::Strides{1, 1});
 
-    const auto& f = std::make_shared<ov::Model>(ov::NodeVector{conv, transpose}, ov::ParameterVector{data});
+    const auto& f = std::make_shared<ov::Model>(ov::OutputVector{conv, transpose}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
@@ -198,7 +203,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoOutputsReversed) {
         std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{1, 0, 2, 3});
     const auto& transpose = std::make_shared<ov::opset1::Transpose>(data, order);
 
-    const auto& f = std::make_shared<ov::Model>(ov::NodeVector{transpose, conv}, ov::ParameterVector{data});
+    const auto& f = std::make_shared<ov::Model>(ov::OutputVector{transpose, conv}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
@@ -232,7 +237,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_IndependentBranchesConcated) {
 
     const auto& concat = std::make_shared<ov::opset1::Concat>(ov::NodeVector{conv, mul_1}, 1);
 
-    const auto& f = std::make_shared<ov::Model>(ov::NodeVector{concat}, ov::ParameterVector{data});
+    const auto& f = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
@@ -265,7 +270,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoConvNetwork) {
                                                                    ov::CoordinateDiff{0, 0},
                                                                    ov::Strides{1, 1});
 
-    const auto& f = std::make_shared<ov::Model>(ov::NodeVector{conv_0, conv_1}, ov::ParameterVector{data});
+    const auto& f = std::make_shared<ov::Model>(ov::OutputVector{conv_0, conv_1}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();
@@ -293,7 +298,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
     const auto& pattern = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{-1});
     const auto& reshape = std::make_shared<ov::opset1::Reshape>(conv_0, pattern, false);
 
-    const auto& f = std::make_shared<ov::Model>(ov::NodeVector{reshape}, ov::ParameterVector{data});
+    const auto& f = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{data});
 
     ov::pass::Manager m;
     m.register_pass<ov::pass::InitNodeInfo>();

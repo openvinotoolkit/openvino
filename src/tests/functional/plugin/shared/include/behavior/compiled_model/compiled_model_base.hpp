@@ -4,7 +4,6 @@
 
 #include <fstream>
 #include <openvino/core/preprocess/pre_post_process.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/serialize.hpp>
 
 #include "base/ov_behavior_test_utils.hpp"
@@ -17,8 +16,11 @@
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/single_split.hpp"
 #include "common_test_utils/subgraph_builders/split_concat.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model_util.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
@@ -1165,10 +1167,14 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
         EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
     }
     {
-        // model not loaded from cache as no weights on path
+        // Model loaded from cache since weightless cache with ov::Model is supported.
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
-        EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+        if (target_device == utils::DEVICE_GPU) {
+            EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
+        } else {
+            EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+        }
     }
 
     std::error_code ec;

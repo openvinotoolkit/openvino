@@ -1,9 +1,9 @@
 # type: ignore
 from __future__ import annotations
 from openvino._pyopenvino import get_version as get_rt_version
-from openvino_telemetry.backend import backend_ga4
 from openvino.tools.ovc.cli_parser import get_params_with_paths_list
 from openvino.tools.ovc.utils import check_values_equal
+from openvino_telemetry.backend import backend_ga4
 import argparse as argparse
 import numbers as numbers
 import openvino_telemetry as tm

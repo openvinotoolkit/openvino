@@ -4,14 +4,26 @@
 
 #include "bound_evaluate.hpp"
 
+#include <stack>
+
 #include "compare.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
 
