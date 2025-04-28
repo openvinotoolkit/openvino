@@ -54,6 +54,13 @@ DeviceFeaturesKey RMSKernelBfyxOpt::get_required_device_features_key(const Param
 JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, DispatchData dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
+    bool has_dynamic_padding = false;
+    for (const auto& dim : params.inputs[0].GetDims())
+        has_dynamic_padding |= dim.pad.is_dynamic;
+
+    if (has_dynamic_padding)
+        jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_PADDING", 1));
+
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
         DimensionAccessHelperJit dims(input);
