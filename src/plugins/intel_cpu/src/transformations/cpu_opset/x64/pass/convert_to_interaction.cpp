@@ -106,12 +106,11 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
     matcher_pass_callback callback = [=](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto fq_node = ov::as_type_ptr<ov::opset8::FakeQuantize>(pattern_to_output.at(fq_m).get_node_shared_ptr());
+        OPENVINO_ASSERT(fq_node != nullptr, "FakeQuantize node is not found");
         std::vector<float> fq_scale;
-        if (fq_node) {
-            fq_scale = simplifyToScale(fq_node, 0.001f);
-            if (fq_scale.empty()) {
-                return false;
-            }
+        fq_scale = simplifyToScale(fq_node, 0.001f);
+        if (fq_scale.empty()) {
+            return false;
         }
         bool success = ov::replace_output_update_name(fq_node->output(0), fq_node->input_value(0));
         if (!success) {
