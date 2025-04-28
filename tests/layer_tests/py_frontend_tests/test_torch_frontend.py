@@ -466,11 +466,12 @@ def test_multiple_module_extension():
 
 def test_inlined_extension():
     import openvino as ov
+    from openvino.frontend.pytorch import inlined_extension
     import numpy as np
 
     rng = np.random.default_rng(42)
 
-    @ov.inlined_extension
+    @inlined_extension
     def numpy_cos(x):
         # numpy is not captured by tracing, so we use a custom extension
         return torch.from_numpy(np.cos(x.numpy(force=True)))
@@ -502,16 +503,17 @@ def test_inlined_extension():
 
 def test_multiple_inlined_extension():
     import openvino as ov
+    from openvino.frontend.pytorch import inlined_extension
     import numpy as np
 
     rng = np.random.default_rng(42)
 
-    @ov.inlined_extension
+    @inlined_extension
     def numpy_roll(x):
         # numpy is not captured by tracing, so we use a custom extension
         return torch.from_numpy(np.roll(x.numpy(force=True), 10, 0))
 
-    @ov.inlined_extension
+    @inlined_extension
     def numpy_cos(x):
         # numpy is not captured by tracing, so we use a custom extension
         return torch.from_numpy(np.cos(x.numpy(force=True)))
