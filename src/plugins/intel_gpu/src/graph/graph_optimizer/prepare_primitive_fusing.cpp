@@ -56,6 +56,9 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
+    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions())
+        return;
+
     fuse_reorders(p);
     remove_redundant_reshape(p);
     fuse_swiglu(p);
@@ -165,10 +168,7 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
 }
 
 void prepare_primitive_fusing::fuse_swiglu(program &p) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    bool disable_fc_swiglu_fusion = false;
-    GPU_DEBUG_IF(debug_config->disable_fc_swiglu_fusion == 1)
-        disable_fc_swiglu_fusion = true;
+    bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(p.get_config().get_disable_fc_swiglu_fusion(), false);
     // Apply only for high performant GPU
     if (disable_fc_swiglu_fusion || p.get_engine().get_device_info().execution_units_count < 128)
         return;
@@ -189,7 +189,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
             auto& fc_node = node->get_dependency(0);
             if (node->get_dependencies().size() > 1)
                 continue;
-            if (!node->get_dependency(0).get_fused_primitives().empty())
+            if (!fc_node.get_fused_primitives().empty())
                 continue;
             auto in_dt = fc_node.get_input_layout(0).data_type;
             if (in_dt != data_types::f16)
@@ -371,6 +371,10 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (replace_candidate.is_type<convolution>()) {
             auto& conv = replace_candidate.as<convolution>();
             auto desc = conv.get_primitive();
+            // XXX: deformable convolution does not support bias fusing at this moment.
+            // It is just not tested and deformable_mode value is not properly handled below.
+            if (desc->deformable_mode)
+                continue;
             primitive_id biases = bias_name;
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
@@ -460,7 +464,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->weights,
                                                                        bias_name,
                                                                        fc.get_output_layout().data_type,
-                                                                       desc->input_size);
+                                                                       desc->input_size,
+                                                                       desc->weights_rank);
 
             if (desc->compressed_weights) {
                 fc_with_bias_prim->compressed_weights = true;
@@ -742,6 +747,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
                     return;
                 }
+
                 // Activation should not be fused if oneDNN does NOT support it
                 if (lo.is_primitive_implemented_for_onednn(input))  {
                     #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1142,8 +1148,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
-                    && !fused_node->is_type<fully_connected>()
-                    && !fused_node->is_type<gemm>())
+                    && !fused_node->is_type<fully_connected>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))

@@ -39,7 +39,7 @@ using namespace ov::element;
 
 namespace ov::intel_cpu::node {
 
-ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
+ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes(bool apply_fp8) {
     using ov::element::Type_t;
 
     bool useMatmulPrim = false;
@@ -47,13 +47,17 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
 
     if (useMatmulPrim) {
         return {Type_t::u8, Type_t::i8};
-    } else {
-#if defined(OPENVINO_ARCH_X86_64)
-        return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
-#else
-        return {};
-#endif
     }
+#if defined(OPENVINO_ARCH_X86_64)
+    ov::element::TypeVector supportedDataTypes =
+        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
+    if (apply_fp8) {
+        supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
+    }
+    return supportedDataTypes;
+#else
+    return {};
+#endif
 }
 
 ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
@@ -64,23 +68,20 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
 
     if (useMatmulPrim) {
         return {Type_t::f32, Type_t::f16};
-    } else {
-#if defined(OPENVINO_ARCH_X86_64)
-        // @todo enable for bf16 as well
-        // after EnforceInferencePrecision is replaced with ConvertPrecision
-        return {Type_t::f32};
-#else
-        return {};
-#endif
     }
+#if defined(OPENVINO_ARCH_X86_64)
+    // @todo enable for bf16 as well
+    // after EnforceInferencePrecision is replaced with ConvertPrecision
+    return {Type_t::f32};
+#else
+    return {};
+#endif
 }
 
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<const ov::op::internal::FullyConnected>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedQuantizedLegacy>(op) &&
-            !ov::is_type<const ov::op::internal::FullyConnectedCompressed>(op)) {
+        if (!ov::is_type<const ov::op::internal::FullyConnected>(op)) {
             return false;
         }
 
@@ -180,7 +181,8 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
     m_atoi[ARG_BIAS] = BIAS;
 
     auto mapArgToInput = [&op](std::unordered_map<size_t, size_t>& argToInput, size_t argId, size_t inputId) {
-        if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::undefined) {
+        if (op->get_input_size() > inputId && op->input(inputId).get_element_type() != ov::element::dynamic &&
+            op->input(inputId).get_element_type() != ov::element::dynamic) {
             argToInput[argId] = inputId;
         }
     };
@@ -243,7 +245,10 @@ void FullyConnected::prepareParams() {
     needPrepareParamsForTensorParallel();
 
     executor->update(memory);
-    // @todo avoid updating implementation type in scope of every prepareParams call
+    // @todo avoid updating implementation type in scope of every prepareParams call.
+    // Currently the tests are implemented in such way that the actual used implementation type is changed
+    // based on a shape and the expected implementation type is determined by the last shape.
+    // I.e. for convolution it is different. The dymmy shape determines the expected implementation type.
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 }
 
@@ -357,7 +362,7 @@ void FullyConnected::execTensorParallelSync() {
     }
 }
 
-void FullyConnected::execute(const dnnl::stream& strm) {
+void FullyConnected::execute([[maybe_unused]] const dnnl::stream& strm) {
     initTensorParallelSync();
 
     executor->execute(memory);
@@ -414,6 +419,7 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
         impl_desc_type::shl,
         impl_desc_type::brgemm_sparse_avx512_amx,
         impl_desc_type::brgemm_avx512_amx,
+        impl_desc_type::brgconv_avx512_1x1,
         impl_desc_type::brgemm_avx512,
         impl_desc_type::brgemm_avx2,
         impl_desc_type::gemm_blas,
@@ -506,7 +512,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
 }
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
-    attrs.withBias = getOriginalInputPrecisionAtPort(BIAS) != ov::element::undefined;
+    attrs.withBias = getOriginalInputPrecisionAtPort(BIAS) != ov::element::dynamic;
 
     attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA),
@@ -514,7 +520,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
 
-    postOps = getPostOps(fusedWith);
+    attrs.postOps = getPostOps(fusedWith);
 
     const auto& srcTypes = getOriginalInputPrecisions();
     auto dstTypes = getOriginalOutputPrecisions();
@@ -526,7 +532,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     VecMemoryDescs srcDescs;
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < srcTypes.size(); i++) {
-        if (srcTypes[i] == element::undefined) {
+        if (srcTypes[i] == element::dynamic) {
             srcDescs.push_back(MemoryDescUtils::makeEmptyDesc());
             continue;
         }
@@ -548,15 +554,15 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     };
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
-    factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, postOps, executionContext, descs);
-    const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
+    factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, executionContext, descs);
+    const std::vector<MemoryDescArgs> nodeDescriptorsList = factory->getProperMemoryDescriptors(descs);
+    const MemoryDescArgs& nodeDescriptors = nodeDescriptorsList.front();
 
     NodeConfig nodeConfig;
     nodeConfig.inConfs.resize(srcDescs.size());
-
     for (const auto& desc : nodeDescriptors) {
-        if (m_atoi.count(desc.first)) {
-            nodeConfig.inConfs[m_atoi[desc.first]] = desc.second;
+        if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
+            nodeConfig.inConfs[it->second] = desc.second;
         }
     }
 
@@ -599,24 +605,30 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_DST] = getDstMemoryAtPort(0);
         tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
-        memory[ARG_DST | ARG_ATTR_SCALES] =
-            split_horizontal(context->getEngine(), memory[ARG_DST | ARG_ATTR_SCALES], 0, tp_cfg.w_rank, tp_cfg.w_size);
+        if (auto it = memory.find(ARG_DST | ARG_ATTR_SCALES); it != memory.end()) {
+            memory[ARG_DST | ARG_ATTR_SCALES] =
+                split_horizontal(context->getEngine(), it->second, 0, tp_cfg.w_rank, tp_cfg.w_size);
+        }
 
-        auto scale_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_SCALES]);
-        memory[ARG_WEI | ARG_ATTR_SCALES] =
-            attrs.weightsNonTransposed
-                ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
-
-        auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_ZERO_POINTS]);
-        auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
-        if (element_num == 1) {
-            tp_cfg.cached_zeropoint = zeropoint_mem;
-        } else {
-            tp_cfg.cached_zeropoint =
+        if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
+            auto scale_mem = std::const_pointer_cast<IMemory>(it->second);
+            memory[ARG_WEI | ARG_ATTR_SCALES] =
                 attrs.weightsNonTransposed
-                    ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+                    ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                    : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+        }
+
+        if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
+            auto zeropoint_mem = std::const_pointer_cast<IMemory>(it->second);
+            auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
+            if (element_num == 1) {
+                tp_cfg.cached_zeropoint = zeropoint_mem;
+            } else {
+                tp_cfg.cached_zeropoint =
+                    attrs.weightsNonTransposed
+                        ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                        : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            }
         }
     }
 }
@@ -627,9 +639,7 @@ void FullyConnected::needUpdateTensorParalelConfig() {
     // 2. last dim can be splited.
     if (tp_cfg.enable_tensor_parallel) {
         const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
-        if (shape.isDynamic()) {
-            tp_cfg.enable_tensor_parallel = false;
-        } else if (shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
+        if (shape.isDynamic() || shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
             tp_cfg.enable_tensor_parallel = false;
         }
     }

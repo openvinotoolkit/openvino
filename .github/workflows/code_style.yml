@@ -1,5 +1,5 @@
 name: Code Style
-on: [pull_request]
+on: [pull_request, merge_group]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,11 +35,15 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@a3026c6020837c23b61a79d12db223a00df19e6a # v1.19.0
+        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
-          fail_on_error: true
+          fail_level: error
+          filter_mode: nofilter
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
 
   clang-format-aarch64:
     runs-on: ubuntu-22.04
@@ -67,11 +71,15 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@a3026c6020837c23b61a79d12db223a00df19e6a # v1.19.0
+        uses: reviewdog/action-suggester@4747dbc9f9e37adba0943e681cc20db466642158 # v1.19.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
-          fail_on_error: true
+          fail_level: error
+          filter_mode: nofilter
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
 
   ShellCheck:
     runs-on: ubuntu-22.04
@@ -98,12 +106,12 @@ jobs:
       # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
         if: always()
-        uses: reviewdog/action-shellcheck@6e0e63d1750d02d761b3df0f2c5ba9f9ac4a9ed7 # v1.29.0
+        uses: reviewdog/action-shellcheck@5ebd09ddbe2ebb471646ce234c6c8dd18663ca7c # v1.30.0
         with:
           level: style
           reporter: github-pr-review
           check_all_files_with_shebangs: true
-          fail_on_error: true
+          fail_level: error
           exclude: |
               "*/thirdparty/*"
               "./temp/*"

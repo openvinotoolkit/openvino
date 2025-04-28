@@ -3,6 +3,7 @@
 //
 
 #include "compress_quantize_weights.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -177,7 +178,7 @@ ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
             auto levels = fq->get_levels();
             if (levels <= 2 || levels > 256)
                 return false;
-            auto low_precision_type = element::undefined;
+            auto low_precision_type = element::dynamic;
             // Currently we support two weights quantize types: i4, u4, i8, u8
             // we determine that the weights should be cast to u4, u8 inside compute_scale_and_zero_point
             if (levels <= 16) {

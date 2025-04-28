@@ -5,6 +5,8 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/select.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -58,7 +60,7 @@ protected:
         in_data.resolution = 1;
         auto thenTensor = ov::test::utils::create_and_fill_tensor(precision, ov::Shape{1}, in_data);
 
-        in_data.start_from = 3.40282e+38;
+        in_data.start_from = 1;
         in_data.range = 10;
         in_data.resolution = 2;
         auto elseTensor = ov::test::utils::create_and_fill_tensor(precision, ov::Shape{2, 1, 32, 32}, in_data);

@@ -23,6 +23,7 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "memory_format_filter.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/node_config.h"
 #include "onednn/dnnl.h"
@@ -60,7 +61,7 @@ public:
           inPlace(inPlace) {}
 
     PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
-                     ov::element::Type prc = ov::element::undefined,
+                     ov::element::Type prc = ov::element::dynamic,
                      bool constant = false,
                      int inPlace = -1)
         : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
@@ -183,7 +184,7 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        PerfCounters(std::string const& name)
+        PerfCounters(const std::string& name)
             : execute(openvino::itt::handle(name)),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
@@ -398,7 +399,7 @@ public:
         return mergedWith;
     }
 
-    const std::vector<NodePtr>& getFusedWith() {
+    const std::vector<NodePtr>& getFusedWith() const {
         return fusedWith;
     }
 
@@ -508,7 +509,7 @@ public:
         return perfCounter;
     }
 
-    virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
+    virtual void resolveInPlaceEdges(Edge::LOOK look);
 
     // @todo this supposed to be 'execute + executeImpl' instead of 'executeStatic + execute'
     // but this requires changes in all the nodes. Since moving to a numa node right before an execute
@@ -559,8 +560,7 @@ public:
      * The main use case are nodes with nested graphs.
      * Use this method to make nested graphs a part of global allocation procedure
      */
-    virtual int registerToAllocationContext(int offset, AllocationContext& context) {
-        (void)context;  // nothing to register by default
+    virtual int registerToAllocationContext(int offset, [[maybe_unused]] AllocationContext& context) {
         return offset;
     }
 
@@ -715,11 +715,11 @@ public:
     virtual void appendPostOps(dnnl::post_ops& ops,
                                const VectorDims& postOpDims,
                                std::unordered_map<int, MemoryPtr>& postOpsMem,
-                               const int channelAxis = 1);
+                               const int channelAxis);
     virtual void appendPostOps(dnnl::post_ops& ops,
                                const VectorDims& postOpDims,
                                std::vector<const void*>& postOpsMem,
-                               const int channelAxis = 1);
+                               const int channelAxis);
     virtual bool canBeExecutedInInt8() const {
         OPENVINO_THROW_NOT_IMPLEMENTED("canBeExecutedInInt8 not implemented for node with type ",
                                        NameFromType(getType()));
@@ -762,8 +762,7 @@ protected:
 
     std::string primitivesPriority;
     std::vector<impl_desc_type> customImplPriorities;
-    std::vector<dnnl::memory::format_tag> inputMemoryFormatsFilter;
-    std::vector<dnnl::memory::format_tag> outputMemoryFormatsFilter;
+    MemoryFormatFilter memoryFormatFilter;
     bool enforceBF16evenForGraphTail = false;
     bool keepOriginalPrecision = false;
 

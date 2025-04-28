@@ -5,7 +5,6 @@
 #include <memory>
 
 #include "openvino/core/visibility.hpp"
-#include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 
@@ -18,6 +17,7 @@
 #include "test_models/model_1.hpp"
 #include "test_models/model_2.hpp"
 #include "base_test.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace {
 
@@ -33,8 +33,8 @@ protected:
     void SetUp() override {
         SubgraphsDumperBaseTest::SetUp();
         test_model_name = "test_model_name";
-        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"});
-        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"});
+        test_artifacts_dir = ov::util::path_join({ov::test::utils::getCurrentWorkingDir(), "test_artifacts"}).string();
+        test_model_path = ov::util::path_join({test_artifacts_dir, test_model_name + ".xml"}).string();
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
             Model_0 test;

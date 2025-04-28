@@ -27,7 +27,7 @@ public:
 
     const ov::Strides& get_strides() const override;
 
-    void* data(const element::Type& type = {}) const override;
+    const void* data(const element::Type& type) const override;
 
     MemoryPtr get_memory() {
         return m_memptr;

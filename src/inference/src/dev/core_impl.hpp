@@ -5,8 +5,8 @@
 #pragma once
 
 #include "cache_guard.hpp"
-#include "dev/plugin.hpp"
 #include "cache_manager.hpp"
+#include "dev/plugin.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -161,6 +161,7 @@ private:
         std::shared_ptr<ov::ICacheManager> cacheManager;
         std::string blobId = {};
         std::string modelPath = {};
+        std::shared_ptr<const ov::Model> model{};
         bool mmap_enabled = false;
     };
 
@@ -172,7 +173,7 @@ private:
     mutable ov::CacheGuard cacheGuard;
 
     struct PluginDescriptor {
-        ov::util::FilePath libraryLocation;
+        ov::util::Path libraryLocation;
         ov::AnyMap defaultConfig;
         std::vector<ov::util::FilePath> listOfExtentions;
         CreatePluginEngineFunc* pluginCreateFunc = nullptr;
@@ -216,7 +217,7 @@ private:
         const ov::SoPtr<ov::IRemoteContext>& context,
         std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda) const;
 
-    bool device_supports_model_caching(const ov::Plugin& plugin) const;
+    bool device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& origConfig = {}) const;
 
     bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
     bool device_supports_internal_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
@@ -232,16 +233,17 @@ private:
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
 
-    template <typename C, typename = ov::util::enableIfSupportedChar<C>>
-    void try_to_register_plugin_extensions(const std::basic_string<C>& path) const {
+    void try_to_register_plugin_extensions(const ov::util::Path& path) const {
         try {
-            auto plugin_extensions = ov::detail::load_extensions(path);
+            auto plugin_extensions = ov::detail::load_extensions(path.native());
             add_extensions_unsafe(plugin_extensions);
         } catch (const std::runtime_error&) {
             // in case of shared library is not opened
         }
     }
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
+
+    std::vector<ov::Extension::Ptr> get_extensions_copy() const;
 
 public:
     CoreImpl();

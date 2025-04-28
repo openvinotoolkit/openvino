@@ -8,6 +8,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/op/gather_tree.hpp"
 
 using namespace CPUTestUtils;
 
@@ -155,8 +156,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUStatic,
                          ::testing::Combine(::testing::ValuesIn(inputStaticShapes),
                                             ::testing::ValuesIn(secondaryInputTypes),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::element::undefined),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatherTreeLayerCPUTest::getTestCaseName);
 
@@ -165,8 +166,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicParameter,
                          ::testing::Combine(::testing::ValuesIn(inputDynamicShapesParameter),
                                             ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::element::undefined),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatherTreeLayerCPUTest::getTestCaseName);
 
@@ -175,8 +176,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherTreeCPUDynamicConstant,
                          ::testing::Combine(::testing::ValuesIn(inputDynamicShapesConstant),
                                             ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::element::undefined),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatherTreeLayerCPUTest::getTestCaseName);
 

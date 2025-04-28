@@ -6,6 +6,7 @@
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace test {
@@ -46,7 +47,7 @@ std::string QuantGroupConvLayerTest::getTestCaseName(const testing::TestParamInf
 void QuantGroupConvLayerTest::SetUp() {
     quantGroupConvSpecificParams groupConvParams;
     ov::Shape inputShape;
-    ov::element::Type element_type = ov::element::undefined;
+    ov::element::Type element_type = ov::element::dynamic;
     std::tie(groupConvParams, element_type, inputShape, targetDevice) = this->GetParam();
     ov::op::PadType padType = ov::op::PadType::AUTO;
     ov::Shape kernel, stride, dilation;

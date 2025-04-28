@@ -49,10 +49,10 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     data_ptr_regs_idx = snippets::utils::transform_snippets_regs_to_idxs(data_ptr_regs, snippets::RegType::gpr);
 }
 
-void jit_kernel_emitter::emit_code(const std::vector<size_t>& in,
-                                   const std::vector<size_t>& out,
-                                   const std::vector<size_t>& pool_vec_idxs,
-                                   const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_kernel_emitter::emit_code_impl(const std::vector<size_t>& in,
+                                        const std::vector<size_t>& out,
+                                        const std::vector<size_t>& pool_vec_idxs,
+                                        const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     aux_vec_idxs = pool_vec_idxs;
     aux_gpr_idxs = pool_gpr_idxs;
@@ -71,7 +71,8 @@ void jit_kernel_emitter::validate_arguments(const std::vector<size_t>& in, const
                               data_ptr_regs_idx.size());
 }
 
-void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
+                                   [[maybe_unused]] const std::vector<size_t>& out) const {
     h->preamble();
 
     std::set<snippets::Reg> available_gpr;
@@ -125,7 +126,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         const auto& node = expression->get_node();
         // Note: A few operations are allowed to have mixed register types on their inputs (or outputs) => skip
         // validation here
-        if (!ov::is_type<snippets::op::LoopEnd>(node) && !ov::is_type<snippets::op::RegSpillBase>(node) &&
+        if (!ov::is_type_any_of<snippets::op::LoopEnd, snippets::op::RegSpillBase>(node) &&
             !std::dynamic_pointer_cast<jit_nop_emitter>(emitter)) {
             std::tie(expected_in_type, expected_out_type) = get_expected_reg_types(emitter);
         }
@@ -202,7 +203,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
         h->mov(data_ptr_regs[num_params + i], h->ptr[reg_runtime_params + GET_OFF(buffer_scratchpad_ptr)]);
     }
     size_t i = 0;
-    for (; i < num_params - last_iter_explicitly; i++) {
+    for (; i < num_params - static_cast<size_t>(last_iter_explicitly); i++) {
         if (i < num_inputs) {
             h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
         } else {
@@ -233,7 +234,7 @@ jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit
 
 void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak::Reg64>& arg_regs,
                                                     const std::vector<Xbyak::Reg64>& data_ptr_regs,
-                                                    const std::vector<Xbyak::Reg64>& aux_gprs) const {
+                                                    [[maybe_unused]] const std::vector<Xbyak::Reg64>& aux_gprs) const {
     OV_CPU_JIT_EMITTER_ASSERT(arg_regs.size() == 1, "Invalid arg regs size");
     Xbyak::Reg64 reg_runtime_params = arg_regs[0];
 

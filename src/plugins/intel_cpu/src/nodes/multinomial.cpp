@@ -127,7 +127,7 @@ bool Multinomial::created() const {
     return getType() == Type::Multinomial;
 }
 
-void Multinomial::execute(const dnnl::stream& strm) {
+void Multinomial::execute([[maybe_unused]] const dnnl::stream& strm) {
     switch (m_probs_precision) {
     case ov::element::f32:
         return execute_probs_type<float>();
@@ -183,7 +183,7 @@ void Multinomial::execute_convert_type() {
     // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
     std::mt19937 gen;
     if (m_global_seed == 0 && m_op_seed == 0) {
-        gen.seed(std::time(NULL));
+        gen.seed(std::time(nullptr));
     } else {
         std::seed_seq seed{m_global_seed, m_op_seed};
         gen.seed(seed);

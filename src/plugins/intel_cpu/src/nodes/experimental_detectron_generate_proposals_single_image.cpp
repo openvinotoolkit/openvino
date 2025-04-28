@@ -27,12 +27,7 @@ struct Indexer4d {
     int dim23_;
     int dim123_;
 
-    explicit Indexer4d(int dim0, int dim1, int dim2, int dim3)
-        : dim3_(dim3),
-          dim23_(dim2 * dim3),
-          dim123_(dim1 * dim2 * dim3) {
-        (void)dim0;
-    }
+    explicit Indexer4d(int dim1, int dim2, int dim3) : dim3_(dim3), dim23_(dim2 * dim3), dim123_(dim1 * dim2 * dim3) {}
 
     int operator()(int i, int j, int k, int n) const {
         return i * dim123_ + j * dim23_ + k * dim3_ + n;
@@ -52,10 +47,10 @@ void refine_anchors(const float* deltas,
                     const float min_box_W,
                     const float max_delta_log_wh,
                     float coordinates_offset) {
-    Indexer4d delta_idx(anchors_num, 4, bottom_H, bottom_W);
-    Indexer4d score_idx(anchors_num, 1, bottom_H, bottom_W);
-    Indexer4d proposal_idx(bottom_H, bottom_W, anchors_num, 5);
-    Indexer4d anchor_idx(bottom_H, bottom_W, anchors_num, 4);
+    Indexer4d delta_idx(4, bottom_H, bottom_W);
+    Indexer4d score_idx(1, bottom_H, bottom_W);
+    Indexer4d proposal_idx(bottom_W, anchors_num, 5);
+    Indexer4d anchor_idx(bottom_W, anchors_num, 4);
 
     parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         for (int anchor = 0; anchor < anchors_num; ++anchor) {
@@ -108,7 +103,7 @@ void refine_anchors(const float* deltas,
             proposals[p_idx + 1] = y0;
             proposals[p_idx + 2] = x1;
             proposals[p_idx + 3] = y1;
-            proposals[p_idx + 4] = (min_box_W <= box_w) * (min_box_H <= box_h) * score;
+            proposals[p_idx + 4] = static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h) * score;
         }
     });
 }
@@ -338,7 +333,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stream& strm) {
+void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
             THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
@@ -346,14 +341,14 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
 
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
-        for (size_t i = 0; i < anchorDims.size(); i++) {
-            anchor_dims_size *= anchorDims[i];
+        for (uint64_t anchorDim : anchorDims) {
+            anchor_dims_size *= anchorDim;
         }
 
         size_t deltas_dims_size = 1;
         const auto& deltaDims = getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims();
-        for (size_t i = 0; i < deltaDims.size(); i++) {
-            deltas_dims_size *= deltaDims[i];
+        for (uint64_t deltaDim : deltaDims) {
+            deltas_dims_size *= deltaDim;
         }
         if (anchor_dims_size != deltas_dims_size) {
             THROW_CPU_NODE_ERR("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
@@ -361,21 +356,21 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute(const dnnl::stre
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
-        for (size_t i = 0; i < scoreDims.size(); i++) {
-            score_dims_size *= scoreDims[i];
+        for (uint64_t scoreDim : scoreDims) {
+            score_dims_size *= scoreDim;
         }
         if (deltas_dims_size != (4 * score_dims_size)) {
             THROW_CPU_NODE_ERR("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
         }
 
         // Prepare memory
-        const float* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
-        const float* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
-        const float* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
-        const float* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
+        const auto* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
+        const auto* p_scores_item = getSrcDataAtPortAs<const float>(INPUT_SCORES);
+        const auto* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
+        const auto* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
-        float* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
-        float* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
+        auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
+        auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
 
         const int anchors_num = scoreDims[0];
 

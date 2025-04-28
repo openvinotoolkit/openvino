@@ -51,14 +51,10 @@ class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     std::shared_ptr<void> m_shared_object;  // plugin shared object handle.
 
 public:
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ::ov::DiscreteTypeInfo type_info_static{"Model"};
-        return type_info_static;
-    }
-    const ::ov::DiscreteTypeInfo& get_type_info() const {
-        return get_type_info_static();
-    }
+    OPENVINO_RTTI_BASE("Model")
 
+    OPENVINO_DEPRECATED("This constructor is deprecated and will be remove in 2026.0. Use Model(const "
+                        "ov::OutputVector&, const ov::ParameterVector&, const std::string&) instead.")
     Model(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
     Model(const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
@@ -338,24 +334,14 @@ public:
      *
      * @return constant reference to value from runtime info
      */
-    template <class T, class... Args, typename std::enable_if<!std::is_same<T, ov::Any>::value, bool>::type = true>
+    template <class T, class... Args>
     const T& get_rt_info(Args... args) const {
         const ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
-        return arg.as<T>();
-    }
-    /**
-     * @brief Returns a runtime attribute for the path, throws an ov::Exception if path doesn't exist
-     *
-     * @tparam T the type of returned value
-     * @tparam Args types of variadic arguments
-     * @param args path to the runtime attribute
-     *
-     * @return constant reference to value from runtime info
-     */
-    template <class T, class... Args, typename std::enable_if<std::is_same<T, ov::Any>::value, bool>::type = true>
-    const T& get_rt_info(Args... args) const {
-        const ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
-        return arg;
+        if constexpr (std::is_same_v<T, ov::Any>) {
+            return arg;
+        } else {
+            return arg.as<T>();
+        }
     }
 
     /**
@@ -366,24 +352,14 @@ public:
      *
      * @return constant reference to value from runtime info
      */
-    template <class T, typename std::enable_if<!std::is_same<T, ov::Any>::value, bool>::type = true>
+    template <class T>
     const T& get_rt_info(const std::vector<std::string>& args) const {
         const ov::Any& arg = get_rt_info(m_rt_info, args.cbegin(), args.cend());
-        return arg.as<T>();
-    }
-
-    /**
-     * @brief Returns a runtime attribute for the path, throws an ov::Exception if path doesn't exist
-     *
-     * @tparam T the type of returned value
-     * @param args vector with path to the runtime attribute
-     *
-     * @return constant reference to value from runtime info
-     */
-    template <class T, typename std::enable_if<std::is_same<T, ov::Any>::value, bool>::type = true>
-    const T& get_rt_info(const std::vector<std::string>& args) const {
-        const ov::Any& arg = get_rt_info(m_rt_info, args.cbegin(), args.cend());
-        return arg;
+        if constexpr (std::is_same_v<T, ov::Any>) {
+            return arg;
+        } else {
+            return arg.as<T>();
+        }
     }
 
     /**
@@ -458,20 +434,20 @@ private:
                      const std::vector<std::string>::const_iterator& end) const;
 
     // Checks rt attribute
-    template <class T,
-              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
-                                          std::is_same<T, char*>::value,
-                                      bool>::type = true>
+    template <
+        class T,
+        std::enable_if_t<std::is_same_v<std::string, T> || std::is_same_v<T, const char*> || std::is_same_v<T, char*>,
+                         bool> = true>
     bool has_rt_arg(const ov::AnyMap& rt_info, const T& name) const {
         return rt_info.find(name) != rt_info.end();
     }
 
     // Checks rt attribute
-    template <class T,
-              class... Args,
-              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
-                                          std::is_same<T, char*>::value,
-                                      bool>::type = true>
+    template <
+        class T,
+        class... Args,
+        std::enable_if_t<std::is_same_v<std::string, T> || std::is_same_v<T, const char*> || std::is_same_v<T, char*>,
+                         bool> = true>
     bool has_rt_arg(const ov::AnyMap& rt_info, const T& name, Args... args) const {
         bool has_attr = has_rt_arg(rt_info, name);
         if (!has_attr)
@@ -482,10 +458,10 @@ private:
     }
 
     // Allow to get constant attribute for variadic arguments
-    template <class T,
-              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
-                                          std::is_same<T, char*>::value,
-                                      bool>::type = true>
+    template <
+        class T,
+        std::enable_if_t<std::is_same_v<std::string, T> || std::is_same_v<T, const char*> || std::is_same_v<T, char*>,
+                         bool> = true>
     const ov::Any& get_rt_arg(const ov::AnyMap& rt_info, const T& name) const {
         OPENVINO_ASSERT(rt_info.find(name) != rt_info.end(),
                         "Cannot get runtime attribute. Path to runtime attribute is incorrect.");
@@ -493,11 +469,11 @@ private:
     }
 
     // Allow to get constant attribute for variadic arguments
-    template <class T,
-              class... Args,
-              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
-                                          std::is_same<T, char*>::value,
-                                      bool>::type = true>
+    template <
+        class T,
+        class... Args,
+        std::enable_if_t<std::is_same_v<std::string, T> || std::is_same_v<T, const char*> || std::is_same_v<T, char*>,
+                         bool> = true>
     const ov::Any& get_rt_arg(const ov::AnyMap& rt_info, const T& name, Args... args) const {
         const ov::Any& rt_attr = get_rt_arg<T>(rt_info, name);
         const ov::AnyMap& new_map = get_map_from_attr(rt_attr);
@@ -505,20 +481,20 @@ private:
     }
 
     // Allow to get attribute for variadic arguments
-    template <class T,
-              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
-                                          std::is_same<T, char*>::value,
-                                      bool>::type = true>
+    template <
+        class T,
+        std::enable_if_t<std::is_same_v<std::string, T> || std::is_same_v<T, const char*> || std::is_same_v<T, char*>,
+                         bool> = true>
     ov::Any& get_rt_arg(ov::AnyMap& rt_info, const T& name) {
         return get_attr(rt_info[name]);
     }
 
     // Allow to get attribute for variadic arguments
-    template <class T,
-              class... Args,
-              typename std::enable_if<std::is_same<std::string, T>::value || std::is_same<T, const char*>::value ||
-                                          std::is_same<T, char*>::value,
-                                      bool>::type = true>
+    template <
+        class T,
+        class... Args,
+        std::enable_if_t<std::is_same_v<std::string, T> || std::is_same_v<T, const char*> || std::is_same_v<T, char*>,
+                         bool> = true>
     ov::Any& get_rt_arg(ov::AnyMap& rt_info, const T& name, Args... args) {
         ov::Any& rt_attr = get_rt_arg<T>(rt_info, name);
         ov::AnyMap& new_map = get_map_from_attr(rt_attr);
@@ -545,7 +521,6 @@ private:
     static std::atomic<size_t> m_next_instance_id;
     std::string m_name;
     const std::string m_unique_name;
-    size_t m_placement{0};
     topological_sort_t m_topological_sorter;
 
     ov::ResultVector m_results;
@@ -582,6 +557,7 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Model>& value) : DirectValueAccessor<std::shared_ptr<ov::Model>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Model>");
+    ~AttributeAdapter() override;
 };
 
 /// \brief Helper method to get associated batch size for a Model

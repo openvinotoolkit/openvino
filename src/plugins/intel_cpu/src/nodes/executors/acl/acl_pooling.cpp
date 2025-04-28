@@ -75,25 +75,23 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         if (dstDescsSize > 1) {
             DEBUG_LOG("NEPooling3dLayer does not support indices");
             return false;
-        } else {
-            unsigned int kernel_d = poolingAttrs.kernel[2];
-            unsigned int stride_z = poolingAttrs.stride[2];
-            unsigned int pad_front = poolingAttrs.data_pad_begin[2];
-            unsigned int pad_back = poolingAttrs.data_pad_end[2];
-            pool3d_info->pool_type = pool_type;
-            pool3d_info->exclude_padding = exclude_padding;
-            pool3d_info->pool_size = arm_compute::Size3D(kernel_w, kernel_h, kernel_d);
-            pool3d_info->stride = arm_compute::Size3D(stride_x, stride_y, stride_z);
-            pool3d_info->padding =
-                arm_compute::Padding3D(pad_left, pad_right, pad_top, pad_bottom, pad_front, pad_back);
-            pool3d_info->round_type = round;
-            arm_compute::Status s =
-                arm_compute::NEPooling3dLayer::validate(&srcTensorInfo, &dstTensorInfo, *pool3d_info);
-            if (!s) {
-                DEBUG_LOG("NEPooling3dLayer validation failed: ", s.error_description());
-                return false;
-            }
         }
+        unsigned int kernel_d = poolingAttrs.kernel[2];
+        unsigned int stride_z = poolingAttrs.stride[2];
+        unsigned int pad_front = poolingAttrs.data_pad_begin[2];
+        unsigned int pad_back = poolingAttrs.data_pad_end[2];
+        pool3d_info->pool_type = pool_type;
+        pool3d_info->exclude_padding = exclude_padding;
+        pool3d_info->pool_size = arm_compute::Size3D(kernel_w, kernel_h, kernel_d);
+        pool3d_info->stride = arm_compute::Size3D(stride_x, stride_y, stride_z);
+        pool3d_info->padding = arm_compute::Padding3D(pad_left, pad_right, pad_top, pad_bottom, pad_front, pad_back);
+        pool3d_info->round_type = round;
+        arm_compute::Status s = arm_compute::NEPooling3dLayer::validate(&srcTensorInfo, &dstTensorInfo, *pool3d_info);
+        if (!s) {
+            DEBUG_LOG("NEPooling3dLayer validation failed: ", s.error_description());
+            return false;
+        }
+
     } else {
         pool_info->data_layout = dataLayout;
         pool_info->pool_size = arm_compute::Size2D(kernel_w, kernel_h);
@@ -138,7 +136,7 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
 bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
                               const std::vector<MemoryDescPtr>& srcDescs,
                               const std::vector<MemoryDescPtr>& dstDescs,
-                              const dnnl::primitive_attr& attr) {
+                              [[maybe_unused]] const dnnl::primitive_attr& attr) {
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
 

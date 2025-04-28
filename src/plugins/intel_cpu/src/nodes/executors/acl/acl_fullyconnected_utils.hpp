@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
+#include <optional>
+
 #include "acl_common_executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
-#include "ov_optional.hpp"
 
 namespace ov::intel_cpu {
 
@@ -23,13 +25,13 @@ VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wSha
 
 DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc);
 
-ov::optional<MemoryPtr> convertWeightPrecision(const MemoryPtr& input,
-                                               const MemoryPtr& output,
-                                               ov::element::Type weightPrecision);
+std::optional<MemoryPtr> convertWeightPrecision(const MemoryPtr& input,
+                                                const MemoryPtr& output,
+                                                ov::element::Type weightPrecision);
 
-ov::optional<MemoryPtr> reorderDataFallback(const MemoryPtr& input,
-                                            const MemoryPtr& output,
-                                            const ExecutorContext::CPtr& context);
+std::optional<MemoryPtr> reorderDataFallback(const MemoryPtr& input,
+                                             const MemoryPtr& output,
+                                             const ExecutorContext::CPtr& context);
 
 MemoryPtr reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
                       const DnnlMemoryDescPtr& dstWeightDesc,
@@ -46,7 +48,6 @@ MemoryPtr prepareWeightMemory(const MemoryArgs& memory,
                               const ExecutorContext::CPtr& context,
                               const FCAttrs& attrs,
                               ACLFCAttrs& aclfcAttrs,
-                              const PostOps& postOps,
                               arm_compute::WeightFormat& expectedWeightFormat,
                               arm_compute::TensorInfo& weiTensorInfo);
 
@@ -64,7 +65,7 @@ public:
 
 class ACLWeightFormatGenerator : public ACLCommonExecutor {
 public:
-    ACLWeightFormatGenerator(const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory);
+    ACLWeightFormatGenerator(const FCAttrs& attrs, const MemoryArgs& memory);
     void updateTensorsShapes(ACLShapes& aclMemoryShapes) override;
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;

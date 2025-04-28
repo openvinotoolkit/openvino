@@ -32,13 +32,11 @@ from tests import (
     xfail_issue_73538,
     xfail_issue_48052,
     xfail_issue_52463,
-    xfail_issue_58033,
     xfail_issue_63033,
     xfail_issue_63036,
     xfail_issue_63043,
     xfail_issue_63137,
     xfail_issue_69444,
-    xfail_issue_81976,
     skip_segfault,
     xfail_issue_82038,
     xfail_issue_82039,
@@ -292,7 +290,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sequence_insert_at_back_cpu",
         "OnnxBackendNodeModelTest.test_sequence_insert_at_front_cpu",
     ),
-    (xfail_issue_58033, "OnnxBackendNodeModelTest.test_einsum_batch_diagonal_cpu"),
     (
         xfail_issue_63033,
         "OnnxBackendNodeModelTest.test_batchnorm_epsilon_training_mode_cpu",
@@ -366,11 +363,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_3_cpu",  # ticket: 90649
         "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_4_cpu",  # ticket: 90649
         "OnnxBackendNodeModelTest.test_layer_normalization_default_axis_cpu",  # ticket: 90649
-    ),
-    (
-        xfail_issue_81976,  # SoftmaxCrossEntropyLoss operator
-        "OnnxBackendNodeModelTest.test_sce_mean_3d_cpu",
-        "OnnxBackendNodeModelTest.test_sce_mean_3d_log_prob_cpu",
     ),
     (
         xfail_issue_82038,

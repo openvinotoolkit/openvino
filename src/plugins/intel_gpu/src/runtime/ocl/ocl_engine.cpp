@@ -64,7 +64,7 @@ void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
         auto casted = std::dynamic_pointer_cast<ocl_device>(_device);
         OPENVINO_ASSERT(casted, "[GPU] Invalid device type stored in ocl_engine");
 
-        std::string cache_dir = config.get_property(ov::cache_dir);
+        const auto& cache_dir = config.get_cache_dir();
         if (cache_dir.empty()) {
             _onednn_engine = std::make_shared<dnnl::engine>(dnnl::ocl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
         } else {
@@ -165,7 +165,6 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
         GPU_DEBUG_COUT << "[Warning] [GPU] Exceeded max size of memory allocation: " << "Required " << layout.bytes_count() << " bytes, already occupied : "
                        << used_mem << " bytes, but available memory size is " << get_max_memory_size() << " bytes" << std::endl;
         GPU_DEBUG_COUT << "Please note that performance might drop due to memory swap." << std::endl;
-        return false;
     }
 #endif
 

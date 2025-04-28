@@ -60,7 +60,7 @@ namespace cldnn {
 namespace {
 
 #ifdef GPU_DEBUG_CONFIG
-void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
+void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
     auto layouts_to_str = [](const std::vector<layout>& layouts) -> std::string {
         std::stringstream s;
         for (size_t i = 0; i < layouts.size(); i++) {
@@ -71,7 +71,6 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
         return s.str();
     };
 
-    const bool per_iter_mode = cldnn::debug_configuration::get_instance()->dump_profiling_data_per_iter != 0;
     const std::string perf_raw_csv_header = per_iter_mode ? "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iter,time_usec\n"
                                                           : "prim_id,prim_type,stage,net_in_shapes,in_shapes,out_shapes,impl,iters,time_usec\n";
     std::ofstream of(dump_path);
@@ -139,13 +138,12 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
     }
 }
 
-void wait_for_the_turn() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
+void wait_for_the_turn(const std::vector<std::string>& pids) {
     bool need_to_wait;
     do {
         need_to_wait = false;
         struct stat buffer;
-        for (auto pid : debug_config->after_proc) {
+        for (auto pid : pids) {
             auto path = "/proc/" + pid;
             std::cout << "check " + path << std::endl;
             if (stat(path.c_str(), &buffer) == 0) {
@@ -158,8 +156,7 @@ void wait_for_the_turn() {
 }
 
 #else
-void dump_perf_data_raw(std::string, const std::list<std::shared_ptr<primitive_inst>>&) {}
-void wait_for_the_turn() {}
+void dump_perf_data_raw(std::string, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>&) {}
 #endif
 }  // namespace
 
@@ -174,33 +171,22 @@ opt pass).
 */
 network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
     : _program(program)
-    , _config(program->get_config())
     , _engine(program->get_engine())
     , _stream(stream)
-    , _memory_pool(new memory_pool(program->get_engine()))
+    , _memory_pool(new memory_pool(program->get_engine(), program->get_config()))
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
-    , _enable_profiling(program->get_config().get_property(ov::enable_profiling))
+    , _enable_profiling(program->get_config().get_enable_profiling())
     , _reset_arguments(true)
-    , _shape_predictor(new ShapePredictor(&program->get_engine(), program->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio))) {
+    , _shape_predictor(new ShapePredictor(&program->get_engine(), program->get_config().get_shape_predictor_settings())) {
     if (!_internal) {
         net_id = get_unique_net_id();
     }
 
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->after_proc.size() != 0) {
-        wait_for_the_turn();
-    }
-
-    GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
-        auto& mem_preallocation_params = debug_config->mem_preallocation_params;
-        _shape_predictor.reset(new ShapePredictor(&program->get_engine(),
-                                                  mem_preallocation_params.next_iters_preallocation_count,
-                                                  mem_preallocation_params.max_per_iter_size,
-                                                  mem_preallocation_params.max_per_dim_diff,
-                                                  mem_preallocation_params.buffers_preallocation_ratio));
-    }
-
+    GPU_DEBUG_CODE(
+        if (get_config().get_start_after_processes().size() != 0) {
+            wait_for_the_turn(get_config().get_start_after_processes());
+    });
     calculate_weights_cache_capacity();
     allocate_primitives();
     configure_primitives_second_output();
@@ -237,10 +223,15 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
 network::~network() {
     if (_program != nullptr)
         _program->cancel_compilation_context();
+
+    // Clear the command queue to prevent errors caused by remaining tasks.
+    if (_stream != nullptr)
+        _stream->finish();
+
     _memory_pool->clear_pool_for_network(net_id);
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
-        dump_perf_data_raw(debug_config->dump_profiling_data + "/perf_raw" + std::to_string(net_id) + ".csv", _exec_order);
+    std::string dump_path = GPU_DEBUG_VALUE_OR(get_config().get_dump_profiling_data_path(), "");
+    GPU_DEBUG_IF(!dump_path.empty()) {
+        dump_perf_data_raw(dump_path + "/perf_raw" + std::to_string(net_id) + ".csv", false, _exec_order);
     }
 }
 
@@ -398,7 +389,7 @@ void network::calculate_weights_cache_capacity() {
     }
 
     // Sum all weights constants for each stream
-    required_mem_size += weights_const_size * _config.get_property(ov::streams::num);
+    required_mem_size += weights_const_size * get_config().get_num_streams();
     // Add all other constants (shared between streams)
     required_mem_size += total_const_size - weights_const_size;
 
@@ -490,7 +481,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     return _output_chains.insert({ p_inst->id(), chain }).first;
 }
 
-std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
+std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new, bool is_remote) {
     GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::vector<event::ptr> ret_ev;
     std::shared_ptr<primitive_inst> p_inst = find_primitive(id);
@@ -498,6 +489,10 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())
         throw std::runtime_error("primitive: " + id + " is not a network output");
+
+    if (is_remote) {
+        _output_remote_mem_ptrs[id] = mem_new;
+    }
 
     auto& eng = get_engine();
     // locate primitive chain for this output
@@ -512,7 +507,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
         if (!prim->is_dynamic() && mem_new && prim->output_memory_ptr())
             mem = eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout());
 
-        ret_ev.push_back(prim->set_output_memory(mem));
+        ret_ev.push_back(prim->set_output_memory(mem, (!prim->is_dynamic() || !is_remote)));
         if (!_reset_arguments &&
             (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
             prim->set_arguments();
@@ -702,6 +697,25 @@ bool network::contains_state(const std::string& variable_id) {
         return true;
     else
         return false;
+}
+
+memory& network::get_output_remote_memory(const primitive_id& id) const {
+    OPENVINO_ASSERT(_output_remote_mem_ptrs.count(id) == 1, "[GPU] Can't get output remote memory with ", id);
+    return *_output_remote_mem_ptrs.at(id);
+}
+
+bool network::has_output_remote_memory_ptr(const primitive_id& id) const {
+    auto it = _output_remote_mem_ptrs.find(id);
+    if (it != _output_remote_mem_ptrs.end())
+        return true;
+    else
+        return false;
+}
+
+void network::reset_output_remote_memory_ptrs() {
+    if (!_output_remote_mem_ptrs.empty()) {
+        _output_remote_mem_ptrs.clear();
+    }
 }
 
 void network::add_to_exec_order(const primitive_id& id) {
@@ -955,6 +969,13 @@ void network::allocate_primitive_instance(program_node const& node) {
     if (inst->is_dynamic()) {
         _is_dynamic = true;
     }
+
+    if (!node.is_type<data>()) {
+        inst->set_flag(ExecutionFlags::IMPL_CHANGED);
+        inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
+        inst->set_flag(ExecutionFlags::MEMORY_CHANGED);
+    }
+
 
     _primitives[node.id()] = inst;
     if (node.is_type<input_layout>()) {

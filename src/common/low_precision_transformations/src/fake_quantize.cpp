@@ -6,13 +6,16 @@
 
 #include <cmath>
 #include <memory>
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace ov {
 namespace pass {
@@ -93,7 +96,7 @@ std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwi
 
 bool all_precisions_equal(const std::shared_ptr<Node>& node) {
     const auto& inputs = node->inputs();
-    const auto first_input_precision = inputs.empty() ? element::undefined : inputs[0].get_element_type();
+    const auto first_input_precision = inputs.empty() ? element::dynamic : inputs[0].get_element_type();
     if (!inputs.empty()) {
         const auto first_input_precision = inputs[0].get_element_type();
         if (std::any_of(
@@ -109,7 +112,7 @@ bool all_precisions_equal(const std::shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
     if (!outputs.empty()) {
         const auto first_output_precision = outputs[0].get_element_type();
-        if ((first_input_precision != element::undefined) && (first_input_precision != first_output_precision)) {
+        if ((first_input_precision != element::dynamic) && (first_input_precision != first_output_precision)) {
             return false;
         }
 

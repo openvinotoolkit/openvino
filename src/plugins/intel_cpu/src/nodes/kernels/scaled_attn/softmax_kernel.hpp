@@ -241,7 +241,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm512_cvtepi8_epi32(v_maski8);
             auto kmask = _mm512_cmp_epi32_mask(v_maski32, v_zeroi32, _MM_CMPINT_NE);  // !=0
             kmask = _kxor_mask16(kmask, kmask_xor);                                   // reverse, mask at ==0
@@ -269,7 +269,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm512_cvtepi8_epi32(v_maski8);
             auto kmask = _mm512_cmp_epi32_mask(v_maski32, v_zeroi32, _MM_CMPINT_NE);  // !=0
             kmask = _kxor_mask16(kmask, kmask_xor);                                   // reverse, mask at ==0
@@ -342,7 +342,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm256_cvtepi8_epi32(v_maski8);
             v_maski32 = _mm256_cmpeq_epi32(v_maski32, v_zeroi32);                    // ==0
             v_maski32 = _mm256_xor_si256(v_maski32, v_mask_xor);                     // reverse, mask at ==0
@@ -371,7 +371,7 @@ inline void scale_add2_reduce_max(float* a,
         }
 
         if (has_causal_mask) {
-            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<__m128i const*>(causal_mask + i));
+            auto v_maski8 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(causal_mask + i));
             auto v_maski32 = _mm256_cvtepi8_epi32(v_maski8);
             v_maski32 = _mm256_cmpeq_epi32(v_maski32, v_zeroi32);                    // ==0
             v_maski32 = _mm256_xor_si256(v_maski32, v_mask_xor);                     // reverse, mask at ==0
@@ -518,7 +518,7 @@ inline void scale_add2_reduce_max(ov::float16* a,
         i += inc;
     }
     max = svmaxv_f16(pg_f16, v_max);
-#    else
+#    elif defined(HAVE_NEON_FP16)
     float16x8_t v_max = vdupq_n_f16(static_cast<float16_t>(-FLT_MAX));
     float16x8_t v_scale = vdupq_n_f16(static_cast<float16_t>(scale));
     float16x8_t v_a;
@@ -949,8 +949,7 @@ inline void multiply_scalar(float* a, float* a_dst, const float val, const size_
 }
 
 template <typename T,
-          typename = typename std::
-              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+          typename = std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>>
 inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t size) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)

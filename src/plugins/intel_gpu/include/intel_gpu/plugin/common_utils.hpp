@@ -10,6 +10,8 @@
 #include "intel_gpu/runtime/memory.hpp"
 
 #include "intel_gpu/runtime/shape_predictor.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -31,6 +33,27 @@ enum class TensorType {
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
 
+inline bool can_use_usm_host(cldnn::engine& engine, const uint64_t total_output_bytes) {
+    GPU_DEBUG_IF(ExecutionConfig::get_usm_policy() == 1) { return true; }
+    GPU_DEBUG_IF(ExecutionConfig::get_usm_policy() == 2) { return false; }
+
+    auto can_use_usm = engine.use_unified_shared_memory();
+    // When output size is large, it is better not to write to usm_host directly
+    const uint64_t LARGE_OUTPUT_BYTES_THRESHOLD = 4 * 1048576;
+
+    const auto& device_info = engine.get_device_info();
+    if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
+        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu) ||
+        (device_info.dev_type == cldnn::device_type::discrete_gpu && total_output_bytes > LARGE_OUTPUT_BYTES_THRESHOLD)) {
+        // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel access
+        // to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy engine
+        // Driver tickets with additional details: 6155, 10054
+        GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
+        can_use_usm = false;
+    }
+
+    return can_use_usm;
+}
 inline cldnn::tensor tensor_from_dims(const ov::Shape& dims, int def = 1) {
     switch (dims.size()) {
     case 0: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(def, def));
@@ -114,11 +137,12 @@ inline void ForceExit() {
     std::_Exit(-1);
 }
 
-void convert_and_copy(const ov::ITensor* src,
-                      cldnn::memory::ptr dst,
-                      cldnn::stream& stream,
-                      const cldnn::layout& src_layout = cldnn::layout({}, ov::element::undefined, cldnn::format::bfyx, cldnn::padding()));
-void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream);
+void convert_and_copy(
+    const ov::ITensor* src,
+    cldnn::memory::ptr dst,
+    cldnn::stream& stream,
+    const cldnn::layout& src_layout = cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
+void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor* dst, const cldnn::stream& stream);
 void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::stream& stream);
 void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream);
 

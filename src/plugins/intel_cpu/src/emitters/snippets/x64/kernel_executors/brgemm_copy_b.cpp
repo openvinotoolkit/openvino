@@ -117,7 +117,7 @@ size_t BrgemmCopyBKernelConfig::StaticParams::init_hash(const dnnl_data_type_t& 
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-#    define PRINT(X) ss << #X << " = " << X << "\n"
+#    define PRINT(X) ss << #X << " = " << (X) << "\n"
 std::string BrgemmCopyBKernelConfig::to_string() const {
     std::stringstream ss;
     ss << m_static_params->to_string() << "\n";
@@ -164,7 +164,7 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
 status_t BrgemmCopyBKernel::create_kernel() {
     const auto code = jit_generator::create_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(code == status::success, "Failed to create kernel");
-    ker_ = (decltype(ker_))jit_ker();
+    ker_ = reinterpret_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
     return code;
 }
 
@@ -208,6 +208,9 @@ void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(
     brgCopyKernelConf.has_zero_point_a = false;
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
+
+    brgCopyKernelConf.apply_scales_in_buffer_b = false;
+    brgCopyKernelConf.with_wei_decompression = false;
 
     OV_CPU_JIT_EMITTER_ASSERT(matmul::create_brgemm_matmul_copy_b(kernel, &brgCopyKernelConf) == dnnl_success,
                               "cannot create kernel due to invalid params");
@@ -380,7 +383,8 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     init(N_dim, N_blk, 0);
 
     const auto& brg_weight_etype = expr->get_node()->get_input_element_type(0);
-    const auto LDB = brgemm_utils::repacking::compute_repacked_n_dim(N_dim, brg_weight_etype);
+    const auto LDB = static_cast<int64_t>(brgemm_utils::repacking::compute_repacked_n_dim(N_dim, brg_weight_etype));
+    OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
     const auto copy_B_wei_stride =
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
         brg_weight_etype.size();

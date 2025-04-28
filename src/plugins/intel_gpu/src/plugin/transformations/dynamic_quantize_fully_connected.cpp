@@ -13,12 +13,12 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size)
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric)
     : ov::pass::MatcherPass() {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
 
@@ -28,7 +28,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
     auto fully_connected_compressed = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected_compressed3, fully_connected_compressed4});
 
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
@@ -55,9 +55,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         config.scale_dt = element::f16;
         config.group_sizes = shape_group_size;
 
-        // AZP does not support grouped size dyn-quan
-        // XXX: This is currently wrapped as GPU_DEBUG_IF as dynamic_quantize_asym is not exposed through public API.
-        GPU_DEBUG_IF(debug_config->dynamic_quantize_asym && group_size == UINT64_MAX) {
+        if (asymmetric && group_size == UINT64_MAX) {
             config.quantization_type = QuantizationType::Asymmetric;
             config.quantization_dt = element::u8;
             config.zp_dt = element::u8; // it supports u8 only now
@@ -69,7 +67,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                 std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
 
         auto output_type = m_fc->get_output_type();
-        if (output_type == ov::element::undefined)
+        if (output_type.is_dynamic())
             output_type = m_fc->get_input_element_type(0);
 
         auto new_fc = std::make_shared<op::FullyConnectedCompressed>(dyn_quan->output(0),

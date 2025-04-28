@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <fstream>
 #include <functional>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -150,16 +151,7 @@ void create_directory_recursive(const std::wstring& path);
  * @param path - path to directory
  * @return true if directory exists, false otherwise
  */
-bool directory_exists(const std::string& path);
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-/**
- * @brief Interface function to check if directory exists for given path
- * @param path - path to directory wide-string
- * @return true if directory exists, false otherwise
- */
-bool directory_exists(const std::wstring& path);
-#endif
+bool directory_exists(const ov::util::Path& path);
 
 /**
  * @brief      Returns file size for file
@@ -223,8 +215,10 @@ inline bool file_exists(const std::string& path) {
 }
 
 std::string get_file_ext(const std::string& path);
-std::string get_directory(const std::string& path);
-std::string path_join(const std::vector<std::string>& paths);
+ov::util::Path get_directory(const ov::util::Path& path);
+
+ov::util::Path path_join(std::initializer_list<ov::util::Path>&& paths);
+std::wstring path_join_w(std::initializer_list<std::wstring>&& paths);
 
 void iterate_files(const std::string& path,
                    const std::function<void(const std::string& file, bool is_dir)>& func,
@@ -235,34 +229,22 @@ void convert_path_win_style(std::string& path);
 
 std::string get_ov_lib_path();
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+// TODO: remove this using. replace with Path.
+using FilePath = ov::util::Path::string_type;
 
-using FilePath = std::wstring;
-
-inline std::string from_file_path(const FilePath& path) {
-    return wstring_to_string(path);
+// TODO: remove this function after get_plugin_path using Path
+inline std::string from_file_path(const ov::util::Path& path) {
+    return path.string();
 }
 
-inline FilePath to_file_path(const std::string& path) {
-    return string_to_wstring(path);
-}
-
-std::wstring get_directory(const std::wstring& path);
-std::wstring path_join_w(const std::vector<std::wstring>& paths);
-
+// TODO: remove this function after all calls use Path
+inline FilePath to_file_path(const ov::util::Path& path) {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    return ov::util::string_to_wstring(path.string());
 #else
-
-using FilePath = std::string;
-
-inline std::string from_file_path(const FilePath& path) {
-    return path;
+    return path.native();
+#endif
 }
-
-inline FilePath to_file_path(const std::string& path) {
-    return path;
-}
-
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 

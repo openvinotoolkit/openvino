@@ -4,6 +4,7 @@
 
 #include "transpose.hpp"
 
+#include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_cpu::node {
@@ -15,7 +16,7 @@ TransposeShapeInfer::TransposeShapeInfer(const size_t& out_rank, const std::vect
       m_needReverse(axes_vec.empty()) {}
 
 Result TransposeShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+                                  [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const VectorDims& shapeIn = input_shapes[0].get();
     if (m_needReverse) {
         for (size_t i = 0; i < m_out_rank; ++i) {
@@ -33,8 +34,7 @@ ShapeInferPtr TransposeShapeInferFactory::makeShapeInfer() const {
             m_op->get_input_node_shared_ptr(ov::op::v1::Transpose::ORDER))) {
         const auto axes_vec = order->cast_vector<size_t>();
         return std::make_shared<TransposeShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length(), axes_vec);
-    } else {
-        return std::make_shared<TransposeDynShapeInfer>();
     }
+    return std::make_shared<TransposeDynShapeInfer>();
 }
 }  // namespace ov::intel_cpu::node

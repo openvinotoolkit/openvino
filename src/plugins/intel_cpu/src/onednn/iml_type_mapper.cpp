@@ -57,8 +57,10 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(reorder);
     SEARCH_WORD(sparse);
     SEARCH_WORD(acl);
+    SEARCH_WORD(kleidiai);
     SEARCH_WORD(shl);
     SEARCH_WORD(asimd);
+    SEARCH_WORD(gv);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512) {
         SEARCH_WORD(avx);
@@ -83,10 +85,10 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
 }
 
 const char* impl_type_to_string(impl_desc_type type) {
-#define CASE(_type)        \
-    do {                   \
-        if (type == _type) \
-            return #_type; \
+#define CASE(_type)          \
+    do {                     \
+        if (type == (_type)) \
+            return #_type;   \
     } while (0)
     CASE(unknown);
     CASE(undef);
@@ -152,6 +154,10 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_sve512);
     CASE(shl);
     CASE(gemm_shl);
+    CASE(gv);
+    CASE(jit_gv);
+    CASE(kleidiai);
+    CASE(gemm_kleidiai);
 
 #undef CASE
     return "unknown";

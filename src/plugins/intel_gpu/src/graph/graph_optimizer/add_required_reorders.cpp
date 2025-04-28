@@ -161,7 +161,7 @@ bool add_required_reorders::test_format(cldnn::program_node& node, format reques
 }
 
 void add_required_reorders::run(program& p) {
-    bool optimize_data = p.get_config().get_property(ov::intel_gpu::optimize_data);
+    bool optimize_data = p.get_config().get_optimize_data();
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
         auto& usr = *usr_itr++;
@@ -324,7 +324,11 @@ void add_required_reorders::run(program& p) {
             }
             // This list of preferred layouts has been selected arbitrary due to developers' experience
             preferred_layout_formats = { cldnn::format::get_default_format(max_in_dims) };
-            if (max_in_dims == 5) {
+            if (max_in_dims == 7) {
+                preferred_layout_formats.push_back(cldnn::format::bfuwzyx);
+            } else if (max_in_dims == 6) {
+                preferred_layout_formats.push_back(cldnn::format::bfwzyx);
+            } else if (max_in_dims == 5) {
                 preferred_layout_formats.push_back(cldnn::format::bzyxf);
             } else if (max_in_dims == 4) {
                 preferred_layout_formats.push_back(cldnn::format::yxfb);

@@ -58,7 +58,8 @@ size_t jit_emitter::aux_gprs_count() const {
     return entry_map_.empty() ? 0 : 1;
 }
 
-std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 
@@ -93,11 +94,11 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         }
 
         // moving mask vector at the beginning of aux vectors list to simplify further processing
-        for (size_t i = 0; i < aux_vec_idxs.size(); i++) {
-            if (aux_vec_idxs[i] == 0) {
+        for (size_t& aux_vec_idx : aux_vec_idxs) {
+            if (aux_vec_idx == 0) {
                 size_t tmp = aux_vec_idxs[0];
-                aux_vec_idxs[0] = aux_vec_idxs[i];
-                aux_vec_idxs[i] = tmp;
+                aux_vec_idxs[0] = aux_vec_idx;
+                aux_vec_idx = tmp;
                 break;
             }
         }
@@ -176,11 +177,11 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
     }
 
-    for (size_t i = 0; i < preserved_gpr_idxs.size(); ++i) {
-        h->push(Reg64(preserved_gpr_idxs[i]));
+    for (uint64_t preserved_gpr_idx : preserved_gpr_idxs) {
+        h->push(Reg64(preserved_gpr_idx));
     }
 
-    if (preserved_vec_idxs.size()) {
+    if (!preserved_vec_idxs.empty()) {
         h->sub(h->rsp, preserved_vec_idxs.size() * get_vec_length());
     }
 
@@ -200,7 +201,7 @@ void jit_emitter::emitter_postamble() const {
         pop_vec(preserved_vec_idxs[i], h->ptr[h->rsp + i * get_vec_length()]);
     }
 
-    if (preserved_vec_idxs.size()) {
+    if (!preserved_vec_idxs.empty()) {
         h->add(h->rsp, preserved_vec_idxs.size() * get_vec_length());
     }
 
@@ -223,8 +224,8 @@ void jit_emitter::emit_data() const {
     assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
-    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        const auto& te = (*it).second;  // get map entry for a given key
+    for (const auto& it : entry_map_) {
+        const auto& te = it.second;  // get map entry for a given key
         const auto len = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         for (size_t d = 0; d < len; d += sizeof(table_entry_val_t)) {
             h->dd(te.val);
@@ -240,17 +241,17 @@ void jit_emitter::prepare_table() {
     // expect the same order when injecting the table entries in
     // prepare_table.
     size_t off = 0;
-    for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
-        auto& te = (*it).second;
+    for (auto& it : entry_map_) {
+        auto& te = it.second;
         te.off = off;
         off += te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
     }
 }
 
-void jit_emitter::emit_code(const std::vector<size_t>& in_idxs,
-                            const std::vector<size_t>& out_idxs,
-                            const std::vector<size_t>& pool_vec_idxs,
-                            const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
+                                 const std::vector<size_t>& out_idxs,
+                                 const std::vector<size_t>& pool_vec_idxs,
+                                 const std::vector<size_t>& pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs);

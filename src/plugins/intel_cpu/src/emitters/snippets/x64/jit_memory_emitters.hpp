@@ -16,11 +16,6 @@ public:
                        const ov::snippets::lowered::ExpressionPtr& expr,
                        emitter_in_out_map in_out_type);
 
-    void emit_code(const std::vector<size_t>& in_idxs,
-                   const std::vector<size_t>& out_idxs,
-                   const std::vector<size_t>& pool_vec_idxs = {},
-                   const std::vector<size_t>& pool_gpr_idxs = {}) const override;
-
 protected:
     static size_t get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);
     static size_t get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);
@@ -28,6 +23,11 @@ protected:
     size_t aux_gprs_count() const override;
 
     std::vector<size_t> get_available_aux_gprs() const;
+
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs,
+                        const std::vector<size_t>& pool_gpr_idxs) const override;
 
     ov::element::Type src_prc;
     ov::element::Type dst_prc;

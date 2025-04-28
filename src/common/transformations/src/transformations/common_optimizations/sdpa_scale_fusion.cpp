@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
@@ -13,6 +14,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
 namespace ov {
@@ -41,7 +43,7 @@ SDPAScaleFusion::SDPAScaleFusion() {
         makePattern<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;
@@ -49,8 +51,8 @@ SDPAScaleFusion::SDPAScaleFusion() {
 
         auto sdpa = m.get_match_root();
 
-        const bool has_q_scale = pattern_map.count(scaled_q);
-        const bool has_k_scale = pattern_map.count(scaled_k);
+        bool has_q_scale = pattern_map.count(scaled_q);
+        bool has_k_scale = pattern_map.count(scaled_k);
 
         // Nothing to do
         if (!has_q_scale && !has_k_scale)
@@ -83,22 +85,32 @@ SDPAScaleFusion::SDPAScaleFusion() {
         // Extract scalar scale values for Q and K if those are constant and set new inputs for SDPA
         if (has_q_scale) {
             scale_q_node = pattern_map.at(scale_q).get_node_shared_ptr();
-            if (ov::is_type<ov::op::v0::Constant>(scale_q_node)) {
-                scale_q_value = ov::as_type_ptr<ov::op::v0::Constant>(scale_q_node)->cast_vector<float>()[0];
-                q_input = pattern_map.at(q);
+            if (pattern_map.at(q).get_element_type() == q_input.get_element_type()) {
+                if (ov::is_type<ov::op::v0::Constant>(scale_q_node)) {
+                    scale_q_value = ov::as_type_ptr<ov::op::v0::Constant>(scale_q_node)->cast_vector<float>()[0];
+                    q_input = pattern_map.at(q);
+                }
+            } else {
+                has_q_scale = false;
             }
         }
         if (has_k_scale) {
             scale_k_node = pattern_map.at(scale_k).get_node_shared_ptr();
-            if (ov::is_type<ov::op::v0::Constant>(scale_k_node)) {
-                scale_k_value = ov::as_type_ptr<ov::op::v0::Constant>(scale_k_node)->cast_vector<float>()[0];
-                k_input = pattern_map.at(k);
+            if (pattern_map.at(k).get_element_type() == k_input.get_element_type()) {
+                if (ov::is_type<ov::op::v0::Constant>(scale_k_node)) {
+                    scale_k_value = ov::as_type_ptr<ov::op::v0::Constant>(scale_k_node)->cast_vector<float>()[0];
+                    k_input = pattern_map.at(k);
+                }
+            } else {
+                has_k_scale = false;
             }
         }
 
+        if (!has_q_scale && !has_k_scale)
+            return false;
+
         Output<ov::Node> new_scale_node;
         auto new_scale_val = prev_scale_value * scale_q_value * scale_k_value;
-
         // If new scale is 1 and we have non-constant scale node for either Q or K, then we can make it a scale of SDPA
         if (new_scale_val == 1.0f) {
             if (has_q_scale && !ov::is_type<ov::op::v0::Constant>(scale_q_node)) {

@@ -4,15 +4,15 @@ This sample demonstrates how to do inference of image classification models usin
 
 Models with only 1 input and output are supported.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/hello-classification.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-classification.html)
 
 ## Requirements
 
 | Options                     | Values                                                                                                                |
 | ----------------------------| ----------------------------------------------------------------------------------------------------------------------|
 | Model Format                | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)                                             |
-| Supported devices           | [All](https://docs.openvino.ai/2025/about-openvino/compatibility-and-support/supported-devices.html)                   |
-| Other language realization  | [C++, C](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/hello-classification.html),            |
+| Supported devices           | [All](https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html)                   |
+| Other language realization  | [C++, C](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/hello-classification.html),            |
 
 The following Python API is used in the application:
 

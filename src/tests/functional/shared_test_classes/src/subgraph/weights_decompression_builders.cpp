@@ -3,10 +3,14 @@
 //
 
 #include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
-
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {
@@ -132,7 +136,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     }
 
     std::shared_ptr<ov::Node> last_node = mul_parent;
-    const auto& scale_prc = scale_precision == ov::element::undefined ? decompression_precision : scale_precision;
+    const auto& scale_prc = scale_precision == ov::element::dynamic ? decompression_precision : scale_precision;
     if (decompression_multiply_type != DecompressionType::empty) {
         auto multiply_shape =
             decompression_multiply_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});

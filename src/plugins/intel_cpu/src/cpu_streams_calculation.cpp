@@ -24,8 +24,8 @@
 using namespace ov;
 using namespace ov::threading;
 
-#define INIT_VAL     -100
-#define TP_CPU_LIMIT 32
+constexpr int INIT_VAL = -100;
+constexpr int TP_CPU_LIMIT = 32;
 
 namespace ov::intel_cpu {
 
@@ -101,11 +101,10 @@ std::vector<std::vector<int>> get_streams_info_table(
                                 streams_info_table.push_back(stream_info);
                                 total_threads -= stream_info[THREADS_PER_STREAM];
                                 return;
-                            } else {
-                                stream_info[THREADS_PER_STREAM] = one_proc_table[index][n];
-                                streams_info_table.push_back(stream_info);
-                                total_threads -= stream_info[THREADS_PER_STREAM];
                             }
+                            stream_info[THREADS_PER_STREAM] = one_proc_table[index][n];
+                            streams_info_table.push_back(stream_info);
+                            total_threads -= stream_info[THREADS_PER_STREAM];
                         }
                     }
                 }
@@ -115,7 +114,7 @@ std::vector<std::vector<int>> get_streams_info_table(
 
     auto create_one_stream = [&](const std::vector<int>& one_proc_info,
                                  const std::vector<std::vector<int>>& one_proc_table,
-                                 const int num_threads,
+                                 [[maybe_unused]] const int num_threads,
                                  const IStreamsExecutor::Config::StreamsMode sub_streams_model) {
         if ((one_proc_info[PROC_NUMA_NODE_ID] < 0) || (one_proc_info[PROC_SOCKET_ID] < 0) ||
             (((one_proc_info[MAIN_CORE_PROC] > 0) &&
@@ -166,20 +165,19 @@ std::vector<std::vector<int>> get_streams_info_table(
 
     auto check_threads_per_stream = [&]() {
         int count = 0;
-        while (1) {
+        while (true) {
             for (int n_type = MAIN_CORE_PROC; n_type <= HYPER_THREADING_PROC; n_type++) {
                 count += static_cast<int>(proc_type_table[0][n_type] / n_threads_per_stream);
             }
             if (count >= n_streams) {
                 return;
+            }
+            count = 0;
+            if (n_threads_per_stream > 1) {
+                n_threads_per_stream--;
             } else {
-                count = 0;
-                if (n_threads_per_stream > 1) {
-                    n_threads_per_stream--;
-                } else {
-                    n_streams = n_threads;
-                    return;
-                }
+                n_streams = n_threads;
+                return;
             }
         }
     };
@@ -212,14 +210,14 @@ std::vector<std::vector<int>> get_streams_info_table(
         ((input_streams_changed == true) && (input_streams == 1))) {
         n_streams = 1;
         stream_info[NUMBER_OF_STREAMS] = n_streams;
-        for (size_t n = 0; n < proc_socket_table.size(); n++) {
-            if (proc_socket_table[n][ALL_PROC] > 0) {
-                current_socket_id = proc_socket_table[n][PROC_SOCKET_ID];
+        for (auto& n : proc_socket_table) {
+            if (n[ALL_PROC] > 0) {
+                current_socket_id = n[PROC_SOCKET_ID];
                 break;
             }
         }
         if (input_threads > 0) {
-            if (hint_model_distribution_policy.size() == 0) {
+            if (hint_model_distribution_policy.empty()) {
                 n_threads_per_stream = std::min(input_threads, proc_type_table[0][ALL_PROC]);
             } else {
                 for (auto& row : proc_socket_table) {
@@ -252,10 +250,10 @@ std::vector<std::vector<int>> get_streams_info_table(
                     update_ids_method(proc_type_table[0]);
                 } else {
                     stream_info[PROC_TYPE] = ALL_PROC;
-                    n_threads_per_stream = proc_type_table[0][ALL_PROC];
+                    n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
                 }
             } else {
-                n_threads_per_stream = proc_type_table[0][ALL_PROC];
+                n_threads_per_stream = proc_type_table[0][ALL_PROC] - proc_type_table[0][LP_EFFICIENT_CORE_PROC];
             }
         } else {
             size_t socket_index = 0;
@@ -348,7 +346,9 @@ std::vector<std::vector<int>> get_streams_info_table(
                 n_streams = input_infer_requests > 0 ? std::min(n_streams, input_infer_requests) : n_streams;
                 n_threads_per_stream = -1;
             } else {
-                auto model_threads = model_prefer_threads > n_threads ? n_threads / 2 : model_prefer_threads;
+                auto model_threads = n_threads == 1                     ? 1
+                                     : model_prefer_threads > n_threads ? n_threads / 2
+                                                                        : model_prefer_threads;
                 n_streams = ((n_threads + model_threads - 1) / model_threads);
                 if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
                     n_streams = input_infer_requests;
@@ -381,13 +381,12 @@ std::vector<std::vector<int>> get_streams_info_table(
                 }
                 if (stream_info[STREAM_SOCKET_ID] == row[PROC_SOCKET_ID]) {
                     continue;
-                } else {
-                    stream_info[THREADS_PER_STREAM] = std::min(stream_info[THREADS_PER_STREAM], row[ALL_PROC]);
-                    create_one_stream(row,
-                                      proc_type_table,
-                                      stream_info[THREADS_PER_STREAM],
-                                      IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET);
                 }
+                stream_info[THREADS_PER_STREAM] = std::min(stream_info[THREADS_PER_STREAM], row[ALL_PROC]);
+                create_one_stream(row,
+                                  proc_type_table,
+                                  stream_info[THREADS_PER_STREAM],
+                                  IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_FOR_SOCKET);
             }
             stream_info = streams_info_table[0];
             stream_info[NUMBER_OF_STREAMS] = 1;
@@ -732,18 +731,17 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
             get_streams_rank_table(streams_info_table, config.streamsRankLevel, config.numSubStreams);
     }
 
-    auto cpu_pinning = get_cpu_pinning(config.enableCpuPinning,
-                                       config.changedCpuPinning,
-                                       config.enableCpuReservation,
-                                       proc_type_table,
-                                       streams_info_table);
+    config.enableCpuPinning = check_cpu_pinning(config.enableCpuPinning,
+                                                config.changedCpuPinning,
+                                                config.enableCpuReservation,
+                                                streams_info_table);
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,
                                                            config.threadsPerStream,
                                                            ov::hint::SchedulingCoreType::ANY_CORE,
                                                            config.enableCpuReservation,
-                                                           cpu_pinning,
+                                                           config.enableCpuPinning,
                                                            true,
                                                            std::move(streams_info_table),
                                                            {},

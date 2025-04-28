@@ -37,33 +37,34 @@ namespace element {
 /// \brief Enum to define possible element types
 /// \ingroup ov_element_cpp_api
 enum class Type_t {
-    undefined,  //!< Undefined element type
-    dynamic,    //!< Dynamic element type
-    boolean,    //!< boolean element type
-    bf16,       //!< bf16 element type
-    f16,        //!< f16 element type
-    f32,        //!< f32 element type
-    f64,        //!< f64 element type
-    i4,         //!< i4 element type
-    i8,         //!< i8 element type
-    i16,        //!< i16 element type
-    i32,        //!< i32 element type
-    i64,        //!< i64 element type
-    u1,         //!< binary element type
-    u2,         //!< u2 element type
-    u3,         //!< u3 element type
-    u4,         //!< u4 element type
-    u6,         //!< u6 element type
-    u8,         //!< u8 element type
-    u16,        //!< u16 element type
-    u32,        //!< u32 element type
-    u64,        //!< u64 element type
-    nf4,        //!< nf4 element type
-    f8e4m3,     //!< f8e4m3 element type
-    f8e5m2,     //!< f8e5m2 element type
-    string,     //!< string element type
-    f4e2m1,     //!< f4e2m1 element type
-    f8e8m0,     //!< f8e8m0 element type
+    dynamic,  //!< Dynamic element type
+    undefined OPENVINO_ENUM_DEPRECATED("This type is deprecated and will be removed in 2026.0. Use dynamic instead.") =
+        dynamic,  //!< Undefined element type
+    boolean,      //!< boolean element type
+    bf16,         //!< bf16 element type
+    f16,          //!< f16 element type
+    f32,          //!< f32 element type
+    f64,          //!< f64 element type
+    i4,           //!< i4 element type
+    i8,           //!< i8 element type
+    i16,          //!< i16 element type
+    i32,          //!< i32 element type
+    i64,          //!< i64 element type
+    u1,           //!< binary element type
+    u2,           //!< u2 element type
+    u3,           //!< u3 element type
+    u4,           //!< u4 element type
+    u6,           //!< u6 element type
+    u8,           //!< u8 element type
+    u16,          //!< u16 element type
+    u32,          //!< u32 element type
+    u64,          //!< u64 element type
+    nf4,          //!< nf4 element type
+    f8e4m3,       //!< f8e4m3 element type
+    f8e5m2,       //!< f8e5m2 element type
+    string,       //!< string element type
+    f4e2m1,       //!< f4e2m1 element type
+    f8e8m0,       //!< f8e8m0 element type
 };
 
 /// \brief Base class to define element type
@@ -132,14 +133,17 @@ public:
     std::string to_string() const;
 
 private:
-    Type_t m_type{Type_t::undefined};
+    Type_t m_type{Type_t::dynamic};
 };
 
 using TypeVector = std::vector<Type>;
 
 /// \brief undefined element type
 /// \ingroup ov_element_cpp_api
+OPENVINO_SUPPRESS_DEPRECATED_START
+OPENVINO_DEPRECATED("This type is deprecated and will be removed in 2026.0. Use dynamic instead.")
 inline constexpr Type undefined(Type_t::undefined);
+OPENVINO_SUPPRESS_DEPRECATED_END
 /// \brief dynamic element type
 /// \ingroup ov_element_cpp_api
 inline constexpr Type dynamic(Type_t::dynamic);
@@ -277,6 +281,7 @@ template <>
 class OPENVINO_API AttributeAdapter<ov::element::Type_t> : public EnumAttributeAdapterBase<ov::element::Type_t> {
 public:
     AttributeAdapter(ov::element::Type_t& value) : EnumAttributeAdapterBase<ov::element::Type_t>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::element::Type_t>");
 };
@@ -286,6 +291,7 @@ class OPENVINO_API AttributeAdapter<ov::element::Type> : public ValueAccessor<st
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::Type>");
     constexpr AttributeAdapter(ov::element::Type& value) : m_ref(value) {}
+    ~AttributeAdapter() override;
 
     const std::string& get() override;
     void set(const std::string& value) override;
@@ -303,6 +309,7 @@ class OPENVINO_API AttributeAdapter<ov::element::TypeVector> : public DirectValu
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::TypeVector>");
     AttributeAdapter(ov::element::TypeVector& value) : DirectValueAccessor<ov::element::TypeVector>(value) {}
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

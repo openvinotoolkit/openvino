@@ -6,9 +6,12 @@
 
 #include <algorithm>
 #include <memory>
-#include "low_precision/layer_transformation.hpp"
-#include "common/fake_quantize_on_data.hpp"
+
 #include "common/dequantization_operations.hpp"
+#include "common/fake_quantize_on_data.hpp"
+#include "low_precision/layer_transformation.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace builder {
@@ -16,14 +19,13 @@ namespace subgraph {
 
 class ConcatFunction {
 public:
-    static std::shared_ptr<ov::Model> get(
-        const ov::element::Type inputPrecision,
-        const ov::element::Type deqPrecision,
-        const std::vector<ov::PartialShape>& inputShapes,
-        const std::vector<DequantizationOperations>& dequantizationsBefore,
-        const std::int64_t concatAxis,
-        const ov::element::Type precisionAfter = ov::element::undefined,
-        const DequantizationOperations& dequantizationAfter = {});
+    static std::shared_ptr<ov::Model> get(const ov::element::Type inputPrecision,
+                                          const ov::element::Type deqPrecision,
+                                          const std::vector<ov::PartialShape>& inputShapes,
+                                          const std::vector<DequantizationOperations>& dequantizationsBefore,
+                                          const std::int64_t concatAxis,
+                                          const ov::element::Type precisionAfter = ov::element::dynamic,
+                                          const DequantizationOperations& dequantizationAfter = {});
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,

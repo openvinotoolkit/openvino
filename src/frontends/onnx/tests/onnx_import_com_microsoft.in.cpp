@@ -1577,6 +1577,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmul_integer_to_float) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_avg_pool) {
+    const auto model = convert_model("com.microsoft/qlinear_avg_pool.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<uint8_t> data_A = {140, 138, 137, 136, 135, 134, 133, 132, 131, 130, 129, 128, 127,
+                                         126, 125, 124, 123, 122, 121, 120, 119, 118, 117, 116, 115, 114,
+                                         113, 112, 111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101,
+                                         100, 99,  98,  97,  96,  95,  94,  93,  92,  91};
+
+    const std::vector<uint8_t> expected_output = {149};
+
+    test_case.add_input<uint8_t>(Shape{1, 1, 7, 7}, data_A);
+
+    test_case.add_expected_output<uint8_t>(Shape{1, 1, 1, 1}, expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsigmoid) {
     const auto model = convert_model("com.microsoft/q_linear_sigmoid.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -1680,5 +1697,495 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_mul) {
     test_case.add_input<int8_t>(Shape{1}, c_zero_point);
 
     test_case.add_expected_output<int8_t>(Shape{2, 2}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_fast_gelu) {
+    const auto model = convert_model("com.microsoft/fast_gelu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X = {0.0f,  0.5f, 1.0f,  -0.5f, -1.0f, 2.0f, 1.5f,  -2.0f, 0.3f,  0.7f, -0.7f, 1.2f,
+                                  -0.3f, 0.8f, -1.5f, 1.1f,  -0.9f, 0.4f, -1.2f, 2.1f,  -0.4f, 0.6f, -1.1f, 1.3f};
+    const std::vector<float> bias = {0.1f, -0.1f, 0.2f};
+
+    const std::vector<float> expected_output = {
+        0.05398275f, 0.2621714f, 1.0615974f,  -0.1378286f, -0.1492447f, 2.1699832f, 1.51072f,     -0.0378f,
+        0.34569725f, 0.6304f,    -0.1696f,    1.2874f,     -0.0841f,    0.53025f,   -0.12675f,    1.0614f,
+        -0.159f,     0.4353f,    -0.1492447f, 1.954764f,   -0.0841f,    0.53025f,   -0.13829723f, 1.39957158f};
+
+    test_case.add_input<float>(Shape{2, 4, 3}, X);
+    test_case.add_input<float>(Shape{3}, bias);
+
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.0055f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_bias_add) {
+    const auto model = convert_model("com.microsoft/bias_add.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> X = {1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                                  13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
+    const std::vector<float> bias = {2, 0, -1};
+    const std::vector<float> skip = {0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7};
+
+    const std::vector<float> expected_output = {3,  2,  2,  7,  6,  6,  11, 10, 10, 15, 14, 14,
+                                                19, 18, 18, 23, 22, 22, 27, 26, 26, 31, 30, 30};
+
+    test_case.add_input<float>(Shape{2, 4, 3}, X);
+    test_case.add_input<float>(Shape{3}, bias);
+    test_case.add_input<float>(Shape{2, 4, 3}, skip);
+
+    test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {
+    const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
+
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+    std::vector<float> past_key = {};
+    std::vector<float> past_value = {};
+    std::vector<int> seqlens_k = {0};
+    std::vector<float> cos_cache = {
+        0.8437f,
+        -0.7849f,
+        -0.7829f,
+        0.4581f,
+        -0.9870f,
+        0.6273f,
+        -0.9483f,
+        -0.9962f,
+    };
+    std::vector<float> sin_cache = {
+        0.5368f,
+        0.6196f,
+        -0.6222f,
+        0.8889f,
+        0.1605f,
+        -0.7788f,
+        0.3174f,
+        -0.0872f,
+    };
+
+    std::vector<float> expected_output = {-0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f,
+                                          -0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f};
+
+    std::vector<float> expected_present_key = {1.2561098f,
+                                               1.0199738f,
+                                               -0.05948371f,
+                                               -0.16574995f,
+                                               2.5059946f,
+                                               -1.738188f,
+                                               -0.03158256f,
+                                               -0.35975295f,
+                                               1.0918287f,
+                                               -0.90313876f,
+                                               -0.4790303f,
+                                               0.67029977f,
+                                               -0.87039495f,
+                                               0.7783688f,
+                                               -0.81333745f,
+                                               0.89886224f};
+
+    std::vector<float> expected_present_value = {-0.2188f,
+                                                 -2.4351f,
+                                                 -0.0729f,
+                                                 -0.034f,
+                                                 0.9625f,
+                                                 0.3492f,
+                                                 -0.9215f,
+                                                 -0.0562f,
+                                                 -0.6227f,
+                                                 -0.4637f,
+                                                 1.9218f,
+                                                 -0.4025f,
+                                                 0.1239f,
+                                                 1.1648f,
+                                                 0.9234f,
+                                                 1.3873f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{1, 8}, cos_cache);
+    test_case.add_input<float>(Shape{1, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary_interleaved) {
+    const auto model = convert_model("com.microsoft/gqa_rotary_interleaved.onnx");
+
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+    std::vector<float> past_key = {};
+    std::vector<float> past_value = {};
+    std::vector<int> seqlens_k = {0};
+    std::vector<float> cos_cache = {
+        0.8437f,
+        -0.7849f,
+        -0.7829f,
+        0.4581f,
+        -0.9870f,
+        0.6273f,
+        -0.9483f,
+        -0.9962f,
+    };
+    std::vector<float> sin_cache = {
+        0.5368f,
+        0.6196f,
+        -0.6222f,
+        0.8889f,
+        0.1605f,
+        -0.7788f,
+        0.3174f,
+        -0.0872f,
+    };
+
+    std::vector<float> expected_output = {-0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f,
+                                          -0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f, 0.3492f, -0.9215f, -0.0562f,
+                                          -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f, 1.1648f, 0.9234f,  1.3873f};
+
+    std::vector<float> expected_present_key = {2.118801f,
+                                               -0.2640816f,
+                                               -0.5926066f,
+                                               -0.19455537f,
+                                               0.9903903f,
+                                               2.954185f,
+                                               -0.35343042f,
+                                               -0.07457897f,
+                                               -0.25603274f,
+                                               -0.03627284f,
+                                               0.56591415f,
+                                               0.02181074f,
+                                               -0.1586003f,
+                                               0.96567893f,
+                                               -0.8591481f,
+                                               0.85514885f};
+
+    std::vector<float> expected_present_value = {-0.2188f,
+                                                 -2.4351f,
+                                                 -0.0729f,
+                                                 -0.034f,
+                                                 0.9625f,
+                                                 0.3492f,
+                                                 -0.9215f,
+                                                 -0.0562f,
+                                                 -0.6227f,
+                                                 -0.4637f,
+                                                 1.9218f,
+                                                 -0.4025f,
+                                                 0.1239f,
+                                                 1.1648f,
+                                                 0.9234f,
+                                                 1.3873f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{1, 8}, cos_cache);
+    test_case.add_input<float>(Shape{1, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 1, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary) {
+    const auto model = convert_model("com.microsoft/gqa_rotary.onnx");
+
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+    std::vector<float> past_key = {
+        -0.6136f,
+        0.0316f,
+        -0.4927f,
+        0.2484f,
+        0.4397f,
+        0.1124f,
+        0.6408f,
+        0.4412f,
+        -0.1023f,
+        0.7924f,
+        -0.2897f,
+        0.0525f,
+        0.5229f,
+        2.3022f,
+        -1.4689f,
+        -1.5867f,
+    };
+    std::vector<float> past_value = {
+        -0.5692f,
+        0.9200f,
+        1.1108f,
+        1.2899f,
+        -1.4782f,
+        2.5672f,
+        -0.4731f,
+        0.3356f,
+        -1.6293f,
+        -0.5497f,
+        -0.4798f,
+        -0.4997f,
+        -1.0670f,
+        1.1149f,
+        -0.1407f,
+        0.8058f,
+    };
+    std::vector<int> seqlens_k = {1};
+    std::vector<float> cos_cache = {
+        0.8437f,
+        -0.7849f,
+        -0.7829f,
+        0.4581f,
+        -0.9870f,
+        0.6273f,
+        -0.9483f,
+        -0.9962f,
+        -0.9635f,
+        -0.8046f,
+        0.4139f,
+        0.9863f,
+        0.4117f,
+        0.9874f,
+        -0.9743f,
+        0.9494f,
+    };
+    std::vector<float> sin_cache = {
+        0.5368f,
+        0.6196f,
+        -0.6222f,
+        0.8889f,
+        0.1605f,
+        -0.7788f,
+        0.3174f,
+        -0.0872f,
+        0.2677f,
+        -0.5938f,
+        -0.9103f,
+        -0.1650f,
+        -0.9113f,
+        -0.1583f,
+        0.2253f,
+        0.3140f,
+    };
+
+    std::vector<float> expected_output = {
+        -0.53934956f, 0.6341806f,  1.0099611f,   1.1771176f,   -1.270278f,   2.3782496f, -0.511299f,   0.30222273f,
+        -1.5435482f,  -0.5423737f, -0.27520883f, -0.4914196f,  -0.96554786f, 1.1191509f, -0.05004983f, 0.85533774f,
+        -0.49356747f, 0.19581467f, 0.8553029f,   1.0041412f,   -0.9513843f,  2.088453f,  -0.5698854f,  0.25103146f,
+        -1.4120293f,  -0.5311372f, 0.03857604f,  -0.47871974f, -0.8099488f,  1.1256707f, 0.08898184f,  0.93131447f};
+
+    std::vector<float> expected_present_key = {
+        -0.6136f,    0.0316f,    -0.4927f,     0.2484f,    0.4397f,      0.1124f,     0.6408f,     0.4412f,
+        -0.1023f,    0.7924f,    -0.2897f,     0.0525f,    0.5229f,      2.3022f,     -1.4689f,    -1.5867f,
+        -1.6519198f, 1.1400802f, 0.45031136f,  0.5877534f, -0.65952265f, -1.8121169f, 0.04630837f, 0.5568472f,
+        0.20271924f, 0.7458131f, -0.17379119f, 0.3623912f, 2.5696063f,   -0.58594f,   -0.8126341f, -0.7919839f};
+
+    std::vector<float> expected_present_value = {
+        -0.5692f, 0.9200f,  1.1108f,  1.2899f,  -1.4782f, 2.5672f,  -0.4731f, 0.3356f,  -1.6293f, -0.5497f, -0.4798f,
+        -0.4997f, -1.0670f, 1.1149f,  -0.1407f, 0.8058f,  -0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f,  0.3492f,
+        -0.9215f, -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{2, 8}, cos_cache);
+    test_case.add_input<float>(Shape{2, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved) {
+    const auto model = convert_model("com.microsoft/gqa_rotary_interleaved.onnx");
+
+    std::vector<float> query = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f, 1.6459f,
+        -1.3602f, 0.3446f,  0.5199f,  -2.6133f, -1.6965f, -0.2282f, 0.2800f,  0.2469f,  0.0769f, 0.3380f,  0.4544f,
+        0.4569f,  -0.8654f, 0.7813f,  -0.9268f, -0.2188f, -2.4351f, -0.0729f, -0.0340f, 0.9625f, 0.3492f,  -0.9215f,
+        -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f,
+    };
+    std::vector<float> past_key = {
+        -0.6136f,
+        0.0316f,
+        -0.4927f,
+        0.2484f,
+        0.4397f,
+        0.1124f,
+        0.6408f,
+        0.4412f,
+        -0.1023f,
+        0.7924f,
+        -0.2897f,
+        0.0525f,
+        0.5229f,
+        2.3022f,
+        -1.4689f,
+        -1.5867f,
+    };
+    std::vector<float> past_value = {
+        -0.5692f,
+        0.9200f,
+        1.1108f,
+        1.2899f,
+        -1.4782f,
+        2.5672f,
+        -0.4731f,
+        0.3356f,
+        -1.6293f,
+        -0.5497f,
+        -0.4798f,
+        -0.4997f,
+        -1.0670f,
+        1.1149f,
+        -0.1407f,
+        0.8058f,
+    };
+    std::vector<int> seqlens_k = {1};
+    std::vector<float> cos_cache = {
+        0.8437f,
+        -0.7849f,
+        -0.7829f,
+        0.4581f,
+        -0.9870f,
+        0.6273f,
+        -0.9483f,
+        -0.9962f,
+        -0.9635f,
+        -0.8046f,
+        0.4139f,
+        0.9863f,
+        0.4117f,
+        0.9874f,
+        -0.9743f,
+        0.9494f,
+    };
+    std::vector<float> sin_cache = {
+        0.5368f,
+        0.6196f,
+        -0.6222f,
+        0.8889f,
+        0.1605f,
+        -0.7788f,
+        0.3174f,
+        -0.0872f,
+        0.2677f,
+        -0.5938f,
+        -0.9103f,
+        -0.1650f,
+        -0.9113f,
+        -0.1583f,
+        0.2253f,
+        0.3140f,
+    };
+
+    std::vector<float> expected_output = {
+        -0.33396345f, -1.332403f,   0.31613833f, 0.40111685f,  0.16033238f, 1.0781744f, -0.7741276f, 0.07257013f,
+        -0.9535321f,  -0.491965f,   1.1324831f,  -0.43444604f, -0.2675047f, 1.1483997f, 0.57366973f, 1.1961825f,
+        -0.24709277f, -2.164195f,   0.02267693f, 0.07289726f,  0.7654276f,  0.5282906f, -0.8852943f, -0.02456442f,
+        -0.7039771f,  -0.47064403f, 1.7278847f,  -0.41034833f, 0.02774171f, 1.1607709f, 0.83748007f, 1.3403473f};
+
+    std::vector<float> expected_present_key = {
+        -0.6136f,    0.0316f,      -0.4927f,    0.2484f,      0.4397f,      0.1124f,    0.6408f,      0.4412f,
+        -0.1023f,    0.7924f,      -0.2897f,    0.0525f,      0.5229f,      2.3022f,    -1.4689f,     -1.5867f,
+        -1.2216992f, 1.7511603f,   0.03145146f, -0.62293506f, -2.625969f,   1.6767058f, -0.17887366f, 0.313817f,
+        0.1717277f,  -0.19334024f, 0.4056727f,  0.39516917f,  -0.25018305f, 0.9460988f, 1.0327814f,   -0.6345757f};
+
+    std::vector<float> expected_present_value = {
+        -0.5692f, 0.9200f,  1.1108f,  1.2899f,  -1.4782f, 2.5672f,  -0.4731f, 0.3356f,  -1.6293f, -0.5497f, -0.4798f,
+        -0.4997f, -1.0670f, 1.1149f,  -0.1407f, 0.8058f,  -0.2188f, -2.4351f, -0.0729f, -0.034f,  0.9625f,  0.3492f,
+        -0.9215f, -0.0562f, -0.6227f, -0.4637f, 1.9218f,  -0.4025f, 0.1239f,  1.1648f,  0.9234f,  1.3873f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, query);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 1, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<float>(Shape{2, 8}, cos_cache);
+    test_case.add_input<float>(Shape{2, 8}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsoftmax) {
+    const auto model = convert_model("com.microsoft/qlinear_softmax_opset13.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X{-50, -25, 0, 25, 50, 75};
+    const std::vector<float> x_scale{0.1f};
+    const std::vector<int8_t> x_zero_point{0};
+    const std::vector<float> y_scale{0.03f};
+    const std::vector<int8_t> y_zero_point{5};
+
+    const std::vector<int8_t> expected_output{5, 7, 35, 5, 7, 35};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data_X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 3}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsoftmax_opset12) {
+    const auto model = convert_model("com.microsoft/qlinear_softmax_opset12.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data_X{-60, -40, -20, 0, 20, 40,  60,  80,  100, 120,
+                                     -10, -5,  0,   5, 10, -80, -60, -40, -20, 0};
+    const std::vector<float> x_scale{0.15f};
+    const std::vector<int8_t> x_zero_point{0};
+    const std::vector<float> y_scale{0.05f};
+    const std::vector<int8_t> y_zero_point{3};
+
+    const std::vector<int8_t> expected_output{3, 3, 3, 3, 22, 3, 3, 3, 3, 22, 3, 4, 5, 8, 13, 3, 3, 3, 3, 22};
+
+    test_case.add_input<int8_t>(Shape{4, 5}, data_X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{4, 5}, expected_output);
     test_case.run();
 }

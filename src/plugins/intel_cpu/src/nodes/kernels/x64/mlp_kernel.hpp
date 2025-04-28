@@ -10,23 +10,23 @@
 #include "utils/plain_tensor.hpp"
 
 // register blocking size for K dimension (1x2 AMX B-tiles)
-#define REG_BLK_K_SIZE    32
-#define REG_BLK_K_SIZE_I8 64
+constexpr int REG_BLK_K_SIZE = 32;
+constexpr int REG_BLK_K_SIZE_I8 = 64;
 
 // register blocking size for N dimension (1x2 AMX B-tiles)
-#define REG_BLK_N_SIZE 32
+constexpr int REG_BLK_N_SIZE = 32;
 
 // cache blocking sie for K dimension
-#define CACHE_BLK_K_SIZE 256
+constexpr int CACHE_BLK_K_SIZE = 256;
 
 // cache blocking sie for M dimension
-#define CACHE_BLK_M_SIZE 256
+constexpr int CACHE_BLK_M_SIZE = 256;
 
 namespace ov::intel_cpu {
 
 class AutoTileConfiger {
 public:
-    AutoTileConfiger() {}
+    AutoTileConfiger() = default;
     ~AutoTileConfiger() {
         do_config(nullptr);
     }
@@ -526,26 +526,41 @@ public:
 
     void generate() override;
 
+    struct CallArgs {
+        float* src0;
+        float* src1;
+        int16_t* dst;
+        int16_t* prefetch_dst;
+        int64_t num_cols;
+    };
     // add two float input eltwise and convert to bf16 : ConvertFP32toBF16(src0 + src1)
     void
     call(float* src0, float* src1, size_t src_stride, void* pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
-        auto* dst = reinterpret_cast<int16_t*>(pf16_dst);
-        for (int m = 0; m < num_rows; m++, src0 += src_stride, src1 += src_stride, dst += dst_stride) {
+        CallArgs args;
+        args.src0 = src0;
+        args.src1 = src1;
+        args.dst = reinterpret_cast<int16_t*>(pf16_dst);
+        args.num_cols = num_cols;
+        for (int m = 0; m < num_rows; m++, args.src0 += src_stride, args.src1 += src_stride, args.dst += dst_stride) {
             // the prefetch distance is increased to ensure by the time store happens
             // prefetch has done and no HW prefetcher is triggered
-            auto* prefetch_dst = (m + 2 < num_rows) ? (dst + 2 * dst_stride) : (dst);
-            (*this)(src0, src1, dst, prefetch_dst, num_cols);
+            args.prefetch_dst = (m + 2 < num_rows) ? (args.dst + 2 * dst_stride) : (args.dst);
+
+            (*this)(&args);
         }
     }
 
     // convert tensor to bf16: ConvertFP32toBF16(src0)
     void call(float* src0, size_t src_stride, void* pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
-        auto* dst = reinterpret_cast<int16_t*>(pf16_dst);
-        for (int m = 0; m < num_rows; m++, src0 += src_stride, dst += dst_stride) {
+        CallArgs args;
+        args.src0 = src0;
+        args.dst = reinterpret_cast<int16_t*>(pf16_dst);
+        args.num_cols = num_cols;
+        for (int m = 0; m < num_rows; m++, args.src0 += src_stride, args.dst += dst_stride) {
             // the prefetch distance is increased to ensure by the time store happens
             // prefetch has done and no HW prefetcher is triggered
-            auto* prefetch_dst = (m + 2 < num_rows) ? (dst + 2 * dst_stride) : (dst);
-            (*this)(src0, dst, prefetch_dst, num_cols);
+            args.prefetch_dst = (m + 2 < num_rows) ? (args.dst + 2 * dst_stride) : (args.dst);
+            (*this)(&args);
         }
     }
 };

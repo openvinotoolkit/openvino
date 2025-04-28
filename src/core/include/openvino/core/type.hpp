@@ -79,15 +79,11 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
 namespace frontend {
 class ConversionExtensionBase;
-} // frontend
+}  // namespace frontend
 
 template <typename T>
 constexpr bool use_ov_dynamic_cast() {
-#if defined(__ANDROID__) || defined(ANDROID)
-    return true;
-#else
     return std::is_base_of_v<ov::frontend::ConversionExtensionBase, T>;
-#endif
 }
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
@@ -99,6 +95,12 @@ typename std::enable_if<
     bool>::type
 is_type(Value value) {
     return value && value->get_type_info().is_castable(Type::get_type_info_static());
+}
+
+/// \brief Tests if value is a pointer/shared_ptr that can be statically cast to any of the specified types
+template <typename Type, typename... Types, typename Value>
+bool is_type_any_of(Value value) {
+    return is_type<Type>(value) || (is_type_any_of<Types>(value) || ...);
 }
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise

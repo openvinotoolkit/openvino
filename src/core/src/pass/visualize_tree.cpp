@@ -8,6 +8,7 @@
 #include <fstream>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -446,7 +447,6 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
     std::stringstream ss;
     ss << "[ ";
     switch (constant->get_output_element_type(0)) {
-    case ov::element::Type_t::undefined:
     case ov::element::Type_t::dynamic:
     case ov::element::Type_t::u1:
     case ov::element::Type_t::u2:

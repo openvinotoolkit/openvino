@@ -38,12 +38,6 @@ static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> cac
 static constexpr Property<bool, PropertyMutability::RO> caching_with_mmap{"CACHING_WITH_MMAP"};
 
 /**
- * @brief Property to get a ov::AlignedBuffer with cached model
- * @ingroup ov_dev_api_plugin_api
- */
-static constexpr Property<std::shared_ptr<ov::AlignedBuffer>, PropertyMutability::RW> cached_model_buffer{"CACHED_MODEL_BUFFER"};
-
-/**
  * @brief Allow to create exclusive_async_requests with one executor
  * @ingroup ov_dev_api_plugin_api
  */
@@ -89,6 +83,12 @@ static constexpr Property<bool, PropertyMutability::RO> compiled_model_runtime_p
  * @ingroup ov_dev_api_plugin_api
  */
 static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUERY_MODEL_RATIO"};
+
+/**
+ * @brief Allow execution of low precision transformations in plugin's pipelines
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};
 
 }  // namespace internal
 }  // namespace ov

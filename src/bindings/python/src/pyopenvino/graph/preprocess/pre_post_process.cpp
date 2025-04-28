@@ -93,7 +93,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         [](ov::preprocess::PreProcessSteps& self, ov::element::Type type = {}) {
             return &self.convert_element_type(type);
         },
-        py::arg_v("type", ov::element::undefined, "openvino.Type.undefined"),
+        py::arg_v("type", ov::element::dynamic, "openvino.Type.dynamic"),
         R"(
             Converts input tensor element type to specified type.
             Input tensor must have openvino.Type data type.
@@ -239,7 +239,7 @@ static void regclass_graph_PostProcessSteps(py::module m) {
         [](ov::preprocess::PostProcessSteps& self, ov::element::Type type = {}) {
             return &self.convert_element_type(type);
         },
-        py::arg_v("type", ov::element::undefined, "openvino.Type.undefined"),
+        py::arg_v("type", ov::element::dynamic, "openvino.Type.dynamic"),
         R"(
             Converts tensor element type to specified type.
             Tensor must have openvino.Type data type.
@@ -448,23 +448,6 @@ static void regclass_graph_InputInfo(py::module m) {
     });
 }
 
-static void regclass_graph_OutputInfo(py::module m) {
-    py::class_<ov::preprocess::OutputInfo, Common::ref_wrapper<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
-    out.doc() = "openvino.preprocess.OutputInfo wraps ov::preprocess::OutputInfo";
-
-    out.def("tensor", [](ov::preprocess::OutputInfo& self) {
-        return &self.tensor();
-    });
-
-    out.def("postprocess", [](ov::preprocess::OutputInfo& self) {
-        return &self.postprocess();
-    });
-
-    out.def("model", [](ov::preprocess::OutputInfo& self) {
-        return &self.model();
-    });
-}
-
 static void regclass_graph_OutputModelInfo(py::module m) {
     py::class_<ov::preprocess::OutputModelInfo, Common::ref_wrapper<ov::preprocess::OutputModelInfo>> info(
         m,
@@ -483,6 +466,23 @@ static void regclass_graph_OutputModelInfo(py::module m) {
             :param layout: layout to be set
             :type layout: Union[str, openvino.Layout]
         )");
+}
+
+static void regclass_graph_OutputInfo(py::module m) {
+    py::class_<ov::preprocess::OutputInfo, Common::ref_wrapper<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
+    out.doc() = "openvino.preprocess.OutputInfo wraps ov::preprocess::OutputInfo";
+
+    out.def("tensor", [](ov::preprocess::OutputInfo& self) {
+        return &self.tensor();
+    });
+
+    out.def("postprocess", [](ov::preprocess::OutputInfo& self) {
+        return &self.postprocess();
+    });
+
+    out.def("model", [](ov::preprocess::OutputInfo& self) {
+        return &self.model();
+    });
 }
 
 static void regclass_graph_InputModelInfo(py::module m) {
@@ -538,17 +538,17 @@ static void regenum_graph_PaddingMode(py::module m) {
 }
 
 void regclass_graph_PrePostProcessor(py::module m) {
-    regclass_graph_PreProcessSteps(m);
-    regclass_graph_PostProcessSteps(m);
-    regclass_graph_InputInfo(m);
-    regclass_graph_OutputInfo(m);
-    regclass_graph_InputTensorInfo(m);
-    regclass_graph_OutputTensorInfo(m);
-    regclass_graph_InputModelInfo(m);
-    regclass_graph_OutputModelInfo(m);
     regenum_graph_ColorFormat(m);
     regenum_graph_ResizeAlgorithm(m);
     regenum_graph_PaddingMode(m);
+    regclass_graph_PreProcessSteps(m);
+    regclass_graph_PostProcessSteps(m);
+    regclass_graph_InputModelInfo(m);
+    regclass_graph_OutputModelInfo(m);
+    regclass_graph_InputTensorInfo(m);
+    regclass_graph_OutputTensorInfo(m);
+    regclass_graph_InputInfo(m);
+    regclass_graph_OutputInfo(m);
     py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
         m,
         "PrePostProcessor");

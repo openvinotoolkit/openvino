@@ -83,8 +83,8 @@ void Tensor::update_strides() const {
     });
 }
 
-void* Tensor::data(const element::Type& element_type) const {
-    if (element_type != element::undefined && element_type != element::dynamic) {
+const void* Tensor::data(const element::Type& element_type) const {
+    if (element_type.is_static()) {
         OPENVINO_ASSERT(element_type == get_element_type(),
                         "Tensor data with element type ",
                         get_element_type(),

@@ -9,6 +9,7 @@
 #include <string>
 
 #include "gather_shape_inference.hpp"
+#include "openvino/op/gather.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather)
@@ -47,6 +48,7 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
         switch (input_layout.format) {
         case format::bfyx:
         case format::bfzyx:
+        case format::bfwzyx:
         case format::b_fs_zyx_fsv16:
         case format::b_fs_zyx_fsv32:
             output_format = format::get_default_format(dims_converted.size());
@@ -150,7 +152,7 @@ void gather_inst::update_output_memory() {
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
     if (static_cast<bool>(_outputs[0]) &&
-        _node->get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
+        _node->get_program().get_config().get_enable_memory_pool()) {
         _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
     }
     _outputs[0] = input_memory_ptr();

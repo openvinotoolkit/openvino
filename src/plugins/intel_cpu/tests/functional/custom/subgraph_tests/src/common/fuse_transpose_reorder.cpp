@@ -8,6 +8,11 @@
 #include "common_test_utils/subgraph_builders/preprocess_builders.hpp"
 #include "openvino/openvino.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace CPUTestUtils;
 

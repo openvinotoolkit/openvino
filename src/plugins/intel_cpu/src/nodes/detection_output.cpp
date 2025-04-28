@@ -173,17 +173,17 @@ void DetectionOutput::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void DetectionOutput::execute(const dnnl::stream& strm) {
-    float* dstData = getDstDataAtPortAs<float>(0);
+void DetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
+    auto* dstData = getDstDataAtPortAs<float>(0);
 
-    const float* locData = getSrcDataAtPortAs<const float>(ID_LOC);
-    const float* confData = getSrcDataAtPortAs<const float>(ID_CONF);
-    const float* priorData = getSrcDataAtPortAs<const float>(ID_PRIOR);
+    const auto* locData = getSrcDataAtPortAs<const float>(ID_LOC);
+    const auto* confData = getSrcDataAtPortAs<const float>(ID_CONF);
+    const auto* priorData = getSrcDataAtPortAs<const float>(ID_PRIOR);
     const float* ARMConfData = inputShapes.size() > 3 ? getSrcDataAtPortAs<const float>(ID_ARM_CONF) : nullptr;
     const float* ARMLocData = inputShapes.size() > 4 ? getSrcDataAtPortAs<const float>(ID_ARM_LOC) : nullptr;
 
     float* reorderedConfData = reorderedConf.data();
-    int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
+    auto* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
 
     float* decodedBboxesData = decodedBboxes.data();
     float* bboxSizesData = bboxSizes.data();
@@ -403,7 +403,7 @@ void DetectionOutput::execute(const dnnl::stream& strm) {
                 for (int i = 0; i < detections; ++i) {
                     int pr = pindices[i];
                     mtx.lock();
-                    confIndicesClassMap.push_back(std::make_pair(pconf[pr], std::make_pair(c, pr)));
+                    confIndicesClassMap.emplace_back(pconf[pr], std::make_pair(c, pr));
                     mtx.unlock();
                 }
             });
@@ -416,9 +416,9 @@ void DetectionOutput::execute(const dnnl::stream& strm) {
             // Store the new indices. Assign to class back
             memset(detectionsData + n * classesNum, 0, classesNum * sizeof(int));
 
-            for (size_t j = 0; j < confIndicesClassMap.size(); ++j) {
-                const int cls = confIndicesClassMap[j].second.first;
-                const int pr = confIndicesClassMap[j].second.second;
+            for (auto& j : confIndicesClassMap) {
+                const int cls = j.second.first;
+                const int pr = j.second.second;
                 int* pindices = indicesData + n * classesNum * priorsNum + cls * priorsNum;
                 pindices[detectionsData[n * classesNum + cls]] = pr;
                 detectionsData[n * classesNum + cls]++;
@@ -565,10 +565,10 @@ inline void DetectionOutput::confReorderDense(const float* confData,
 inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confData,
                                                             const float* ARMConfData,
                                                             float* reorderedConfData,
-                                                            int* indicesData,
+                                                            [[maybe_unused]] int* indicesData,
                                                             int* indicesBufData,
                                                             int* detectionsData) {
-    int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
+    auto* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
     for (int n = 0; n < imgNum; ++n) {
         const int off = n * priorsNum * classesNum;
         const int offV = n * priorsNum;  // vertical info

@@ -4,7 +4,6 @@
 
 #include <memory>
 
-#include "openvino/op/ops.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/openvino.hpp"
 
@@ -17,6 +16,7 @@
 #include "utils/cache.hpp"
 
 #include "base_test.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace {
 
@@ -32,7 +32,7 @@ protected:
         SubgraphsDumperBaseTest::SetUp();
         model_name = "test_model";
         test_artifacts_dir = "test_artifacts";
-        test_model_path = ov::util::path_join({ test_artifacts_dir, model_name + ".xml" });
+        test_model_path = ov::util::path_join({ test_artifacts_dir, model_name + ".xml" }).string();
         ov::util::create_directory_recursive(test_artifacts_dir);
         {
             auto params = ov::ParameterVector {

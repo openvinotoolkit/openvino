@@ -7,16 +7,33 @@
 #include <memory>
 
 #include "openvino/core/node.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset12.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset12_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace ov {
 namespace pass {
@@ -104,11 +121,17 @@ bool isSupportedForPerChannelQuantization(const std::shared_ptr<Node>& node) {
 std::vector<std::pair<size_t, element::Type>> get_supported_precisions(std::shared_ptr<ov::Node> lstm) {
     // pair fields:
     // 0 - input number,
-    // 1 - input type, `element::undefined` - any precision
+    // 1 - input type, `element::dynamic` - any precision
     if (is_type<ov::opset5::LSTMSequence>(lstm)) {
-        return std::vector<std::pair<size_t, element::Type>>{ {0, element::u8}, { 1, element::u8 }, { 4, element::undefined }, { 5, element::undefined } };
+        return std::vector<std::pair<size_t, element::Type>>{{0, element::u8},
+                                                             {1, element::u8},
+                                                             {4, element::dynamic},
+                                                             {5, element::dynamic}};
     } else if (is_type<ov::opset5::GRUSequence>(lstm)) {
-        return std::vector<std::pair<size_t, element::Type>>{ {0, element::u8}, { 1, element::u8 }, { 3, element::undefined }, { 4, element::undefined } };
+        return std::vector<std::pair<size_t, element::Type>>{{0, element::u8},
+                                                             {1, element::u8},
+                                                             {3, element::dynamic},
+                                                             {4, element::dynamic}};
     }
 
     OPENVINO_THROW("unsupported operation type: ", lstm->get_type_name());
@@ -163,7 +186,8 @@ bool RecurrentCellTransformation::transform(ov::pass::pattern::Matcher& m) {
                 defaultPrecisions :
                 precisionsAttribute.as<PrecisionsAttribute>().value();
             const auto& dataPrecision = getDataPrecision(fq, quantizationDetails, precisions);
-            if (dataPrecision.empty() || ((input.second != element::undefined) && (dataPrecision.precision != input.second))) {
+            if (dataPrecision.empty() ||
+                ((input.second != element::dynamic) && (dataPrecision.precision != input.second))) {
                 return false;
             }
 
@@ -257,7 +281,7 @@ bool RecurrentCellTransformation::canBeTransformed(const std::shared_ptr<Node>& 
         if (dequantization.empty()) {
             continue;
         }
-        if ((index.second != element::undefined) && (dequantization.data.get_element_type() != index.second)) {
+        if ((index.second != element::dynamic) && (dequantization.data.get_element_type() != index.second)) {
             return false;
         }
     }

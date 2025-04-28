@@ -11,6 +11,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 
@@ -39,10 +40,10 @@ public:
 
     void SetUp() override {
         m_model_path = ov::test::utils::getModelFromTestModelZoo(
-            ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}));
+            ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}).string());
         if (!std::get<1>(GetParam()).empty()) {
             m_binary_path = ov::test::utils::getModelFromTestModelZoo(
-                ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}));
+                ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}).string());
         }
 
         std::string filePrefix = ov::test::utils::generateTestFilePrefix();
@@ -74,7 +75,6 @@ TEST_P(SerializationTest, SaveModel) {
     });
 }
 
-#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 TEST_P(SerializationTest, CompareFunctionsByPath) {
     const auto out_xml_path = std::filesystem::path(m_out_xml_path);
     const auto out_bin_path = std::filesystem::path(m_out_bin_path);
@@ -89,7 +89,6 @@ TEST_P(SerializationTest, SaveModelByPath) {
         ov::save_model(m, out_xml_path, false);
     });
 }
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
     IRSerialization,

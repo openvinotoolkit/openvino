@@ -18,11 +18,18 @@ using TileConfiger = ov::Extensions::Cpu::TileConfiger;
 namespace ov::intel_cpu {
 
 void MKernel::generate_2x2() {
-    Xbyak::Reg64 reg_A_addr = abi_param2;
-    Xbyak::Reg64 reg_A_stride = abi_param3;
-    Xbyak::Reg64 reg_B_addr = abi_param4;
-    Xbyak::Reg64 reg_C_addr = abi_param5;
-    Xbyak::Reg64 reg_C_stride = abi_param6;
+    auto reg_A_addr = abi_param2;
+    auto reg_A_stride = abi_param3;
+    auto reg_B_addr = abi_param4;
+#ifdef _WIN32
+    auto reg_C_addr = rdi;
+    auto reg_C_stride = rsi;
+    push(rdi);
+    push(rsi);
+#else
+    auto reg_C_addr = abi_param5;
+    auto reg_C_stride = abi_param6;
+#endif
 
     Xbyak::Reg64 reg_ktiles = rax;
     Xbyak::Reg64 reg_B_stride = r10;
@@ -139,6 +146,10 @@ void MKernel::generate_2x2() {
     tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC11);
 
     pop(reg_prefetch);
+#ifdef _WIN32
+    pop(rsi);
+    pop(rdi);
+#endif
     ret();
 }
 
@@ -170,11 +181,18 @@ void MKernel::tile_config_M(TileConfig& tile_cfg, int M) {
 }
 
 void MKernel::generate_1x2() {
-    Xbyak::Reg64 reg_A_addr = abi_param2;
-    Xbyak::Reg64 reg_A_stride = abi_param3;
-    Xbyak::Reg64 reg_B_addr = abi_param4;
-    Xbyak::Reg64 reg_C_addr = abi_param5;
-    Xbyak::Reg64 reg_C_stride = abi_param6;
+    auto reg_A_addr = abi_param2;
+    auto reg_A_stride = abi_param3;
+    auto reg_B_addr = abi_param4;
+#ifdef _WIN32
+    auto reg_C_addr = rdi;
+    auto reg_C_stride = rsi;
+    push(rdi);
+    push(rsi);
+#else
+    auto reg_C_addr = abi_param5;
+    auto reg_C_stride = abi_param6;
+#endif
 
     Xbyak::Reg64 reg_ktiles = rax;
     Xbyak::Reg64 reg_B_stride = r10;
@@ -253,7 +271,10 @@ void MKernel::generate_1x2() {
         tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC01);
     }
     L(skip_store);
-
+#ifdef _WIN32
+    pop(rsi);
+    pop(rdi);
+#endif
     ret();
 }
 
@@ -266,7 +287,7 @@ public:
 
     void generate() override {
         Xbyak::Label loop_begin;
-        Xbyak::Reg64 src = abi_param1;
+        auto src = abi_param1;
         for (int i = 0; i < 16; i++) {
             vcvtph2ps(zmm0, ptr[src]);
             vcvtph2ps(zmm1, ptr[src + 32]);
@@ -280,13 +301,13 @@ public:
 };
 
 template <typename Tdst>
-static typename std::enable_if<std::is_same<ov::bfloat16, Tdst>::value || std::is_same<ov::float16, Tdst>::value>::type
+static std::enable_if_t<std::is_same_v<ov::bfloat16, Tdst> || std::is_same_v<ov::float16, Tdst>>
 repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     static FP16ToBF16Kernel fp16_to_bf16;
     if (N == 16 && K == 32) {
         // SIMD optimized version
         ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(Tdst));
-        if (std::is_same<ov::bfloat16, Tdst>::value) {
+        if (std::is_same_v<ov::bfloat16, Tdst>) {
             fp16_to_bf16(dst);
         }
         return;
@@ -482,7 +503,7 @@ void MKernel::run(int M,  // actual M
     auto strideB = repacked_B.Bpair_rows * repacked_B.Bpair_size;
     auto num_blkN = repacked_B.Bpair_cols;
 
-    args.do_accumulation = do_accumulation;
+    args.do_accumulation = static_cast<int64_t>(do_accumulation);
     args.k_tiles = repacked_B.Bpair_rows;
     args.strideA = strideA;
     args.strideC = strideC;
@@ -539,10 +560,10 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride
 void GateUpCombine::generate() {
     Xbyak::Label loop_begin;
 
-    Xbyak::Reg64 src = abi_param1;
-    Xbyak::Reg64 dst = abi_param2;
-    Xbyak::Reg64 prefetch_dst = abi_param3;
-    Xbyak::Reg64 BN = abi_param4;
+    auto src = abi_param1;
+    auto dst = abi_param2;
+    auto prefetch_dst = abi_param3;
+    auto BN = abi_param4;
 
     Xbyak::Reg64 loop_i = rax;
     const auto zmm_gate = zmm5;
@@ -599,11 +620,18 @@ void GateUpCombine::generate() {
 
 void ReduceAdd2bh::generate() {
     if (m_do_reduce2) {
-        Xbyak::Reg64 src0 = abi_param1;
-        Xbyak::Reg64 src1 = abi_param2;
-        Xbyak::Reg64 dst = abi_param3;
-        Xbyak::Reg64 prefetch_dst = abi_param4;
-        Xbyak::Reg64 BN = abi_param5;
+        auto src0 = rdx;
+        auto src1 = r8;
+        auto dst = r9;
+        auto prefetch_dst = r10;
+        auto BN = r11;
+
+        mov(src0, ptr[abi_param1 + offsetof(CallArgs, src0)]);
+        mov(src1, ptr[abi_param1 + offsetof(CallArgs, src1)]);
+        mov(dst, ptr[abi_param1 + offsetof(CallArgs, dst)]);
+        mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
+        mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
+
         Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;
@@ -635,10 +663,16 @@ void ReduceAdd2bh::generate() {
 
         ret();
     } else {
-        Xbyak::Reg64 src0 = abi_param1;
-        Xbyak::Reg64 dst = abi_param2;
-        Xbyak::Reg64 prefetch_dst = abi_param3;
-        Xbyak::Reg64 BN = abi_param4;
+        auto src0 = rdx;
+        auto dst = r9;
+        auto prefetch_dst = r10;
+        auto BN = r11;
+
+        mov(src0, ptr[abi_param1 + offsetof(CallArgs, src0)]);
+        mov(dst, ptr[abi_param1 + offsetof(CallArgs, dst)]);
+        mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
+        mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
+
         Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;

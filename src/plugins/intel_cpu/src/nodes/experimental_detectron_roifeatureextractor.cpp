@@ -6,12 +6,13 @@
 
 #include <algorithm>
 #include <cmath>
-#include <openvino/opsets/opset6.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/experimental_detectron_roi_feature.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 
 namespace ov::intel_cpu::node {
 namespace {
@@ -79,8 +80,8 @@ void pre_calc_for_bilinear_interpolate(const int height,
                         x = 0;
                     }
 
-                    int y_low = static_cast<int>(y);
-                    int x_low = static_cast<int>(x);
+                    auto y_low = static_cast<int>(y);
+                    auto x_low = static_cast<int>(x);
                     int y_high = 0;
                     int x_high = 0;
 
@@ -256,9 +257,8 @@ void reord(const float* src_data, const int* ranks, const int n, const int step,
 void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level, const int levels_num) {
     rois_per_level.clear();
     rois_per_level.resize(levels_num, 0);
-    for (size_t i = 0; i < ids.size(); ++i) {
-        assert(0 <= ids[i] && ids[i] < levels_num);
-        rois_per_level[ids[i]]++;
+    for (int id : ids) {
+        rois_per_level[id]++;
     }
     for (int i = 1; i < levels_num; ++i) {
         rois_per_level[i] += rois_per_level[i - 1];
@@ -317,7 +317,7 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
                          impl_desc_type::ref_any);
 }
 
-void ExperimentalDetectronROIFeatureExtractor::execute(const dnnl::stream& strm) {
+void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];

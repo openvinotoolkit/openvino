@@ -41,7 +41,7 @@ public:
         }
     }
 
-    const Reg64& get_reg() const {
+    [[nodiscard]] const Reg64& get_reg() const {
         return m_aux_gpr_idx;
     }
 
@@ -81,15 +81,16 @@ void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, c
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
-void jit_loop_begin_emitter::emit_code(const std::vector<size_t>& in,
-                                       const std::vector<size_t>& out,
-                                       const std::vector<size_t>& pool_vec_idxs,
-                                       const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
+                                            const std::vector<size_t>& out,
+                                            const std::vector<size_t>& pool_vec_idxs,
+                                            const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
-    jit_emitter::emit_code(in, out, pool_vec_idxs, pool_gpr_idxs);
+    jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
-void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
+                                       const std::vector<size_t>& out) const {
     // If the loop evaulate once, we can skip loop begin code emission
     // If work_amount is dynamic, we should get runtime `work_amount` - it might be `zero` and we should skip loop
     // evaluation
@@ -97,7 +98,7 @@ void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std:
         return;
     }
 
-    Reg64 reg_work_amount = Reg64(static_cast<int>(out.back()));
+    auto reg_work_amount = Reg64(static_cast<int>(out.back()));
     if (is_work_amount_dynamic) {
         jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);  // loop_begin has only output registers
         Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
@@ -168,7 +169,7 @@ ov::snippets::lowered::ExpressionPtr jit_loop_end_emitter::get_loop_begin_expr(
 
 void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     const auto io_size = num_inputs + num_outputs;
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 0, "Invalid number of out arguments: expected ", 0, " got ", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(out.empty(), "Invalid number of out arguments: expected ", 0, " got ", out.size());
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1,
                               "Invalid number of in arguments: expected ",
                               io_size + 1,
@@ -199,15 +200,16 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, con
                               "loop increment might be dynamic only if loop evaluates once!");
 }
 
-void jit_loop_end_emitter::emit_code(const std::vector<size_t>& in,
-                                     const std::vector<size_t>& out,
-                                     const std::vector<size_t>& pool_vec_idxs,
-                                     const std::vector<size_t>& pool_gpr_idxs) const {
+void jit_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
+                                          const std::vector<size_t>& out,
+                                          const std::vector<size_t>& pool_vec_idxs,
+                                          const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
-    jit_emitter::emit_code(in, out, pool_vec_idxs, pool_gpr_idxs);
+    jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
-void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
+                                     [[maybe_unused]] const std::vector<size_t>& out) const {
     std::vector<size_t> data_ptr_reg_idxs;
     // the last input is actually a work_amount reg
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
@@ -248,7 +250,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::v
     if (!evaluate_once) {
         apply_increments(are_ptr_increments_dynamic, GET_OFF_LOOP_ARGS(m_ptr_increments), ptr_increments, wa_increment);
 
-        Reg64 reg_work_amount = Reg64(in.back());
+        auto reg_work_amount = Reg64(in.back());
         h->sub(reg_work_amount, wa_increment);
         h->cmp(reg_work_amount, wa_increment);
         h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);

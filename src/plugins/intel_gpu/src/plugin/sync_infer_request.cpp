@@ -9,6 +9,7 @@
 
 #include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
@@ -31,29 +32,6 @@
 #include <utility>
 
 namespace {
-
-inline bool can_use_usm_host(const cldnn::engine& engine, const uint64_t total_output_bytes) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->use_usm_host == 1) { return true; }
-    GPU_DEBUG_IF(debug_config->use_usm_host == 2) { return false; }
-
-    auto can_use_usm = engine.use_unified_shared_memory();
-    // When output size is large, it is better not to write to usm_host directly
-    const uint64_t LARGE_OUTPUT_BYTES_THRESHOLD = 4 * 1048576;
-
-    const auto& device_info = engine.get_device_info();
-    if ((device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 60) ||
-        (device_info.gfx_ver.major >= 20 && device_info.dev_type == cldnn::device_type::discrete_gpu) ||
-        (device_info.dev_type == cldnn::device_type::discrete_gpu && total_output_bytes > LARGE_OUTPUT_BYTES_THRESHOLD)) {
-        // WA: Disable USM host memory for infer request`s tensors for PVC and subsequent dGPUs, as kernel access
-        // to system memory is slower than using an explicit memcpy (Host <-> Device) call with the copy engine
-        // Driver tickets with additional details: 6155, 10054
-        GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
-        can_use_usm = false;
-    }
-
-    return can_use_usm;
-}
 
 bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
     return src_et != dst_et && !(dst_et == ov::element::boolean && src_et == ov::element::u8);
@@ -113,20 +91,9 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
     : ov::ISyncInferRequest(compiled_model)
     , m_graph(compiled_model->get_graph(0))
     , m_context(std::static_pointer_cast<RemoteContextImpl>(compiled_model->get_context_impl()))
-    , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_property(ov::intel_gpu::buffers_preallocation_ratio)))
-    , m_enable_profiling(m_graph->get_config().get_property(ov::enable_profiling))
+    , m_shape_predictor(new cldnn::ShapePredictor(&m_graph->get_engine(), m_graph->get_config().get_shape_predictor_settings()))
+    , m_enable_profiling(m_graph->get_config().get_enable_profiling())
     , m_use_external_queue(m_graph->use_external_queue()) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
-        auto& mem_preallocation_params = debug_config->mem_preallocation_params;
-        m_shape_predictor.reset(
-            new cldnn::ShapePredictor(&m_graph->get_engine(),
-                                      mem_preallocation_params.next_iters_preallocation_count,
-                                      mem_preallocation_params.max_per_iter_size,
-                                      mem_preallocation_params.max_per_dim_diff,
-                                      mem_preallocation_params.buffers_preallocation_ratio));
-    }
-
     init_mappings();
     allocate_inputs();
     allocate_outputs();
@@ -317,15 +284,16 @@ void SyncInferRequest::enqueue() {
     m_internal_outputs = network->execute(dependencies);
     auto network_enqueue_end = std::chrono::high_resolution_clock::now();
 
+    [[maybe_unused]] const auto& config = network->get_config();
+
     // If dump layers path is set, only runs first inference.
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0 && debug_config->dump_iteration.empty()) {
+    GPU_DEBUG_IF(!config.get_dump_tensors_path().empty() && config.get_dump_iterations().empty()) {
         GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
 
     auto enqueue_end = std::chrono::high_resolution_clock::now();
-    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
+    GPU_DEBUG_IF(config.get_host_time_profiling()) {
         network_enqueue_time = std::chrono::duration_cast<std::chrono::microseconds>(network_enqueue_end - network_enqueue_start).count();
 
         const uint64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(enqueue_end - enqueue_start).count();
@@ -422,7 +390,7 @@ void SyncInferRequest::wait() {
             auto mem_shape = output_layout.get_shape();
             // In case of old shape infer we need to shrink out tensor shape to avoid redudnant dimensions that occur due to rank extension
             // For new shape infer this shouldn't happen, thus remove that WA once we migrate to ngraph-based shape infer for all cases
-            if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
+            if (!m_graph->get_config().get_allow_new_shape_infer()) {
                 OPENVINO_ASSERT(port.get_partial_shape().is_static(), "[GPU] Unexpected dynamic shape for legacy shape inference");
                 OPENVINO_ASSERT(ov::shape_size(port.get_shape()) == ov::shape_size(mem_shape), "[GPU] Unexpected elements count for output tensor");
                 mem_shape = port.get_shape();
@@ -434,6 +402,8 @@ void SyncInferRequest::wait() {
                     need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
                 else if (!is_remote_tensor_impl && output_memory)
                     need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
+                else if (is_remote_tensor_impl && output_memory)
+                    need_reallocate = false;
 
                 if (need_reallocate) {
                     std::string internal_name = m_output_names_map.at(port_idx);
@@ -475,13 +445,7 @@ void SyncInferRequest::wait() {
         } else if (is_remote_tensor_impl && is_dynamic) {
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
-            if (user_mem->get_allocation_type() == cldnn::allocation_type::cl_mem && output_memory->get_allocation_type() != cldnn::allocation_type::cl_mem) {
-                // WA: Copy between cl_mem and usm memory may fail for some reason (driver bug?)
-                // so this explicit memcpy is used to provide correct output for cl_mem output in dynamic cases
-                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> lock_dst(user_mem, stream);
-                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> lock_src(output_memory, stream);
-                std::memcpy(lock_dst.data(), lock_src.data(), output_memory->size());
-            } else {
+            if (!m_graph->get_engine().is_the_same_buffer(*output_memory, *user_mem)) {
                 copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
             }
         }
@@ -497,13 +461,15 @@ void SyncInferRequest::wait() {
         }
     }
 
+    network.reset_output_remote_memory_ptrs();
+
     // finally collect profiling info
     if (m_enable_profiling) {
         m_graph->update_profiling_info();
     }
 
     auto wait_end = std::chrono::high_resolution_clock::now();
-    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
+    GPU_DEBUG_IF(m_graph->get_config().get_host_time_profiling()) {
         auto& exec_time_info = m_graph->host_exec_times.back();
 
         const uint64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(wait_end - wait_start).count();
@@ -597,7 +563,7 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     return { create_device_tensor(actual_memory_shape, element_type, need_lockable_mem), TensorOwner::PLUGIN };
 }
 
-cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, const ov::ITensor& dst) const {
+cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, ov::ITensor& dst) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::copy_output_data");
     OPENVINO_ASSERT(src->count() <= dst.get_size(),
                     "[GPU] Unexpected elements count of dst tensor: ",
@@ -895,7 +861,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     auto memory = device_tensor->get_memory();
     // WA to extend shape to ranks expected by legacy shape infer. Remove after full migration to new shape infer
-    if (!m_graph->get_config().get_property(ov::intel_gpu::allow_new_shape_infer)) {
+    if (!m_graph->get_config().get_allow_new_shape_infer()) {
         auto new_layout = memory->get_layout();
         new_layout.set_partial_shape(m_graph->get_input_layouts().at(input_idx).get_shape());
         memory = engine.reinterpret_buffer(*memory, new_layout);
@@ -966,7 +932,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
 
-    if (is_remote_tensor_impl && !convert_needed && !is_dynamic) {
+    // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
+    if (is_remote_tensor_impl && !convert_needed) {
         m_plugin_outputs[output_idx] = user_tensor_wrapper;
     }
 
@@ -993,7 +960,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
     auto output_memory = output_tensor->get_memory();
     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
-    return network->set_output_memory(internal_name, output_memory);
+    return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || user_tensor));
 }
 
 void SyncInferRequest::init_mappings() {
