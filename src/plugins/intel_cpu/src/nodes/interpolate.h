@@ -317,7 +317,7 @@ private:
     private:
         bool antialias;
         std::vector<float> dataScales;
-        InterpolateAttrs refinterpAttrs;
+        InterpolateAttrs refInterpAttrs;
     };
 
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims);
