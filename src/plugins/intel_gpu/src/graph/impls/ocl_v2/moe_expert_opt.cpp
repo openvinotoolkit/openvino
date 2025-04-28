@@ -22,6 +22,7 @@
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
 #include "cm/utils/kernel_generator.hpp"
+#include "debug_helper.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -1115,8 +1116,8 @@ public:
         expert_mask_tmp_scratch& scratch = cur_net.get_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key);
 
         if (fused_router_logic) {
-            layout layout_topk_id(ov::PartialShape{batch * max_topk}, data_types::u32, cldnn::format::bfyx);
-            layout layout_topk_weights(ov::PartialShape{batch * max_topk}, data_types::f16, cldnn::format::bfyx);
+            layout layout_topk_id(ov::PartialShape{batch, max_topk}, data_types::u32, cldnn::format::bfyx);
+            layout layout_topk_weights(ov::PartialShape{batch, max_topk}, data_types::f16, cldnn::format::bfyx);
             if (scratch.topk_size < batch * max_topk) {
                 scratch.topk_id = instance.alloc_buf(scratch.topk_id.get(), layout_topk_id);
                 scratch.topk_weights = instance.alloc_buf(scratch.topk_weights.get(), layout_topk_weights);
@@ -1128,13 +1129,12 @@ public:
             scratch.topk_weights = instance.reinterpret_buf(*scratch.topk_weights, layout_topk_weights);
 
             auto lws_size = moe->_config.expert_num;
-            
             execute_stage(events,
                           instance,
                           *softmax_topk,
                           {instance.input_memory_ptr(1)},
                           {scratch.topk_id, scratch.topk_weights},
-                          {static_cast<size_t>(batch), static_cast<size_t>(lws_size)},
+                          {static_cast<size_t>(batch), lws_size},
                           {1, lws_size});
         }
 
@@ -1189,7 +1189,7 @@ public:
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto final_hidden_states_layout = instance.get_output_layout(0);
-        auto [expert_mask_mem_ptr, expert_mask_layout] = get_input_info(instance, 1);
+        //auto [expert_mask_mem_ptr, expert_mask_layout] = get_input_info(instance, 1);
         auto [routing_mem_ptr, routing_layout] = get_input_info(instance, 3);
         if (fused_router_logic) {
             routing_mem_ptr = scratch.topk_weights;
@@ -1228,6 +1228,14 @@ public:
             instance.get_tmp_memory(hidden_states_layout.data_type, n_token, _hidden_size, _intermediate_size, max_topk, scratch);
             onednn_kernel& kernel = get_kernel(batch == 1 ? 1 : n_token, static_cast<int>(expert_no), instance);
             memory::ptr& x = batch == 1 ? hidden_states_mem_ptr : scratch.x;
+
+            /*
+            if (layer_id == 1 && expert_no < 3) {
+                cldnn::dump_memory(routing_mem_ptr, stream, "routing_mem_ptr", layer_id*1000 + expert_no);
+                cldnn::dump_memory(expert_mask_mem->topk, stream, "topk", layer_id*1000 + expert_no);
+                cldnn::dump_memory(expert_mask_mem->batch, stream, "batch", layer_id*1000 + expert_no);
+            }
+            */
 
             // gather
             if (batch != 1) {

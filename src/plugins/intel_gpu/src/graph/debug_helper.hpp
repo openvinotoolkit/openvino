@@ -13,6 +13,7 @@
 namespace cldnn {
 
 #ifdef GPU_DEBUG_CONFIG
+void dump_memory(memory::ptr actual_mem, stream& stream, std::string filename, int dump_id);
 
 class NodeDebugHelper {
 public:

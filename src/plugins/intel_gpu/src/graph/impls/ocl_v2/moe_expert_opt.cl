@@ -10,7 +10,7 @@
 KERNEL(softmax_topk)(
     const __global TYPE* input, // [input_batch, sort_in_num]
     __global uint* output_index, // [input_batch, TOP_K]
-    __global TYPE* output_value // [input_batch, TOP_K]
+    __global TYPE* output // [input_batch, TOP_K]
 ) {
     // gws [batch, sort_in_num]
     const uint batch = (uint)get_global_id(0);
@@ -18,30 +18,54 @@ KERNEL(softmax_topk)(
     const uint sort_cnt = (uint)get_global_size(1);
 
     input += batch * sort_cnt + sort_index;
-    float softmax_total = 0.0;
-    float softmax_current = 0.0;
-    
+
     uint sort_position = 0;
 
     __local TYPE local_input[VALUE_NUM];
+    __local TYPE local_output[TOP_K];
+    __local uint local_index[TOP_K];
+
     TYPE in_value = as_half(intel_sub_group_block_read_us((const __global ushort*)(input)));
     local_input[sort_index] = in_value;
     barrier(CLK_LOCAL_MEM_FENCE);
 
     __attribute__((opencl_unroll_hint(8)))
-    for(uint i = 0; i < sort_cnt; i++) {
+    for(uint i = 0; i < sort_index; i++) {
         TYPE value = local_input[i];
-        softmax_total += native_exp(value);
+        if(value >= in_value) {
+            sort_position++;
+        }
+    }
+    //if (sort_position >= TOP_K) return;
+    
+    __attribute__((opencl_unroll_hint(8)))
+    for(uint i = sort_index; i < sort_cnt; i++) {
+        TYPE value = local_input[i];
         if(value > in_value) {
             sort_position++;
         }
     }
-
     if (sort_position < TOP_K) {
-        output_value += batch * TOP_K;
+        local_output[sort_position] = in_value;
+        local_index[sort_position] = sort_index;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if(sort_position == 0) {
+        float softmax_total = 1.0;
+        TYPE max_v = local_output[0];
+        local_output[0] = 1;
+        for(uint i = 1; i < TOP_K; i++) {
+            local_output[i] = native_exp(local_output[i] - max_v);
+            softmax_total += local_output[i];
+        }
         output_index += batch * TOP_K;
-        output_value[sort_position] = exp(in_value) / softmax_total;
-        output_index[sort_position] = sort_index;
+        output += batch * TOP_K;
+
+        for(uint i = 0; i < TOP_K; i++) {
+            output[i] = local_output[i]/softmax_total;
+            output_index[i] = local_index[i];
+        }
     }
 }
 

@@ -15,7 +15,7 @@ class TRANSFORMATIONS_API FuseMoeExpert;
 class TRANSFORMATIONS_API FuseMoeExpert2;
 class TRANSFORMATIONS_API FuseMoeExpertPlain;
 class TRANSFORMATIONS_API FuseMoeExpertOneHot;
-class TRANSFORMATIONS_API FuseMoeExpertRoutingLogic;
+class TRANSFORMATIONS_API FuseMoeExpertSoftTopK;
 
 }  // namespace pass
 }  // namespace ov
@@ -50,8 +50,8 @@ public:
     FuseMoeExpertOneHot();
 };
 
-class ov::pass::FuseMoeExpertRoutingLogic : public ov::pass::MatcherPass {
+class ov::pass::FuseMoeExpertSoftTopK : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseMoeExpertRoutingLogic");
-    FuseMoeExpertRoutingLogic();
+    OPENVINO_MATCHER_PASS_RTTI("FuseMoeExpertSoftTopK");
+    FuseMoeExpertSoftTopK();
 };

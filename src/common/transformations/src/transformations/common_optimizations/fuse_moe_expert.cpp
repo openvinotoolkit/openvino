@@ -1075,8 +1075,8 @@ ov::pass::FuseMoeExpertOneHot::FuseMoeExpertOneHot() {
 }
 
 
-ov::pass::FuseMoeExpertRoutingLogic::FuseMoeExpertRoutingLogic() {
-    MATCHER_SCOPE(FuseMoeExpertRoutingLogic);
+ov::pass::FuseMoeExpertSoftTopK::FuseMoeExpertSoftTopK() {
+    MATCHER_SCOPE(FuseMoeExpertSoftTopK);
 
     // param1: [batch*seq, 2048]
     auto final_hidden_states = makePattern(ov::Rank(2));
@@ -1139,7 +1139,7 @@ ov::pass::FuseMoeExpertRoutingLogic::FuseMoeExpertRoutingLogic() {
         cfg.fused_router_logic = true;
         moe->set_config(cfg);
 
-        moe->set_friendly_name(std::string("moe_expert_onehot_softmax_topk"));
+        moe->set_friendly_name(std::string("moe_expert_onehot_softtopk"));
 
         return true;
     };
