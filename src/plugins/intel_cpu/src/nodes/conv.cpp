@@ -225,6 +225,7 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
                 ? AutoPaddingType::SAME_UPPER
                 : (internalConvolutionOp->get_auto_pad() == ov::op::PadType::SAME_LOWER ? AutoPaddingType::SAME_LOWER
                                                                                         : AutoPaddingType::None);
+        m_attrs.isInternalOpset = true;
     } else if (convolutionOp) {
         algorithm = Algorithm::ConvolutionCommon;
 

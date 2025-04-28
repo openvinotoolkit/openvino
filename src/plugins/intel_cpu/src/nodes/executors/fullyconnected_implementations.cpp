@@ -265,7 +265,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const bool fcSemantic = true;
                         ConvAttrs convAttrs{{1}, {0}, {0}, {0},
                                             AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
-                                            false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
+                                            false, false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
                         
                         auto primitive =
                             DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
