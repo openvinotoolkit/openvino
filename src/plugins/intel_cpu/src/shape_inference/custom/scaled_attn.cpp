@@ -19,9 +19,7 @@ public:
     IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                               [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         auto inputs_size = input_shapes.size();
-        OPENVINO_ASSERT(inputs_size >= 3,
-                        "SDPAShapeInfer: expected at least 3 inputs, got ",
-                        inputs_size);
+        OPENVINO_ASSERT(inputs_size >= 3, "SDPAShapeInfer: expected at least 3 inputs, got ", inputs_size);
         const auto& query_dims = input_shapes.front().get();
         VectorDims present_v_dims = input_shapes.back().get();
         const auto& beam_idx_dims = input_shapes[inputs_size - 3].get();
