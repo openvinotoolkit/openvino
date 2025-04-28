@@ -111,6 +111,8 @@ ov::op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t 
     m_output_descriptions.resize(number_of_bodies);
 }
 
+ov::op::util::MultiSubGraphOp::~MultiSubGraphOp() = default;
+
 ov::Input<ov::Node> ov::op::util::MultiSubGraphOp::input_for_value(const Output<Node>& value) {
     auto input_index = get_input_size();
     set_argument(input_index, value);

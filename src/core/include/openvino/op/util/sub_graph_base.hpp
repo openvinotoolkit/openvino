@@ -16,6 +16,7 @@ namespace util {
 class OPENVINO_API SubGraphOp : public MultiSubGraphOp {
 public:
     OPENVINO_OP("SubGraphOp", "util", op::util::MultiSubGraphOp);
+    ~SubGraphOp() override;
 
     virtual const std::shared_ptr<Model>& get_function() const {
         return m_bodies[0];

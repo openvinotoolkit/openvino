@@ -15,6 +15,8 @@ PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) :
     constructor_validate_and_infer_types();
 }
 
+PagedAttentionExtension::~PagedAttentionExtension() = default;
+
 void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 

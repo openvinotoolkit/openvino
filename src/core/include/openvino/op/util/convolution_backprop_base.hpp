@@ -13,6 +13,7 @@ namespace util {
 class OPENVINO_API ConvolutionBackPropBase : public ConvolutionBase {
 public:
     OPENVINO_OP("ConvolutionBackPropBase", "util", ConvolutionBase);
+    // ~ConvolutionBackPropBase() override;
 
     /// \brief Constructs a conversion operation.
     ConvolutionBackPropBase() = default;

@@ -8,6 +8,8 @@
 
 ov::op::util::ArithmeticReduction::ArithmeticReduction() = default;
 
+ov::op::util::ArithmeticReduction::~ArithmeticReduction() = default;
+
 ov::op::util::ArithmeticReduction::ArithmeticReduction(const Output<Node>& arg, const Output<Node>& reduction_axes)
     : ReductionBase(arg, reduction_axes) {}
 

@@ -146,6 +146,8 @@ GatherBase::GatherBase(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
+GatherBase::~GatherBase() = default;
+
 void GatherBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_GatherBase_validate_and_infer_types);
 

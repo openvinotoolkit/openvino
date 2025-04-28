@@ -10,6 +10,8 @@ ov::op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic() : Op() {}
 
 ov::op::util::UnaryElementwiseArithmetic::UnaryElementwiseArithmetic(const Output<Node>& arg) : Op({arg}) {}
 
+ov::op::util::UnaryElementwiseArithmetic::~UnaryElementwiseArithmetic() = default;
+
 void ov::op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic() {
     const auto& element_type = get_input_element_type(0);
     const auto is_supported_et = (element_type != element::boolean && element_type != element::string);

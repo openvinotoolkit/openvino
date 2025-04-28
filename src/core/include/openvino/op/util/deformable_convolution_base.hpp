@@ -17,6 +17,7 @@ namespace util {
 class OPENVINO_API DeformableConvolutionBase : public util::ConvolutionBase {
 public:
     OPENVINO_OP("DeformableConvolutionBase", "util", util::ConvolutionBase);
+    ~DeformableConvolutionBase() override;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolutionBase() = default;

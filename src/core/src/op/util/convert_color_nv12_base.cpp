@@ -17,6 +17,8 @@ ov::op::util::ConvertColorNV12Base::ConvertColorNV12Base(const Output<Node>& arg
     : Op({arg_y, arg_uv}),
       m_format(format) {}
 
+ov::op::util::ConvertColorNV12Base::~ConvertColorNV12Base() = default;
+
 void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
     OV_OP_SCOPE(v8_Convert_NV12_Base_validate_and_infer_types);
 

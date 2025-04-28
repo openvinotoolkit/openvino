@@ -62,6 +62,7 @@ protected:
 
 public:
     OPENVINO_OP("ConvertColorNV12Base", "util");
+    ~ConvertColorNV12Base() override;
 
     void validate_and_infer_types() override;
 

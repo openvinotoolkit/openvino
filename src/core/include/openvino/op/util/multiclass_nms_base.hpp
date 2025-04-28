@@ -14,6 +14,7 @@ namespace util {
 class OPENVINO_API MulticlassNmsBase : public Op {
 public:
     OPENVINO_OP("MulticlassNmsBase", "util");
+    ~MulticlassNmsBase() override;
 
     enum class SortResultType {
         CLASSID,  // sort selected boxes by class id (ascending) in each batch element

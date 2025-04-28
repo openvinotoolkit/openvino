@@ -11,6 +11,8 @@ ov::op::util::SubGraphOp::SubGraphOp() : MultiSubGraphOp(1) {}
 
 ov::op::util::SubGraphOp::SubGraphOp(const OutputVector& args) : MultiSubGraphOp(args, 1) {}
 
+ov::op::util::SubGraphOp::~SubGraphOp() = default;
+
 void ov::op::util::SubGraphOp::set_merged_input(const std::shared_ptr<ov::op::v0::Parameter>& body_parameter,
                                                 const Output<Node>& initial_value,
                                                 const Output<Node>& successive_value) {

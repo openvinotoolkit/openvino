@@ -13,6 +13,8 @@ ov::op::util::ReductionBase::ReductionBase() = default;
 ov::op::util::ReductionBase::ReductionBase(const Output<Node>& arg, const Output<Node>& reduction_axes)
     : Op({arg, reduction_axes}) {}
 
+ov::op::util::ReductionBase::~ReductionBase() = default;
+
 ov::PartialShape ov::op::util::ReductionBase::infer_reduction_output_shape(const bool keep_dims) {
     return reduce_shape_infer(this,
                               keep_dims,

@@ -15,6 +15,8 @@ ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
+ov::op::util::ScatterBase::~ScatterBase() = default;
+
 void ov::op::util::ScatterBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_ScatterBase_validate_and_infer_types);
     const auto& data_et = get_input_element_type(DATA);

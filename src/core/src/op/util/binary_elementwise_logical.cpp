@@ -15,6 +15,8 @@ ov::op::util::BinaryElementwiseLogical::BinaryElementwiseLogical(const Output<No
     : Op({arg0, arg1}),
       m_autob(autob) {}
 
+ov::op::util::BinaryElementwiseLogical::~BinaryElementwiseLogical() = default;
+
 void ov::op::util::BinaryElementwiseLogical::validate_and_infer_types() {
     OV_OP_SCOPE(v0_util_BinaryElementwiseLogical_validate_and_infer_types);
 

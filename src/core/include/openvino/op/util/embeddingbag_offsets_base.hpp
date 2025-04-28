@@ -14,6 +14,7 @@ namespace util {
 class OPENVINO_API EmbeddingBagOffsetsBase : public Op {
 public:
     OPENVINO_OP("EmbeddingBagOffsetsBase", "util");
+    ~EmbeddingBagOffsetsBase() override;
 
     enum class Reduction { SUM, MEAN };
 

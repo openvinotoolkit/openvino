@@ -8,6 +8,8 @@
 
 ov::op::util::DetectionOutputBase::DetectionOutputBase(const ov::OutputVector& args) : Op(args) {}
 
+ov::op::util::DetectionOutputBase::~DetectionOutputBase() = default;
+
 void ov::op::util::DetectionOutputBase::validate_base(const DetectionOutputBase::AttributesBase& attrs) {
     NODE_VALIDATION_CHECK(
         this,

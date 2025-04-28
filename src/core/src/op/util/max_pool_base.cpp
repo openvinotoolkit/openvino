@@ -23,6 +23,8 @@ ov::op::util::MaxPoolBase::MaxPoolBase(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
+ov::op::util::MaxPoolBase::~MaxPoolBase() = default;
+
 void ov::op::util::MaxPoolBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_MaxPoolBase_validate_and_infer_types);
 

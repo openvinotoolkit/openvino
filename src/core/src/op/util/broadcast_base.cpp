@@ -30,6 +30,8 @@ ov::op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
     ov::mark_as_precision_sensitive(input(1));
 }
 
+ov::op::util::BroadcastBase::~BroadcastBase() = default;
+
 ov::PartialShape ov::op::util::BroadcastBase::get_result_shape_pdpd(const PartialShape& arg0_shape,
                                                                     const PartialShape& target_pshape,
                                                                     const op::BroadcastModeSpec& broadcast_spec) const {

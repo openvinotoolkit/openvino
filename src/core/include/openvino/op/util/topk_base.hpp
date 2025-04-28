@@ -20,6 +20,8 @@ public:
     using SortType = TopKSortType;
 
     OPENVINO_OP("TopKBase", "util");
+
+    ~TopKBase() override;
     TopKBase() = default;
 
     /// \brief The common base class for all TopK operator versions

@@ -18,6 +18,8 @@ ov::op::util::ConvertColorI420Base::ConvertColorI420Base(const Output<Node>& arg
     : Op({arg_y, arg_u, arg_v}),
       m_format(format) {}
 
+ov::op::util::ConvertColorI420Base::~ConvertColorI420Base() = default;
+
 void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
     OV_OP_SCOPE(v8_Convert_I420_Base_validate_and_infer_types);
 
