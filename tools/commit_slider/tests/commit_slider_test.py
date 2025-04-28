@@ -15,7 +15,8 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
     BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData, \
     MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData, \
-    AcModeDataBitwise, CompareBlobsData, CompareBlobsMulOutputData, CompareBlobsAutomatchData
+    AcModeDataBitwise, CompareBlobsData, CompareBlobsMulOutputData, CompareBlobsAutomatchData, \
+    BrokenCompilationData
 
 class CommitSliderTest(TestCase):
     @skip_commit_slider_devtest
@@ -24,6 +25,13 @@ class CommitSliderTest(TestCase):
             FirstValidVersionData())
         actualCommit, _ = getActualCommit(updatedData)
 
+        self.assertEqual(breakCommit, actualCommit)
+
+    # @skip_commit_slider_devtest
+    def testBrokenCompilation(self):
+        breakCommit, updatedData = getExpectedCommit(
+            BrokenCompilationData())
+        actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
 
     @skip_commit_slider_devtest
