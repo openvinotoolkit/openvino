@@ -38,6 +38,12 @@ public:
     const std::vector<PatternSymbolValue>& g() const;
 
     bool operator==(const PatternSymbolValue& other) const;
+    bool operator!=(const PatternSymbolValue& other) const;
+
+    template <typename T, typename std::enable_if_t<std::is_constructible_v<PatternSymbolValue, T>>* = nullptr>
+    static std::vector<PatternSymbolValue> make_value_vector(const std::vector<T>& v) {
+        return {v.begin(), v.end()};
+    }
 
 private:
     bool is_valid() const;
