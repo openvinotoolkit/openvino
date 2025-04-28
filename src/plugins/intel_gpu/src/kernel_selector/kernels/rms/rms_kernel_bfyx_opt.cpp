@@ -102,10 +102,10 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
             MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
         });
     }
+    jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
     if (!params.fused_ops.empty()) {
-        jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
         switch (params.ov_input_rank) {
             case 1 :
                 jit.AddConstant(MakeJitConstant("LAST_DIM", "b"));
