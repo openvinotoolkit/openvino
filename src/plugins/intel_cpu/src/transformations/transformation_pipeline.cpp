@@ -15,13 +15,13 @@
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/sqrt.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 
 // Common transformations
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
@@ -62,7 +62,6 @@
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
-#include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
 #include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
@@ -470,7 +469,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     cacheConfig.keyCacheBlockSize = 32;
     cacheConfig.valueCacheBlockSize = 32;
 
-    bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode);
+    bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode, cacheConfig.keyCachePrecision);
     cacheConfig.keyCacheQuantBychannel = byChannel;
     cacheConfig.valueCacheQuantBychannel = false;
     cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
@@ -732,7 +731,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SimplifyCTCGreedyDecoderSeqLen);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGather7ToGather1);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGather8ToGather7);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertMinimum);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBroadcastToTiles);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertReduceMeanToPooling);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertReduceMaxToPooling);
