@@ -110,6 +110,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
     };
     if (is_static_input) {
+        // Cache memory layout for static shapes:
+        // - Keys:    [0, ..., 0, past_key[0], ..., past_key[N-1], K[0], ..., K[M-1]]
+        // - Values:  [0, ..., 0, past_value[0], ..., past_value[N-1], V[0], ..., V[M-1]]
+        // Here, padding 0 are lay on front of the buffer.
+        //  M = current_seqlen, which is always 1 for the KV cache model.
         const auto current_kv_len_const = register_new_node(
             v0::Constant::create(ov::element::i64, ov::Shape{1}, {K.get_partial_shape()[2].get_length()}));
         const auto past_kv_len_const = register_new_node(
