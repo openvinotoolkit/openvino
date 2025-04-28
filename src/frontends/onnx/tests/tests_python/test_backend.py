@@ -406,11 +406,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99952,
-        "OnnxBackendNodeModelTest.test_col2im_5d_cpu",
-        "OnnxBackendNodeModelTest.test_col2im_cpu",
-        "OnnxBackendNodeModelTest.test_col2im_dilations_cpu",
-        "OnnxBackendNodeModelTest.test_col2im_pads_cpu",
-        "OnnxBackendNodeModelTest.test_col2im_strides_cpu",
     ),
     (
         xfail_issue_99954,
