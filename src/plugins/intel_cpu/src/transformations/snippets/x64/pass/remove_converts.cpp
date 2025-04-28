@@ -23,7 +23,7 @@ ov::intel_cpu::pass::RemoveConverts::RemoveConverts() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::RemoveConverts")
         const auto& pm = m.get_pattern_value_map();
         const auto child_convert = pm.at(child_convert_wrap).get_node_shared_ptr();
-        const auto parent_convert = child_convert->get_input_node_shared_ptr(0);
+        const auto parent_convert = child_convert->input_value(0).get_node_shared_ptr();
 
         const auto& parent_convert_consumers = parent_convert->get_output_target_inputs(0);
         for (const auto& input : parent_convert_consumers) {

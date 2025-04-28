@@ -69,13 +69,10 @@ BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, bool transp
     }
 
     if (element_type_a == element::bf16) {
-        OPENVINO_ASSERT(mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) || mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2),
-                        "BrgemmCPU BF16 precision is not supported on non avx512_core_bf16 and non avx2_vnni_2 system");
+        OPENVINO_ASSERT(is_bf16_supported(), "BrgemmCPU BF16 precision is not supported on the current system");
     }
     if (element_type_a == element::f16) {
-        OPENVINO_ASSERT(
-            mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) || mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2),
-            "BrgemmCPU FP16 precision is not supported on non avx512_core_amx_fp16 and non avx2_vnni_2 system");
+        OPENVINO_ASSERT(is_fp16_supported(), "BrgemmCPU FP16 precision is not supported on the current system");
     }
 
     if (one_of(element_type_a, element::u8, element::i8, element::bf16) &&

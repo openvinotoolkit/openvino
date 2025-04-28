@@ -11,6 +11,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/pass/propagate_precision.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::intel_cpu::pass;
@@ -123,12 +124,10 @@ std::set<std::vector<ov::element::Type>> EnforcePrecision::get_supported_precisi
     const std::shared_ptr<ov::Node>& op) noexcept {
     std::set<std::vector<ov::element::Type>> types;
     if (ov::is_type<snippets::op::Brgemm>(op)) {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) ||
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
+        if (brgemm_utils::is_fp16_supported()) {
             types.insert({element::f16, element::f16});
         }
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
+        if (brgemm_utils::is_bf16_supported()) {
             types.insert({element::bf16, element::bf16});
         }
     }
