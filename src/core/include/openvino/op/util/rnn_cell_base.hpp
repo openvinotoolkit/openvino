@@ -84,7 +84,7 @@ public:
                 const std::vector<float>& activations_beta);
 
     RNNCellBase();
-    ~RNNCellBase() override = default;
+    ~RNNCellBase() override;
 
     ///
     /// \brief      Validates static rank and dimension for provided input parameters.
