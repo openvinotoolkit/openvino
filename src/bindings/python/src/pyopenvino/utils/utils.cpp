@@ -237,6 +237,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::SchedulingCoreType>());
     } else if (any.is<std::set<ov::hint::ModelDistributionPolicy>>()) {
         return py::cast(any.as<std::set<ov::hint::ModelDistributionPolicy>>());
+    } else if (any.is<std::shared_ptr<ov::Model>>()) {
+        return py::cast(any.as<std::shared_ptr<ov::Model>>());
     } else if (any.is<ov::hint::ExecutionMode>()) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
