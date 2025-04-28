@@ -564,6 +564,7 @@ int get_model_prefer_threads(const int num_streams,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
     const int sockets = get_num_sockets();
+    const auto isa = dnnl::get_effective_cpu_isa();
     auto model_prefer = 0;
     if (-1 == config.modelPreferThreads) {
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
@@ -572,7 +573,6 @@ int get_model_prefer_threads(const int num_streams,
             config.modelPreferThreads = 16;
         }
 #else
-        const auto isa = dnnl::get_effective_cpu_isa();
         float isaSpecificThreshold = 1.0f;
         switch (isa) {
         case dnnl::cpu_isa::sse41:
@@ -670,14 +670,16 @@ int get_model_prefer_threads(const int num_streams,
             const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
             const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
             // By default the latency case uses (faster) Big cores only, depending on the compute ratio
-            // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big
-            // cores only cases except LLM.
-            model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                                 (int8_intensive ? int8_threshold : fp32_threshold))
-                               ? ((!llm_related && ov::get_number_of_blocked_cores())
-                                      ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
-                                      : proc_type_table[0][MAIN_CORE_PROC])
-                               : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+            // But on MTL detected by ov::get_number_of_blocked_cores() and ARL detected by avx2_vnni_2, use Big and
+            // Little cores together in Big cores only cases except LLM.
+            model_prefer =
+                proc_type_table[0][MAIN_CORE_PROC] >
+                (proc_type_table[0][EFFICIENT_CORE_PROC] / (int8_intensive ? int8_threshold : fp32_threshold))
+                ? ((!llm_related && (ov::get_number_of_blocked_cores() || (isa == dnnl::cpu_isa::avx2_vnni_2))))
+                      ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
+                      : proc_type_table[0][MAIN_CORE_PROC])
+                : proc_type_table[0][MAIN_CORE_PROC] +
+                  proc_type_table[0][EFFICIENT_CORE_PROC];
 #endif
         }
     } else {  // throughput
