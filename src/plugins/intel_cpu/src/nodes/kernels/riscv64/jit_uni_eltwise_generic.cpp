@@ -395,7 +395,7 @@ struct EltwiseEmitter<jit_relu_emitter> {
         ctx.emitter = std::make_shared<jit_relu_emitter>(ctx.host, ctx.host_isa, ctx.opData.alpha, ctx.exec_prc);
     }
 };
-}
+} //namespace
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitter(const EltwiseData& data,
