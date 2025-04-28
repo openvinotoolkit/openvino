@@ -431,14 +431,10 @@ struct CPUStreamsExecutor::Impl {
 
     void Defer(Task task) {
         auto& stream = *(_streams.local());
-        stream._taskQueue.push(std::move(task));
         if (!stream._execute) {
             stream._execute = true;
             try {
-                while (!stream._taskQueue.empty()) {
-                    Execute(stream._taskQueue.front(), stream);
-                    stream._taskQueue.pop();
-                }
+                Execute(task, stream);
             } catch (...) {
             }
             stream._execute = false;

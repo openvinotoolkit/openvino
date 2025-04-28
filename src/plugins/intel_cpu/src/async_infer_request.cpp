@@ -9,10 +9,24 @@
 ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     const std::shared_ptr<IInferRequest>& request,
     const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
-    const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
+    const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor,
+    const bool is_single_thread)
     : ov::IAsyncInferRequest(request, task_executor, callback_executor),
-      m_internal_request(request) {
+      m_internal_request(request),
+      m_task_executor(task_executor) {
     static_cast<SyncInferRequest*>(request.get())->set_async_request(this);
+    m_infer_func = [this]() {
+        ov::IAsyncInferRequest::infer();
+    };
+    if (is_single_thread) {
+        // auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(task_executor);
+        m_infer_func = [this]() {
+            auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_task_executor);
+            streams_executor->execute([this]() {
+                m_internal_request->infer();
+            });
+        };
+    }
 }
 
 ov::intel_cpu::AsyncInferRequest::~AsyncInferRequest() {
@@ -32,9 +46,5 @@ void ov::intel_cpu::AsyncInferRequest::setSubInferRequest(
 }
 
 void ov::intel_cpu::AsyncInferRequest::infer() {
-    if (m_is_single_thread) {
-        m_internal_request->infer();
-    } else {
-        ov::IAsyncInferRequest::infer();
-    }
+    m_infer_func();
 }

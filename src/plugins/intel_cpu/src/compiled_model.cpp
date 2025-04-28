@@ -218,8 +218,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     auto async_infer_request =
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
-                                            get_callback_executor());
-    async_infer_request->setSingleThread(m_is_single_thread);
+                                            get_callback_executor(),
+                                            m_is_single_thread);
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         requests.reserve(m_sub_compiled_models.size());
