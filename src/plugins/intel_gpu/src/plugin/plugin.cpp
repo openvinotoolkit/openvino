@@ -280,6 +280,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     std::string device_id = get_device_id(orig_config);
 
     auto ctx = get_default_context(device_id);
+    ctx->initialize();
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
