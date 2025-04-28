@@ -395,13 +395,6 @@ struct EltwiseEmitter<jit_relu_emitter> {
         ctx.emitter = std::make_shared<jit_relu_emitter>(ctx.host, ctx.host_isa, ctx.opData.alpha, ctx.exec_prc);
     }
 };
-
-template <>
-struct EltwiseEmitter<jit_equal_emitter> {
-    void operator()(EltwiseEmitterContext& ctx) {
-        ctx.emitter = std::make_shared<jit_equal_emitter>(ctx.host, ctx.host_isa, ctx.opData, ctx.exec_prc);
-    }
-};
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
