@@ -4104,7 +4104,7 @@ void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_
     bool xPass = IW != OW;
     bool yPass = IH != OH;
 
-    auto bc_loop = [&](size_t b) {
+    auto b_loop = [&](size_t b) {
         const uint8_t* in_ptr_b = in_ptr_ + b * IH * IW * C * srcDataSize;
         uint8_t* out_ptr_b = out_ptr_ + b * OH * OW * C * dstDataSize;
 
