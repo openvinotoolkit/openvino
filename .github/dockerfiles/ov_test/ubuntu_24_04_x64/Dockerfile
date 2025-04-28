@@ -9,7 +9,7 @@ ENV USER_ID=1000
 ENV GROUP_NAME=${USER_NAME}
 ENV GROUP_ID=${USER_ID}
 
-# Ubuntu 24 images already has a user with UID 1000
+# Ubuntu 24 image already has a user with UID 1000
 RUN usermod -l ${USER_NAME} ubuntu
 
 # APT configuration

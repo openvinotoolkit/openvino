@@ -78,9 +78,10 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.8 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+    curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3.8.py && \
+    python3.8 get-pip-3.8.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py
+    rm -f get-pip.py get-pip-3.8.py
 
 # Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build

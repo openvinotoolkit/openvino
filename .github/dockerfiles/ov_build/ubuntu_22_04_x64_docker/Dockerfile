@@ -52,7 +52,7 @@ RUN apt-get update && \
 ENV DOCKER_BUILDKIT=1
 
 # Add user to the Docker group
-RUN groupadd docker && usermod -aG docker ${USER_NAME}
+RUN usermod -aG docker ${USER_NAME}
 
 # Change ownership of the home directory to the non-root user
 RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
