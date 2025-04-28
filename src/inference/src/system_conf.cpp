@@ -499,9 +499,10 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     if (cpu_size > 0) {
-        for (int i = 0; i < cpu_size; i++) {
-            if (cpu_ids[i] < cpu._processors) {
-                cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
+        for (auto& row : cpu._cpu_mapping_table) {
+            auto it = std::find(cpu_ids.begin(), cpu_ids.end(), row[CPU_MAP_PROCESSOR_ID]);
+            if (it != cpu_ids.end()) {
+                row[CPU_MAP_USED_FLAG] = used;
             }
         }
         ov::threading::update_proc_type_table(cpu._cpu_mapping_table, cpu._numa_nodes, cpu._proc_type_table);

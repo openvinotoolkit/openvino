@@ -325,7 +325,7 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 163275
         R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
         // Issue: 163348
-        R"(.*CpuReservationTest.*Mutiple_CompiledModel_Reservation.*)",
+        // R"(.*CpuReservationTest.*Mutiple_CompiledModel_Reservation.*)",
         // Issue: 163351
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
     };
