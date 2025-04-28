@@ -9,11 +9,10 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 
-#include "config.h"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace ov::intel_cpu {
 

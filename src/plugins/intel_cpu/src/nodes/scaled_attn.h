@@ -4,8 +4,19 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "memory_state.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils/plain_tensor.hpp"
 

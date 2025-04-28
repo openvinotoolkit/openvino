@@ -4,15 +4,40 @@
 
 #include "cpu_memory.h"
 
-#include <common/memory_desc_wrapper.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
 
+#include <algorithm>
+#include <cassert>
+#include <cerrno>
+#include <cmath>
+#include <common/memory_desc_wrapper.hpp>
+#include <common/nstl.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <exception>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <vector>
+
+#include "cpu_types.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/reorder.h"
-#include "utils/bfloat16.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #if defined(__linux__)
-#    include <sys/syscall.h> /* Definition of SYS_* constants */
 #    include <unistd.h>
 
 #    include <cstring> /* strerror(errno) */
@@ -572,11 +597,13 @@ void StaticMemory::StaticMemoryBlock::unregisterMemory(Memory* memPtr) {
 #    define MPOL_BIND      2
 #    define MPOL_MF_STRICT (1 << 0)
 #    define MPOL_MF_MOVE   (1 << 1)
-#    if !defined(__NR_mbind) && defined(__x86_64__)
-#        define __NR_mbind 237
+#    if !defined(__NR_mbind)
+#        define NR_mbind 237
+#    else
+#        define NR_mbind __NR_mbind
 #    endif
 static int64_t mbind(void* start, uint64_t len, int mode, const uint64_t* nmask, uint64_t maxnode, unsigned flags) {
-    return syscall(__NR_mbind,
+    return syscall(NR_mbind,
                    reinterpret_cast<uint64_t>(start),
                    len,
                    mode,

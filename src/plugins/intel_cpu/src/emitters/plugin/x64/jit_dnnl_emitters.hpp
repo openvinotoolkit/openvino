@@ -4,9 +4,19 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "jit_emitter.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 

@@ -6,20 +6,43 @@
 
 #include <partitioned_mem_blk.h>
 
+#include <algorithm>
+#include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <functional>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/gather.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "edge.h"
+#include "graph_context.h"
 #include "kernels/x64/gather_uni_kernel.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "ov_ops/gather_compressed.hpp"
 #include "selective_build.h"
 #include "shape_inference/custom/gather.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 

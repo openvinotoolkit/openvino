@@ -4,10 +4,16 @@
 
 #pragma once
 
+#include <cassert>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <utility>
+#include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {

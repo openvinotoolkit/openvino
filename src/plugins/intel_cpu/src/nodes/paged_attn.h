@@ -4,11 +4,17 @@
 
 #pragma once
 
-#include "kernels/scaled_attn/executor_pa.hpp"
-#include "memory_state.h"
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "config.h"
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "node.h"
-#include "transformations/cpu_opset/common/op/sdpa.hpp"
-#include "utils/plain_tensor.hpp"
+#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

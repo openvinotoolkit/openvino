@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <memory>
+#include <string>
+#include <vector>
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    pragma once

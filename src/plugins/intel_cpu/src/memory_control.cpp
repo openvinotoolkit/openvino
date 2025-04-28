@@ -4,11 +4,22 @@
 
 #include "memory_control.hpp"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
+#include <numeric>
 #include <queue>
+#include <string>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/memory_solver.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"

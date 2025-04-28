@@ -4,7 +4,17 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstdint>
+#include <vector>
+
 #include "jit_kernel_base.hpp"
+#include "nodes/kernels/x64/registers_pool.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 

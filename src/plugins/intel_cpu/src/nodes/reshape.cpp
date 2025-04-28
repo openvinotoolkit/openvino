@@ -4,15 +4,29 @@
 
 #include "reshape.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
 #include "common/cpu_memcpy.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/custom/reshape.hpp"
-#include "utils.hpp"
 
 using namespace dnnl;
 
@@ -20,9 +34,9 @@ namespace ov::intel_cpu::node {
 
 bool Reshape::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::as_type_ptr<const ov::opset1::Reshape>(op) && !ov::as_type_ptr<const ov::opset1::Squeeze>(op) &&
-            !ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
-            errorMessage = "Only opset1 Reshape, Squeeze, Unsqueeze operations are supported";
+        if (!ov::as_type_ptr<const ov::op::v1::Reshape>(op) && !ov::as_type_ptr<const ov::op::v0::Squeeze>(op) &&
+            !ov::as_type_ptr<const ov::op::v0::Unsqueeze>(op)) {
+            errorMessage = "Only v1 Reshape, v0 Squeeze and v0 Unsqueeze operations are supported";
             return false;
         }
     } catch (...) {
@@ -46,14 +60,14 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
             }
         };
 
-        if (ov::as_type_ptr<const ov::opset1::Reshape>(op)) {
+        if (ov::as_type_ptr<const ov::op::v1::Reshape>(op)) {
             checkSecondInput(op, "Reshape");
-        } else if (ov::as_type_ptr<const ov::opset1::Squeeze>(op)) {
+        } else if (ov::as_type_ptr<const ov::op::v0::Squeeze>(op)) {
             if (op->get_input_size() == 1) {
                 THROW_CPU_NODE_ERR("has inputs num equal 1");
             }
             checkSecondInput(op, "Squeeze");
-        } else if (ov::as_type_ptr<const ov::opset1::Unsqueeze>(op)) {
+        } else if (ov::as_type_ptr<const ov::op::v0::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
         } else {
             THROW_CPU_NODE_ERR("Unsupported operation type via reshape node");

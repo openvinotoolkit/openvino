@@ -3,10 +3,14 @@
 //
 
 #pragma once
+#include <cstddef>
+#include <cstdint>
+#include <unordered_map>
 #include <vector>
 
 #include "cpu_memory.h"
 #include "openvino/core/shape.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "tensor_data_accessor.hpp"
 
 namespace ov::intel_cpu {

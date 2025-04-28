@@ -5,9 +5,10 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
-#include "defs.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 

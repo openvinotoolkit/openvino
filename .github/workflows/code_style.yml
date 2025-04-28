@@ -139,3 +139,60 @@ jobs:
 
       - name: Naming convention check
         run: cmake --build build --target ncc_all -j8
+
+  clang-tidy:
+    runs-on: ubuntu-24.04
+    name: Clang-Tidy Diff Check
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          submodules: 'true'
+          fetch-depth: 0
+
+      - name: Install Clang-Tidy 18
+        # install clang-tidy-20 as well to use clang-tidy-diff-20.py
+        # which contains a fix for recent python versions
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 20
+          sudo apt update
+          sudo apt install -y clang-tidy-18 clang-tidy-20 llvm-18-tools
+
+      - name: Generate compile_commands.json (if using CMake)
+        run: |
+          cmake \
+          -DENABLE_DEBUG_CAPS=ON \
+          -DENABLE_PROFILING_ITT=ON \
+          -DBUILD_SHARED_LIBS=ON \
+          -DENABLE_SNIPPETS_LIBXSMM_TPP=ON \
+          -DSELECTIVE_BUILD=COLLECT \
+          -DENABLE_CPPLINT=OFF \
+          -DENABLE_NCC_STYLE=OFF \
+          -DENABLE_TESTS=OFF \
+          -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          cp build/compile_commands.json .
+
+      - name: Run clang-tidy-diff on PR changes
+        run: |
+          git diff -U0 origin/${{ github.base_ref }}...HEAD > changes.diff
+          clang-tidy-diff-20.py \
+            -quiet \
+            -p1 \
+            -use-color \
+            -j 8 \
+            -path build \
+            -only-check-in-db \
+            -clang-tidy-binary clang-tidy-18 \
+            -export-fixes clang-tidy-fixes.yaml \
+            < changes.diff
+
+      - name: Fail if tidy fixes found
+        run: |
+          if [ -s clang-tidy-fixes.yaml ]; then
+            echo "::error ::clang-tidy issues detected"
+            exit 1
+          fi

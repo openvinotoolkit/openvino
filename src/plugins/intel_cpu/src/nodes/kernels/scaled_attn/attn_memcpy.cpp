@@ -3,17 +3,21 @@
 //
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
-#include <type_traits>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "utils/plain_tensor.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
+
+#    include "common.hpp"
 #endif
 
 #include "attn_memcpy.hpp"
-#include "common.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 

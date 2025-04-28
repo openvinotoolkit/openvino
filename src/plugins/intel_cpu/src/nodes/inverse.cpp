@@ -4,12 +4,30 @@
 
 #include "inverse.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdlib>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/inverse.hpp"
-#include "utils/bfloat16.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 

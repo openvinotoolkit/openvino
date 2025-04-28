@@ -3,16 +3,23 @@
 //
 
 #pragma once
+#include <cpu/x64/xbyak/xbyak.h>
+
 #include <array>
-#include <common/nstl.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <list>
 #include <memory>
-#include <tuple>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 #include "cpu/x64/jit_generator.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
