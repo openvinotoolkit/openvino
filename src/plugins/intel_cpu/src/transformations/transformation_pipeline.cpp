@@ -207,6 +207,10 @@
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#endif
+
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
@@ -1194,14 +1198,12 @@ void Transformations::MainSnippets() {
 
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16 BRGEMM
     const auto is_infer_prc_supported_by_brgemm =
-        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-         one_of(config.inferencePrecision, ov::element::f32, element::dynamic)) ||
-        ((dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-          dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) &&
-         one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::dynamic)) ||
-        ((dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) ||
-          dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) &&
-         one_of(config.inferencePrecision, ov::element::f16, ov::element::f32, element::dynamic));
+        (one_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic) &&
+         ov::intel_cpu::brgemm_utils::is_fp32_supported()) ||
+        (one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, ov::element::dynamic) &&
+         ov::intel_cpu::brgemm_utils::is_bf16_supported()) ||
+        (one_of(config.inferencePrecision, ov::element::f16, ov::element::f32, ov::element::dynamic) &&
+         ov::intel_cpu::brgemm_utils::is_fp16_supported());
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #else
     const bool isMHASupported = false;
@@ -1242,24 +1244,10 @@ void Transformations::MainSnippets() {
         if (matmul->get_transpose_a()) {
             return false;
         }
-        if (is_fp32) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
-        }
-        if (is_int8) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
-        }
-        if (is_bf16) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
-        }
-        if (is_fp16) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) ||
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
-        }
-        return false;
+        return (is_fp32 && ov::intel_cpu::brgemm_utils::is_fp32_supported()) ||
+               (is_bf16 && ov::intel_cpu::brgemm_utils::is_bf16_supported()) ||
+               (is_fp16 && ov::intel_cpu::brgemm_utils::is_fp16_supported()) ||
+               (is_int8 && ov::intel_cpu::brgemm_utils::is_i8_supported());
     };
     auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n,
                                                    const ov::PartialShape& shape) {
