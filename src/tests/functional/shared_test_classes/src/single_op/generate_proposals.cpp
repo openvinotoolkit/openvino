@@ -5,6 +5,7 @@
 #include "shared_test_classes/single_op/generate_proposals.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/op/generate_proposals.hpp"
 
 namespace ov {
 namespace test {
@@ -112,8 +113,8 @@ void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected
         const auto actualNumRois = actual[i].get_shape()[0];
         ASSERT_LE(expectedNumRois, actualNumRois);
 
-        const auto actualBuffer = static_cast<uint8_t*>(actual[i].data());
-        const auto expectedBuffer = static_cast<uint8_t*>(expected[i].data());
+        const auto actualBuffer = static_cast<const uint8_t*>(actual[i].data());
+        const auto expectedBuffer = static_cast<const uint8_t*>(expected[i].data());
         const auto outputSize = i == 0 ? 4 : 1;
 
         rel_threshold = ov::test::utils::tensor_comparation::calculate_default_rel_threshold(

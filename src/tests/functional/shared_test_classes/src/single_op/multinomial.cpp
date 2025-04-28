@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/single_op/multinomial.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/op/multinomial.hpp"
 
 using namespace ov::test;
 

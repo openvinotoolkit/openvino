@@ -12,6 +12,39 @@ using namespace Xbyak_riscv;
 
 #define CONST_1_F    0x3f800000  // 1.f
 
+/// ABS ///
+jit_abs_emitter::jit_abs_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+    const std::shared_ptr<ov::Node>& node)
+: jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+jit_abs_emitter::jit_abs_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+    const ov::element::Type exec_prc)
+: jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_abs_emitter::get_inputs_num() const {
+    return 1;
+}
+
+void jit_abs_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_abs_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    VReg src = VReg(in_vec_idxs[0]);
+    VReg dst = VReg(out_vec_idxs[0]);
+
+    h->vfsgnjx_vv(dst, src, src);
+}
+
+std::set<std::vector<element::Type>> jit_abs_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
 /// ADD ///
 jit_add_emitter::jit_add_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                  const std::shared_ptr<ov::Node>& node)
@@ -405,8 +438,9 @@ void jit_prelu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const s
     VReg dst = VReg(out_vec_idxs[0]);
     FReg fzero = FReg(aux_fp_gpr_idxs[0]);
 
-    if (src0.getIdx() != dst.getIdx())
+    if (src0.getIdx() != dst.getIdx()) {
         h->vmv_v_v(dst, src0);
+    }
 
     h->fmv_w_x(fzero, zero);
     h->vmflt_vf(mask_vreg(), src0, fzero);
@@ -466,8 +500,9 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
         return;
     }
 
-    if (src.getIdx() != dst.getIdx())
+    if (src.getIdx() != dst.getIdx()) {
         h->vmv_v_v(dst, src);
+    }
 
     h->vmflt_vf(mask_vreg(), dst, fzero);
 
@@ -481,8 +516,9 @@ std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(
 }
 
 void jit_relu_emitter::register_table_entries() {
-    if (alpha != 0)
+    if (alpha != 0) {
         push_arg_entry_of("alpha", dnnl::impl::float2int(alpha));
+    }
 }
 
 /// Power Static ///
@@ -497,8 +533,9 @@ size_t jit_power_static_emitter::get_inputs_num() const {
 }
 
 size_t jit_power_static_emitter::aux_gprs_count() const {
-    if ((power == 0) || is_scale_shift() || (!is_sqrt() && !is_int_pow()))
+    if ((power == 0) || is_scale_shift() || (!is_sqrt() && !is_int_pow())) {
         return 2;
+    }
     return 1;
 }
 
@@ -507,10 +544,12 @@ bool jit_power_static_emitter::is_lmul_supported() const {
 }
 
 size_t jit_power_static_emitter::aux_vecs_count() const {
-    if (is_scale_shift())
+    if (is_scale_shift()) {
         return 2;
-    if (is_int_pow())
+    }
+    if (is_int_pow()) {
         return 1;
+    }
     return 0;
 }
 
@@ -546,8 +585,9 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, 
         h->vfmacc_vv(aux0, aux1, src);
         h->vmv_v_v(dst, aux0);
     } else {
-        if (src.getIdx() != dst.getIdx())
+        if (src.getIdx() != dst.getIdx()) {
             h->vmv_v_v(dst, src);
+        }
     }
 
     // for power `-0.5f` there is `vfrsqrt7_v` instruction with worse accuracy
@@ -625,10 +665,12 @@ void jit_power_static_emitter::register_table_entries() {
         push_arg_entry_of("scale", dnnl::impl::float2int(scale));
         push_arg_entry_of("shift", dnnl::impl::float2int(shift));
     }
-    if (power != 1.f)
+    if (power != 1.f) {
         push_arg_entry_of("power", dnnl::impl::float2int(power));
-    if (power < 0)
+    }
+    if (power < 0) {
         push_arg_entry_of("one", CONST_1_F);
+    }
 }
 
 /// Sigmoid ///

@@ -3,6 +3,8 @@
 //
 
 #include "shared_test_classes/single_op/conversion.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 
 namespace ov {
 namespace test {
