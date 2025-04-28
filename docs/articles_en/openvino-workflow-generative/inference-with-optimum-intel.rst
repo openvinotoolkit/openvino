@@ -239,8 +239,12 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
   insignificant deviation in generation accuracy.  Quantization is performed in a group-wise
   manner, with configurable group size. It means that values in a group share quantization
   parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended
-  group size values are ``0``, ``32``, ``64``, or ``128``. Dynamic quantization is enabled **by
-  default** on the CPU device. To disable dynamic quantization you can either:
+  group size values are ``0``, ``32``, ``64``, or ``128``.
+
+  On Intel CPU, dynamic quantization is enabled **by default**.
+  On Intel GPU without XMX support, dynamic quantization is enabled by default.
+
+  To disable dynamic quantization you can either:
 
   * **(Primary Option)** Set ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` to the ``0`` value.
   * Switch execution mode from the ``PERFORMANCE mode`` to the ``ACCURACY mode``. However, this

@@ -11,7 +11,8 @@
 
 #include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
 
 namespace ov::intel_cpu::node {
@@ -93,7 +94,7 @@ void PriorBoxClustered::createPrimitive() {
     }
 }
 
-void PriorBoxClustered::execute(const dnnl::stream& strm) {
+void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];

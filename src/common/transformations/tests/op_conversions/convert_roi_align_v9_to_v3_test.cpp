@@ -11,8 +11,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/roi_align.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 
@@ -45,7 +46,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To3) {
                                                             1.0f / 16.0f,
                                                             pooling_mode);
 
-        model = std::make_shared<Model>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
+        model = std::make_shared<Model>(OutputVector{roi_align}, ParameterVector{data, rois, batch_indices});
         manager.register_pass<ov::pass::ConvertROIAlign9To3>();
     }
 
@@ -73,7 +74,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To3) {
                                                             1.0f / 16.0f,
                                                             "avg");
 
-        model_ref = std::make_shared<Model>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
+        model_ref = std::make_shared<Model>(OutputVector{roi_align}, ParameterVector{data, rois, batch_indices});
     }
 }
 
@@ -105,7 +106,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To3_aligned_mode) {
                                                             pooling_mode,
                                                             aligned_mode);
 
-        model = std::make_shared<Model>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
+        model = std::make_shared<Model>(OutputVector{roi_align}, ParameterVector{data, rois, batch_indices});
         manager.register_pass<ov::pass::ConvertROIAlign9To3>();
     }
 }

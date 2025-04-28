@@ -85,18 +85,19 @@ jobs:
       event-name: ${{ github.event_name }}
       os: 'ubuntu_24_04'
       build-rpm-packages: false
-      build-js: true
+      build-js: false
       build-debian-packages: true
       build-contrib: true
-      cmake-options: |- 
-            -G "Ninja Multi-Config" \
-            -DENABLE_CPPLINT=OFF \
-            -DENABLE_NCC_STYLE=OFF \
-            -DENABLE_TESTS=ON \
-            -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_OPENCL=ON \
-            -DCMAKE_VERBOSE_MAKEFILE=ON \
-            -DCPACK_GENERATOR=TGZ \
+      build-additional-python-packages: true
+      cmake-options: >- 
+            -G 'Ninja Multi-Config'
+            -DENABLE_CPPLINT=OFF
+            -DENABLE_NCC_STYLE=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_SYSTEM_OPENCL=ON
+            -DCMAKE_VERBOSE_MAKEFILE=ON
+            -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   CXX_Unit_Tests:

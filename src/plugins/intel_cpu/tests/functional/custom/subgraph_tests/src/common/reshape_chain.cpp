@@ -6,6 +6,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/reshape.hpp"
 
 namespace ov {
 namespace test {

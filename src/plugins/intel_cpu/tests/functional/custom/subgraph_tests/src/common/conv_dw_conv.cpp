@@ -7,6 +7,8 @@
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/op/add.hpp"
 
 namespace ov {
 namespace test {

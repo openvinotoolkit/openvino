@@ -144,8 +144,10 @@ std::shared_ptr<ov::op::v0::MatMul> SplitDimensionM::get_matmul(const std::share
 }
 
 bool SplitDimensionM::split(const ov::Shape& shape, size_t optimal_parallelism_work_amount, size_t& batch_m_dim, size_t& new_m_dim) {
-    const auto batch_dim =
-        std::accumulate(shape.rbegin() + 2, shape.rend(), size_t(1), std::multiplies<size_t>());  // B (batch)
+    size_t batch_dim = 1;
+    if (shape.size() > 2) {
+        batch_dim = std::accumulate(shape.rbegin() + 2, shape.rend(), batch_dim, std::multiplies<>());  // B (batch)
+    }
     const auto m_dim = get_dim_M(shape);  // M
     if (is_prime_number(m_dim))
         return false;

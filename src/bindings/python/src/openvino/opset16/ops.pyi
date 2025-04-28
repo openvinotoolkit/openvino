@@ -1,9 +1,6 @@
 # type: ignore
-"""
-Factory functions for ops added to openvino opset16.
-"""
-from functools import partial
 from __future__ import annotations
+from functools import partial
 from openvino._pyopenvino import Node
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import _get_node_factory
@@ -11,6 +8,9 @@ from openvino.utils.types import as_nodes
 import functools
 import openvino._pyopenvino
 import typing
+"""
+Factory functions for ops added to openvino opset16.
+"""
 __all__ = ['Node', 'NodeInput', 'as_nodes', 'identity', 'istft', 'nameable_op', 'partial', 'segment_max']
 def identity(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
