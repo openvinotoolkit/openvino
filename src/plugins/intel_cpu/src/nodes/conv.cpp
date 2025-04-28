@@ -338,7 +338,9 @@ void Convolution::selectOptimalPrimitiveDescriptor() {
     }
 }
 
-static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape& sumShape) {
+static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc,
+                                   const Shape& sumShape,
+                                   ov::element::Type sumPrecision) {
     if (outputDesc->getShape().isStatic()) {
         return outputDesc;
     }
@@ -363,7 +365,7 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc, const Shape&
 
     auto blockedOutputDesc = outputDesc->as<BlockedMemoryDesc>();
 
-    return std::make_shared<CpuBlockedMemoryDesc>(outputDesc->getPrecision(),
+    return std::make_shared<CpuBlockedMemoryDesc>(sumPrecision,
                                                   Shape(minDims, maxDims),
                                                   blockedOutputDesc->getBlockDims(),
                                                   blockedOutputDesc->getOrder(),
@@ -525,10 +527,9 @@ void Convolution::initSupportedPrimitiveDescriptors() {
         }
 
         if (withSum) {
-            nodeConfig.inConfs.emplace_back(
-                getSumMemDesc(nodeDescriptors.at(ARG_DST), getInputShapeAtPort(getParentEdges().size() - 1)),
-                BlockedMemoryDesc::FULL_MASK,
-                -1);
+            auto sumDesc =
+                getSumMemDesc(nodeDescriptors.at(ARG_DST), getInputShapeAtPort(getParentEdges().size() - 1), sumType);
+            nodeConfig.inConfs.emplace_back(sumDesc, BlockedMemoryDesc::FULL_MASK, -1);
         }
 
         supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
