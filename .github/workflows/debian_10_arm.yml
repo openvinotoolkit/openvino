@@ -49,7 +49,8 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    # if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ 'false' }}
     runs-on: aks-linux-4-cores-8gb-arm-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
@@ -74,7 +75,7 @@ jobs:
 
   Build:
     needs: [Smart_CI, Docker]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ needs.Smart_CI.result != 'skipped' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
