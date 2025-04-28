@@ -104,6 +104,7 @@ set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 set(wheel_build_command
     ${Python3_EXECUTABLE} -m pip wheel
         --no-deps
+        --ignore-requires-python
         --wheel-dir ${openvino_wheels_output_dir}
         --verbose
         "${CMAKE_CURRENT_SOURCE_DIR}/..")
