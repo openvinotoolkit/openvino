@@ -10,9 +10,9 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/util/common_util.hpp"
 
 namespace {
 ov::element::Type to_legacy_type(const ov::element::Type& legacy_type, bool input) {
@@ -165,7 +165,7 @@ std::shared_ptr<ov::Model> read_model(const std::string& model,
                                       const ov::Tensor& weights,
                                       const std::vector<ov::Extension::Ptr>& ov_exts,
                                       bool frontendMode) {
-    StringViewStreamBuf mb(std::string_view{ model });
+    StringViewStreamBuf mb(std::string_view{model});
     std::istream modelStream(&mb);
 
     // Try to load with FrontEndManager

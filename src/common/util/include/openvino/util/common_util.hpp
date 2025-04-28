@@ -207,16 +207,16 @@ constexpr bool may_i_use_dynamic_code() {
 #endif
 
 /**
-* @brief A custom stream buffer that provides read-only access to a string view.
-*
-* This class inherits from `std::streambuf` and is designed to facilitate
-* input operations directly on a `std::string_view` without copying the
-* underlying string data. It allows for efficient reading and seeking
-* operations within the string view.
-*
-* @note This stream buffer is intended for input operations only.
-* @see pyopenvino/utils/utils.hpp for a similar implementation
-*/
+ * @brief A custom stream buffer that provides read-only access to a string view.
+ *
+ * This class inherits from `std::streambuf` and is designed to facilitate
+ * input operations directly on a `std::string_view` without copying the
+ * underlying string data. It allows for efficient reading and seeking
+ * operations within the string view.
+ *
+ * @note This stream buffer is intended for input operations only.
+ * @see pyopenvino/utils/utils.hpp for a similar implementation
+ */
 class StringViewStreamBuf : public std::streambuf {
 public:
     explicit StringViewStreamBuf(std::string_view sv) {
