@@ -50,8 +50,9 @@ CompiledModel::~CompiledModel() {
         m_sub_memory_manager->_memorys_table.clear();
     }
     auto streamsExecutor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_task_executor);
-    if (streamsExecutor)
+    if (streamsExecutor) {
         streamsExecutor->cpu_reset();
+    }
     CPU_DEBUG_CAP_ENABLE(dumpMemoryStats(m_cfg.debugCaps, m_name, m_graphs, m_socketWeights));
 }
 
