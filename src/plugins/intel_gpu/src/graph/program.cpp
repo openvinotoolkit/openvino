@@ -71,6 +71,7 @@
 #include "reverse_inst.h"
 #include "unique_inst.hpp"
 #include "condition_inst.h"
+#include "gru_seq_inst.h"
 #include "scaled_dot_product_attention_inst.h"
 #include "to_string_utils.h"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
@@ -1649,6 +1650,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             } else {
                 if (get_config().get_use_onednn()) {
                     lo.enable_onednn_for<lstm_seq>();
+                    lo.enable_onednn_for<gru_seq>();
                 }
             }
         }

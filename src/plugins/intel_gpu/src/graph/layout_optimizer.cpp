@@ -22,6 +22,7 @@
 #include "gemm_inst.h"
 #include "deconvolution_inst.h"
 #include "fully_connected_inst.h"
+#include "gru_seq_inst.h"
 #include "non_max_suppression_inst.h"
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
@@ -44,6 +45,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <openvino/op/constant.hpp>
 
 #include "pass_manager.h"
 
@@ -1128,7 +1130,7 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
 bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
     if (node.is_type<fully_connected>() || node.is_type<gemm>() || node.is_type<pooling>() ||
         node.is_type<convolution>() || node.is_type<deconvolution>() ||
-        node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>() || node.is_type<lstm_seq>()) {
+        node.is_type<reduce>() || node.is_type<reorder>() || node.is_type<concatenation>() || node.is_type<lstm_seq>() || node.is_type<gru_seq>()) {
         return true;
     }
 
@@ -1372,6 +1374,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
     enable_onednn_for<fully_connected>();
     enable_onednn_for<gemm>();
     enable_onednn_for<lstm_seq>();
+    enable_onednn_for<gru_seq>();
     enable_onednn_for<pooling>();
     enable_onednn_for<reduce>();
     enable_onednn_for<reorder>();
@@ -1379,7 +1382,7 @@ void layout_optimizer::add_all_onednn_impls_optimization_attribute() {
 
 bool layout_optimizer::has_all_enabled_onednn_impls_optimization_attribute() {
     return is_enabled_onednn_for<concatenation>() && is_enabled_onednn_for<convolution>() && is_enabled_onednn_for<deconvolution>() &&
-        is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() &&
+        is_enabled_onednn_for<fully_connected>() && is_enabled_onednn_for<gemm>() && is_enabled_onednn_for<lstm_seq>() && is_enabled_onednn_for<gru_seq>() &&
         is_enabled_onednn_for<pooling>() && is_enabled_onednn_for<reduce>() && is_enabled_onednn_for<reorder>();
 }
 
