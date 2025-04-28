@@ -333,6 +333,7 @@ OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
 OP_CONVERTER(translate_search_sorted);
 OP_CONVERTER(translate_select_scatter_fx);
+OP_CONVERTER(translate_segment_mean_csr);
 OP_CONVERTER(translate_slice_fx);
 OP_CONVERTER(translate_slice_scatter_fx);
 OP_CONVERTER(translate_softmax_fx);
@@ -1084,6 +1085,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"quantized_decomposed.quantize_per_channel.default", op::translate_quantize_per_channel_fx},
         {"quantized_decomposed.dequantize_per_tensor.default", op::skip_node},
         {"quantized_decomposed.dequantize_per_channel.default", op::skip_node},
+        {"torch_scatter::segment_mean_csr", op::translate_segment_mean_csr},
         {"inlined.constant.default", op::translate_constant},  // this is a custom ov type
     };
 };
