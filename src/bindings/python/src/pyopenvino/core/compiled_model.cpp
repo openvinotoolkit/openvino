@@ -158,7 +158,11 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "get_property",
         [](ov::CompiledModel& self, const std::string& property) -> py::object {
-            return Common::utils::from_ov_any(self.get_property(property));
+            auto model = self.get_property(property);
+            std::cout << "convert to python" << std::endl;
+            auto py_obj = Common::utils::from_ov_any(model);
+            std::cout << "after to python" << std::endl;
+            return py_obj;
         },
         py::arg("property"),
         R"(
