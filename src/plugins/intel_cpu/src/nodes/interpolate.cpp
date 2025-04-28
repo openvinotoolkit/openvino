@@ -4113,12 +4113,12 @@ void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_
 
         if (xPass && yPass) {
             size_t parallel_num = B;
+            size_t buffer_size = static_cast<size_t>(IH) * OW * C;
             if (parallel_num < m_threads_num) {
-                xpass_out_ptr_b = static_cast<uint8_t*>(&pillow_working_buf[b * IH * OW * C * srcDataSize]);
-                ypass_in_ptr_b = static_cast<const uint8_t*>(&pillow_working_buf[b * IH * OW * C * srcDataSize]);
+                xpass_out_ptr_b = static_cast<uint8_t*>(&pillow_working_buf[b * buffer_size * srcDataSize]);
+                ypass_in_ptr_b = static_cast<const uint8_t*>(&pillow_working_buf[b * buffer_size * srcDataSize]);
             } else {
                 size_t threadsIdx = parallel_get_thread_num();
-                auto buffer_size = static_cast<size_t>(IH) * OW * C;
                 xpass_out_ptr_b = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
                 ypass_in_ptr_b =
                     static_cast<const uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
@@ -4397,7 +4397,7 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
     }
     case InterpolateMode::bilinear_pillow:
     case InterpolateMode::bicubic_pillow: {
-        if (refinterpAttrs.NCHWAsNHWC) {
+        if (refInterpAttrs.NCHWAsNHWC) {
             pillowRefNCHWAsNHWC(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
         } else {
             pillowRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
