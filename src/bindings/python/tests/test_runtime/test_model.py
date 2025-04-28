@@ -912,5 +912,5 @@ def test_model_dir():
 
 
 def test_model_without_arguments():
-    with pytest.raises(ValueError, match="Model cannot be instantiated without arguments."):
+    with pytest.raises(TypeError, match="The following argument types are supported"):
         Model()

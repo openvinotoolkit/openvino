@@ -93,8 +93,13 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
     yum update
     # RHEL 8 / CentOS 7 / Fedora 29
     if [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
-        if ! grep -q "fedora" /etc/os-release; then
+        source /etc/os-release
+        if [[ "$ID" == "fedora" ]]; then
+            yum install -y fedora-repos
+        else
             yum install -y centos-release-scl
+            # CentOS 7 is EOL and throws an error for centos-sclo-sclo
+            yum-config-manager --save --setopt=centos-sclo-sclo.skip_if_unavailable=true
             yum install -y epel-release
         fi
         yum install -y \

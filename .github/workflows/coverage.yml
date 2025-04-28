@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Setup python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.10.10'
           architecture: 'x64'
@@ -129,6 +129,6 @@ jobs:
           lcov --capture --directory ${{ github.workspace }}/. --output-file coverage.info
           genhtml coverage.info --output-directory coverage-report
       - name: Collect coverage
-        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # v5.4.0
+        uses: codecov/codecov-action@ad3126e916f78f00edff4ed0317cf185271ccc2d # v5.4.2
         with:
           verbose: true

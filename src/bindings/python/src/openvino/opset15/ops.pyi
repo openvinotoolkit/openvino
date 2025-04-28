@@ -1,12 +1,9 @@
 # type: ignore
-"""
-Factory functions for ops added to openvino opset15.
-"""
-from functools import partial
 from __future__ import annotations
-from openvino.opset1.ops import convert_like
+from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Type
+from openvino.opset1.ops import convert_like
 from openvino.utils.decorators import binary_op
 from openvino.utils.decorators import nameable_op
 from openvino.utils.node_factory import _get_node_factory
@@ -16,6 +13,9 @@ import numpy as np
 import openvino._pyopenvino
 import openvino.utils.decorators
 import typing
+"""
+Factory functions for ops added to openvino opset15.
+"""
 __all__ = ['Node', 'NodeInput', 'Type', 'as_nodes', 'binary_op', 'bitwise_left_shift', 'bitwise_right_shift', 'col2im', 'constant', 'convert_like', 'embedding_bag_offsets', 'embedding_bag_packed', 'nameable_op', 'np', 'partial', 'roi_align_rotated', 'scatter_nd_update', 'search_sorted', 'slice_scatter', 'squeeze', 'stft', 'string_tensor_pack', 'string_tensor_unpack']
 def bitwise_left_shift(left, right, *args, **kwargs) -> openvino._pyopenvino.Node:
     """
