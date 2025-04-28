@@ -133,18 +133,11 @@ jobs:
           target_arch: ${{ env.ARCH }}
           build_type: ${{ env.CMAKE_BUILD_TYPE }}
           save_to: ${{ env.MANIFEST_PATH }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Create docker build cache
-        run: docker volume create ov_build_cache
           
       - name: Build OpenVINO
         run: |
           docker run --rm \
             -v ${{ env.OPENVINO_REPO }}:/work/src \
-            -v ov_build_cache:/work/build \
             -v ${{ env.INSTALL_DIR }}:/work/install \
             -v ${{ env.INSTALL_TEST_DIR }}:/work/api_tests \
             -e SCCACHE_AZURE_BLOB_CONTAINER \
@@ -178,7 +171,6 @@ jobs:
               -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
               -v ${{ env.PIP_CACHE_PATH }}:/work/pip_cache \
               -v ${{ env.INSTALL_DIR }}:/work/install \
-              -v ov_build_cache:/work/build \
               -e SCCACHE_AZURE_BLOB_CONTAINER \
               -e SCCACHE_AZURE_CONNECTION_STRING \
               -e SCCACHE_SERVER_PORT \
