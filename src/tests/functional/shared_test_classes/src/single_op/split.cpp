@@ -3,6 +3,7 @@
 //
 
 #include "shared_test_classes/single_op/split.hpp"
+#include "openvino/op/split.hpp"
 
 namespace ov {
 namespace test {

@@ -11,8 +11,23 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset12.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset12_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/common_optimizations/moc_transformations.hpp"
@@ -132,7 +147,7 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
         auto relu = std::make_shared<Relu>(input);
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -141,7 +156,7 @@ TEST_F(TransformationTestsF, RICFusionSimple) {
         auto input = create_param({1, 3, 64, 64});
         auto relu = std::make_shared<Relu>(input);
         auto conv = create_conv_with_gather(relu, {6, 3, 3, 3}, {2, 1, 0});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -171,7 +186,7 @@ TEST_F(TransformationTestsF, RICFusionHard) {
         auto conv = create_conv(gconv2, {6, 12, 3, 3});
         auto conv2 = create_conv(concat, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv, conv2}, ParameterVector{input, input2});
+        model = std::make_shared<Model>(OutputVector{conv, conv2}, ParameterVector{input, input2});
 
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
@@ -196,7 +211,7 @@ TEST_F(TransformationTestsF, RICFusionHard) {
         auto conv = create_conv_with_gather(gconv2, {6, 12, 3, 3}, {8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3});
         auto conv2 = create_conv_with_gather(input2, {6, 3, 3, 3}, {2, 1, 0});
 
-        model_ref = std::make_shared<Model>(NodeVector{conv, conv2}, ParameterVector{input, input2});
+        model_ref = std::make_shared<Model>(OutputVector{conv, conv2}, ParameterVector{input, input2});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -229,7 +244,7 @@ TEST_F(TransformationTestsF, RICFusionHardNegativePad12) {
         auto conv = create_conv(gconv2, {6, 12, 3, 3});
         auto conv2 = create_conv(concat, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv, conv2}, ParameterVector{input, input2});
+        model = std::make_shared<Model>(OutputVector{conv, conv2}, ParameterVector{input, input2});
 
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
@@ -258,7 +273,7 @@ TEST_F(TransformationTestsF, RICFusionHardNegativePad12) {
         auto conv = create_conv_with_gather(gconv2, {6, 12, 3, 3}, {8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3});
         auto conv2 = create_conv_with_gather(input2, {6, 3, 3, 3}, {2, 1, 0});
 
-        model_ref = std::make_shared<Model>(NodeVector{conv, conv2}, ParameterVector{input, input2});
+        model_ref = std::make_shared<Model>(OutputVector{conv, conv2}, ParameterVector{input, input2});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -272,7 +287,7 @@ TEST_F(TransformationTestsF, RICFusionDynamic) {
         auto relu = std::make_shared<Relu>(input);
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -281,7 +296,7 @@ TEST_F(TransformationTestsF, RICFusionDynamic) {
         auto input = create_param({-1, -1, -1, -1});
         auto relu = std::make_shared<Relu>(input);
         auto conv = create_conv_with_gather(relu, {6, 3, 3, 3}, {2, 1, 0});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -294,7 +309,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
         auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{3, 1, 1}, {0.1, 0.2, 0.3}));
         auto conv = create_conv(add, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -304,7 +319,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise1) {
         auto gather = create_gather(Constant::create(element::f32, Shape{3, 1, 1}, {0.1, 0.2, 0.3}), {2, 1, 0}, 0);
         auto add = std::make_shared<Add>(input, ov::util::get_constant_from_source(gather));
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -318,7 +333,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise2) {
         auto add = std::make_shared<Add>(input, create_weights({1, 1, 1}));
         auto conv = create_conv(add, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -327,7 +342,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise2) {
         auto input = create_param({1, 3, 64, 64});
         auto add = std::make_shared<Add>(input, create_weights({1, 1, 1}));
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -341,7 +356,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise3) {
         auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{1}, {0.2}));
         auto conv = create_conv(add, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -350,7 +365,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise3) {
         auto input = create_param({1, 3, 64, 64});
         auto add = std::make_shared<Add>(input, Constant::create(element::f32, Shape{1}, {0.2}));
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -364,7 +379,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise4) {
         auto add = std::make_shared<Add>(create_weights({3, 1, 1}), input);
         auto conv = create_conv(add, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -374,7 +389,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise4) {
         auto gather = create_gather(create_weights({3, 1, 1}), {2, 1, 0}, 0);
         auto add = std::make_shared<Add>(ov::util::get_constant_from_source(gather), input);
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -388,7 +403,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise5) {
         auto add = std::make_shared<Add>(create_weights({1, 3, 1, 1}), input);
         auto conv = create_conv(add, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -398,7 +413,7 @@ TEST_F(TransformationTestsF, RICFusionEltwise5) {
         auto gather = create_gather(create_weights({1, 3, 1, 1}), {2, 1, 0}, 1);
         auto add = std::make_shared<Add>(ov::util::get_constant_from_source(gather), input);
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -413,7 +428,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseNegative) {
         auto add = std::make_shared<Add>(input, input2);
         auto conv = create_conv(add, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input, input2});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input, input2});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -426,7 +441,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseTwoRIC) {
         auto add = std::make_shared<Add>(input, input2);
         auto conv = create_conv(add, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input, input2});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input, input2});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}, {1, "NCHW"}});
     }
@@ -436,7 +451,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseTwoRIC) {
         auto add = std::make_shared<Add>(input, input2);
         auto conv = create_conv_with_gather(add, {6, 3, 3, 3}, {2, 1, 0});
 
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input, input2});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input, input2});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
@@ -449,7 +464,7 @@ TEST_F(TransformationTestsF, RICFusionEltwiseNegative3) {
         auto add = std::make_shared<Add>(input, Constant::create(element::f32, {1, 1, 1, 1, 1}, {1.4}));
         auto shapeof = std::make_shared<ShapeOf>(add);
 
-        model = std::make_shared<Model>(NodeVector{shapeof}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{shapeof}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -462,7 +477,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConv) {
         auto relu = std::make_shared<Relu>(gconv);
         auto conv = create_conv(relu, {3, 6, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -473,7 +488,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConv) {
         // [0, 1]-[2, 3]-[4, 5] -> [4, 5]-[2, 3]-[0, 1]
         auto relu = std::make_shared<Relu>(gconv);
         auto conv = create_conv_with_gather(relu, {3, 6, 3, 3}, {4, 5, 2, 3, 0, 1});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -488,7 +503,7 @@ TEST_F(TransformationTestsF, RICFusionGroupConvNegative) {
         auto relu = std::make_shared<Relu>(gconv);
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -501,7 +516,7 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
         auto transpose = std::make_shared<Transpose>(add, Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NHWC"}});
     }
@@ -512,7 +527,7 @@ TEST_F(TransformationTestsF, RICFusionTranspose) {
         auto add = std::make_shared<Add>(input, ov::util::get_constant_from_source(gather));
         auto transpose = std::make_shared<Transpose>(add, Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
         auto conv = create_conv_with_gather(transpose, {6, 3, 3, 3}, {2, 1, 0});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -526,7 +541,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
         auto fq = create_fq(input);
         auto conv = create_conv(fq, create_fq(create_weights({6, 3, 3, 3})));
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -537,7 +552,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay) {
         auto weights = ov::util::get_constant_from_source(create_gather(create_weights({6, 3, 3, 3}), {2, 1, 0}, 1));
         auto conv = create_conv(fq, create_fq(weights));
 
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -558,7 +573,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
                                                          255);
         auto conv = create_conv(fq, fq_weights);
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -576,7 +591,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay2) {
             255);
         auto conv = create_conv(fq, fq_weights);
 
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -598,7 +613,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay3) {
         auto gconv = create_group_conv(fq, fq_weights);
         auto conv = create_conv(gconv, {6, 3, 1, 1});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -617,7 +632,7 @@ TEST_F(TransformationTestsF, RICFusionFQOnTheWay3) {
         auto gconv = create_group_conv(fq, fq_weights);
         auto conv = create_conv_with_gather(gconv, {6, 3, 1, 1}, {2, 1, 0});
 
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -631,7 +646,7 @@ TEST_F(TransformationTestsF, RICFusionShapeOf) {
         auto relu = std::make_shared<Relu>(input);
         auto shape_of = std::make_shared<ShapeOf>(relu);
 
-        model = std::make_shared<Model>(NodeVector{shape_of}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{shape_of}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -641,7 +656,7 @@ TEST_F(TransformationTestsF, RICFusionShapeOf) {
         auto relu = std::make_shared<Relu>(input);
         auto shape_of = std::make_shared<ShapeOf>(relu);
 
-        model_ref = std::make_shared<Model>(NodeVector{shape_of}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{shape_of}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -655,7 +670,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative) {
         auto relu = std::make_shared<Relu>(gather);
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
@@ -668,7 +683,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative2) {
         auto relu = std::make_shared<Relu>(gather);
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input, input2});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input, input2});
         manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
@@ -680,7 +695,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative3) {
         auto relu = std::make_shared<Relu>(gather);
         auto conv = create_conv(relu, {6, 1, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
@@ -692,7 +707,7 @@ TEST_F(TransformationTestsF, RICFusionGatherDetectionNegative4) {
         auto relu = std::make_shared<Relu>(gather);
         auto conv = create_conv(relu, {6, 2, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
@@ -705,7 +720,7 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative) {
         auto relu = std::make_shared<Relu>(concat);
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
@@ -719,7 +734,7 @@ TEST_F(TransformationTestsF, RICFusionSplitConcatDetectionNegative2) {
         auto relu = std::make_shared<Relu>(concat);
         auto conv = create_conv(relu, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
 }
@@ -744,7 +759,7 @@ TEST_F(TransformationTestsF, FuseConvertLayout) {
         auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto relu = std::make_shared<ov::op::v0::Relu>(transpose);
 
-        model = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
+        model = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{input});
 
         using namespace ov::preprocess;
         PrePostProcessor p(model);
@@ -760,7 +775,7 @@ TEST_F(TransformationTestsF, FuseConvertLayout) {
         auto convert = std::make_shared<ov::op::v0::Convert>(input, element::f32);
         auto relu = std::make_shared<ov::op::v0::Relu>(convert);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{input});
     }
 }
 
@@ -771,7 +786,7 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
         auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
 
         using namespace ov::preprocess;
         PrePostProcessor p(model);
@@ -787,7 +802,7 @@ TEST_F(TransformationTestsF, FuseScaleValue) {
         auto order = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -800,7 +815,7 @@ TEST_F(TransformationTestsF, FuseScaleValues) {
         auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
 
         using namespace ov::preprocess;
         PrePostProcessor p(model);
@@ -816,7 +831,7 @@ TEST_F(TransformationTestsF, FuseScaleValues) {
         auto order = ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
         auto transpose = std::make_shared<ov::op::v1::Transpose>(input, order);
         auto conv = create_conv(transpose, {6, 3, 3, 3});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -931,7 +946,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
                                                                      op::PadType::EXPLICIT);
         auto relu = std::make_shared<Relu>(group_conv);
         auto conv = create_conv(relu, {6, 9, 3, 3});
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
@@ -959,7 +974,7 @@ TEST_F(TransformationTestsF, RICFusionConvertMultiplyGroupConv) {
                                                           ov::CoordinateDiff{0, 0},
                                                           ov::CoordinateDiff{0, 0},
                                                           ov::Strides{1, 1});
-        model_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{data});
+        model_ref = std::make_shared<Model>(OutputVector{conv}, ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -1130,7 +1145,7 @@ TEST_F(TransformationTestsF, RICFusionNegativeUnsupported) {
                                                           CoordinateDiff{0, 0},
                                                           Strides{1, 1});
 
-        model = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv}, ParameterVector{input});
         apply_reverse_input_channels(model, {{0, "NCHW"}});
         manager.register_pass<ov::pass::ReverseInputChannelsFusion>();
     }
@@ -1254,14 +1269,14 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutions) {
     {
         auto conv1 = create_conv(input, create_weights({3, 3, 1, 1}));
         auto conv2 = create_conv(conv1, create_weights({3, 3, 1, 1}));
-        model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
     }
     {
         auto conv1_with_gather = create_conv_with_gather(input, create_weights({3, 3, 1, 1}), {2, 1, 0});
         auto conv2 = create_conv(conv1_with_gather, create_weights({3, 3, 1, 1}));
-        model_ref = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
@@ -1272,7 +1287,7 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutionsTheSameWeights) {
     {
         auto conv1 = create_conv(input, weights);
         auto conv2 = create_conv(conv1, weights);
-        model = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
+        model = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
 
         // ReverseInputChannelsFusion is expected to be applied inside PrePostProcessing
         apply_reverse_input_channels(model, {{0, "NCHW"}});
@@ -1280,7 +1295,7 @@ TEST_F(TransformationTestsF, RICFusionTwoConvolutionsTheSameWeights) {
     {
         auto conv1_with_gather = create_conv_with_gather(input, weights, {2, 1, 0});
         auto conv2 = create_conv(conv1_with_gather, weights);
-        model_ref = std::make_shared<Model>(NodeVector{conv2}, ParameterVector{input});
+        model_ref = std::make_shared<Model>(OutputVector{conv2}, ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }

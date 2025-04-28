@@ -11,7 +11,13 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/log_softmax.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -23,7 +29,7 @@ TEST_F(TransformationTestsF, LogSoftmaxDecomposition) {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{3, 2});
         auto log_softmax = std::make_shared<opset5::LogSoftmax>(data, 1);
 
-        model = std::make_shared<ov::Model>(NodeVector{log_softmax}, ParameterVector{data});
+        model = std::make_shared<ov::Model>(OutputVector{log_softmax}, ParameterVector{data});
 
         manager.register_pass<ov::pass::LogSoftmaxDecomposition>();
     }
@@ -39,6 +45,6 @@ TEST_F(TransformationTestsF, LogSoftmaxDecomposition) {
         auto log = std::make_shared<opset5::Log>(sum);
         auto sub_end = std::make_shared<opset5::Subtract>(sub, log);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{sub_end}, ParameterVector{input0});
+        model_ref = std::make_shared<ov::Model>(OutputVector{sub_end}, ParameterVector{input0});
     }
 }

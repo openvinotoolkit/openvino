@@ -8,7 +8,13 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/init_node_info.hpp"
@@ -34,7 +40,7 @@ TEST_P(SoftmaxFusionFixture, SoftmaxFusion) {
         auto reduce_sum_axis = opset6::Constant::create(element::i64, Shape{}, {reduce_sum_axis_val});
         auto reduce_sum = std::make_shared<opset6::ReduceSum>(exp, reduce_sum_axis);
         auto div = std::make_shared<opset6::Divide>(exp, reduce_sum);
-        f = std::make_shared<Model>(NodeVector{div}, ParameterVector{data});
+        f = std::make_shared<Model>(OutputVector{div}, ParameterVector{data});
 
         auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         pass::Manager m;
@@ -50,7 +56,7 @@ TEST_P(SoftmaxFusionFixture, SoftmaxFusion) {
         if (reduce_max_axis_val < 0)
             reduce_max_axis_val += shape.size();
         auto softmax = std::make_shared<opset6::Softmax>(data, reduce_max_axis_val);
-        f_ref = std::make_shared<Model>(NodeVector{softmax}, ParameterVector{data});
+        f_ref = std::make_shared<Model>(OutputVector{softmax}, ParameterVector{data});
     }
 
     auto fc =
@@ -79,7 +85,7 @@ TEST_P(SoftmaxFusionSimplePatternFixture, SoftmaxFusionSimplePatternTest) {
         auto reduce_axis = opset6::Constant::create(element::i64, Shape{}, {reduce_axis_val});
         auto reduce_sum = std::make_shared<opset6::ReduceSum>(exp, reduce_axis, true);
         auto div = std::make_shared<opset6::Divide>(exp, reduce_sum);
-        f = std::make_shared<Model>(NodeVector{div}, ParameterVector{data});
+        f = std::make_shared<Model>(OutputVector{div}, ParameterVector{data});
 
         auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
         pass::Manager m;
@@ -95,7 +101,7 @@ TEST_P(SoftmaxFusionSimplePatternFixture, SoftmaxFusionSimplePatternTest) {
         if (reduce_axis_val < 0)
             reduce_axis_val += shape.size();
         auto softmax = std::make_shared<opset6::Softmax>(data, reduce_axis_val);
-        f_ref = std::make_shared<Model>(NodeVector{softmax}, ParameterVector{data});
+        f_ref = std::make_shared<Model>(OutputVector{softmax}, ParameterVector{data});
     }
 
     auto fc =
@@ -134,7 +140,7 @@ TEST_P(NegativeSoftmaxFusionFixture, NegativeSoftmaxFusion) {
         opset6::Constant::create(element::i64, Shape{reduce_sum_axes_val.size()}, reduce_sum_axes_val);
     auto reduce_sum = std::make_shared<opset6::ReduceSum>(exp, reduce_sum_axes);
     auto div = std::make_shared<opset6::Divide>(exp, reduce_sum);
-    f = std::make_shared<Model>(NodeVector{div}, ParameterVector{data});
+    f = std::make_shared<Model>(OutputVector{div}, ParameterVector{data});
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     pass::Manager m;
