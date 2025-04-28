@@ -43,7 +43,7 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Change ownership of the home directory to the non-root user
-RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
+RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${GROUP_ID} /home/${USER_NAME}
 
 # Switch to the non-root user
 USER ${USER_NAME}
