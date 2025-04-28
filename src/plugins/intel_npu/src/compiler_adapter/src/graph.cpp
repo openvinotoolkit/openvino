@@ -38,9 +38,9 @@ size_t Graph::export_blob(std::ostream& stream) const {
         OPENVINO_THROW("Model was imported (not compiled) by the plugin. Model export is forbidden in this case!");
     }
 
-    if (_blobPtr == nullptr) {  // compile_model case
+    if (_blobPtr == nullptr) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
         _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
-    } else {  // import_model case
+    } else {  // in all other cases, the blob is handled by the plugin
         blobPtr = static_cast<const uint8_t*>(_blobPtr->get_ptr());
         blobSize = _blobPtr->size();
     }

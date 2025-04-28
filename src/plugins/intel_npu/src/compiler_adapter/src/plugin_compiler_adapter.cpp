@@ -15,6 +15,7 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
@@ -80,13 +81,27 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("compile start");
     auto networkDesc = _compiler->compile(model, config);
-    auto blobPtr = std::make_unique<BlobContainerVector>(std::move(networkDesc.compiledNetwork));
     _logger.debug("compile end");
+
+    auto tensor =
+        ov::Tensor(ov::element::u8, ov::Shape{networkDesc.compiledNetwork.size()}, networkDesc.compiledNetwork.data());
+    auto impl = ov::get_tensor_impl(tensor);
+    std::shared_ptr<std::vector<uint8_t>> sharedCompiledNetwork =
+        std::make_shared<std::vector<uint8_t>>(std::move(networkDesc.compiledNetwork));
+    impl._so = std::move(sharedCompiledNetwork);
+    tensor = ov::make_tensor(impl);
+
+    auto modelBuffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(tensor.data()),
+                                                                      tensor.get_byte_size(),
+                                                                      tensor);
+
+    auto blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, 0, tensor.get_byte_size());
 
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
-        // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
+        // Depending on the config, we may get an error when trying to get the graph handle from the compiled
+        // network
         try {
             graphHandle =
                 _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
