@@ -31,7 +31,7 @@ void jit_emitter::emit_data() const {
     h->L(*l_table.get());
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
-    assert(sizeof(table_entry_val_t) == 4);
+    static_assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
     for (auto it = entry_map_.begin(); it != entry_map_.end(); it++) {
