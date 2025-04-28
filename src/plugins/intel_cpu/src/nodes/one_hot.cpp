@@ -11,7 +11,9 @@
 #include "dnnl_types.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/one_hot.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "selective_build.h"
 #include "shape_inference/custom/one_hot.hpp"
 
@@ -136,7 +138,7 @@ void OneHot::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void OneHot::execute(const dnnl::stream& strm) {
+void OneHot::execute([[maybe_unused]] const dnnl::stream& strm) {
     std::size_t prefix_size = 1;
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 

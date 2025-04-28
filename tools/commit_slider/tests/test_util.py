@@ -19,7 +19,6 @@ from utils.helpers import getMeaningfullCommitTail
 def getVersionList(td: TestData):
     with open(td.patchedFile, 'r') as file:
         data = file.read()
-
     # extract patch list
     stats_re = re.compile(td.pattern, re.MULTILINE | re.DOTALL)
     patchJSONList = stats_re.findall(data)

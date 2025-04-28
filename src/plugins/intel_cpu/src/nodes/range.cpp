@@ -7,7 +7,9 @@
 #include <string>
 
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
@@ -97,7 +99,7 @@ void Range::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Range::execute(const dnnl::stream& strm) {
+void Range::execute([[maybe_unused]] const dnnl::stream& strm) {
     StatusCode retcode = OK;
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision()) {
     case ov::element::f32:

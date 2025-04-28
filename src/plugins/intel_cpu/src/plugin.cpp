@@ -31,6 +31,8 @@
 #endif
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 
 using namespace ov::threading;
 
@@ -150,7 +152,7 @@ Plugin::~Plugin() {
 }
 
 static bool streamsSet(const ov::AnyMap& config) {
-    return config.count(ov::num_streams.name());
+    return config.find(ov::num_streams.name()) != config.end();
 }
 
 void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
@@ -205,7 +207,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
         return Config::ModelType::CNN;
     }
 
-    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && model->get_variables().size() > 0) ||
+    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && !model->get_variables().empty()) ||
         op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
         return Config::ModelType::LLM;
     }
@@ -230,7 +232,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             ov::element::Type_t::f64,  ov::element::Type_t::boolean, ov::element::Type_t::string,
             ov::element::Type_t::nf4,  ov::element::Type_t::dynamic};
 
-        if (!supported_precisions.count(input_precision)) {
+        if (supported_precisions.find(input_precision) == supported_precisions.end()) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
                                            input_precision,
                                            " is not supported yet...");
@@ -405,7 +407,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     return get_ro_property(name, options);
 }
 
-ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const ov::AnyMap& options) const {
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
     };
@@ -578,8 +580,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
-    if (config.count(ov::cache_encryption_callbacks.name())) {
-        const auto& encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
+    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
+        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
         decript_from_string = true;
     }

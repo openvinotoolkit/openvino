@@ -25,7 +25,6 @@ public:
     uint32_t getDriverVersion() const override;
     uint32_t getGraphExtVersion() const override;
 
-    bool isBatchingSupported() const override;
     bool isCommandQueueExtSupported() const override;
     bool isLUIDExtSupported() const override;
 

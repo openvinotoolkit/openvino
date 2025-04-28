@@ -1,8 +1,4 @@
 # type: ignore
-"""
-openvino.properties submodule
-"""
-from __future__ import annotations
 from . import device
 from . import hint
 from . import intel_auto
@@ -11,8 +7,12 @@ from . import intel_gpu
 from . import intel_npu
 from . import log
 from . import streams
+from __future__ import annotations
 import openvino._pyopenvino
 import typing
+"""
+openvino.properties submodule
+"""
 __all__ = ['CacheMode', 'WorkloadType', 'auto_batch_timeout', 'available_devices', 'cache_dir', 'cache_encryption_callbacks', 'cache_mode', 'compilation_num_threads', 'device', 'enable_mmap', 'enable_profiling', 'execution_devices', 'force_tbb_terminate', 'hint', 'inference_num_threads', 'intel_auto', 'intel_cpu', 'intel_gpu', 'intel_npu', 'key_cache_group_size', 'key_cache_precision', 'loaded_from_cache', 'log', 'max_batch_size', 'model_name', 'num_streams', 'optimal_batch_size', 'optimal_number_of_infer_requests', 'range_for_async_infer_requests', 'range_for_streams', 'streams', 'supported_properties', 'value_cache_group_size', 'value_cache_precision', 'weights_path', 'workload_type']
 class CacheMode:
     """
