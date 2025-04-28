@@ -363,6 +363,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_LPT/MatMulTransformation.*)");
         // Ticket: 162260
         retVector.emplace_back(R"(smoke_Snippets_FQDecomposition.*netPRC=f32_D=CPU.*)");
+        // Ticket: 166771
+        retVector.emplace_back(R"(.*smoke_BroadcastEltwise/BroadcastEltwise.smoke_CompareWithRefs.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");

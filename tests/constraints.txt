@@ -1,7 +1,7 @@
 numpy>=1.16.6,<2.3.0
 attrs==25.3.0
 distro==1.9.0
-h5py>=3.1.0,<3.13.0
+h5py>=3.1.0,<3.14.0
 Jinja2>=2.11.2
 pandas>=1.3.5
 pymongo>=3.12.0
@@ -14,7 +14,7 @@ tensorflow>=2.5,<2.19.0
 requests>=2.25.1
 opencv-python>=4.5
 paddlepaddle==2.6.2
-protobuf>=3.18.1,<6.0.0
+protobuf>=3.18.1,<7.0.0
 py>=1.9.0
 pytest>=5.0,<8.4
 pytest-dependency==0.6.0
