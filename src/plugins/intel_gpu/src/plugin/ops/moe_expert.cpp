@@ -90,11 +90,18 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
 
     cldnn::layout ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num)}, cldnn::data_types::u64, cldnn::format::byfx);
     cldnn::layout gate_up_ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num * 64 / sizeof(uint64_t))}, cldnn::data_types::u64, cldnn::format::byfx);
-    // [64bytes]->gate_addrs,up_addrs, gate_scales_addrs, up_scales_addrs,gate_zp_addrs,up_zp_addrs, padding1, padding2
-    scale_zp.gate_up_addrs = p.get_engine().allocate_memory(gate_up_ptr_layout, cldnn::allocation_type::usm_device, false);
-    scale_zp.down_addrs = p.get_engine().allocate_memory(ptr_layout, cldnn::allocation_type::usm_device, false);
-    scale_zp.down_scales_addrs = p.get_engine().allocate_memory(ptr_layout, cldnn::allocation_type::usm_device, false);
-    scale_zp.down_zp_addrs = p.get_engine().allocate_memory(ptr_layout, cldnn::allocation_type::usm_device, false);
+    int cm_mask = 1;
+    auto env = std::getenv("CM_MASK");
+    if (env) {
+        cm_mask = std::atoi(env);
+    }
+    if (cm_mask) {
+        // [64bytes]->gate_addrs,up_addrs, gate_scales_addrs, up_scales_addrs,gate_zp_addrs,up_zp_addrs, padding1, padding2
+        scale_zp.gate_up_addrs = p.get_engine().allocate_memory(gate_up_ptr_layout, cldnn::allocation_type::usm_device, false);
+        scale_zp.down_addrs = p.get_engine().allocate_memory(ptr_layout, cldnn::allocation_type::usm_device, false);
+        scale_zp.down_scales_addrs = p.get_engine().allocate_memory(ptr_layout, cldnn::allocation_type::usm_device, false);
+        scale_zp.down_zp_addrs = p.get_engine().allocate_memory(ptr_layout, cldnn::allocation_type::usm_device, false);
+    }
     std::array<std::vector<uint64_t>, 3> buf_down;
     struct addrs {
         uint64_t gate_addrs;
@@ -131,45 +138,51 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
                 auto idx = rt["__scale_const__"].as<int>();
                 OPENVINO_ASSERT(idx >= 0 && idx < 3);
                 params[i].param[idx].scale = alloc(node, true);
-                params[i].param[idx].scale_ba = alloc(node, false);
-                auto p = reinterpret_cast<uint64_t>(params[i].param[idx].scale_ba->buffer_ptr());
-                switch (idx) {
-                case 0:
-                    buf_gate_up[i].gate_scales_addrs = p;
-                    break;
-                case 1:
-                    buf_gate_up[i].up_scales_addrs = p;
-                    break;
-                default:
-                    buf_down[1].push_back(p);
-                    break;
+                if (cm_mask) {
+                    params[i].param[idx].scale_ba = alloc(node, false);
+                    auto p = reinterpret_cast<uint64_t>(params[i].param[idx].scale_ba->buffer_ptr());
+                    switch (idx) {
+                    case 0:
+                        buf_gate_up[i].gate_scales_addrs = p;
+                        break;
+                    case 1:
+                        buf_gate_up[i].up_scales_addrs = p;
+                        break;
+                    default:
+                        buf_down[1].push_back(p);
+                        break;
+                    }
                 }
             }
             if (rt.count("__zp_const__")) {
                 auto idx = rt["__zp_const__"].as<int>();
                 OPENVINO_ASSERT(idx >= 0 && idx < 3);
                 params[i].param[idx].zp = alloc(node, true);
-                params[i].param[idx].zp_ba = alloc(node, false);
-                auto p = reinterpret_cast<uint64_t>(params[i].param[idx].zp_ba->buffer_ptr());
-                switch (idx) {
-                case 0:
-                    buf_gate_up[i].gate_zp_addrs = p;
-                    break;
-                case 1:
-                    buf_gate_up[i].up_zp_addrs = p;
-                    break;
-                default:
-                    buf_down[2].push_back(p);
-                    break;
+                if (cm_mask) {
+                    params[i].param[idx].zp_ba = alloc(node, false);
+                    auto p = reinterpret_cast<uint64_t>(params[i].param[idx].zp_ba->buffer_ptr());
+                    switch (idx) {
+                    case 0:
+                        buf_gate_up[i].gate_zp_addrs = p;
+                        break;
+                    case 1:
+                        buf_gate_up[i].up_zp_addrs = p;
+                        break;
+                    default:
+                        buf_down[2].push_back(p);
+                        break;
+                    }
                 }
             }
         }
     }
-    auto& stream = p.get_engine().get_service_stream();
-    scale_zp.gate_up_addrs->copy_from(stream, buf_gate_up.data(), 0, 0, gate_up_ptr_layout.bytes_count(), true);
-    scale_zp.down_addrs->copy_from(stream, buf_down[0].data(), 0, 0, ptr_layout.bytes_count(), true);
-    scale_zp.down_scales_addrs->copy_from(stream, buf_down[1].data(), 0, 0, ptr_layout.bytes_count(), true);
-    scale_zp.down_zp_addrs->copy_from(stream, buf_down[2].data(), 0, 0, ptr_layout.bytes_count(), true);
+    if (cm_mask) {
+        auto& stream = p.get_engine().get_service_stream();
+        scale_zp.gate_up_addrs->copy_from(stream, buf_gate_up.data(), 0, 0, gate_up_ptr_layout.bytes_count(), true);
+        scale_zp.down_addrs->copy_from(stream, buf_down[0].data(), 0, 0, ptr_layout.bytes_count(), true);
+        scale_zp.down_scales_addrs->copy_from(stream, buf_down[1].data(), 0, 0, ptr_layout.bytes_count(), true);
+        scale_zp.down_zp_addrs->copy_from(stream, buf_down[2].data(), 0, 0, ptr_layout.bytes_count(), true);
+    }
 }
 
 static void CreateMOEExpert2Op(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert2>& op) {
