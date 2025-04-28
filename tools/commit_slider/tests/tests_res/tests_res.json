@@ -503,6 +503,34 @@
             }
         }
     },
+    "BrokenCompilation": {
+        "repoName": "brokenCompilation",
+        "patchedFile": "tests_res/broken_comp_main.cpp",
+        "testCfg": {
+                "commandList" : [
+                    {"cmd" : "git checkout -- .", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
+                    {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
+                    {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
+                    {"cmd" : "git checkout {commit}", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
+                    {"cmd" : "git submodule init", "path" : "{gitPath}"},
+                    {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+                    {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"}
+                ],
+            "appCmd" : "make --jobs=4",
+            "appPath": "{buildPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": true,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "checkOutput",
+                "traversal" : "firstFixedVersion",
+                "stopPattern" : "(.)*\\[100%]\\ Built\\ target(.)*"
+            }
+        }
+    },
     "BmValidatorStable": {
         "bmOutputMap": [
             {"id": "0", "hash": "57571d36e6c", "throughput": "768.66"},

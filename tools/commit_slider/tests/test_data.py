@@ -75,7 +75,8 @@ class TestData():
         AcModeDataBitwise = 19,
         CompareBlobsData = 20,
         MulOutput = 21,
-        CmpBlobsAutomatch = 22
+        CmpBlobsAutomatch = 22,
+        BrokenCompilation = 23
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -343,6 +344,19 @@ class FirstValidVersionData(TestData):
 
     def getTestName(self):
         return "FirstValidVersion"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class BrokenCompilationData(TestData):
+    def getTestCase():
+        return TestData.TestCase.BrokenCompilation
+
+    def getTestName(self):
+        return "BrokenCompilation"
 
     def __init__(self):
         from test_util import requireBinarySearchData
