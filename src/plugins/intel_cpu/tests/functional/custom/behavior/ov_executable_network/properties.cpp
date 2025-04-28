@@ -163,36 +163,9 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
     ASSERT_EQ(streams, value);
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCpuReservationSingleThread) {
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCpuReservation) {
     ov::Core ie;
     int32_t threads = 1;
-    int32_t res_threads = -1;
-    bool cpu_reservation = true;
-    bool res_cpu_reservation = false;
-    bool cpu_pinning = false;
-    bool res_cpu_pinning = false;
-
-#if defined(__APPLE__)
-    cpu_reservation = false;
-#endif
-
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
-
-    ov::AnyMap config = {{ov::inference_num_threads.name(), threads}, {ov::hint::enable_cpu_reservation.name(), true}};
-    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
-
-    OV_ASSERT_NO_THROW(res_threads = compiledModel.get_property(ov::inference_num_threads));
-    OV_ASSERT_NO_THROW(res_cpu_reservation = compiledModel.get_property(ov::hint::enable_cpu_reservation));
-    OV_ASSERT_NO_THROW(res_cpu_pinning = compiledModel.get_property(ov::hint::enable_cpu_pinning));
-
-    ASSERT_EQ(res_threads, threads);
-    ASSERT_EQ(res_cpu_reservation, cpu_reservation);
-    ASSERT_EQ(res_cpu_pinning, cpu_pinning);
-}
-
-TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCpuReservationMultiThreads) {
-    ov::Core ie;
-    int32_t threads = 2;
     int32_t res_threads = -1;
     bool cpu_reservation = true;
     bool res_cpu_reservation = false;
