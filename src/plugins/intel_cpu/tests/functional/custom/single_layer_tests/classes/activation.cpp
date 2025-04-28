@@ -228,8 +228,12 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+<<<<<<< HEAD
         if ((activation_type == utils::ActivationTypes::Abs) ||
             (activation_type == utils::ActivationTypes::Clamp) ||
+=======
+        if ((activation_type == utils::ActivationTypes::Clamp) ||
+>>>>>>> a6bb067e0a (removed the equal test)
             (activation_type == utils::ActivationTypes::Exp) ||
             (activation_type == utils::ActivationTypes::Negative) ||
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
