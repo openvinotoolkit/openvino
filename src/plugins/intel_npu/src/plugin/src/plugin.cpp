@@ -530,9 +530,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     ov::npuw::s11n::IndicatorType serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+        ov::npuw::s11n::IndicatorType compiled_model_indicator;
+        ov::npuw::s11n::read(stream, compiled_model_indicator);
         stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
-        // Properties are required for ov::weights_path
-        return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
+
+        if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+            // Properties are required for ov::weights_path
+            return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
+        } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+            // Properties are required for ov::weights_path
+            return ov::npuw::CompiledModel::import_model(stream, shared_from_this(), properties);
+        } else {
+            OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+        }
     }
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 

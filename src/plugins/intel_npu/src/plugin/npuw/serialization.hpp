@@ -28,7 +28,13 @@ using IndicatorType = std::array<uint8_t, 6>;
 const constexpr ov::npuw::s11n::IndicatorType NPUW_SERIALIZATION_INDICATOR =
     {char{0x13}, char{0x37}, char{0x6e}, char{0x70}, char{0x75}, char{0x77}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.2";
+const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
+    {char{0x43}, char{0x4f}, char{0x4d}, char{0x50}, char{0x4d}, char{0x4f}};
+
+const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
+    {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
+
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.3";
 
 // Forward declaration
 namespace intel_npu {
