@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["setuptools>=70,<=75", "wheel", "cmake"]
+requires = ["setuptools>=70,<=75", "wheel<=0.45.1", "cmake<=3.31.6"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
