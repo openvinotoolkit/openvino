@@ -3,6 +3,7 @@ allow-licenses:
   - 'BSD-2-Clause'
   - 'BSD-3-Clause'
   - 'BSD-3-Clause-Clear'
+  - 'BSD-2-Clause-Views'
   - 'MIT'
   - 'Apache-2.0'
   - 'ISC'
@@ -11,7 +12,6 @@ allow-licenses:
   - 'Python-2.0'
   - 'LGPL-3.0'
   - 'MPL-2.0'
-  - 'BSD-2-Clause AND BSD-2-Clause-Views'
 fail-on-scopes:
   - 'runtime'
   - 'development'
