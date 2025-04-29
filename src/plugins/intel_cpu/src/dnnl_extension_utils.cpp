@@ -294,7 +294,12 @@ std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<c
 }
 
 dnnl::memory DnnlExtensionUtils::createMemoryPrimitive(const IMemory& mem, const dnnl::engine& eng) {
-    const auto& dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(mem.getDescPtr());
+    auto cpu_mem_desc = mem.getDescPtr();
+    if (cpu_mem_desc->empty()) {
+        // empty desc, return empty memory, so use a default constructor
+        return {};
+    }
+    const auto& dnnl_desc = MemoryDescUtils::convertToDnnlMemoryDesc(cpu_mem_desc);
     if (dnnl_desc->isDefined()) {
         return {dnnl_desc->getDnnlDesc(), eng, mem.getData()};
     }
