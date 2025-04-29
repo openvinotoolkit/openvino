@@ -873,11 +873,11 @@ void RNN::fillWeights() {
     if (getParentEdgeAt(wIdx)->getParent()->getType() != Type::Input) {
         THROW_CPU_NODE_ERR("expects Constant for port ", wIdx);
     }
-    auto w_const_blob = dynamic_cast<Input*>(getParentEdgeAt(wIdx)->getParent().get())->getMemoryPtr();
+    auto w_const_blob = static_cast<Input*>(getParentEdgeAt(wIdx)->getParent().get())->getMemoryPtr();
     if (getParentEdgeAt(rIdx)->getParent()->getType() != Type::Input) {
         THROW_CPU_NODE_ERR("expects Constant for port ", rIdx);
     }
-    auto r_const_blob = dynamic_cast<Input*>(getParentEdgeAt(rIdx)->getParent().get())->getMemoryPtr();
+    auto r_const_blob = static_cast<Input*>(getParentEdgeAt(rIdx)->getParent().get())->getMemoryPtr();
 
     const auto& weightPrec = DnnlExtensionUtils::DataTypeToElementType(inDataTypes[wIdx]);
     const auto& targetWeightDataType = weightsByinputDataType.at(inDataTypes[xIdx]);
@@ -982,7 +982,7 @@ void RNN::fillBiases() {
     if (getParentEdgeAt(bIdx)->getParent()->getType() != Type::Input) {
         THROW_CPU_NODE_ERR("expects Constant for port ", bIdx);
     }
-    auto b_const_blob = dynamic_cast<Input*>(getParentEdgeAt(bIdx)->getParent().get())->getMemoryPtr();
+    auto b_const_blob = static_cast<Input*>(getParentEdgeAt(bIdx)->getParent().get())->getMemoryPtr();
 
     if (inDataTypes[bIdx] != memory::data_type::f32) {
         THROW_CPU_NODE_ERR("doesn't support bias data type: ",

@@ -85,7 +85,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_args* args) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     auto kernel = executor->get_kernel();
-    const auto& config = dynamic_cast<const BrgemmKernelConfig&>(executor->get_config());
+    const auto& config = static_cast<const BrgemmKernelConfig&>(executor->get_config());
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr compiler kernel or invalid config");
 
     // Note: compensations should be applied only once, so we do it only on the first iteration, when beta == 0

@@ -543,7 +543,7 @@ MemoryInputBase* MemoryStatesRegister::getMemoryInputByName(const std::string& n
     if (it == memory_inputs.end()) {
         return nullptr;
     }
-    return dynamic_cast<MemoryInputBase*>(it->second);
+    return static_cast<MemoryInputBase*>(it->second);
 }
 
 MemoryOutputBase* MemoryStatesRegister::getMemoryOutputByName(const std::string& name) {
@@ -551,7 +551,7 @@ MemoryOutputBase* MemoryStatesRegister::getMemoryOutputByName(const std::string&
     if (it == memory_outputs.end()) {
         return nullptr;
     }
-    return dynamic_cast<MemoryOutputBase*>(it->second);
+    return static_cast<MemoryOutputBase*>(it->second);
 }
 
 void MemoryInputBase::assignState(MemStatePtr newState) {

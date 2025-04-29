@@ -267,7 +267,7 @@ void BrgemmAMXKernelExecutor::execute_brgemm_copy_a_kernel(
 void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, call_args* args) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     auto kernel = executor->get_kernel();
-    const auto& config = dynamic_cast<const BrgemmAMXKernelConfig&>(executor->get_config());
+    const auto& config = static_cast<const BrgemmAMXKernelConfig&>(executor->get_config());
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr compiler kernel or invalid config");
 
     const auto* src_ptr = args->A;
