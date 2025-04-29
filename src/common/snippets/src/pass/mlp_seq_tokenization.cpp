@@ -110,7 +110,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
         /* ======== Matcher Pass ========== */
 
         /****** Skeleton ******/
-        /* Skeleton on MLP sequence-pattern is (There are hsould be 2 min FC):
+        /* Skeleton on MLP sequence-pattern is (There are should be 2 min FC):
          */
 
         const auto matmul0 = ov::as_type_ptr<ov::opset1::MatMul>(pattern_to_output.at(m_matmul0).get_node_shared_ptr());
@@ -123,7 +123,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
         }
 
         // Add possible FQ before matmul0
-        if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(matmul0->get_input_node_shared_ptr(0))) {
+        if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(matmul0->input_value(0).get_node_shared_ptr())) {
             if (has_one_consumer(fq)) {
                 hidden_virtual_ports_count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
                 ordered_ops.push_back(fq);
