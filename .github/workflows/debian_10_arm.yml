@@ -58,20 +58,20 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.dummy_image.outputs.images }}"
     steps:
 
-#      - name: Set dummy output image if pipeline should be skipped
-#        if: ${{ 'false' }}
-#        id: dummy_image
-#        run: |
-#          dummy_output=${{ toJSON({"ov_build": "debian_10_arm", "ov_test": "debian_10_arm"}) }}
-#          echo "images=$dummy_output" >> "$GITHUB_OUTPUT"
-#          # "matrix={\"include\":[{\"project\":\"foo\",\"config\":\"Debug\"},{\"project\":\"bar\",\"config\":\"Release\"}]}"
+      - name: Set dummy output image if pipeline should be skipped
+        if: ${{ 'true' }}
+        id: dummy_image
+        run: |
+          dummy_output={\"ov_test\": {\"debian_10_arm\": "openvinogithubactions.azurecr.io/ov_test/debian_10_arm:pr-30305\"}, \"ov_build\": {\"debian_10_arm\": \"openvinogithubactions.azurecr.io/ov_build/debian_10_arm:pr-30305\"}}
+          echo "images=$dummy_output" >> "$GITHUB_OUTPUT"
+          # "matrix={\"include\":[{\"project\":\"foo\",\"config\":\"Debug\"},{\"project\":\"bar\",\"config\":\"Release\"}]}"
 
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
-        if: ${{ 'true' }}
+        if: ${{ 'false' }}
         id: handle_docker
         with:
           images: |
