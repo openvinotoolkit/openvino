@@ -124,6 +124,8 @@ def main():
     images_output = images_to_output(images.get(requested_images))
     set_github_output("images", json.dumps(images_output))
 
+    logger.info(f"Images to build: {json.dumps(images_output)}")
+
     if skip_workflow:
         logger.info(f"Docker image changes are irrelevant for current workflow, workflow may be skipped")
         set_github_output("skip_workflow", str(skip_workflow))

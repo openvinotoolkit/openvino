@@ -62,7 +62,9 @@ jobs:
         if: ${{ 'true' }}
         id: dummy_image
         run: |
-          echo "images=${{ toJSON({'ov_build': 'debian_10_arm', 'ov_test': 'debian_10_arm'}) }}" >> "$GITHUB_OUTPUT"
+          dummy_output=${{ toJSON({"ov_build": "debian_10_arm", "ov_test": "debian_10_arm"}) }}
+          echo "images=$dummy_output" >> "$GITHUB_OUTPUT"
+          # "matrix={\"include\":[{\"project\":\"foo\",\"config\":\"Debug\"},{\"project\":\"bar\",\"config\":\"Release\"}]}"
 
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
