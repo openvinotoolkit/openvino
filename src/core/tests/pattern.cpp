@@ -1553,7 +1553,7 @@ TEST(pattern, predicate_value_match) {
     ASSERT_TRUE(tm.match(pattern_d, constant_d));
     ASSERT_FALSE(tm.match(pattern_d, constant_i));
 
-    auto pattern_neg_i = pattern::any_input(pattern::value_matches("[-1, 0, 1, 3]"));
+    auto pattern_neg_i = pattern::any_input(pattern::value_matches("[-1, ..., 1, 3]"));
     ASSERT_FALSE(tm.match(pattern_neg_i, constant_i));
 
     auto pattern_neg_d = pattern::any_input(pattern::value_matches("[-1.5, -0.1, 1.25, 2.65]"));
