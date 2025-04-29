@@ -806,6 +806,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function floordiv>", op::translate_floor_divide},
         {"<built-in function getitem>", op::translate_getitem},  // TODO: Check if there is any other way to handle this
         {"<built-in function mul>", op::translate_mul},
+        {"<built-in function neg>", op::translate_neg},
         {"<built-in function sub>", op::translate_sub},
         {"aten._adaptive_avg_pool1d.default", op::translate_adaptive_avg_pool1d},
         {"aten._adaptive_avg_pool2d.default", op::translate_adaptive_avg_pool2d},
