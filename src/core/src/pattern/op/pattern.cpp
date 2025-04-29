@@ -375,16 +375,6 @@ std::optional<double> str2double(const std::string& str) {
     return {d};
 }
 
-std::pair<bool, double> str2double(const std::string& str) {
-    auto s = str.c_str();
-    char* end;
-    double d;
-    d = strtod(s, &end);
-    if (*s == '\0' || *end != '\0')
-        return {1, 0};
-    return {0, d};
-}
-
 struct GroupDetails {
     std::string name;
     int64_t begin = 0, end = 0;
