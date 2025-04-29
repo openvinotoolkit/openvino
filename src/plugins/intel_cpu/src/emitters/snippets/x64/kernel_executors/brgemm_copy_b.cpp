@@ -143,11 +143,11 @@ std::string BrgemmCopyBKernelConfig::StaticParams::to_string() const {
 #    undef PRINT
 #endif
 
-BrgemmCopyBKernel::BrgemmCopyBKernel() : RepackedInputKernel(), jit_generator(jit_name()), ker_(nullptr) {}
+BrgemmCopyBKernel::BrgemmCopyBKernel() : RepackedInputKernel(), jit_generator_t(jit_name()), ker_(nullptr) {}
 
 BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
     : RepackedInputKernel(),
-      jit_generator(jit_name()),
+      jit_generator_t(jit_name()),
       is_with_comp(conf.is_with_comp()),
       is_transpose(conf.is_transposed_B()),
       wei_data_size(dnnl_data_type_size(conf.get_wei_dt())),
@@ -162,7 +162,7 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
 }
 
 status_t BrgemmCopyBKernel::create_kernel() {
-    const auto code = jit_generator::create_kernel();
+    const auto code = jit_generator_t::create_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(code == status::success, "Failed to create kernel");
     ker_ = reinterpret_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
     return code;

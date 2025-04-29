@@ -29,7 +29,7 @@ namespace ov::intel_cpu {
 
 class jit_kernel_emitter : public jit_emitter {
 public:
-    jit_kernel_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_kernel_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -67,7 +67,7 @@ protected:
 
 class jit_kernel_static_emitter : public jit_kernel_emitter {
 public:
-    jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                               dnnl::impl::cpu::x64::cpu_isa_t isa,
                               const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override {
@@ -89,7 +89,7 @@ private:
 
 class jit_kernel_dynamic_emitter : public jit_kernel_emitter {
 public:
-    jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                dnnl::impl::cpu::x64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override {

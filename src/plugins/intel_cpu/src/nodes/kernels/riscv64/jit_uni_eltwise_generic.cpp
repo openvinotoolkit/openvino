@@ -17,7 +17,7 @@ using namespace Xbyak_riscv;
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(jit_eltwise_params jep, std::vector<EltwiseData> eltwise_data)
     : jit_uni_eltwise_kernel(std::move(jep)),
-      jit_generator(),
+      jit_generator_t(),
       eltwise_data_(std::move(eltwise_data)) {}
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
@@ -362,7 +362,7 @@ Xbyak_riscv::LMUL jit_uni_eltwise_generic<isa>::get_max_lmul(const ov::element::
 namespace {
 struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
-    ov::intel_cpu::riscv64::jit_generator* host;
+    ov::intel_cpu::riscv64::jit_generator_t* host;
     ov::intel_cpu::riscv64::cpu_isa_t host_isa;
     const EltwiseData& opData;
     ov::element::Type exec_prc;

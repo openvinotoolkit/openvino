@@ -15,7 +15,7 @@ namespace ov::intel_cpu {
  */
 class jit_binary_call_emitter : public jit_emitter {
 public:
-    jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                             dnnl::impl::cpu::x64::cpu_isa_t isa,
                             std::set<snippets::Reg> live_regs);
     // Note: we need at least one register to allocate a gpr to store the callable address

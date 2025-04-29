@@ -302,21 +302,21 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 class IsaRegistersPool : public RegistersPool {
 public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
-        : RegistersPool(regsToExclude, dnnl::impl::cpu::x64::cpu_isa_traits<isa>::n_vregs) {}
+        : RegistersPool(regsToExclude, dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::n_vregs) {}
 };
 
 template <>
 class IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core> : public RegistersPool {
 public:
     IsaRegistersPool()
-        : RegistersPool(dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
+        : RegistersPool(dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
         opmaskSet.exclude(
             Xbyak::Opmask(0));  // the Opmask(0) has special meaning for some instructions, like gather instruction
     }
 
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
         : RegistersPool(regsToExclude,
-                        dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
+                        dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
         for (auto& reg : regsToExclude) {
             if (reg.isOPMASK()) {
                 opmaskSet.exclude(reg);

@@ -41,7 +41,7 @@ void TileConfig::reset(int palette, int _startRow, const std::vector<std::pair<i
     }
 }
 
-TileConfiger::TileConfiger() : jit_generator(jit_name()) {
+TileConfiger::TileConfiger() : jit_generator_t(jit_name()) {
     create_kernel();
 }
 
@@ -57,7 +57,7 @@ void TileConfiger::generate() {
 }
 
 JitMatMulVecAMX::JitMatMulVecAMX(int head_size, int block_size, ov::element::Type amx_prec)
-    : jit_generator(jit_name()),
+    : jit_generator_t(jit_name()),
       m_head_size(head_size),
       m_block_size(block_size),
       m_amx_prec(amx_prec) {

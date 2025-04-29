@@ -96,7 +96,7 @@ static int get_aux_regs_as_temp(const int elem_count,
 }
 
 /// LOAD ///
-jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                    dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                    ov::element::Type src_prc,
                                    ov::element::Type dst_prc,
@@ -690,7 +690,7 @@ void jit_load_emitter::register_table_entries() {
 }
 
 /// STORE ///
-jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                      ov::element::Type src_prc,
                                      ov::element::Type dst_prc,

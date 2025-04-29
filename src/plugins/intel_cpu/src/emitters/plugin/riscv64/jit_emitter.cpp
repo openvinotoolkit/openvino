@@ -8,7 +8,7 @@ namespace ov::intel_cpu::riscv64 {
 
 using namespace Xbyak_riscv;
 
-jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+jit_emitter::jit_emitter(ov::intel_cpu::riscv64::jit_generator_t* host, ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                          ov::element::Type exec_prc, emitter_in_out_map in_out_type)
     : Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc), l_table(new Xbyak_riscv::Label()), in_out_type_(in_out_type) {
     OPENVINO_ASSERT(h, "JIT Generator is missed");
@@ -206,7 +206,7 @@ void jit_emitter::emitter_postamble() const {
 }
 
 namespace {
-std::vector<size_t> get_caller_saved_gprs(const jit_generator* h, const std::vector<size_t>& exclude_gpr_regs, size_t count) {
+std::vector<size_t> get_caller_saved_gprs(const jit_generator_t* h, const std::vector<size_t>& exclude_gpr_regs, size_t count) {
     std::vector<size_t> gprs;
     gprs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
@@ -226,7 +226,7 @@ std::vector<size_t> get_caller_saved_gprs(const jit_generator* h, const std::vec
     }
     return gprs;
 }
-std::vector<size_t> get_caller_saved_fp_gprs(const jit_generator* h, const std::vector<size_t>& exclude_fp_gpr_regs, size_t count) {
+std::vector<size_t> get_caller_saved_fp_gprs(const jit_generator_t* h, const std::vector<size_t>& exclude_fp_gpr_regs, size_t count) {
     std::vector<size_t> fp_gprs;
     fp_gprs.reserve(count);
     for (size_t j = 0; j < count; ++j) {
@@ -243,7 +243,7 @@ std::vector<size_t> get_caller_saved_fp_gprs(const jit_generator* h, const std::
     }
     return fp_gprs;
 }
-std::vector<size_t> get_caller_saved_vec_gprs(const jit_generator* h, const std::vector<size_t>& exclude_vec_regs, size_t count) {
+std::vector<size_t> get_caller_saved_vec_gprs(const jit_generator_t* h, const std::vector<size_t>& exclude_vec_regs, size_t count) {
     std::vector<size_t> vecs;
     vecs.reserve(count);
     for (size_t j = 0; j < count; ++j) {

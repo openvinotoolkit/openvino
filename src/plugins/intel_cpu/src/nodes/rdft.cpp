@@ -839,21 +839,21 @@ struct RDFTJitExecutor : public RDFTExecutor {
         if (mayiuse(cpu::x64::avx512_core)) {
             rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, rdftType);
             dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, complex_to_complex);
-            vlen = cpu_isa_traits<cpu::x64::avx512_core>::vlen;
+            vlen = cpu_isa_traits_t<cpu::x64::avx512_core>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx512);
             }
         } else if (mayiuse(cpu::x64::avx2)) {
             rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx2>>(isInverse, rdftType);
             dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx2>>(isInverse, complex_to_complex);
-            vlen = cpu_isa_traits<cpu::x64::avx2>::vlen;
+            vlen = cpu_isa_traits_t<cpu::x64::avx2>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx2);
             }
         } else if (mayiuse(cpu::x64::sse41)) {
             rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, rdftType);
             dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, complex_to_complex);
-            vlen = cpu_isa_traits<cpu::x64::sse41>::vlen;
+            vlen = cpu_isa_traits_t<cpu::x64::sse41>::vlen;
             if (primDesc) {
                 primDesc->setImplementationType(jit_sse42);
             }
