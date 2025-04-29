@@ -688,7 +688,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                                         const std::map<std::string, double>& utilization_thresholds) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
 
-    std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision, utilization_thresholds);
+    std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
 
     // all available Devices are in valid_devices now
     // need to remove higher priority devices
@@ -718,14 +718,66 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
     }
 
-    DeviceInformation* ptr_select_device =  NULL;
-    if (valid_devices.empty()) {
-        // after remove higher priority device,but the available devices is null,
-        // so select the last device of all available Devices.
-        ptr_select_device = &last_device;
-    } else {
+    DeviceInformation* ptr_select_device = NULL;
+    while (!ptr_select_device) {
         // select the first device in the rest of available devices.
-        ptr_select_device = &valid_devices.front();
+        if (valid_devices.empty()) {
+            // after remove higher priority device,but the available devices is null,
+            // so select the last device of all available Devices.
+            ptr_select_device = &last_device;
+        } else {
+            auto device = &valid_devices.front();
+            bool is_excluded = false;
+            // check utilization here.
+            ov::DeviceIDParser parsed{device->device_name};
+            if (!utilization_thresholds.empty() && utilization_thresholds.count(parsed.get_device_name())) {
+                std::string device_luid;
+                std::map<std::string, double> device_utilization;
+                try {
+                    device_luid = device->device_name.find("CPU") == std::string::npos
+                                      ? get_core()
+                                            ->get_property(device->device_name, ov::device::luid.name(), {})
+                                            .as<std::string>()
+                                      : "";
+                    device_utilization = get_device_utilization(device_luid);
+                    for (const auto& item : device_utilization)
+                        LOG_DEBUG_TAG("Device: %s\tID: %s\tutilization: %s",
+                                      device->device_name.c_str(),
+                                      item.first.c_str(),
+                                      std::to_string(item.second).c_str());
+                    if (device_utilization.empty() || (device_luid.empty() && device_utilization.count("Total") == 0) ||
+                        (!device_luid.empty() && device_utilization.count(device_luid) == 0)) {
+                        LOG_DEBUG_TAG("Cannot get utilization for %s", device->device_name.c_str());
+                        continue;
+                    }
+                    if (device_luid.empty()) {
+                        device_luid = "Total";
+                    }
+                    if (device_utilization[device_luid] >= utilization_thresholds.at(parsed.get_device_name())) {
+                        is_excluded = true;
+                        LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
+                                      device->device_name.c_str(),
+                                      std::to_string(device_utilization[device_luid]).c_str(),
+                                      std::to_string(utilization_thresholds.at(parsed.get_device_name())).c_str());
+                    }
+                } catch (const ov::Exception&) {
+                    LOG_DEBUG_TAG("Failed to get luid for %s", device->device_name.c_str());
+                }
+            }
+
+            if (is_excluded) {
+                // remove the device from valid devices
+                auto iter =
+                    std::find_if(valid_devices.begin(), valid_devices.end(), [device](const DeviceInformation& dev) {
+                        return (dev.unique_name == device->unique_name);
+                    });
+                if (iter != valid_devices.end()) {
+                    valid_devices.erase(iter);
+                }
+            } else {
+                ptr_select_device = device;
+            }
+        }
     }
     //recode the device priority
     register_priority(priority, ptr_select_device->unique_name);
