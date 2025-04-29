@@ -38,16 +38,16 @@ std::shared_ptr<HeteroContext> HeteroContext::get_this_shared_ptr() {
 // }
 
 ov::SoPtr<ov::IRemoteTensor> HeteroContext::create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) {
-    ov::Shape sub_shape;
-    for (auto item : shape) {
-        sub_shape.emplace_back(item);
-    }
-    // Only for vllm now
-    int head_num = shape[1];
-    sub_shape[1] = head_num / m_contexts.size();
+    // ov::Shape sub_shape;
+    // for (auto item : shape) {
+    //     sub_shape.emplace_back(item);
+    // }
+    // // Only for vllm now
+    // int head_num = shape[1];
+    // sub_shape[1] = head_num / m_contexts.size();
     std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors;
     for (auto& item : m_contexts) {
-        auto a = item.second->create_tensor(type, sub_shape, params);
+        auto a = item.second->create_tensor(type, shape, params);
         tensors.emplace_back(a);
     }
     return std::make_shared<ov::hetero::HeteroRemoteTensor>(get_this_shared_ptr(), tensors);

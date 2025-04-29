@@ -24,8 +24,8 @@
 
 namespace ov {
 namespace hetero {
-class RemoteContextImpl;
-class RemoteTensorImpl;
+// class RemoteContextImpl;
+// class RemoteTensorImpl;
 
 class HeteroRemoteTensor : public ov::IRemoteTensor {
     friend class RemoteAllocator;
@@ -34,11 +34,11 @@ public:
 
     ~HeteroRemoteTensor() override;
 
-    const ov::Shape& get_shape() const override;
+    // const ov::Shape& get_shape() const override;
 
-    const ov::element::Type& get_element_type() const override {
-        // return correct type reference
-    }
+    // const ov::element::Type& get_element_type() const override {
+    //     // return correct type reference
+    // }
 
     void set_shape(ov::Shape shape) override {
         // implementation
@@ -62,8 +62,8 @@ public:
     // const std::string& get_device_name() const override;
 
     // void set_shape(ov::Shape shape) override;
-    // const ov::element::Type& get_element_type() const override;
-    // const ov::Shape& get_shape() const override;
+    const ov::element::Type& get_element_type() const override;
+    const ov::Shape& get_shape() const override;
     // const ov::Strides& get_strides() const override;
 
     // void allocate();
@@ -74,17 +74,17 @@ public:
     // void set_memory(cldnn::memory::ptr memory, size_t actual_size);
 
     // std::shared_ptr<HeteroContext> get_context() const;
-    // ov::SoPtr<ov::IRemoteTensor> get_tensor(int index) const;
-    // ov::SoPtr<ov::IRemoteTensor> get_tensor_by_name(const std::string device_name) const;
+    ov::SoPtr<ov::IRemoteTensor> get_tensor(int index) const;
+    ov::SoPtr<ov::IRemoteTensor> get_tensor_by_name(const std::string device_name) const;
 
-    // void copy_to(const std::shared_ptr<ov::ITensor>& dst, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) const override;
-    // void copy_from(const std::shared_ptr<const ov::ITensor>& src, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) override;
+    void copy_to(const std::shared_ptr<ov::ITensor>& dst, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) const override;
+    void copy_from(const std::shared_ptr<const ov::ITensor>& src, size_t src_offset, size_t dst_offset, const ov::Shape& roi_shape) override;
 
 private:
     std::shared_ptr<HeteroContext> m_context;
     std::vector<ov::SoPtr<ov::IRemoteTensor>> m_ordered_tensor;
     std::map<std::string, ov::SoPtr<ov::IRemoteTensor>> m_tensors;
-    std::vector<std::shared_ptr<RemoteTensorImpl>> m_remote_tensors;
+    std::vector<std::shared_ptr<ov::IRemoteTensor>> m_remote_tensors;
 };
 
 }  // namespace intel_gpu

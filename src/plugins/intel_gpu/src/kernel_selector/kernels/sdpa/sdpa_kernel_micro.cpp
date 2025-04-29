@@ -622,12 +622,12 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
 
     // WA for PA for Qwen model as it has shape with an upper bound [?, ..134213632]
     // instead of ordinary fused [?, HEAD_SIZE * HEADS_NUM], so read heads_num from config
-    auto Q_num_heads_dim = params.conf.is_paged_attention ? Tensor::Dim(params.conf.heads_num)
-                                                          : get_num_heads(params, params.inputs[0], params.input0_order);
-    auto K_num_heads_dim = get_num_heads(params, K, params.input1_order);
+    // auto Q_num_heads_dim = params.conf.is_paged_attention ? Tensor::Dim(params.conf.heads_num)
+    //                                                       : get_num_heads(params, params.inputs[0], params.input0_order);
+    // auto K_num_heads_dim = get_num_heads(params, K, params.input1_order);
 
     jit.AddConstant(MakeJitConstant("REMAINDER_K", !k_full));
-    jit.AddConstant(MakeJitConstant("KV_GROUP_SIZE", Q_num_heads_dim.v / K_num_heads_dim.v));
+    jit.AddConstant(MakeJitConstant("KV_GROUP_SIZE", 1));
 
     if (d_full) {
         if (ldq % 4 == 0)
