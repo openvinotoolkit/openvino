@@ -59,7 +59,7 @@ jobs:
     steps:
 
       - name: Set dummy output image if pipeline should be skipped
-        if: ${{ 'true' }}
+        if: ${{ 'false' }}
         id: dummy_image
         run: |
           dummy_output=${{ toJSON({"ov_build": "debian_10_arm", "ov_test": "debian_10_arm"}) }}
@@ -71,7 +71,7 @@ jobs:
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
-        if: ${{ 'false' }}
+        if: ${{ 'true' }}
         id: handle_docker
         with:
           images: |
