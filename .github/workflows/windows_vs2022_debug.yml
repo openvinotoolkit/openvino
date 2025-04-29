@@ -84,15 +84,10 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
-      - name: Check if all jobs should be skipped
-        if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
-        run: exit 0
-
       - name: Check status of all jobs
         if: >-
           ${{
-            (contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')) &&
-            !needs.smart_ci.outputs.skip_workflow
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
           }}
         run: exit 1
