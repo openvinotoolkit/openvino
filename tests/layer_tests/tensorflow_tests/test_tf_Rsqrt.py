@@ -15,7 +15,7 @@ class TestRsqrt(CommonTFLayerTest):
             inputs_dict[input] = np.random.randint(1, 256, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
-    def create_rsqrt_net(self, shape, ir_version, use_legacy_frontend):
+    def create_rsqrt_net(self, shape, ir_version):
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
@@ -38,12 +38,9 @@ class TestRsqrt(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_rsqrt_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_legacy_frontend):
-        self._test(*self.create_rsqrt_net(**params, ir_version=ir_version,
-                                          use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_rsqrt_precommit(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_rsqrt_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data = [dict(shape=[1]),
                  pytest.param(dict(shape=[1, 224]), marks=pytest.mark.precommit),
@@ -53,11 +50,9 @@ class TestRsqrt(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_rsqrt(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(*self.create_rsqrt_net(**params, ir_version=ir_version,
-                                          use_legacy_frontend=use_legacy_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_rsqrt(self, params, ie_device, precision, ir_version, temp_dir):
+        self._test(*self.create_rsqrt_net(**params, ir_version=ir_version),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexRsqrt(CommonTFLayerTest):
@@ -101,7 +96,6 @@ class TestComplexRsqrt(CommonTFLayerTest):
     @pytest.mark.parametrize('shape', [[1], [1, 3], [2, 3, 22], [1, 3, 10, 22]])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_rsqrt(self, shape, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_rsqrt(self, shape, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_complex_rsqrt_net(shape),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
