@@ -109,6 +109,7 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
+#include "transformations/common_optimizations/constants_reduce.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/convert_precision.hpp"
@@ -720,8 +721,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             if (ov::as_type_ptr<const ov::op::v5::RNNSequence>(node)) {
                 return false;
-            } else if (ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
-                return false;
+            } else if (const auto &gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
+                return gru_seq->get_clip() == 0.0f &&
+                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
+                    max_seq_len != 1 &&
+                    !ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
+                                                       gru_seq->get_input_node_shared_ptr(2)) &&
+                    gru_seq->get_linear_before_reset();
             } else if (const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
                 return lstm_seq->get_clip() == 0.0f &&
                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
@@ -1226,6 +1232,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Remove Pad in front of MaxPool if both the pads_begin and pads_end are zero.
         manager.register_pass<ov::pass::EliminatePad>();
+
+        manager.register_pass<ov::pass::ConstantsReduce>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

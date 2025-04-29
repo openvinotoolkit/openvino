@@ -73,6 +73,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_float_to_nf4, ConvertCPULayer
                                 ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {"ref"}))),
                         ConvertCPULayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_from_f4e2m1, ConvertCPULayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes_4D_dynamic()),
+                                ::testing::Values(ov::element::f4e2m1),
+                                ::testing::ValuesIn(float_precisions),
+                                ::testing::Values(ov::test::SpecialValue::none),
+                                ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {"ref"}))),
+                        ConvertCPULayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertCPULayerTest_from_f8e8m0, ConvertCPULayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes_4D_dynamic()),
+                                ::testing::Values(ov::element::f8e8m0),
+                                ::testing::ValuesIn(float_precisions),
+                                ::testing::Values(ov::test::SpecialValue::none),
+                                ::testing::Values(CPUSpecificParams({nchw}, {nchw}, {}, {"ref"}))),
+                        ConvertCPULayerTest::getTestCaseName);
+
 const std::vector<ov::element::Type> f8_precisions = {
     ov::element::f8e4m3,
     ov::element::f8e5m2,
