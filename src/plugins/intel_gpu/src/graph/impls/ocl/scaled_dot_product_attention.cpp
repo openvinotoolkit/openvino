@@ -450,7 +450,7 @@ public:
     static std::unique_ptr<primitive_impl> create(const typed_program_node<scaled_dot_product_attention>& arg, const kernel_impl_params& impl_param) {
         std::vector<kernel_selector::kernel_data> kernels_data;
         auto& kernel_selector = kernel_selector_t::Instance();
-        auto params = static_canonicalize_shapes(impl_param);
+        auto params = impl_param.output_layouts[0].get_partial_shape().size() == 4 ? impl_param : static_canonicalize_shapes(impl_param);
 
         auto sdpa_kernel_params = get_kernel_params(params, params.is_dynamic());
         kernels_data.push_back(kernel_selector.get_best_kernel(sdpa_kernel_params));
@@ -486,6 +486,12 @@ public:
         if (_kernels_data.size() == 3) {
             (_kernels_data[2].update_dispatch_data_func)(*_kernels_data[default_sdpa].params, _kernels_data[2]);
         }
+    }
+
+    void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
+        auto new_impl_params = impl_params.output_layouts[0].get_partial_shape().size() == 4 ? impl_params : canonicalize_shapes(impl_params);
+        update_dispatch_data(new_impl_params);
+        inst.update_shape_info_tensor(new_impl_params);
     }
 };
 
