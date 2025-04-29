@@ -2022,7 +2022,8 @@ void primitive_inst::execute() {
                     actual_mem = engine.allocate_memory(actual_input_layout);
                 }
                 cldnn::primitive_id input_id = d.first->id();
-                GPU_DEBUG_TRACE << "Prepare to execute unfused subgraph: set_input_data " << input_id << "  actual_mem " << actual_mem << "  port " << d.second << std::endl;
+                GPU_DEBUG_TRACE << "Prepare to execute unfused subgraph: set_input_data " << input_id
+                                << "  actual_mem " << actual_mem << "  port " << d.second << std::endl;
                 if (actual_mem)
                     _unfused_subgraph->set_input_data(input_id, std::move(actual_mem), true, d.second);
             }
@@ -2597,7 +2598,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                     t.add(in_prim);
                 } else {
                     std::vector<padding> paddings;
-                    for (auto &l: dep.first->get_output_layouts())
+                    for (auto &l : dep.first->get_output_layouts())
                         paddings.push_back(l.data_padding);
                     input_layout in_prim(dep_id, dep.first->get_output_layouts(), paddings);
                     t.add(in_prim);

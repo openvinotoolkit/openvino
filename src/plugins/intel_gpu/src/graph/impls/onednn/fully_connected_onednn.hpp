@@ -22,7 +22,7 @@ namespace onednn {
 #define LOG_AND_RETURN() do {   \
     GPU_DEBUG_COUT << "do not use onednn" << std::endl; \
     return false;   \
-} while(0)
+    } while (0)
 struct FullyConnectedImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::fc")
     FullyConnectedImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
