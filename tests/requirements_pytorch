@@ -44,6 +44,8 @@ kornia==0.7.3
 super-image==0.1.7
 # huggingface-hub required for super-image
 huggingface-hub==0.30.0
+# huggingface-hub requires a new version of diffusers
+diffusers==0.33.1
 
 # For now, we decided to pin a specific working version of optimum-intel.
 # It will be discussed in the future how to manage versioning of the components properly.
