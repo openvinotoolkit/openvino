@@ -35,10 +35,8 @@ public:
     std::shared_ptr<T> get_loop_info(size_t index) const {
         const auto it = m_map.find(index);
         OPENVINO_ASSERT(it != m_map.end(), "LoopInfo hasn't been found!");
-        assert(it != m_map.end() && "LoopInfo hasn't been found!");
         const auto loop_info = ov::as_type_ptr<T>(it->second);
         OPENVINO_ASSERT(loop_info, "LoopInfo of specific type hasn't been found!");
-        assert(loop_info && "LoopInfo of specific type hasn't been found!");
         return loop_info;
     }
     /**

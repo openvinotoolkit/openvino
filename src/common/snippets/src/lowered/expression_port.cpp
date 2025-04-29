@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cassert>
+
 #include "snippets/lowered/expression_port.hpp"
 
 #include "snippets/utils/utils.hpp"
