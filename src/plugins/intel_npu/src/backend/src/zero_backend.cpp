@@ -79,7 +79,7 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& n
         // while numbers bigger than 3 digis are arch names
         if (param < 1000) {
             // we asume it is an index, so return the device at that index (if exists)
-            if (_devices.size() < (param + 1)) {
+            if (_devices.size() < (size_t)(param + 1)) {
                 // index does not exist
                 OPENVINO_THROW("Could not find available NPU device with the specified index: NPU.", name);
             } else {
