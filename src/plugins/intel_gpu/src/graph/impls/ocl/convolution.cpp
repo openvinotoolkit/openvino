@@ -284,15 +284,10 @@ std::unique_ptr<primitive_impl> ConvolutionImplementationManager::create_impl(co
         auto input_layout = params.get_input_layout(0);
         if (input_layout.get_partial_shape().size() == 3) {
             auto weights_input_layout = weights_reorder_params->get_input_layout();
-            auto weights_input_shape = weights_input_layout.get_partial_shape().to_shape();
-            weights_input_shape.pop_back();
-            weights_input_layout.set_partial_shape(weights_input_shape);
+            weights_input_layout.set_partial_shape(node.get_input_layout(1).get_partial_shape());
             weights_reorder_params->set_input_layout(weights_input_layout);
-
             auto weights_output_layout = weights_reorder_params->get_output_layout();
-            auto weights_output_shape = weights_output_layout.get_partial_shape().to_shape();
-            weights_output_shape.pop_back();
-            weights_output_layout.set_partial_shape(weights_output_shape);
+            weights_output_layout.set_partial_shape(node.get_input_layout(1).get_partial_shape());
             weights_reorder_params->set_output_layout(weights_output_layout);
         }
     }
