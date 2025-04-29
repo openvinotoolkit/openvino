@@ -5,6 +5,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <regex>
 
 #include "openvino/op/constant.hpp"
@@ -184,20 +185,48 @@ op::Predicate all_of(const std::vector<std::function<bool(Output<Node>)>>& predi
 }
 
 namespace {
+
+#define ACCESSOR(type) \
+    void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { match(name, {adapter.get()}); };
+
+#define ACCESSOR_V(type) ACCESSOR(type) ACCESSOR(std::vector<type>)
+
 class AttributeMatchingVisitor : public ov::AttributeVisitor {
 public:
     explicit AttributeMatchingVisitor(const Attributes& expected_attrs)
         : ov::AttributeVisitor(),
           m_expected_attrs{expected_attrs} {
         OPENVINO_ASSERT(!expected_attrs.empty(), "Please remove trivial attribute matching check");
-        for (auto& [name, expected_value] : expected_attrs)
+        for (const auto& [name, expected_value] : expected_attrs)
             m_matched_attributes[name] = false;
     }
 
+    ACCESSOR(bool)
+    ACCESSOR_V(std::string)
+    ACCESSOR_V(int8_t)
+    ACCESSOR_V(int16_t)
+    ACCESSOR_V(int32_t)
+    ACCESSOR_V(int64_t)
+    ACCESSOR_V(uint8_t)
+    ACCESSOR_V(uint16_t)
+    ACCESSOR_V(uint32_t)
+    ACCESSOR_V(uint64_t)
+    ACCESSOR_V(float)
+    ACCESSOR_V(double)
+
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
+    };
+    void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void*");
+    };
+    void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare models");
+    };
+
+    void match(const std::string& name, const ov::Any& node_attribute) {
         if (m_expected_attrs.count(name)) {
             try {
-                const auto& node_attribute = adapter.get_as_any();
                 const auto& attribute_type_id = node_attribute.type_info();
 
                 auto expected_attribute = m_expected_attrs.at(name);
@@ -240,7 +269,7 @@ public:
         } else {
             OPENVINO_DEBUG("  Node attribute `", name, "` is not being compared");
         }
-    };
+    }
 
     bool get_match_status() const {
         // TODO: provide additional logging in case of failure; however the on_adapter method is already logging a lot
@@ -327,14 +356,24 @@ std::pair<std::vector<std::pair<int64_t, std::string>>, int64_t> parse_notation(
     return {idx_to_name, (ellipsis_visited ? -2 : idx_to_name.size())};
 }
 
-std::pair<bool, int64_t> str2int(const std::string& str) {
+std::optional<int64_t> str2int(const std::string& str) {
     auto s = str.c_str();
     char* end;
     int64_t l;
     l = strtol(s, &end, 10);
     if (*s == '\0' || *end != '\0')
-        return {1, 0};
-    return {0, l};
+        return {};
+    return {l};
+}
+
+std::optional<double> str2double(const std::string& str) {
+    auto s = str.c_str();
+    char* end;
+    double d;
+    d = strtod(s, &end);
+    if (*s == '\0' || *end != '\0')
+        return {};
+    return {d};
 }
 
 std::pair<bool, double> str2double(const std::string& str) {
@@ -356,11 +395,12 @@ struct GroupDetails {
     }
 };
 
-const PatternSymbolValue& get_element(const std::vector<PatternSymbolValue>& values, size_t idx) {
+const PatternSymbolValue& get_element(const std::vector<PatternSymbolValue>& values, int64_t idx) {
+    auto size = static_cast<int64_t>(values.size());
     if (idx < 0)
-        idx += values.size();
-    OPENVINO_ASSERT(idx < values.size(), "Unexpected index");
-    return values[idx];
+        idx += size;
+    OPENVINO_ASSERT(idx < size, "Unexpected index");
+    return values[static_cast<size_t>(idx)];
 }
 
 }  // namespace
@@ -426,8 +466,8 @@ op::Predicate shape_matches(const std::string& shape_notation) {
                 const auto& actual_dim = shape[position];
                 const auto& actual_value = actual_dim.is_static() ? PatternSymbolValue(actual_dim.get_length())
                                                                   : PatternSymbolValue(actual_dim.get_symbol());
-                const auto& [conversion_failed, converted_int] = str2int(expected_as_string);
-                if (conversion_failed) {  // failed the conversion -- this is a name
+                const auto& converted_int = str2int(expected_as_string);
+                if (!converted_int) {  // failed the conversion -- this is a name
                     const auto& name = expected_as_string;
                     if (m.count(name) || local_m.count(name)) {
                         const auto& recorded_value = m.count(name) ? m.at(name) : local_m.at(name);
@@ -440,7 +480,7 @@ op::Predicate shape_matches(const std::string& shape_notation) {
                             return false;
                     }
                 } else {  // this_dim is not a name, but an integer
-                    if (actual_dim.is_dynamic() || actual_dim.get_length() != converted_int)
+                    if (actual_dim.is_dynamic() || actual_dim.get_length() != converted_int.value())
                         return false;
                 }
             }
@@ -537,9 +577,9 @@ op::Predicate value_matches(const std::string& value_notation) {
                     continue;
                 }
                 const auto& actual_value = get_element(values, position);
-                const auto& [i_conversion_failed, converted_int] = str2int(expected_as_string);
-                const auto& [d_conversion_failed, converted_double] = str2double(expected_as_string);
-                if (i_conversion_failed && d_conversion_failed) {  // failed the conversion -- this is a name
+                const auto& converted_int = str2int(expected_as_string);
+                const auto& converted_double = str2double(expected_as_string);
+                if (!converted_int && !converted_double) {  // failed the conversion -- this is a name
                     const auto& name = expected_as_string;
                     if (m.count(name) || local_m.count(name)) {
                         // we have encountered the value under same name -- comparing it with the actual value
@@ -550,11 +590,11 @@ op::Predicate value_matches(const std::string& value_notation) {
                         OPENVINO_ASSERT(actual_value.is_integer() || actual_value.is_double());
                         local_m[name] = actual_value;
                     }
-                } else if (!i_conversion_failed) {  // comparison to static integer value was requested
-                    if (actual_value != PatternSymbolValue(converted_int))
+                } else if (converted_int) {  // comparison to static integer value was requested
+                    if (actual_value != PatternSymbolValue(converted_int.value()))
                         return false;
-                } else if (!d_conversion_failed) {  // comparison to static double value was requested
-                    if (actual_value != PatternSymbolValue(converted_double))
+                } else if (converted_double) {  // comparison to static double value was requested
+                    if (actual_value != PatternSymbolValue(converted_double.value()))
                         return false;
                 }
             }

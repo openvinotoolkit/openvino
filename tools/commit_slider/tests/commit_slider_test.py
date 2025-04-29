@@ -15,7 +15,7 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
     BenchmarkFirstFixedAppData, AcModeData, BenchmarkMetricData, CustomizedLogData, \
     MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData, \
-    AcModeDataBitwise
+    AcModeDataBitwise, CompareBlobsData, CompareBlobsMulOutputData, CompareBlobsAutomatchData
 
 class CommitSliderTest(TestCase):
     @skip_commit_slider_devtest
@@ -367,3 +367,47 @@ class CommitSliderTest(TestCase):
             cfg["another"]["path"],
             "not updated"
         )
+
+    @skip_commit_slider_devtest
+    def testAccuracyBase(self):
+        breakCommit, updatedData = getExpectedCommit(
+            CompareBlobsData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testAccuracyMultipleOutput(self):
+        breakCommit, updatedData = getExpectedCommit(
+            CompareBlobsMulOutputData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testAccuracyMultipleOutputAutomatch(self):
+        breakCommit, updatedData = getExpectedCommit(
+            CompareBlobsAutomatchData())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testBlobMatching(self):
+        from utils.helpers import getBlobMatch
+        fileList1 = [
+            "#001_Some_node_type_1.ieb",
+            "#002_Some_node_type_2.ieb",
+            "#003_Some_node_type_3.ieb",
+            "#004_Some_node_type_4.ieb",
+            "#005_Some_node_type_5.ieb"]
+        fileList2 = [
+            "#006_Some_changed_node_type_1.ieb",
+            "#007_Some_changed_node_type_3.ieb",
+            "#008_Some_changed_node_type_2.ieb",
+            "#008_Some_changed_node_type_5.ieb",
+            "#008_Some_changed_node_type_4.ieb"
+        ]
+        expectedMatch = [
+            tuple([0, 0]), tuple([1, 2]), tuple([2, 1]), tuple([3, 4]), tuple([4, 3])]
+        curMatch = getBlobMatch(fileList1, fileList2)
+        actualMatch = [tuple([fileList1.index(v[0]), fileList2.index(v[1])]) for v in curMatch]
+        diff = set(expectedMatch).difference(set(actualMatch))
+        self.assertEqual(diff, set())

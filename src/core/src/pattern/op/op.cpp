@@ -50,12 +50,7 @@ PatternOps::PatternOps() : data{} {}
 PatternOps::PatternOps(const std::shared_ptr<Node>& op) : data{PatternOp(op)} {}
 PatternOps::PatternOps(const Output<Node>& out) : data{PatternOp(out)} {}
 
-PatternOps::PatternOps(const OutputVector& outputs) : data{} {
-    data.reserve(outputs.size());
-    for (auto&& out : outputs)
-        data.emplace_back(out);
-}
-
+PatternOps::PatternOps(const OutputVector& outputs) : data{outputs.begin(), outputs.end()} {}
 PatternOps::PatternOps(std::initializer_list<PatternOp>&& outputs) : data(outputs) {}
 
 PatternOps::operator ov::OutputVector() const {
