@@ -808,6 +808,7 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq2) {
         inference_request[5].start_async();
         inference_request[5].wait();
     } else {
+        ASSERT_TRUE(!isRunInferencesSequentially);
         try {
             inference_request[5].start_async();
             inference_request[5].wait();

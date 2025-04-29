@@ -172,7 +172,7 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
             ze_command_queue_desc_npu_ext_2_t command_queue_desc = {};
 
             command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT_2;
-            command_queue_desc.options = static_cast<ze_npu_command_queue_options_t>(command_queue_options);
+            command_queue_desc.options = command_queue_options;
 
             queue_desc.pNext = &command_queue_desc;
 
