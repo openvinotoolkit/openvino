@@ -162,6 +162,9 @@ void regclass_CompiledModel(py::module m) {
             std::cout << "convert to python" << std::endl;
             auto py_obj = Common::utils::from_ov_any(model);
             std::cout << "after to python" << std::endl;
+            if (py::isinstance<std::shared_ptr<const ov::Model>>(py_obj)) {
+                std::cout << "model is recognised and converted" << std::endl;
+            }
             return py_obj;
         },
         py::arg("property"),
