@@ -152,6 +152,7 @@ static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared
 
 void regclass_graph_Model(py::module m) {
     py::class_<ov::Model, std::shared_ptr<ov::Model>> model(m, "Model", py::module_local());
+    py::implicitly_convertible<std::shared_ptr<const ov::Model>, std::shared_ptr<ov::Model>>();
     model.doc() = "openvino.Model wraps ov::Model";
 
     model.def(py::init([](const std::shared_ptr<ov::Model>& other) {
