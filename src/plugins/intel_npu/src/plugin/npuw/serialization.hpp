@@ -57,6 +57,9 @@ enum class CacheMode;
 namespace element {
 class Type;
 }
+namespace hint {
+enum class PerformanceMode;
+}
 
 // Forward declaration
 namespace op {
@@ -127,6 +130,7 @@ void write(std::ostream& stream, const ov::npuw::weights::LazyTensor& var);
 void write(std::ostream& stream, const ov::CacheMode& var);
 void write(std::ostream& stream, const ov::element::Type& var);
 void write(std::ostream& stream, const std::map<std::string, Any>& var);
+void write(std::ostream& stream, const ov::hint::PerformanceMode& var);
 
 void read(std::istream& stream, std::streampos& var);
 void read(std::istream& stream, std::string& var);
@@ -142,6 +146,7 @@ void read(std::istream& stream, ov::npuw::weights::LazyTensor& var);
 void read(std::istream& stream, ov::CacheMode& var);
 void read(std::istream& stream, ov::element::Type& var);
 void read(std::istream& stream, std::map<std::string, Any>& var);
+void read(std::istream& stream, ov::hint::PerformanceMode& var);
 
 // Weightless utils
 void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const WeightsContext& ctx);
