@@ -109,4 +109,12 @@ inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
  */
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quant_mode{"KEY_CACHE_QUANT_MODE"};
 
+/**
+ * @brief Define cache quant mode.
+ * @param AUTO - default mode by primitive
+ * @param BY_CHANNEL - quant by channel
+ * @param BY_HIDDEN - quant by hidden
+ */
+static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
+
 }  // namespace ov::intel_cpu
