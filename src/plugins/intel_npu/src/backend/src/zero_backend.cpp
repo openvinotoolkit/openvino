@@ -50,6 +50,11 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
 }
 
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& name) const {
+    // sanity check - if string is empty, call the default function
+    // which will pick the first available  and valid npu device
+    if (name.length() == 0) {
+        return getDevice();
+    }
     // First let's see if its a number (for device index) or a name
     int param = 0;
     try {
