@@ -49,9 +49,58 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
     }
 }
 
-const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& /*name*/) const {
-    // TODO Add the search of the device by platform & slice
-    return getDevice();
+const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& name) const {
+    // First let's see if its a number (for device index) or a name
+    int param = 0;
+    try {
+        param = std::stoi(name);
+    } catch (...) {
+        // seems like it is not a number
+        param = -1;
+    }
+    // if it is not a number, we search for it
+    if (param < 0) {
+        if (_devices.find(name) != _devices.end()) {
+            // string index exists, so we can return its Idevice
+            return _devices.find(name)->second;
+        } else {
+            // try looking for a device with this name
+            for (auto it = _devices.begin(); it != _devices.end(); ++it) {
+                if (it->second->getFullDeviceName() == name) {
+                    return it->second;
+                }
+            }
+            // if the loop ends w/o return = no device with this name
+            OPENVINO_THROW("Could not find available NPU device with the specified name: NPU.", name);
+        }
+    } else {
+        // parameter is a number, but can be index or arch
+        // arch numbers are at least 4 digit, so we assume numbers smaller than 4 digits are indexes,
+        // while numbers bigger than 3 digis are arch names
+        if (param < 1000) {
+            // we asume it is an index, so return the device at that index (if exists)
+            if (_devices.size() < (param + 1)) {
+                // index does not exist
+                OPENVINO_THROW("Could not find available NPU device with the specified index: NPU.", name);
+            } else {
+                // returning the n-th element (param)
+                auto it = _devices.begin();
+                std::advance(it, param);
+                return it->second;
+            }
+        } else {
+            // we asume this is an arch number, so we search for the first one
+            for (auto it = _devices.begin(); it != _devices.end(); ++it) {
+                if (it->second->getName() == name) {
+                    return it->second;
+                }
+            }
+            // if we got here, it means there is no device with that arch number
+            OPENVINO_THROW("Could not find available NPU device with specified arch: NPU.", name);
+        };
+    }
+    // if we got here without returning already, it means we did not find a device with requested name/index/arch
+    OPENVINO_THROW("Could not find requested NPU device: NPU.", name);
 }
 
 const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
