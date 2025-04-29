@@ -145,7 +145,9 @@ struct NotEmptyTestConfig : public ov::PluginConfig {
         if (!is_set_by_user(low_level_property)) {
             m_low_level_property.value = m_high_level_property.value;
         }
+#ifdef ENABLE_DEBUG_CAPS
         apply_config_options(device_name, test_config_path);
+#endif
     }
 
     void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override {
@@ -344,15 +346,17 @@ TEST(plugin_config, can_read_from_config) {
 
         dump_config(filepath.generic_string(), config);
 
-        ASSERT_EQ(cfg.get_int_property(), -1);  // config is applied after finalization
+        ASSERT_EQ(cfg.get_int_property(), -1);  // config is applied after finalization only for build with debug caps
 #ifdef ENABLE_DEBUG_CAPS
         ASSERT_EQ(cfg.get_debug_property(), 2);  // same for debug option
 #endif
 
         cfg.finalize(nullptr, nullptr);
-        ASSERT_EQ(cfg.get_int_property(), 10);
 #ifdef ENABLE_DEBUG_CAPS
+        ASSERT_EQ(cfg.get_int_property(), 10);
         ASSERT_EQ(cfg.get_debug_property(), 20);
+#else
+        ASSERT_EQ(cfg.get_int_property(), -1);  // no effect
 #endif
     } catch (std::exception&) {
     }

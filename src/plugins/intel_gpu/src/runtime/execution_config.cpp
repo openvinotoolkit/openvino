@@ -218,7 +218,7 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     }
 
 #ifdef ENABLE_DEBUG_CAPS
-    // For now we apply env/config only for build with debug caps, but it can be updated in the future to allow
+    // For now we apply config file only for build with debug caps, but it can be updated in the future to allow
     // reading release options for any build type
     apply_config_options(context->get_device_name(), get_debug_config());
 #endif // ENABLE_DEBUG_CAPS
