@@ -519,7 +519,7 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
         }
     }
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
-        config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
+        config.emplace("NPU_TILES", npudesc->max_tiles);
     }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
@@ -540,7 +540,7 @@ ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
     if (npudesc.has_value() && npudesc->arch == "4000") {
-        config.emplace("NPU_DPU_GROUPS", 4);
+        config.emplace("NPU_TILES", 4);
     }
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
