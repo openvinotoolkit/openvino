@@ -66,7 +66,7 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& n
         } else {
             // try looking for a device with this name
             for (auto it = _devices.begin(); it != _devices.end(); ++it) {
-                if (it->second->getFullDeviceName() == name) {
+                if (it->second->getName() == name) {
                     return it->second;
                 }
             }
