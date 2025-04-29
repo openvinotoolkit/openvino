@@ -8,7 +8,7 @@
 #include "emitters/tpp/common/utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::x64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
@@ -20,7 +20,7 @@ void BrgemmTppEmitter::validate_subtensors(const VectorDims& in_0, const VectorD
     OV_CPU_JIT_EMITTER_ASSERT(subtensors_compatible, "Incompatible subtensors");
 }
 
-BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h,
+BrgemmTppEmitter::BrgemmTppEmitter(jit_generator_t* h,
                                    cpu_isa_t isa,
                                    const ExpressionPtr& expr,
                                    const snippets::KernelExecutorTablePtr& kernel_table,

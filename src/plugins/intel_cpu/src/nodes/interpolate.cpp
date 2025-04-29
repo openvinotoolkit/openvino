@@ -51,15 +51,15 @@ static inline bool isFloatCompatible(ov::element::Type prc) {
 #if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
-struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, public jit_generator {
+struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_interpolate_kernel_f32)
 
     explicit jit_uni_interpolate_kernel_f32(jit_interpolate_config_params jcp, const dnnl_primitive_attr& attr)
         : jit_uni_interpolate_kernel(jcp, attr),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
@@ -73,7 +73,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
                                                                                             post_op.eltwise.alg,
                                                                                             post_op.eltwise.alpha,
                                                                                             post_op.eltwise.beta,
@@ -193,7 +193,7 @@ private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    const int vlen = cpu_isa_traits<isa>::vlen;
+    const int vlen = cpu_isa_traits_t<isa>::vlen;
     const int vector_step = vlen / sizeof(float);
     const int tail_step = jcp_.C % vector_step;
     const int scalar_step = 1;
@@ -277,7 +277,7 @@ private:
     std::vector<size_t> store_pool_vec_idxs;
     std::vector<size_t> load_pool_gpr_idxs;
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector_t<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 

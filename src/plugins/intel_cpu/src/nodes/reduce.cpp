@@ -127,21 +127,21 @@ static inline bool isFloatCompatible(memory::data_type type) {
 #if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
-struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_generator {
+struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
 
     explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp)
         : jit_uni_reduce_kernel(jcp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
     void generate() override {
         if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            exp_injector = std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+            exp_injector = std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
                                                                            alg_kind::eltwise_exp,
                                                                            0.f,
                                                                            0.f,
@@ -199,7 +199,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
     bool planar_layout = false;
     bool support_intermediate_int = false;
 
@@ -247,7 +247,7 @@ private:
     Xbyak::Label l_table;
 
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
-    std::shared_ptr<jit_uni_eltwise_injector<isa>> exp_injector;
+    std::shared_ptr<jit_uni_eltwise_injector_t<isa>> exp_injector;
 
     inline void reduce_main() {
         // ================================================================
@@ -1210,15 +1210,15 @@ private:
 };
 
 template <cpu_isa_t isa>
-struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, public jit_generator {
+struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
     explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const dnnl_primitive_attr& attr)
         : jit_uni_reduce_post_kernel(jcp, attr),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
@@ -1227,7 +1227,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
                                                                                             post_op.eltwise.alg,
                                                                                             post_op.eltwise.alpha,
                                                                                             post_op.eltwise.beta,
@@ -1246,7 +1246,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         }
 
         if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            log_injector = std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+            log_injector = std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
                                                                            alg_kind::eltwise_log,
                                                                            0.f,
                                                                            0.f,
@@ -1325,7 +1325,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
     bool planar_layout = false;
     bool post_reduce = true;
     bool post_ops_fusing = false;
@@ -1364,9 +1364,9 @@ private:
     Vmm vmm_d_bias = Vmm(8);
 
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
-    std::shared_ptr<jit_uni_eltwise_injector<isa>> log_injector;
+    std::shared_ptr<jit_uni_eltwise_injector_t<isa>> log_injector;
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector_t<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 

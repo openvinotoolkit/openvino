@@ -44,7 +44,7 @@ private:
 
 enum class TMUL_TYPE { SSD = 1, USD = 2, SUD = 3, UUD = 4, FP16 = 5, BF16 = 6 };
 
-class MKernel : public dnnl::impl::cpu::x64::jit_generator {
+class MKernel : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(MKernel)
 
@@ -53,7 +53,7 @@ public:
     int m_tile_reg_ksize;
     int m_M_hint;
 
-    MKernel(int M_hint, TMUL_TYPE tmul_type) : jit_generator("MKernel"), m_tmul_type(tmul_type), m_M_hint(M_hint) {
+    MKernel(int M_hint, TMUL_TYPE tmul_type) : jit_generator_t("MKernel"), m_tmul_type(tmul_type), m_M_hint(M_hint) {
         if (m_tmul_type == TMUL_TYPE::FP16 || m_tmul_type == TMUL_TYPE::BF16) {
             m_tile_reg_ksize = 32;
         } else {
@@ -478,7 +478,7 @@ struct MatrixDynQuantPerRow {
 
 // combine gate_proj & up_proj using activation algo, then convert to bf16
 //     ConvertFP32toBF16(act_fn(gate) * up)
-class GateUpCombine : public dnnl::impl::cpu::x64::jit_generator {
+class GateUpCombine : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(GateUpCombine)
 
@@ -486,7 +486,7 @@ public:
     const bool m_to_f16;
 
     GateUpCombine(dnnl_alg_kind_t act_alg, bool to_f16)
-        : jit_generator(jit_name()),
+        : jit_generator_t(jit_name()),
           m_act_alg(act_alg),
           m_to_f16(to_f16) {
         create_kernel();
@@ -514,13 +514,13 @@ public:
     }
 };
 
-class ReduceAdd2bh : public dnnl::impl::cpu::x64::jit_generator {
+class ReduceAdd2bh : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(ReduceAdd2bh)
 
     const bool m_do_reduce2;
     const bool m_to_f16;
-    ReduceAdd2bh(bool do_reduce2, bool to_f16) : jit_generator(jit_name()), m_do_reduce2(do_reduce2), m_to_f16(to_f16) {
+    ReduceAdd2bh(bool do_reduce2, bool to_f16) : jit_generator_t(jit_name()), m_do_reduce2(do_reduce2), m_to_f16(to_f16) {
         create_kernel();
     }
 

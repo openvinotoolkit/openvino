@@ -20,9 +20,9 @@ using namespace dnnl::impl::cpu::aarch64::matmul;
 namespace ov::intel_cpu {
 
 static size_t getVlen() {
-    return mayiuse(sve_512)   ? cpu_isa_traits<sve_512>::vlen
-           : mayiuse(sve_256) ? cpu_isa_traits<sve_256>::vlen
-                              : cpu_isa_traits<sve_128>::vlen;
+    return mayiuse(sve_512)   ? cpu_isa_traits_t<sve_512>::vlen
+           : mayiuse(sve_256) ? cpu_isa_traits_t<sve_256>::vlen
+                              : cpu_isa_traits_t<sve_128>::vlen;
 }
 
 BrgemmKernel::BrgemmKernel(size_t M,

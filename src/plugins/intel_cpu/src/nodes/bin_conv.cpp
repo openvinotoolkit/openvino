@@ -45,17 +45,17 @@ namespace ov::intel_cpu::node {
 #    define GET_OFF(field) offsetof(jit_bin_conv_call_args, field)
 
 template <cpu_isa_t isa>
-struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_generator {
+struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_bin_conv_kernel_f32)
 
     explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp,
                                          jit_dw_conv_params jcp_dw_conv,
                                          const dnnl_primitive_attr& attr)
         : jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
@@ -65,7 +65,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
         for (int i = 0; i < end_idx; i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
                                                                                             post_op.eltwise,
                                                                                             data_type::f32,
                                                                                             true,
@@ -216,11 +216,11 @@ private:
     Xbyak::Opmask mask_post_op_reserved = Xbyak::Opmask(1);
     Xbyak::Reg64 eltwise_reserved = rax;
 
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Label l_table;
 
-    nstl::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
+    nstl::vector<std::shared_ptr<jit_uni_eltwise_injector_t<isa>>> eltwise_injectors;
     nstl::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
 
     void cvt2ps(dnnl::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand& op, bool scalar_load) {
