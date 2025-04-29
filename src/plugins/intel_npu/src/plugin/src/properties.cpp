@@ -49,6 +49,9 @@ namespace intel_npu {
             bool isPublic = _config.getOpt(o_name).isPublic();                                          \
             ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                     \
             if (_pType == PropertiesType::COMPILED_MODEL) {                                             \
+                if (!_config.has(o_name)) {                                                             \
+                    break;                                                                              \
+                }                                                                                       \
                 isMutable = ov::PropertyMutability::RO;                                                 \
             }                                                                                           \
             _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, [](const Config& config) { \
@@ -77,6 +80,9 @@ namespace intel_npu {
         if (_config.isAvailable(o_name)) {                                                                     \
             ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                            \
             if (_pType == PropertiesType::COMPILED_MODEL) {                                                    \
+                if (!_config.has(o_name)) {                                                                    \
+                    break;                                                                                     \
+                }                                                                                              \
                 isMutable = ov::PropertyMutability::RO;                                                        \
             }                                                                                                  \
             _properties.emplace(o_name, std::make_tuple(PROP_VISIBILITY, isMutable, [](const Config& config) { \
@@ -105,6 +111,9 @@ namespace intel_npu {
             bool isPublic = _config.getOpt(o_name).isPublic();                               \
             ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();          \
             if (_pType == PropertiesType::COMPILED_MODEL) {                                  \
+                if (!_config.has(o_name)) {                                                  \
+                    break;                                                                   \
+                }                                                                            \
                 isMutable = ov::PropertyMutability::RO;                                      \
             }                                                                                \
             _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, PROP_RETFUNC)); \
@@ -301,7 +310,6 @@ void Properties::registerProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
 
     // 1.2. Special cases
     // ==================
@@ -335,6 +343,7 @@ void Properties::registerProperties() {
             }
             return false;
         }());
+        TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
     } else if (_pType == PropertiesType::COMPILED_MODEL) {
         // These properties require different handling in plugin vs compiled_model
         TRY_REGISTER_CUSTOM_PROPERTY(ov::workload_type,
@@ -347,6 +356,15 @@ void Properties::registerProperties() {
         // compiled-model only
         TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY, true);
         TRY_REGISTER_SIMPLE_PROPERTY(ov::loaded_from_cache, LOADED_FROM_CACHE);
+
+        // need to force-skip config.has() for cpu_pinning
+        TRY_REGISTER_CUSTOM_PROPERTY(ov::hint::enable_cpu_pinning,
+                                     ENABLE_CPU_PINNING,
+                                     true,
+                                     ov::PropertyMutability::RO,
+                                     [](const Config& config) {
+                                         return config.get<ENABLE_CPU_PINNING>();
+                                     });
     }
 
     // 2. Metrics (static device and enviroment properties)
