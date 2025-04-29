@@ -284,18 +284,16 @@ std::unique_ptr<primitive_impl> ConvolutionImplementationManager::create_impl(co
         auto input_layout = params.get_input_layout(0);
         if (input_layout.get_partial_shape().size() == 3) {
             auto weights_input_layout = weights_reorder_params->get_input_layout();
-            if (weights_input_layout.group() == 1) {
-                weights_input_layout.set_partial_shape(ov::PartialShape{weights_input_layout.batch(),
-                                                                        weights_input_layout.feature(),
-                                                                        weights_input_layout.spatial(1) * weights_input_layout.spatial(0)});
-                                                                        weights_reorder_params->set_input_layout(weights_input_layout);
+            auto weights_input_shape = weights_input_layout.get_partial_shape().to_shape();
+            weights_input_shape.pop_back();
+            weights_input_layout.set_partial_shape(weights_input_shape);
+            weights_reorder_params->set_input_layout(weights_input_layout);
 
-                auto weights_output_layout = weights_reorder_params->get_output_layout();
-                weights_output_layout.set_partial_shape(ov::PartialShape{weights_output_layout.batch(),
-                                                                         weights_output_layout.feature(),
-                                                                         weights_output_layout.spatial(1) * weights_output_layout.spatial(0)});
-                                                                         weights_reorder_params->set_output_layout(weights_output_layout);
-            }
+            auto weights_output_layout = weights_reorder_params->get_output_layout();
+            auto weights_output_shape = weights_output_layout.get_partial_shape().to_shape();
+            weights_output_shape.pop_back();
+            weights_output_layout.set_partial_shape(weights_output_shape);
+            weights_reorder_params->set_output_layout(weights_output_layout);
         }
     }
 
