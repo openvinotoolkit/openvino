@@ -66,7 +66,8 @@ void get_cur_stream_info(const int stream_id,
         if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) &&
             core_type != ALL_PROC) {
             stream_type = STREAM_WITH_CORE_TYPE;
-        } else if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && core_type == ALL_PROC &&
+        } else if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) &&
+                   core_type == ALL_PROC &&
                    !ecore_used) {  // Latency mode and enable hyper threading in hybrid cores machine
             stream_type = STREAM_WITH_CORE_TYPE;
             core_type = MAIN_CORE_PROC;
