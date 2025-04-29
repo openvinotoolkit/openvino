@@ -931,6 +931,67 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq4) {
     }
 }
 
+TEST_P(RunSeqTests, CheckTurboWithMultipleRunsSeq) {
+    auto supportedProperties = core->get_property("NPU", supported_properties.name()).as<std::vector<PropertyName>>();
+
+    auto shape = Shape{1, 64, 64, 256};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    auto context = core->get_default_context(target_device);
+
+    configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+    configuration[intel_npu::turbo.name()] = true;
+    configuration[ov::intel_npu::tiles.name()] = 2;
+    compiled_model = core->compile_model(model, target_device, configuration);
+
+    const int inferences = 32;
+    std::array<ov::InferRequest, inferences> inference_request;
+    ov::Tensor input_tensor;
+    std::array<ov::Tensor, inferences> output_tensor;
+
+    input_tensor = context.create_host_tensor(ov::element::f32, shape);
+
+    for (int i = 0; i < inferences; i++) {
+        inference_request[i] = compiled_model.create_infer_request();
+        output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
+    }
+
+    const int runs = 10;
+    for (int z = 0; z < runs; z++) {
+        auto* input_data = reinterpret_cast<float*>(input_tensor.data());
+        for (size_t i = 0; i < shape_size; ++i) {
+            input_data[i] = static_cast<float>(z);
+        }
+
+        inference_request[inferences - 1].set_input_tensor(input_tensor);
+        inference_request[inferences - 1].set_output_tensor(output_tensor[inferences - 1]);
+
+        inference_request[inferences - 1].start_async();  // Adds '1' to each element
+
+        for (int i = inferences - 2; i >= 0; i--) {
+            inference_request[i].set_input_tensor(output_tensor[i + 1]);
+            inference_request[i].set_output_tensor(output_tensor[i]);
+
+            inference_request[i].start_async();  // Adds '1' to each element
+        }
+
+        inference_request[0].wait();
+
+        float expected_result = static_cast<float>(z) + 1.f;
+
+        for (int i = inferences - 1; i >= 0; i--) {
+            auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
+            for (size_t j = 0; j < shape_size; ++j) {
+                EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                    << "Run=" << z << "Output=" << i << " Expected=" << expected_result
+                    << ", actual=" << output_tensor_data[j] << " for index " << j;
+            }
+            expected_result++;
+        }
+    }
+}
+
 using BatchingRunSeqTests = InferRequestRunTests;
 
 TEST_P(BatchingRunSeqTests, CheckMultipleBatchingRunsSeq) {
