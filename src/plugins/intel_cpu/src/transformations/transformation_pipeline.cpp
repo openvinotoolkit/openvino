@@ -1173,6 +1173,16 @@ void Transformations::MainSnippets() {
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
+    const bool isMlpSeqSupported = true;
+#else
+    const bool isMlpSeqSupported = false;
+#endif
+
+    if (!isMlpSeqSupported) {
+        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMLPSeqSnippets);
+    }
+
+#if defined(OPENVINO_ARCH_X86_64)
     auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
         const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
         if (!matmul) {
