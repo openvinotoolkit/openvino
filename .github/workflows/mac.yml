@@ -149,7 +149,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
+        uses: hendrikmuhs/ccache-action@63069e3931dedbf3b63792097479563182fe70d1 # v1.2.18
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
