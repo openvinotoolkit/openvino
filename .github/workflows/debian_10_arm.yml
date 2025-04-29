@@ -62,8 +62,7 @@ jobs:
         if: ${{ 'true' }}
         id: dummy_image
         run: |
-          dummy_output={\"ov_test\": {\"debian_10_arm\": \"openvinogithubactions.azurecr.io/ov_test/debian_10_arm:pr-30305\"}, \"ov_build\": {\"debian_10_arm\": \"openvinogithubactions.azurecr.io/ov_build/debian_10_arm:pr-30305\"}}
-          echo "images=$dummy_output" >> "$GITHUB_OUTPUT"
+          echo "images={\"ov_test\":{\"debian_10_arm\":\"openvinogithubactions.azurecr.io/ov_test/debian_10_arm:pr-30305\"},\"ov_build\":{\"debian_10_arm\":\"openvinogithubactions.azurecr.io/ov_build/debian_10_arm:pr-30305\"}}" >> "$GITHUB_OUTPUT"
           # "matrix={\"include\":[{\"project\":\"foo\",\"config\":\"Debug\"},{\"project\":\"bar\",\"config\":\"Release\"}]}"
 
       - name: Checkout
