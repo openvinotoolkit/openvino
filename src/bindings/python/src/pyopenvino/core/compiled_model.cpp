@@ -165,6 +165,9 @@ void regclass_CompiledModel(py::module m) {
             if (py::isinstance<std::shared_ptr<const ov::Model>>(py_obj)) {
                 std::cout << "model is recognised and converted" << std::endl;
             }
+            if (py::isinstance<std::shared_ptr<ov::Model>>(py_obj)) {
+                std::cout << "model is recognised and converted 2" << std::endl;
+            }
             return py_obj;
         },
         py::arg("property"),
