@@ -39,11 +39,9 @@ class TestSqueeze(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_squeeze_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_legacy_frontend):
+    def test_squeeze_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_squeeze_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_1D = [
         dict(input_shape=[1], axis=[], input_type=np.float32),
@@ -52,10 +50,9 @@ class TestSqueeze(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
-    def test_squeeze_1D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_squeeze_1D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_squeeze_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_2D = [
         dict(input_shape=[1, 2], axis=[0], input_type=np.float32),
@@ -64,10 +61,9 @@ class TestSqueeze(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
-    def test_squeeze_2D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_squeeze_2D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_squeeze_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_3D = [
         dict(input_shape=[2, 1, 3], axis=[], input_type=np.float32),
@@ -76,10 +72,9 @@ class TestSqueeze(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_squeeze_3D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_squeeze_3D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_squeeze_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_4D = [
         dict(input_shape=[1, 1, 5, 10], axis=[], input_type=np.int32),
@@ -89,10 +84,9 @@ class TestSqueeze(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_squeeze_4D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_squeeze_4D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_squeeze_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_5D = [
         dict(input_shape=[1, 1, 5, 10, 22], axis=[], input_type=np.float32),
@@ -105,10 +99,9 @@ class TestSqueeze(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_squeeze_5D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_squeeze_5D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_squeeze_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexSqueeze(CommonTFLayerTest):
@@ -149,9 +142,7 @@ class TestComplexSqueeze(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_squeeze(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+    def test_complex_squeeze(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(
             *self.create_complex_squeeze_net(**params),
-            ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend)
+            ie_device, precision, ir_version, temp_dir=temp_dir)
