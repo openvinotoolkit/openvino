@@ -180,7 +180,7 @@ The following properties are supported:
 | `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RW | Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it will be populated by driver.| `[0-]` | `[1-6] depends on npu platform` |
 | `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::defer_weights_load`/</br>`NPU_DEFER_WEIGHTS_LOAD` | RW | Delay loading the weights until inference is created. | `YES`/ `NO`| `NO` |
-| `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started. | `YES`/ `NO`| `NO` |
+| `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started to optimize host scheduling. | `YES`/ `NO`| `NO` |
 
 &nbsp;
 ### Performance Hint: Default Number of DPU Groups / DMA Engines
