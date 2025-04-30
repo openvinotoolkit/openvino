@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifdef BASE_KERNEL
 #if LORA_COUNT == 1
 KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
                  const __global OUTPUT_TYPE* main_input,
@@ -179,4 +180,25 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
     }
 }
 
+#endif
+#endif
+
+#ifdef FUSED_OPS_KERNEL
+KERNEL(fused_ops)(OPTIONAL_SHAPE_INFO_ARG
+                  __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+                , FUSED_OPS_DECLS
+#endif
+                    )
+{
+    const uint b = get_global_id(0);
+    const uint f = get_global_id(1);
+    const uint y = get_global_id(2) / OUTPUT_SIZE_X;
+    const uint x = get_global_id(2) % OUTPUT_SIZE_X;
+    const uint output_idx = OUTPUT_GET_INDEX(b, f, y, x);
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    output[output_idx] = FUSED_OPS_RESULT;
+#endif
+}
 #endif

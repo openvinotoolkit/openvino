@@ -280,7 +280,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
 
         program_helpers::do_for_types<lora>(*node, [](lora_node& node) {
             // Dynamic LoRA can always potentially be with empty adapters
-            if (node.is_dynamic()) {
+            if (node.is_dynamic() && !node.has_fused_primitives()) {
                 node.can_be_optimized(true);
                 node.set_runtime_skippable(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;

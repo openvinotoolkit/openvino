@@ -20,8 +20,8 @@ public:
 
 protected:
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
-    JitConstants GetJitConstants(const lora_params& params) const;
-    CommonDispatchData SetDefault(const lora_params& params) const;
+    JitConstants GetJitConstants(const lora_params& params, size_t kernel_idx) const;
+    CommonDispatchData SetDefault(const lora_params& params, size_t kernel_idx) const;
 };
 
 }  // namespace kernel_selector
