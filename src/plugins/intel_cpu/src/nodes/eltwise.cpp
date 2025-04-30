@@ -2367,7 +2367,12 @@ bool Eltwise::canFuseConvert(const NodePtr& convertNode) const {
     }
 // Convert can be fused into Eltwise only if jit implementation is supported
 #if defined(OPENVINO_ARCH_ARM64)
-    return EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma(), {}, {convertNode->getOriginalOutputPrecisionAtPort(0)});
+    return EltwiseJitExecutor::isSupportedOp(this,
+                                             getAlpha(),
+                                             getBeta(),
+                                             getGamma(),
+                                             {},
+                                             {convertNode->getOriginalOutputPrecisionAtPort(0)});
 #else
     return false;
 #endif
