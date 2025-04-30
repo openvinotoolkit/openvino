@@ -232,6 +232,7 @@ void Bucketize::bucketize() {
     const auto* input_data = getSrcDataAtPortAs<const T>(0);
     const auto* boundaries_data = getSrcDataAtPortAs<const T_BOUNDARIES>(1);
     auto* output_data = getDstDataAtPortAs<T_IND>(0);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     if (!with_bins) {
         memset(output_data, 0, num_values * sizeof(T_IND));
@@ -239,7 +240,7 @@ void Bucketize::bucketize() {
     }
 
     // boundaries are assumed to be sorted and to have unique elements
-    parallel_for(num_values, [&](size_t ind) {
+    cpu_parallel->parallel_for(num_values, [&](size_t ind) {
         T value = input_data[ind];
         if (with_right) {
             auto low = std::lower_bound(boundaries_data, boundaries_data + num_bin_values, value);

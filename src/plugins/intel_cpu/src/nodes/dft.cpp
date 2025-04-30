@@ -315,6 +315,7 @@ void DFT::dftNd(float* output,
                 bool inverse) const {
     const std::vector<size_t> iterationRange(outputShape.begin(), outputShape.end() - 1);
     const size_t lastDimIndex = iterationRange.size() - 1;
+    const auto& cpu_parallel = context->getCpuParallel();
     for (size_t currentAxis : axes) {
         const size_t outputComplexLen = outputShape[currentAxis];
         const size_t outputLen = outputComplexLen * 2;
@@ -323,7 +324,7 @@ void DFT::dftNd(float* output,
         if (IsPowerOfTwo(outputComplexLen)) {
             size_t parallelDimIndex = lastDimIndex == currentAxis ? lastDimIndex - 1 : lastDimIndex;
             do {
-                parallel_for(iterationRange[parallelDimIndex], [&](size_t dim) {
+                cpu_parallel->parallel_for(iterationRange[parallelDimIndex], [&](size_t dim) {
                     std::vector<float> gatheredData(outputLen * 2);
                     auto parallelIterationCounter = iterationCounter;
                     parallelIterationCounter[parallelDimIndex] = dim;
@@ -370,6 +371,7 @@ void DFT::fft(float* inBuffer,
     static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
     static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
     size_t nComplex = dataLength / 2;
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::function<void(const size_t, const size_t, const size_t)> blockIteration;
     if (fftKernel != nullptr) {
@@ -421,7 +423,7 @@ void DFT::fft(float* inBuffer,
         blockSize = nextIterationBlockSize;
         nextIterationBlockSize /= 2;
         if (parallelize && blockSize >= 4 * static_cast<size_t>(elementsPerCacheLine)) {
-            parallel_for(numBlocks, [&](const size_t block) {
+            cpu_parallel->parallel_for(numBlocks, [&](const size_t block) {
                 blockIteration(block, 1, nextIterationBlockSize);
             });
         } else {
@@ -444,6 +446,7 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     const size_t nComplex = dataLength / 2;
     const float reciprocalNComplex = 1.0f / nComplex;
     const auto& twiddles = twiddlesMapDFT.find(nComplex)->second;
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::function<void(size_t)> blockIteration;
     if (dftKernel != nullptr) {
@@ -489,14 +492,15 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
         };
     }
 
-    parallel_for(nComplex, blockIteration);
+    cpu_parallel->parallel_for(nComplex, blockIteration);
     cpu_memcpy(data, outputBuffer.data(), dataLength * sizeof(float));
 }
 
 std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) const {
     std::vector<float> twiddles(n_complex * n_complex * 2);
     const float inverseMultiplier = inverse ? 1 : -1;
-    parallel_for(n_complex, [&](const size_t k) {
+    const auto& cpu_parallel = context->getCpuParallel();
+    cpu_parallel->parallel_for(n_complex, [&](const size_t k) {
         for (size_t n = 0; n < n_complex; ++n) {
             float phase = 2.0f * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
             auto complexReal = std::cos(phase);

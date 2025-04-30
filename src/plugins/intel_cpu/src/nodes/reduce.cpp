@@ -2513,13 +2513,14 @@ void Reduce::reduce_type(const uint8_t* in_ptr, uint8_t* out_ptr) {
 }
 
 void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
+    const auto& cpu_parallel = context->getCpuParallel();
     output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
     if (ReduceN && !ReduceC && !ReduceD && !ReduceH && !ReduceW) {
         size_t IA = IC * ID * IH * IW;
         reduce_stride = IA;
-        parallel_for(IA / blk_size, [&](size_t iba) {
+        cpu_parallel->parallel_for(IA / blk_size, [&](size_t iba) {
             size_t oba = iba;
             reduce_kernel_process(in_ptr + iba * blk_size * src_data_size,
                                   out_ptr + oba * blk_size * dst_data_size,
@@ -2549,7 +2550,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     for (size_t i = 0; i < blk_size; i++) {
                         index_buf[i] = i * work_amount * src_data_size;
                     }
-                    parallel_for(IK, [&](size_t ik) {
+                    cpu_parallel->parallel_for(IK, [&](size_t ik) {
                         size_t ok = ik;
                         reduce_kernel_process(in_ptr_n + ik * blk_size * inner_size * src_data_size,
                                               out_ptr_n + ok * blk_size * output_inner_size * dst_data_size,
@@ -2560,7 +2561,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     });
                     size_t tail_start = IK * blk_size;
                     size_t IT = outer_size - tail_start;
-                    parallel_for(IT, [&](size_t it) {
+                    cpu_parallel->parallel_for(IT, [&](size_t it) {
                         size_t ot = it;
                         reduce_kernel_process(in_ptr_n + (tail_start + it) * inner_size * src_data_size,
                                               out_ptr_n + (tail_start + ot) * output_inner_size * dst_data_size,
@@ -2569,13 +2570,13 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     });
                 } else {
                     if (ReduceH) {
-                        parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
+                        cpu_parallel->parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
                             size_t oc = ic, od = id;
                             GET_PTR_NCD_BASE_PTR_N_PLN;
                             reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, work_amount, 1);
                         });
                     } else {
-                        parallel_for3d(IC, ID, IH, [&](size_t ic, size_t id, size_t ih) {
+                        cpu_parallel->parallel_for3d(IC, ID, IH, [&](size_t ic, size_t id, size_t ih) {
                             size_t oc = ic, od = id;
                             GET_PTR_NCD_BASE_PTR_N_PLN;
                             size_t oh = ih;
@@ -2602,7 +2603,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     init_dst_data(prc_ptr_n, prc_size);
                     size_t IS = IH * IW;
                     reduce_stride = IS;
-                    parallel_for(IS / blk_size, [&](size_t ibs) {
+                    cpu_parallel->parallel_for(IS / blk_size, [&](size_t ibs) {
                         size_t pbs = ibs;
                         reduce_kernel_process(in_ptr_n + ibs * blk_size * src_data_size,
                                               prc_ptr_n + pbs * blk_size * prc_data_size,
@@ -2618,7 +2619,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                                           IC * ID);
                     // step2: ReduceW
                     reduce_kernel_reassign();
-                    parallel_for(PH, [&](size_t ph) {
+                    cpu_parallel->parallel_for(PH, [&](size_t ph) {
                         size_t oh = ph;
                         reduce_kernel_process(prc_ptr_n + ph * PW * prc_data_size,
                                               out_ptr_n + oh * OW * dst_data_size,
@@ -2633,7 +2634,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                         for (size_t id = 0; id < ID; id++) {
                             size_t od = ReduceD ? 0 : id;
                             GET_PTR_NCD_PLN;
-                            parallel_for(IH, [&](size_t ih) {
+                            cpu_parallel->parallel_for(IH, [&](size_t ih) {
                                 size_t oh = ih;
                                 GET_PTR_NCDH_PLN;
                                 reduce_kernel_process(in_ptr_ncdh, out_ptr_ncdh, IW, 1);
@@ -2656,10 +2657,10 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     }
                 }
             } else if (!ReduceC && !ReduceD && ReduceH && !ReduceW) {
-                parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
+                cpu_parallel->parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
                     size_t oc = ic, od = id;
                     GET_PTR_NCD_BASE_PTR_N_PLN;
-                    parallel_for(IW / blk_size, [&](size_t ibw) {
+                    cpu_parallel->parallel_for(IW / blk_size, [&](size_t ibw) {
                         size_t obw = ibw;
                         reduce_kernel_process(in_ptr_ncd + ibw * blk_size * src_data_size,
                                               out_ptr_ncd + obw * blk_size * dst_data_size,
@@ -2682,7 +2683,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                         // step1: !ReduceD && ReduceH && !ReduceW
                         uint8_t* prc_ptr_n = &vec_reduceDH_prc[0];
                         init_dst_data(prc_ptr_n, prc_size);
-                        parallel_for2d(ID, IWB, [&](size_t id, size_t iwb) {
+                        cpu_parallel->parallel_for2d(ID, IWB, [&](size_t id, size_t iwb) {
                             size_t pd = id, pwb = iwb;
                             reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
                                                   prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size,
@@ -2693,7 +2694,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                         // step2: ReduceD
                         reduce_stride = PW;
                         reduce_kernel_reassign();
-                        parallel_for(IWB, [&](size_t iwb) {
+                        cpu_parallel->parallel_for(IWB, [&](size_t iwb) {
                             size_t pwb = iwb, owb = iwb;
                             reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
                                                   out_ptr_n + owb * blk_size * dst_data_size,
@@ -2706,7 +2707,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     // reduce tail
                     reduce_stride = IW;
                     size_t tail_start = IWB * blk_size;
-                    parallel_for(IW - tail_start, [&](size_t i_tail) {
+                    cpu_parallel->parallel_for(IW - tail_start, [&](size_t i_tail) {
                         reduce_kernel_process(in_ptr_n + (tail_start + i_tail) * src_data_size,
                                               out_ptr_n + (tail_start + i_tail) * dst_data_size,
                                               1,
@@ -2714,10 +2715,10 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                                               ID * IH);
                     });
                 } else {
-                    parallel_for(IC, [&](size_t ic) {
+                    cpu_parallel->parallel_for(IC, [&](size_t ic) {
                         size_t oc = ic;
                         GET_PTR_NC_PLN;
-                        parallel_for(IWB, [&](size_t iwb) {
+                        cpu_parallel->parallel_for(IWB, [&](size_t iwb) {
                             size_t owb = iwb;
                             reduce_kernel_process(in_ptr_nc + iwb * blk_size * src_data_size,
                                                   out_ptr_nc + owb * blk_size * dst_data_size,
@@ -2726,7 +2727,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                                                   ID * IH);
                         });
                         size_t tail_start = IWB * blk_size;
-                        parallel_for(IW - tail_start, [&](size_t i_tail) {
+                        cpu_parallel->parallel_for(IW - tail_start, [&](size_t i_tail) {
                             reduce_kernel_process(in_ptr_nc + (tail_start + i_tail) * src_data_size,
                                                   out_ptr_nc + (tail_start + i_tail) * dst_data_size,
                                                   1,
@@ -2736,7 +2737,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     });
                 }
             } else if (ReduceC && ReduceD && ReduceH && !ReduceW) {
-                parallel_for(IW / blk_size, [&](size_t ibw) {
+                cpu_parallel->parallel_for(IW / blk_size, [&](size_t ibw) {
                     size_t obw = ibw;
                     reduce_kernel_process(in_ptr_n + ibw * blk_size * src_data_size,
                                           out_ptr_n + obw * blk_size * dst_data_size,
@@ -2754,7 +2755,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
             } else if (ReduceC && !ReduceD && !ReduceH && !ReduceW) {
                 size_t IS = ID * IH * IW;
                 reduce_stride = IS;
-                parallel_for(IS / blk_size, [&](size_t ibs) {
+                cpu_parallel->parallel_for(IS / blk_size, [&](size_t ibs) {
                     size_t obs = ibs;
                     reduce_kernel_process(in_ptr_n + ibs * blk_size * src_data_size,
                                           out_ptr_n + obs * blk_size * dst_data_size,
@@ -2803,6 +2804,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
 }
 
 void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
+    const auto& cpu_parallel = context->getCpuParallel();
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
     output_info_reassign(&out_ptr);
@@ -2816,7 +2818,7 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 apply_division = getAlgorithm() == Algorithm::ReduceMean && attr.get()->post_ops_.len() == 0;
                 apply_post_kernel = !apply_division;
             }
-            parallel_for2d(ICB, ID, [&](size_t icb, size_t id) {
+            cpu_parallel->parallel_for2d(ICB, ID, [&](size_t icb, size_t id) {
                 size_t ocb = icb, od = id;
                 GET_PTR_NCD_BASE_PTR_N_BLK;
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
@@ -2830,7 +2832,7 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 init_dst_data(vec_prc.data(), prc_size);
                 uint8_t* out_ptr_n_cp = out_ptr_n;
                 out_ptr_n = vec_prc.data();
-                parallel_for(ICB, [&](size_t icb) {
+                cpu_parallel->parallel_for(ICB, [&](size_t icb) {
                     size_t ocb = icb;
                     GET_PTR_NC_BLK;
                     reduce_kernel_process(in_ptr_nc, out_ptr_nc, ID * IH * IW * blk_size);
@@ -2858,7 +2860,7 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
             }
         } else if (ReduceC && !ReduceD && !ReduceH && !ReduceW) {
             reduce_stride = ID * IH * IW * blk_size;
-            parallel_for3d(ID, IH, IW, [&](size_t id, size_t ih, size_t iw) {
+            cpu_parallel->parallel_for3d(ID, IH, IW, [&](size_t id, size_t ih, size_t iw) {
                 size_t icb = 0, ocb = 0;
                 GET_PTR_NC_BLK;
                 size_t od = id;
@@ -2879,7 +2881,7 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     for (size_t ih = 0; ih < IH; ih++) {
                         size_t oh = ReduceH ? 0 : ih;
                         GET_PTR_NCDH_BLK;
-                        parallel_for(IW, [&](size_t iw) {
+                        cpu_parallel->parallel_for(IW, [&](size_t iw) {
                             size_t ow = iw;
                             GET_PTR_NCDHW_BLK;
                             reduce_kernel_process(in_ptr_ncdhw, out_ptr_ncdhw, blk_size);
@@ -2897,6 +2899,7 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
 }
 
 void Reduce::reduce_BLK_concern_padding(const uint8_t* in_ptr, uint8_t* out_ptr) {
+    const auto& cpu_parallel = context->getCpuParallel();
     size_t ICB = div_up(IC, blk_size);
     size_t OCB = div_up(OC, blk_size);
     output_info_reassign(&out_ptr);
@@ -2923,7 +2926,7 @@ void Reduce::reduce_BLK_concern_padding(const uint8_t* in_ptr, uint8_t* out_ptr)
                 size_t ocb = 0;
                 ;
                 size_t ic = icb * blk_size;
-                parallel_for(ID, [&](size_t id) {
+                cpu_parallel->parallel_for(ID, [&](size_t id) {
                     size_t od = id;
                     GET_PTR_NCD_BASE_PTR_N_BLK;
                     if (ic + blk_size <= IC) {
@@ -2979,7 +2982,7 @@ void Reduce::reduce_BLK_concern_padding(const uint8_t* in_ptr, uint8_t* out_ptr)
                         for (size_t ih = 0; ih < IH; ih++) {
                             size_t oh = ReduceH ? 0 : ih;
                             GET_PTR_NCDH_BLK;
-                            parallel_for(IW, [&](size_t iw) {
+                            cpu_parallel->parallel_for(IW, [&](size_t iw) {
                                 size_t ow = iw;
                                 GET_PTR_NCDHW_BLK;
                                 reduce_kernel_process(in_ptr_ncdhw, out_ptr_ncdhw, blk_size);
@@ -3019,11 +3022,12 @@ inline void Reduce::reduce_kernel_process(const uint8_t* in_p,
 }
 
 inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const uint8_t* in_ptr = fuse_low_precision ? static_cast<uint8_t*>(&intermediate_buf[0]) : nullptr;
     const size_t integerDivisor = empty_input ? 1 : IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
     const auto divisor = static_cast<float>(integerDivisor);
     if (layout == ReduceLayoutType::reduce_ncsp) {
-        parallel_for2d(OB, OC, [&](size_t ob, size_t oc) {
+        cpu_parallel->parallel_for2d(OB, OC, [&](size_t ob, size_t oc) {
             const uint8_t* in_p = in_ptr + (ob * OC + oc) * OD * OH * OW * intermediate_data_size;
             uint8_t* out_p = out_ptr + (ob * OC + oc) * OD * OH * OW * dst_data_size;
             auto arg = jit_reduce_post_call_args();
@@ -3062,7 +3066,7 @@ inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
         });
     } else {
         size_t OCB = div_up(OC, blk_size);
-        parallel_for2d(OB, OCB, [&](size_t ob, size_t ocb) {
+        cpu_parallel->parallel_for2d(OB, OCB, [&](size_t ob, size_t ocb) {
             const uint8_t* in_p = in_ptr + (ob * OCB + ocb) * OD * OH * OW * blk_size * intermediate_data_size;
             uint8_t* out_p = out_ptr + (ob * OCB + ocb) * OD * OH * OW * blk_size * dst_data_size;
             auto arg = jit_reduce_post_call_args();
@@ -3112,6 +3116,7 @@ inline void Reduce::output_info_restore(uint8_t** out_ptr) {
 }
 
 void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
+    const auto& cpu_parallel = context->getCpuParallel();
     // dimension reinterpret after nspc reusing routine reduce_PLN
     // demote -- nspc -- ncsp
     //  DIM0  --   B  --  B
@@ -3130,7 +3135,7 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     if (dst_data_size == 4) {
         auto src_data = reinterpret_cast<const float*>(proc_ptr);
         auto dst_data = reinterpret_cast<float*>(out_ptr);
-        parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
+        cpu_parallel->parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * stride0 + j * DIM1;
             auto dst_off = b * stride0 + j;
             for (size_t dim1 = 0; dim1 < DIM1; dim1++) {
@@ -3142,7 +3147,7 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     } else if (dst_data_size == 2) {
         auto src_data = reinterpret_cast<const uint16_t*>(proc_ptr);
         auto dst_data = reinterpret_cast<uint16_t*>(out_ptr);
-        parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
+        cpu_parallel->parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * stride0 + j * DIM1;
             auto dst_off = b * stride0 + j;
             for (size_t dim1 = 0; dim1 < DIM1; dim1++) {
@@ -3154,7 +3159,7 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     } else {
         auto src_data = reinterpret_cast<const uint8_t*>(proc_ptr);
         auto dst_data = reinterpret_cast<uint8_t*>(out_ptr);
-        parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
+        cpu_parallel->parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * stride0 + j * DIM1;
             auto dst_off = b * stride0 + j;
             for (size_t dim1 = 0; dim1 < DIM1; dim1++) {
@@ -3167,6 +3172,7 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
 }
 
 void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const size_t DIM0 = OB;
     const size_t DIM1 = OC;
     const size_t DIM2 = OD;
@@ -3179,7 +3185,7 @@ void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     if (dst_data_size == 4) {
         auto src_data = reinterpret_cast<const float*>(proc_ptr);
         auto dst_data = reinterpret_cast<float*>(out_ptr);
-        parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
+        cpu_parallel->parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * src_stride0 + j * blk_size;
             auto dst_off = b * dst_stride0 + j;
             for (size_t dim1 = 0; dim1 + blk_size <= DIM1; dim1 += blk_size) {
@@ -3200,7 +3206,7 @@ void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     } else if (dst_data_size == 2) {
         auto src_data = reinterpret_cast<const uint16_t*>(proc_ptr);
         auto dst_data = reinterpret_cast<uint16_t*>(out_ptr);
-        parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
+        cpu_parallel->parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * src_stride0 + j * blk_size;
             auto dst_off = b * dst_stride0 + j;
             for (size_t dim1 = 0; dim1 + blk_size <= DIM1; dim1 += blk_size) {
@@ -3221,7 +3227,7 @@ void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     } else {
         auto src_data = reinterpret_cast<const uint8_t*>(proc_ptr);
         auto dst_data = reinterpret_cast<uint8_t*>(out_ptr);
-        parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
+        cpu_parallel->parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * src_stride0 + j * blk_size;
             auto dst_off = b * dst_stride0 + j;
             for (size_t dim1 = 0; dim1 + blk_size <= DIM1; dim1 += blk_size) {
@@ -3243,6 +3249,7 @@ void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
 }
 
 inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
+    const auto& cpu_parallel = context->getCpuParallel();
     switch (algorithm) {
     case Algorithm::ReduceL1:
     case Algorithm::ReduceL2:
@@ -3258,32 +3265,32 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
     case Algorithm::ReduceProd:
         if (output_prec == ov::element::f32) {
             auto out_p = reinterpret_cast<float*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<float>(1);
             });
         } else if (output_prec == ov::element::i32) {
             auto out_p = reinterpret_cast<int32_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<int32_t>(1);
             });
         } else if (output_prec == ov::element::bf16) {
             auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<bfloat16_t>(1);
             });
         } else if (output_prec == ov::element::f16) {
             auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<ov::float16>(1);
             });
         } else if (output_prec == ov::element::u8) {
             auto out_p = reinterpret_cast<uint8_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<uint8_t>(1);
             });
         } else if (output_prec == ov::element::i8) {
             auto out_p = reinterpret_cast<int8_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<int8_t>(1);
             });
         }
@@ -3291,32 +3298,32 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
     case Algorithm::ReduceMax:
         if (output_prec == ov::element::f32) {
             auto out_p = reinterpret_cast<float*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<float>::lowest();
             });
         } else if (output_prec == ov::element::i32) {
             auto out_p = reinterpret_cast<int32_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<int32_t>::min();
             });
         } else if (output_prec == ov::element::bf16) {
             auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<bfloat16_t>::lowest();
             });
         } else if (output_prec == ov::element::f16) {
             auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<ov::float16>::lowest();
             });
         } else if (output_prec == ov::element::u8) {
             auto out_p = reinterpret_cast<uint8_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<uint8_t>::min();
             });
         } else if (output_prec == ov::element::i8) {
             auto out_p = reinterpret_cast<int8_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<int8_t>::min();
             });
         }
@@ -3324,32 +3331,32 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
     case Algorithm::ReduceMin:
         if (output_prec == ov::element::f32) {
             auto out_p = reinterpret_cast<float*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<float>::max();
             });
         } else if (output_prec == ov::element::i32) {
             auto out_p = reinterpret_cast<int32_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<int32_t>::max();
             });
         } else if (output_prec == ov::element::bf16) {
             auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<bfloat16_t>::max();
             });
         } else if (output_prec == ov::element::f16) {
             auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<ov::float16>::max();
             });
         } else if (output_prec == ov::element::u8) {
             auto out_p = reinterpret_cast<uint8_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<uint8_t>::max();
             });
         } else if (output_prec == ov::element::i8) {
             auto out_p = reinterpret_cast<int8_t*>(out_ptr);
-            parallel_for(dst_size / dst_data_size, [&](size_t i) {
+            cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<int8_t>::max();
             });
         }
@@ -3662,6 +3669,7 @@ void Reduce::reduce_ref_process(const float* in_ptr,
 }
 
 inline void Reduce::reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount) {
+    const auto& cpu_parallel = context->getCpuParallel();
     switch (algorithm) {
     case Algorithm::ReduceAnd:
     case Algorithm::ReduceL1:
@@ -3673,18 +3681,18 @@ inline void Reduce::reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_
     case Algorithm::ReduceSumSquare:
         break;
     case Algorithm::ReduceL2:
-        parallel_for(work_amount_dst, [&](size_t i) {
+        cpu_parallel->parallel_for(work_amount_dst, [&](size_t i) {
             out_ptr[i] = std::sqrt(out_ptr[i]);
         });
         break;
     case Algorithm::ReduceLogSum:
     case Algorithm::ReduceLogSumExp:
-        parallel_for(work_amount_dst, [&](size_t i) {
+        cpu_parallel->parallel_for(work_amount_dst, [&](size_t i) {
             out_ptr[i] = logf(out_ptr[i]);
         });
         break;
     case Algorithm::ReduceMean:
-        parallel_for(work_amount_dst, [&](size_t i) {
+        cpu_parallel->parallel_for(work_amount_dst, [&](size_t i) {
             out_ptr[i] /= reduced_dims_work_amount;
         });
         break;

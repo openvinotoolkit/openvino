@@ -94,6 +94,7 @@ void PriorBoxClustered::createPrimitive() {
 }
 
 void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int layer_height = in_data[0];
     const int layer_width = in_data[1];
@@ -113,7 +114,7 @@ void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& out_shape = getChildEdgeAt(0)->getMemory().getShape().getStaticDims();
 
     size_t var_size = variances.size();
-    parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {
+    cpu_parallel->parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {
         float center_x = (w + offset) * step_w;
         float center_y = (h + offset) * step_h;
 

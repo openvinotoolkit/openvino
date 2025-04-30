@@ -147,6 +147,10 @@ public:
         return m_context;
     }
 
+    dnnl::threadpool_interop::threadpool_iface* getThreadPool() {
+        return m_context->getThreadPool();
+    }
+
     std::vector<MemStatePtr> memoryStates() const;
     void assignStates(const std::vector<MemStatePtr>& state);
 

@@ -892,6 +892,7 @@ void ROIAlign::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 template <typename inputType, typename outputType>
 void ROIAlign::executeSpecified() {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
     auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto& dstMemory = getChildEdgeAt(0)->getMemory();
@@ -963,7 +964,7 @@ void ROIAlign::executeSpecified() {
     }
     }
 
-    parallel_for(realRois, [&](size_t n) {
+    cpu_parallel->parallel_for(realRois, [&](size_t n) {
         int roiOff = n * 4;
         const float* srcRoiPtr = &srcRoi[roiOff];
         int roiBatchInd = srcRoiIdx[n];
@@ -1134,7 +1135,7 @@ void ROIAlign::executeSpecified() {
             });
         } else {
             // one lane for one sample generation, then pooling all samples.
-            parallel_for4d(realRois, C, pooledH, pooledW, [&](int n, int cIdx, int yBinInd, int xBinInd) {
+            cpu_parallel->parallel_for4d(realRois, C, pooledH, pooledW, [&](int n, int cIdx, int yBinInd, int xBinInd) {
                 size_t batchSrcOffset = srcRoiIdx[n] * batchInputStride;
                 size_t channelSrcOffset = batchSrcOffset + cIdx * H * W;
                 size_t binOffset = yBinInd * pooledW + xBinInd;
@@ -1156,7 +1157,7 @@ void ROIAlign::executeSpecified() {
         }
     } else {
         // ref with planar
-        parallel_for4d(realRois, C, pooledH, pooledW, [&](int n, int cIdx, int yBinInd, int xBinInd) {
+        cpu_parallel->parallel_for4d(realRois, C, pooledH, pooledW, [&](int n, int cIdx, int yBinInd, int xBinInd) {
             int numSamplesROI = numSamples[n];
             size_t batchSrcOffset = srcRoiIdx[n] * batchInputStride;
             size_t channelSrcOffset = batchSrcOffset + cIdx * H * W;

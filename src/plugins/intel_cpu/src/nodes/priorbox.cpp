@@ -141,6 +141,7 @@ void PriorBox::createPrimitive() {
 }
 
 void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int H = in_data[0];
     const int W = in_data[1];
@@ -288,18 +289,18 @@ void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (clip) {
-        parallel_for((H * W * number_of_priors * 4), [&](size_t i) {
+        cpu_parallel->parallel_for((H * W * number_of_priors * 4), [&](size_t i) {
             dst_data[i] = (std::min)((std::max)(dst_data[i], 0.0f), 1.0f);
         });
     }
 
     uint64_t channel_size = OH * OW;
     if (variance.size() == 1) {
-        parallel_for(channel_size, [&](size_t i) {
+        cpu_parallel->parallel_for(channel_size, [&](size_t i) {
             dst_data[i + channel_size] = variance[0];
         });
     } else {
-        parallel_for(H * W * number_of_priors, [&](size_t i) {
+        cpu_parallel->parallel_for(H * W * number_of_priors, [&](size_t i) {
             for (size_t j = 0; j < 4; ++j) {
                 dst_data[i * 4 + j + channel_size] = variance[j];
             }

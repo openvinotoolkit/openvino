@@ -1238,6 +1238,7 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
                                          const std::vector<size_t>& s_str,
                                          const std::vector<size_t>& w_str,
                                          const std::vector<size_t>& d_str) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto dst_f32 = reinterpret_cast<float*>(dst);
 
     const int MB = jcp.mb;
@@ -1245,7 +1246,7 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
     int ocb_work = div_up(jcp.nb_oc, jcp.nb_oc_blocking);
     int nbits = 8;
 
-    parallel_for4d(MB, jcp.ngroups, ocb_work, jcp.oh, [&](int n, int g, int ocbb, int oh) {
+    cpu_parallel->parallel_for4d(MB, jcp.ngroups, ocb_work, jcp.oh, [&](int n, int g, int ocbb, int oh) {
         int ocb = ocbb * jcp.nb_oc_blocking;
         int ocb_num = jcp.nb_oc_blocking;
 
@@ -1294,6 +1295,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                                          const std::vector<size_t>& s_str,
                                          const std::vector<size_t>& w_str,
                                          const std::vector<size_t>& d_str) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto dst_fp = reinterpret_cast<float*>(dst);
 
     const bool with_groups = jcp.ngroups > 1;
@@ -1361,7 +1363,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
         }
     };
 
-    parallel_for5d(G, MB, OC, OH, OW, [&](int g, int mb, int oc, int oh, int ow) {
+    cpu_parallel->parallel_for5d(G, MB, OC, OH, OW, [&](int g, int mb, int oc, int oh, int ow) {
         int32_t a = 0;
         ker(a, g, mb, oc, oh, ow);
 

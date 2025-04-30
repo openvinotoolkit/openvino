@@ -562,6 +562,7 @@ void Concat::exec1DCase() {
 }
 
 void Concat::execNspcSpecCase() {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto& dst_memory = getChildEdgeAt(0)->getMemory();
     const size_t num_src = getParentEdges().size();
     auto* dst_ptr = dst_memory.getDataAs<uint8_t>();
@@ -595,7 +596,7 @@ void Concat::execNspcSpecCase() {
     const Shape& shape = getSrcMemoryAtPort(firstNonZeroEdge)->getShape();
     const size_t iter_count = shape.getElementsCount() / shape.getStaticDims()[channelAxis];
 
-    parallel_for(iter_count, [&](int i) {
+    cpu_parallel->parallel_for(iter_count, [&](int i) {
         const size_t dst_off = i * channels_size;
         for (size_t j = 0; j < nonZeroInShapes; j++) {
             cpu_memcpy(dst_ptrs[j] + dst_off, src_ptrs[j] + i * channelsDataSize[j], channelsDataSize[j]);
@@ -604,6 +605,7 @@ void Concat::execNspcSpecCase() {
 }
 
 void Concat::execRef() {
+    const auto& cpu_parallel = context->getCpuParallel();
     const size_t numSrc = getParentEdges().size();
     const auto& dstMemory = getChildEdgeAt(0)->getMemory();
     auto* dstPtr = dstMemory.getDataAs<uint8_t>();
@@ -646,7 +648,7 @@ void Concat::execRef() {
         }
         const auto L1Size = dnnl::utils::get_cache_size(1, true);
         UNUSED(L1Size);  // for Windows
-        parallel_for6d(physDims[0],
+        cpu_parallel->parallel_for6d(physDims[0],
                        physDims[1],
                        physDims[2],
                        physDims[3],

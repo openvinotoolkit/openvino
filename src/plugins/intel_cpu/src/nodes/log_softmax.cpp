@@ -94,11 +94,12 @@ void LogSoftmax::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void LogSoftmax::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
 
     if (isLastDim) {
-        parallel_for(axisStep, [&](size_t i) {
+        cpu_parallel->parallel_for(axisStep, [&](size_t i) {
             const float* srcDataPtr = &srcData[i * reducedAxisSize];
             float* dstDataPtr = &dstData[i * reducedAxisSize];
 
@@ -114,7 +115,7 @@ void LogSoftmax::execute([[maybe_unused]] const dnnl::stream& strm) {
             }
         });
     } else {
-        parallel_for2d(axisStep, reducedAxisStride, [&](size_t k, size_t i) {
+        cpu_parallel->parallel_for2d(axisStep, reducedAxisStride, [&](size_t k, size_t i) {
             const float* srcDataPtr = &srcData[k * reducedAxisStride * reducedAxisSize + i];
             float* dstDataPtr = &dstData[k * reducedAxisStride * reducedAxisSize + i];
 

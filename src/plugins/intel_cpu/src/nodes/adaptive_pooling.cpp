@@ -131,6 +131,7 @@ void AdaptivePooling::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
     if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32)) {
@@ -252,7 +253,7 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
         pool = poolAvg;
     }
 
-    parallel_for5d(N, blockCount, OD, OH, OW, [&](int n, int blkIdx, int od, int oh, int ow) {
+    cpu_parallel->parallel_for5d(N, blockCount, OD, OH, OW, [&](int n, int blkIdx, int od, int oh, int ow) {
         auto srcData = src + n * inStrides[0] + blkIdx * inStrides[1];
         auto dstData = dst + n * outStrides[0] + blkIdx * outStrides[1] + od * outStrides[2] + oh * outStrides[3] +
                        ow * outStrides[4];

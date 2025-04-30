@@ -109,7 +109,7 @@ std::shared_ptr<DnnlMatMulPrimitive> DnnlMatMulPrimitive::create(const MemoryArg
     Key dnnlMatMulKey{srcDesc, weiDesc, biaDesc, dstDesc, shapeAgnosticData->m_primAttrs.attr};
 
     auto builder = [&context](const Key& dnnlKey) {
-        return std::make_shared<DnnlMatMulPrimitive>(dnnlKey, context->getEngine(), context->getImplPriorities());
+        return std::make_shared<DnnlMatMulPrimitive>(dnnlKey, context->getEngine(), context->getThreadPool(), context->getImplPriorities());
     };
 
     auto runtimeCache = context->getRuntimeCache();
@@ -344,8 +344,9 @@ static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc)
 
 DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
                                          const dnnl::engine& engine,
+                                         dnnl::threadpool_interop::threadpool_iface* threadPool,
                                          const std::vector<impl_desc_type>& implPriorities)
-    : m_stream(dnnl::threadpool_interop::make_stream(engine, get_thread_pool())),
+    : m_stream(dnnl::threadpool_interop::make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),

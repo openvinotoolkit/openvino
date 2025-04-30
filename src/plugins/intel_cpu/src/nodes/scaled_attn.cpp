@@ -1814,6 +1814,7 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
 
 // Update pastkv using cur_k, cur_v, simply append cur_k, cur_v to the end of pastkv in the state.
 void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const MemoryPtr& mem_cur_v) {
+    const auto& cpu_parallel = context->getCpuParallel();
     // L, B, H, S -> [2, 0, 1, 3] -> B, H, L, S
     std::vector<size_t> order = {0, 1, 2, 3};
     if (!m_config.config.permute_axes.empty()) {
@@ -1911,14 +1912,14 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
                     [&](const SDPAQuantParam& quant_param, PlainTensor& new_scale_zp, PlainTensor& old_scale_zp) {
                         if (quant_param.isByChannel) {
                             size_t group_nums = div_up(L0, quant_param.groupSize) * 2;
-                            parallel_for(group_nums, [&](size_t m) {
+                            cpu_parallel->parallel_for(group_nums, [&](size_t m) {
                                 memcpy(new_scale_zp.ptr<float>(m),
                                        old_scale_zp.ptr<float>(m),
                                        sizeof(float) * old_scale_zp.m_dims[1] * old_scale_zp.m_dims[2] *
                                            old_scale_zp.m_dims[3]);
                             });
                         } else {
-                            parallel_for(L0, [&](size_t m) {
+                            cpu_parallel->parallel_for(L0, [&](size_t m) {
                                 memcpy(new_scale_zp.ptr<float>(m),
                                        old_scale_zp.ptr<float>(m),
                                        sizeof(float) * old_scale_zp.m_dims[1] * old_scale_zp.m_dims[2] *

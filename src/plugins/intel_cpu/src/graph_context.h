@@ -31,6 +31,7 @@ public:
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
+                 std::shared_ptr<CpuParallel> cpu_parallel = nullptr,
                  std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
     const Config& getConfig() const {
@@ -61,6 +62,14 @@ public:
 
     ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
         return m_cpuStreamExecutor;
+    }
+
+    std::shared_ptr<CpuParallel> getCpuParallel() const {
+        return m_cpuParallel;
+    }
+
+    dnnl::threadpool_interop::threadpool_iface* getThreadPool() const {
+        return m_threadPool.get();
     }
 
     std::shared_ptr<SubMemoryManager> getSubMemory() const {
@@ -112,6 +121,8 @@ private:
     ov::threading::IStreamsExecutor::Ptr m_streamExecutor;
     // cpu stream executor for current graph
     ov::threading::CPUStreamsExecutor::Ptr m_cpuStreamExecutor;
+    std::shared_ptr<CpuParallel> m_cpuParallel;
+    std::shared_ptr<dnnl::threadpool_interop::threadpool_iface> m_threadPool;
     // numa submemory manager
     std::shared_ptr<SubMemoryManager> m_subMemoryManager;
 
