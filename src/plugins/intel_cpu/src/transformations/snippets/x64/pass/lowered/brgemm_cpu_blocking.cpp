@@ -52,7 +52,7 @@ size_t BrgemmCPUBlocking::get_default_n_blk([[maybe_unused]] size_t n) const {
 std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    OPENVINO_ASSERT(brgemm, "BrgemmCPU is expected!");
+    assert(brgemm && "BrgemmCPU is expected!");
 
     size_t m_blk, n_blk, k_blk;
     std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
