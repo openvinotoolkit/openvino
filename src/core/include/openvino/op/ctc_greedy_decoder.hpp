@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API CTCGreedyDecoder : public Op {
 public:
     OPENVINO_OP("CTCGreedyDecoder", "opset1");
+    ~CTCGreedyDecoder() override;
 
     CTCGreedyDecoder() = default;
     /// \brief Constructs a CTCGreedyDecoder operation

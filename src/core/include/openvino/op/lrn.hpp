@@ -28,6 +28,7 @@ namespace v0 {
 class OPENVINO_API LRN : public Op {
 public:
     OPENVINO_OP("LRN", "opset1");
+    ~LRN() override;
 
     /// \brief Constructs a LRN operation.
     LRN() = default;

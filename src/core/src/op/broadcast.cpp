@@ -10,6 +10,7 @@
 #include "itt.hpp"
 #include "openvino/reference/broadcast.hpp"
 
+ov::op::v3::Broadcast::~Broadcast() = default;
 ov::op::v3::Broadcast::Broadcast(const Output<Node>& arg,
                                  const Output<Node>& target_shape,
                                  const Output<Node>& axes_mapping,
@@ -216,6 +217,7 @@ BroadcastModeSpec to_broadcast_mode(const AutoBroadcastSpec& bs) {
 }
 }  // namespace
 
+ov::op::v1::Broadcast::~Broadcast() = default;
 ov::op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                                  const Output<Node>& target_shape,
                                  const Output<Node>& axes_mapping,

@@ -11,6 +11,7 @@
 using namespace std;
 
 namespace ov {
+op::v0::PriorBoxClustered::~PriorBoxClustered() = default;
 op::v0::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
                                              const Output<Node>& image_shape,
                                              const Attributes& attrs)

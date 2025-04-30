@@ -15,6 +15,7 @@ namespace v15 {
 class OPENVINO_API SearchSorted : public Op {
 public:
     OPENVINO_OP("SearchSorted", "opset15", Op);
+    ~SearchSorted() override;
 
     SearchSorted() = default;
     /// \brief Constructs a SearchSorted operation.

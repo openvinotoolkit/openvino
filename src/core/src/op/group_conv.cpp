@@ -15,6 +15,7 @@
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------
 namespace ov {
+op::v1::GroupConvolution::~GroupConvolution() = default;
 op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
                                            const Output<Node>& filters,
                                            const Strides& strides,

@@ -18,6 +18,7 @@ namespace v3 {
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
     OPENVINO_OP("Broadcast", "opset3", op::util::BroadcastBase);
+    ~Broadcast() override;
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;
@@ -80,6 +81,7 @@ namespace v1 {
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
     OPENVINO_OP("Broadcast", "opset1", op::util::BroadcastBase);
+    ~Broadcast() override;
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;

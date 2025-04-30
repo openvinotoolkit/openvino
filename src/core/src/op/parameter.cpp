@@ -12,6 +12,7 @@
 
 namespace ov {
 
+op::v0::Parameter::~Parameter() = default;
 op::v0::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
     : m_partial_shape(pshape),
       m_element_type(element_type),

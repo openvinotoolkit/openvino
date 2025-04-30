@@ -15,6 +15,7 @@ namespace v5 {
 class OPENVINO_API LogSoftmax : public Op {
 public:
     OPENVINO_OP("LogSoftmax", "opset5", op::Op);
+    ~LogSoftmax() override;
     LogSoftmax() = default;
     /// \brief Constructs a LogSoftmax operation.
     ///

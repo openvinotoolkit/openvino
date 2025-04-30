@@ -10,6 +10,7 @@
 #include "scatter_elements_update_shape_inference.hpp"
 
 namespace ov {
+op::v3::ScatterElementsUpdate::~ScatterElementsUpdate() = default;
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
                                                      const Output<Node>& updates,
@@ -30,6 +31,7 @@ std::shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const
     return std::make_shared<v3::ScatterElementsUpdate>(inputs.at(0), inputs.at(1), inputs.at(2), inputs.at(3));
 }
 
+op::v12::ScatterElementsUpdate::~ScatterElementsUpdate() = default;
 op::v12::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                       const Output<Node>& indices,
                                                       const Output<Node>& updates,

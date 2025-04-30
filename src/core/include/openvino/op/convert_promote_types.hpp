@@ -14,6 +14,7 @@ namespace v14 {
 class OPENVINO_API ConvertPromoteTypes : public Op {
 public:
     OPENVINO_OP("ConvertPromoteTypes", "opset14", op::Op);
+    ~ConvertPromoteTypes() override;
 
     /// \brief Constructs operation that promote and convert input types to one common datatype.
     ConvertPromoteTypes() = default;

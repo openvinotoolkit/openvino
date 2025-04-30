@@ -13,6 +13,7 @@
 #include "reverse_sequence_shape_inference.hpp"
 
 namespace ov {
+op::v0::ReverseSequence::~ReverseSequence() = default;
 op::v0::ReverseSequence::ReverseSequence(const Output<Node>& arg,
                                          const Output<Node>& seq_indices,
                                          int64_t batch_axis,

@@ -15,6 +15,7 @@ namespace v13 {
 class OPENVINO_API BitwiseOr : public util::BinaryElementwiseBitwise {
 public:
     OPENVINO_OP("BitwiseOr", "opset13", util::BinaryElementwiseBitwise);
+    ~BitwiseOr() override;
     /// \brief Constructs a bitwise OR operation.
     BitwiseOr() = default;
     /// \brief Constructs a bitwise OR operation.

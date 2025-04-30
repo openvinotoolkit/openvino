@@ -13,6 +13,7 @@
 #include "rnn_sequence_shape_inference.hpp"
 
 namespace ov {
+op::v5::RNNSequence::~RNNSequence() = default;
 op::v5::RNNSequence::RNNSequence() : m_direction(op::RecurrentSequenceDirection::FORWARD) {}
 
 op::v5::RNNSequence::RNNSequence(const Output<Node>& X,

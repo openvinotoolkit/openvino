@@ -22,6 +22,7 @@
 #include "itt.hpp"
 
 namespace ov {
+op::v7::DFT::~DFT() = default;
 op::v7::DFT::DFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();
 }

@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API NotEqual : public util::BinaryElementwiseComparison {
 public:
     OPENVINO_OP("NotEqual", "opset1", op::util::BinaryElementwiseComparison);
+    ~NotEqual() override;
     /// \brief Constructs a not-equal operation.
     NotEqual() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a not-equal operation.

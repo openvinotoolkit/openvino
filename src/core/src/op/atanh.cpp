@@ -24,6 +24,7 @@ struct Evaluate : ov::element::NoAction<bool> {
 }  // namespace atanh
 }  // namespace op
 
+op::v3::Atanh::~Atanh() = default;
 op::v3::Atanh::Atanh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

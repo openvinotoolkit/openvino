@@ -18,6 +18,7 @@ namespace v0 {
 class OPENVINO_API CumSum : public Op {
 public:
     OPENVINO_OP("CumSum", "opset3");
+    ~CumSum() override;
 
     /// \brief Constructs a cumulative summation operation.
     CumSum() = default;

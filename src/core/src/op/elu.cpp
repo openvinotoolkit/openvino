@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 
+ov::op::v0::Elu::~Elu() = default;
 ov::op::v0::Elu::Elu(const Output<Node>& data, const double alpha)
     : util::UnaryElementwiseArithmetic(data),
       m_alpha{alpha} {

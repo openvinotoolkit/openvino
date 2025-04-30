@@ -16,6 +16,7 @@ namespace v8 {
 class OPENVINO_API AdaptiveAvgPool : public Op {
 public:
     OPENVINO_OP("AdaptiveAvgPool", "opset8");
+    ~AdaptiveAvgPool() override;
 
     AdaptiveAvgPool() = default;
 

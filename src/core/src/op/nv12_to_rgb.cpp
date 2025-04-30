@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 
+ov::op::v8::NV12toRGB::~NV12toRGB() = default;
 ov::op::v8::NV12toRGB::NV12toRGB(const Output<Node>& arg)
     : util::ConvertColorNV12Base(arg, util::ConvertColorNV12Base::ColorConversion::NV12_TO_RGB) {
     constructor_validate_and_infer_types();

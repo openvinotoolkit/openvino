@@ -12,6 +12,7 @@ namespace ov::op::v16 {
 class OPENVINO_API SegmentMax : public ov::op::Op {
 public:
     OPENVINO_OP("SegmentMax", "opset16", ov::op::Op);
+    ~SegmentMax() override;
 
     SegmentMax() = default;
 

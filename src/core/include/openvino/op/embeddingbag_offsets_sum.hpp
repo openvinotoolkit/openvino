@@ -16,6 +16,7 @@ namespace v3 {
 class OPENVINO_API EmbeddingBagOffsetsSum : public util::EmbeddingBagOffsetsBase {
 public:
     OPENVINO_OP("EmbeddingBagOffsetsSum", "opset3", util::EmbeddingBagOffsetsBase);
+    ~EmbeddingBagOffsetsSum() override;
     /// \brief Constructs a EmbeddingBagOffsetsSum operation.
     EmbeddingBagOffsetsSum() = default;
     /// \brief Constructs a EmbeddingBagOffsetsSum operation.

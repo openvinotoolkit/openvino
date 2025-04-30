@@ -12,6 +12,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 
 namespace ov {
+op::v6::ExperimentalDetectronPriorGridGenerator::~ExperimentalDetectronPriorGridGenerator() = default;
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const Output<Node>& priors,
     const Output<Node>& feature_map,

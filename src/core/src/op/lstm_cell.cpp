@@ -16,6 +16,7 @@
 
 namespace ov {
 
+op::v0::LSTMCell::~LSTMCell() = default;
 op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
     m_activation_f = get_activation_function(0);
@@ -267,6 +268,7 @@ std::ostream& operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {
     return s << as_string(type);
 }
 
+op::v4::LSTMCell::~LSTMCell() = default;
 op::v4::LSTMCell::LSTMCell() {
     m_activations = {"sigmoid", "tanh", "tanh"};
     m_activation_f = get_activation_function(0);

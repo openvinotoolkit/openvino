@@ -12,6 +12,7 @@
 
 namespace ov {
 
+op::v3::GRUCell::~GRUCell() = default;
 op::v3::GRUCell::GRUCell() : m_linear_before_reset(false) {
     m_activations = {"sigmoid", "tanh"};
     m_activation_f = get_activation_function(0);

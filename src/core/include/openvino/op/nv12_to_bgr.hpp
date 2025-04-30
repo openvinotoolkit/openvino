@@ -33,6 +33,7 @@ namespace v8 {
 class OPENVINO_API NV12toBGR : public util::ConvertColorNV12Base {
 public:
     OPENVINO_OP("NV12toBGR", "opset8", util::ConvertColorNV12Base);
+    ~NV12toBGR() override;
 
     NV12toBGR() = default;
 

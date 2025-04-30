@@ -9,6 +9,7 @@
 
 namespace ov {
 
+op::v1::DeformablePSROIPooling::~DeformablePSROIPooling() = default;
 op::v1::DeformablePSROIPooling::DeformablePSROIPooling(const Output<Node>& input,
                                                        const Output<Node>& coords,
                                                        const Output<Node>& offsets,

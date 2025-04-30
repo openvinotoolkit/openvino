@@ -15,6 +15,7 @@ using namespace std;
 
 namespace ov {
 // *** Convolution OP SET 1 ***
+op::v1::Convolution::~Convolution() = default;
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
                                  const Strides& strides,

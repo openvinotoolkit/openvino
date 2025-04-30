@@ -8,6 +8,7 @@
 #include "itt.hpp"
 
 namespace ov {
+op::v8::DeformableConvolution::~DeformableConvolution() = default;
 op::v8::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,
                                                      const Output<Node>& filters,
@@ -138,6 +139,7 @@ std::shared_ptr<Node> op::v8::DeformableConvolution::clone_with_new_inputs(const
     }
 }
 
+op::v1::DeformableConvolution::~DeformableConvolution() = default;
 op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
                                                      const Output<Node>& offsets,
                                                      const Output<Node>& filters,

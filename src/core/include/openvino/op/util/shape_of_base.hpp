@@ -12,7 +12,7 @@ namespace util {
 class OPENVINO_API ShapeOfBase : public Op {
 public:
     OPENVINO_OP("ShapeOfBase", "util");
-    // ~ShapeOfBase() override;
+    ~ShapeOfBase() override;
 
     ShapeOfBase() = default;
 

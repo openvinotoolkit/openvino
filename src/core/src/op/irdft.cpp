@@ -9,6 +9,7 @@
 #include "irdft_shape_inference.hpp"
 #include "itt.hpp"
 
+ov::op::v9::IRDFT::~IRDFT() = default;
 ov::op::v9::IRDFT::IRDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();
 }

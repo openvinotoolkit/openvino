@@ -15,6 +15,7 @@ namespace v6 {
 class OPENVINO_API CTCGreedyDecoderSeqLen : public Op {
 public:
     OPENVINO_OP("CTCGreedyDecoderSeqLen", "opset6", op::Op);
+    ~CTCGreedyDecoderSeqLen() override;
     CTCGreedyDecoderSeqLen() = default;
     /// \brief Constructs a CTCGreedyDecoderSeqLen operation
     ///

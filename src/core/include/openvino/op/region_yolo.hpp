@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API RegionYolo : public Op {
 public:
     OPENVINO_OP("RegionYolo", "opset1");
+    ~RegionYolo() override;
 
     RegionYolo() = default;
     ///

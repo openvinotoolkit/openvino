@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "rdft_shape_inference.hpp"
 
+ov::op::v9::RDFT::~RDFT() = default;
 ov::op::v9::RDFT::RDFT(const Output<Node>& data, const Output<Node>& axes) : FFTBase(data, axes) {
     constructor_validate_and_infer_types();
 }

@@ -15,6 +15,7 @@ namespace v1 {
 class OPENVINO_API ReduceMean : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceMean", "opset1", util::ArithmeticReductionKeepDims);
+    ~ReduceMean() override;
     ReduceMean() = default;
 
     /// \param arg The tensor to be summed.

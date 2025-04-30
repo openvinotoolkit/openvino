@@ -28,6 +28,7 @@ namespace v0 {
 class OPENVINO_API Sqrt : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Sqrt", "opset1", util::UnaryElementwiseArithmetic);
+    ~Sqrt() override;
 
     /// \brief Constructs a square operation.
     ///

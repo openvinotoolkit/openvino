@@ -56,6 +56,7 @@ namespace v0 {
 class OPENVINO_API LSTMCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMCell", "opset1", op::util::RNNCellBase);
+    ~LSTMCell() override;
 
     LSTMCell();
     ///
@@ -274,6 +275,7 @@ namespace v4 {
 class OPENVINO_API LSTMCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMCell", "opset4", op::util::RNNCellBase);
+    ~LSTMCell() override;
 
     LSTMCell();
     ///

@@ -19,6 +19,7 @@ namespace v1 {
 class OPENVINO_API Convolution : public util::ConvolutionFwdPropBase {
 public:
     OPENVINO_OP("Convolution", "opset1", op::util::ConvolutionFwdPropBase);
+    ~Convolution() override;
 
     /// \brief Constructs a batched convolution operation.
     Convolution() = default;
@@ -60,6 +61,7 @@ public:
 class OPENVINO_API ConvolutionBackpropData : public util::ConvolutionBackPropBase {
 public:
     OPENVINO_OP("ConvolutionBackpropData", "opset1", op::util::ConvolutionBackPropBase);
+    ~ConvolutionBackpropData() override;
 
     /// \brief Constructs a batched-convolution data batch-backprop operation.
     ConvolutionBackpropData() = default;

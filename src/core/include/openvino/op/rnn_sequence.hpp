@@ -19,6 +19,7 @@ namespace v5 {
 class OPENVINO_API RNNSequence : public util::RNNCellBase {
 public:
     OPENVINO_OP("RNNSequence", "opset5", util::RNNCellBase);
+    ~RNNSequence() override;
 
     RNNSequence();
 

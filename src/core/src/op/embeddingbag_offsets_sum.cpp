@@ -8,6 +8,7 @@
 
 namespace ov {
 
+op::v3::EmbeddingBagOffsetsSum::~EmbeddingBagOffsetsSum() = default;
 op::v3::EmbeddingBagOffsetsSum::EmbeddingBagOffsetsSum(const Output<Node>& emb_table,
                                                        const Output<Node>& indices,
                                                        const Output<Node>& offsets,

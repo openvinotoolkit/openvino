@@ -15,6 +15,7 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 namespace ov {
+ov::op::v0::Interpolate::~Interpolate() = default;
 ov::op::v0::Interpolate::Interpolate(const Output<Node>& image,
                                      const Output<Node>& output_shape,
                                      const Attributes& attrs)
@@ -76,6 +77,7 @@ void op::v0::Interpolate::set_attrs(Attributes attrs) {
 }  // namespace ov
 
 // Interpolate v4
+ov::op::v4::Interpolate::~Interpolate() = default;
 ov::op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                      const Output<Node>& output_shape,
                                      const Output<Node>& scales,
@@ -288,6 +290,7 @@ bool ov::op::v4::Interpolate::has_evaluate() const {
 }
 
 namespace ov {
+op::v11::Interpolate::~Interpolate() = default;
 op::v11::Interpolate::Interpolate(const Output<Node>& image,
                                   const Output<Node>& scales_or_sizes,
                                   const InterpolateAttrs& attrs)

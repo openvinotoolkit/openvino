@@ -14,6 +14,7 @@ namespace v9 {
 class OPENVINO_API Eye : public Op {
 public:
     OPENVINO_OP("Eye", "opset9");
+    ~Eye() override;
 
     Eye() = default;
 

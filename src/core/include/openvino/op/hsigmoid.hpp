@@ -18,6 +18,7 @@ namespace v5 {
 class OPENVINO_API HSigmoid : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("HSigmoid", "opset5", op::util::UnaryElementwiseArithmetic);
+    ~HSigmoid() override;
     HSigmoid() = default;
 
     /// \brief Constructs a HSigmoid operation.

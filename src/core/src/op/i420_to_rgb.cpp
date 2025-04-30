@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 
+ov::op::v8::I420toRGB::~I420toRGB() = default;
 ov::op::v8::I420toRGB::I420toRGB(const Output<Node>& arg)
     : util::ConvertColorI420Base(arg, util::ConvertColorI420Base::ColorConversion::I420_TO_RGB) {
     constructor_validate_and_infer_types();

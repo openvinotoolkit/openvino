@@ -14,6 +14,7 @@ namespace v3 {
 class OPENVINO_API ScatterNDUpdate : public util::ScatterNDBase {
 public:
     OPENVINO_OP("ScatterNDUpdate", "opset4", util::ScatterNDBase);
+    ~ScatterNDUpdate() override;
     ScatterNDUpdate() = default;
     /// \param inputs Tensor
     /// \param indices Index tensor: Data type must be `element::i32` or `element::i64`
@@ -35,6 +36,7 @@ namespace v15 {
 class OPENVINO_API ScatterNDUpdate : public util::ScatterNDBase {
 public:
     OPENVINO_OP("ScatterNDUpdate", "opset15", util::ScatterNDBase);
+    ~ScatterNDUpdate() override;
 
     /// \brief Lists the supported reduction types for this version of the operator.
     ///        See the specification for the description of how reduction works with ScatterNDUpdate.

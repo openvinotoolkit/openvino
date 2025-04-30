@@ -61,6 +61,7 @@ namespace v0 {
 class OPENVINO_API Result : public Op {
 public:
     OPENVINO_OP("Result", "opset1");
+    ~Result() override;
 
     /// \brief Allows a value to be used as a function result.
     Result() = default;

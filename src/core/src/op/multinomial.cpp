@@ -16,6 +16,7 @@ namespace ov {
 
 // ------------------------------ v13 ------------------------------
 
+op::v13::Multinomial::~Multinomial() = default;
 op::v13::Multinomial::Multinomial(const Output<Node>& probs,
                                   const Output<Node>& num_samples,
                                   const ov::element::Type_t convert_type,

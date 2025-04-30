@@ -20,6 +20,7 @@ namespace v6 {
 class OPENVINO_API ExperimentalDetectronTopKROIs : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronTopKROIs", "opset6", op::Op);
+    ~ExperimentalDetectronTopKROIs() override;
 
     ExperimentalDetectronTopKROIs() = default;
     /// \brief Constructs a ExperimentalDetectronTopKROIs operation.

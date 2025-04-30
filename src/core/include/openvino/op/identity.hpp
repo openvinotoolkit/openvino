@@ -15,6 +15,7 @@ namespace v16 {
 class OPENVINO_API Identity : public Op {
 public:
     OPENVINO_OP("Identity", "opset16");
+    ~Identity() override;
     Identity() = default;
     /**
      * @brief Identity operation is used as a placeholder. It copies the tensor data to the output.

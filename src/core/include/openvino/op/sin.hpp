@@ -28,6 +28,7 @@ namespace v0 {
 class OPENVINO_API Sin : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Sin", "opset1", util::UnaryElementwiseArithmetic);
+    ~Sin() override;
     /// \brief Constructs a sine operation.
     ///
     /// \param arg Node that produces the input tensor.

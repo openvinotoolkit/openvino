@@ -13,6 +13,7 @@
 
 namespace ov {
 
+op::v8::MatrixNms::~MatrixNms() = default;
 op::v8::MatrixNms::MatrixNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
     : Op({boxes, scores}),
       m_attrs{attrs} {

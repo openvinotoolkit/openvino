@@ -13,6 +13,7 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/reference/if.hpp"
 
+ov::op::v8::If::~If() = default;
 ov::op::v8::If::If() : MultiSubGraphOp(2) {}
 
 ov::op::v8::If::If(const Output<Node>& execution_condition) : If() {

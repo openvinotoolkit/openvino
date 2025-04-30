@@ -216,6 +216,7 @@ bool evaluate_bound(const Node* const op, TensorVector& outputs, bool is_lower) 
 }  // namespace mod
 
 namespace v1 {
+v1::Mod::~Mod() = default;
 v1::Mod::Mod(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

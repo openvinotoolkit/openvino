@@ -20,6 +20,7 @@ namespace v6 {
 class OPENVINO_API ExperimentalDetectronPriorGridGenerator : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronPriorGridGenerator", "opset6", op::Op);
+    ~ExperimentalDetectronPriorGridGenerator() override;
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

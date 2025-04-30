@@ -14,6 +14,7 @@ namespace v0 {
 class OPENVINO_API Log : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Log", "opset1", op::util::UnaryElementwiseArithmetic);
+    ~Log() override;
     /// \brief Constructs a natural log operation.
     Log() = default;
     /// \brief Constructs a natural log operation.

@@ -17,6 +17,7 @@ namespace v1 {
 class OPENVINO_API LogicalOr : public util::BinaryElementwiseLogical {
 public:
     OPENVINO_OP("LogicalOr", "opset1", util::BinaryElementwiseLogical);
+    ~LogicalOr() override;
     LogicalOr() = default;
     /// \brief Constructs a logical-or operation.
     ///

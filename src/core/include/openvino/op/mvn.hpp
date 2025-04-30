@@ -18,6 +18,7 @@ namespace v0 {
 class OPENVINO_API MVN : public Op {
 public:
     OPENVINO_OP("MVN", "opset2");
+    ~MVN() override;
 
     MVN() = default;
     /// \brief Constructs an MVN operation.
@@ -100,6 +101,7 @@ namespace v6 {
 class OPENVINO_API MVN : public Op {
 public:
     OPENVINO_OP("MVN", "opset6", op::Op);
+    ~MVN() override;
 
     MVN() = default;
     /// \brief Constructs an MVN operation.

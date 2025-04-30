@@ -16,6 +16,7 @@
 
 namespace ov {
 
+op::v14::Inverse::~Inverse() = default;
 op::v14::Inverse::Inverse(const Output<Node>& data, const bool adjoint) : Op({data}), m_adjoint(adjoint) {
     constructor_validate_and_infer_types();
 }

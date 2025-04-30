@@ -14,6 +14,7 @@ namespace v15 {
 class OPENVINO_API StringTensorUnpack : public ov::op::Op {
 public:
     OPENVINO_OP("StringTensorUnpack", "opset15", ov::op::Op);
+    ~StringTensorUnpack() override;
 
     StringTensorUnpack() = default;
     /// \brief Constructs a StringTensorUnpack operation.

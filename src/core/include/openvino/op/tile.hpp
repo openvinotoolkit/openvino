@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API Tile : public Op {
 public:
     OPENVINO_OP("Tile", "opset1");
+    ~Tile() override;
 
     Tile() = default;
     /// \brief Perform dynamic padding of a tensor

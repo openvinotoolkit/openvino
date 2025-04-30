@@ -11,6 +11,7 @@
 #include "openvino/op/multiply.hpp"
 
 namespace ov {
+op::v0::LRN::~LRN() = default;
 op::v0::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)
     : LRN(arg, op::v0::Constant::create(element::i64, ov::Shape{1}, {1}), alpha, beta, bias, size) {}
 

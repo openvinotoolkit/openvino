@@ -16,6 +16,7 @@ namespace v8 {
 class OPENVINO_API Slice : public Op {
 public:
     OPENVINO_OP("Slice", "opset8");
+    ~Slice() override;
 
     Slice() = default;
 

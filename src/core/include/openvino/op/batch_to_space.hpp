@@ -24,6 +24,7 @@ namespace v1 {
 class OPENVINO_API BatchToSpace : public Op {
 public:
     OPENVINO_OP("BatchToSpace", "opset2", op::Op);
+    ~BatchToSpace() override;
     BatchToSpace() = default;
     /// \brief Constructs a BatchToSpace operation.
     ///

@@ -16,6 +16,7 @@ namespace v4 {
 class OPENVINO_API SoftPlus : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("SoftPlus", "opset4", util::UnaryElementwiseArithmetic);
+    ~SoftPlus() override;
 
     SoftPlus() = default;
     /// \brief Constructs an SoftPlus operation.

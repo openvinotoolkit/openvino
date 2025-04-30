@@ -10,6 +10,7 @@
 #include "openvino/core/validation_util.hpp"
 
 namespace ov {
+op::v12::GroupNormalization::~GroupNormalization() = default;
 op::v12::GroupNormalization::GroupNormalization() : m_num_groups{0}, m_epsilon{0} {}
 
 op::v12::GroupNormalization::GroupNormalization(const Output<Node>& data,

@@ -15,6 +15,7 @@ namespace v9 {
 class OPENVINO_API GenerateProposals : public Op {
 public:
     OPENVINO_OP("GenerateProposals", "opset9");
+    ~GenerateProposals() override;
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

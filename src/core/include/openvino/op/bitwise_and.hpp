@@ -15,6 +15,7 @@ namespace v13 {
 class OPENVINO_API BitwiseAnd : public util::BinaryElementwiseBitwise {
 public:
     OPENVINO_OP("BitwiseAnd", "opset13", util::BinaryElementwiseBitwise);
+    ~BitwiseAnd() override;
     /// \brief Constructs a bitwise AND operation.
     BitwiseAnd() = default;
     /// \brief Constructs a bitwise AND operation.

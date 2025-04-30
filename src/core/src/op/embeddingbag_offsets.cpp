@@ -8,6 +8,7 @@
 
 namespace ov {
 
+op::v15::EmbeddingBagOffsets::~EmbeddingBagOffsets() = default;
 op::v15::EmbeddingBagOffsets::EmbeddingBagOffsets(const Output<Node>& emb_table,
                                                   const Output<Node>& indices,
                                                   const Output<Node>& offsets,

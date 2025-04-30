@@ -15,7 +15,7 @@ namespace util {
 class OPENVINO_API ConvolutionBase : public Op {
 public:
     OPENVINO_OP("ConvolutionBase", "util");
-    // ~ConvolutionBase() override;
+    ~ConvolutionBase() override;
 
     /// \brief Constructs a conversion operation.
     ConvolutionBase() = default;
@@ -108,7 +108,7 @@ private:
 class OPENVINO_API ConvolutionFwdPropBase : public ConvolutionBase {
 public:
     OPENVINO_OP("ConvolutionFwdPropBase", "util", ConvolutionBase);
-    // ~ConvolutionFwdPropBase() override;
+    ~ConvolutionFwdPropBase() override;
 
     /// \brief Constructs a conversion operation.
     ConvolutionFwdPropBase() = default;

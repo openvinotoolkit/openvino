@@ -15,6 +15,7 @@ namespace v15 {
 class OPENVINO_API BitwiseRightShift : public util::BinaryElementwiseBitwise {
 public:
     OPENVINO_OP("BitwiseRightShift", "opset15", util::BinaryElementwiseBitwise);
+    ~BitwiseRightShift() override;
     /// \brief Constructs a bitwise BitwiseRightShift operation.
     BitwiseRightShift() = default;
     /// \brief Constructs a bitwise BitwiseRightShift operation.

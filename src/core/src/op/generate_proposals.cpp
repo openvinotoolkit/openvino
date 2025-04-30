@@ -9,6 +9,7 @@
 
 namespace ov {
 
+op::v9::GenerateProposals::~GenerateProposals() = default;
 op::v9::GenerateProposals::GenerateProposals(const Output<Node>& im_info,
                                              const Output<Node>& anchors,
                                              const Output<Node>& deltas,

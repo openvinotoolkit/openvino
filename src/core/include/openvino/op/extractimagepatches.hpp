@@ -15,6 +15,7 @@ namespace v3 {
 class OPENVINO_API ExtractImagePatches : public Op {
 public:
     OPENVINO_OP("ExtractImagePatches", "opset3", op::Op);
+    ~ExtractImagePatches() override;
 
     ExtractImagePatches() = default;
     /// \brief Constructs a ExtractImagePatches operation
