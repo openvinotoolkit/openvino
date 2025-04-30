@@ -24,6 +24,11 @@ ov::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToConve
             OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TransformConvertToConvertTruncation")
             const auto root = m.get_match_root();
             const auto convert = ov::as_type_ptr<ov::opset1::Convert>(root);
+
+            if (!convert) {
+                return false;
+            }
+
             auto convert_truncation = std::make_shared<op::ConvertTruncation>(convert->get_input_source_output(0),
                                                                               convert->get_destination_type());
             convert_truncation->set_friendly_name(convert->get_friendly_name());

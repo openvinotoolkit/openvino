@@ -289,7 +289,7 @@ auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::No
         node);
 }
 
-bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept {
+bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) {
     const auto elementwise = ov::as_type_ptr<const ov::op::util::BinaryElementwiseArithmetic>(node);
     return
         (elementwise == nullptr) ||
