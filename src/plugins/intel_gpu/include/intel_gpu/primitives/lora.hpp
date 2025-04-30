@@ -30,16 +30,28 @@ struct lora : public primitive_base<lora> {
 
     bool transposed_states;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, transposed_states);
+        return seed;
+    }
+
     bool operator==(const primitive& rhs) const override {
-        return compare_common_params(rhs);
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lora>(rhs);
+        return transposed_states == rhs_casted.transposed_states;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<lora>::save(ob);
+        ob << transposed_states;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<lora>::load(ib);
+        ib >> transposed_states;
     }
 };
 
