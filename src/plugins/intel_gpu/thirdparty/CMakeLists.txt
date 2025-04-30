@@ -91,8 +91,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         endif()
 
         # bypass all variables specified to Android toolchain
-        foreach(flag_var IN ITEMS ANDROID_ABI ANDROID_ARM_MODE ANDROID_NATIVE_API_LEVEL ANDROID_PLATFORM ANDROID_STL
-                                  ANDROID_NDK CMAKE_ANDROID_ARCH_ABI CMAKE_ANDROID_NDK)
+        foreach(flag_var IN ITEMS ANDROID_ABI ANDROID_NATIVE_API_LEVEL ANDROID_PLATFORM ANDROID_STL ANDROID_NDK)
             if(${flag_var})
                 list(APPEND cmake_extra_args "-D${flag_var}=${${flag_var}}")
             endif()
