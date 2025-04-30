@@ -27,6 +27,11 @@ public:
     RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& avoid_device);
 };
 
+class SinCos : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::avoid::SinCos");
+    SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& avoid_device);
+};
 }  // namespace avoid
 }  // namespace patterns
 }  // namespace npuw
