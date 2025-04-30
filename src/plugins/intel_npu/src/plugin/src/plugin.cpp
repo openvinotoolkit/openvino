@@ -222,14 +222,15 @@ void Plugin::init_options() {
         }
     }
 
+    // parse again env_variables to update registered configs which have env vars set
+    _globalConfig.parseEnvVars();
+
+    // filter out unsupported options
     filter_config_by_compiler_support(_globalConfig);
 
     if (_backend) {
         _backend->registerOptions(*_options);
     }
-
-    // parse again env_variables to update registered configs which have env vars set
-    _globalConfig.parseEnvVars();
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
