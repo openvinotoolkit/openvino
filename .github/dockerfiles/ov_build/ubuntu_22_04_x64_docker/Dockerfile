@@ -30,6 +30,8 @@ RUN apt-get update && \
         curl \
         git \
         gpg-agent \
+        dbus-user-session \
+        uidmap \
         tzdata \
         # parallel gzip
         pigz \
