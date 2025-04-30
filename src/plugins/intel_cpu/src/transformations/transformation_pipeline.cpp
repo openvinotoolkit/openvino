@@ -179,7 +179,6 @@
 #include "dnnl.hpp"
 #include "nodes/fake_quantize.h"
 #include "nodes/llm_mlp.h"
-#include "nodes/mha.h"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
 #include "nodes/paged_attn.h"

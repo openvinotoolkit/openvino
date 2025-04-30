@@ -57,7 +57,6 @@
 #include "nodes/matmul.h"
 #include "nodes/matrix_nms.h"
 #include "nodes/memory.hpp"
-#include "nodes/mha.h"
 #include "nodes/multiclass_nms.hpp"
 #include "nodes/multinomial.hpp"
 #include "nodes/mvn.h"
@@ -232,7 +231,6 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(LLMMLP, Type::LLMMLP);
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
-    INTEL_CPU_NODE(MHA, Type::MHA);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
 #elif defined(OPENVINO_ARCH_ARM64)
