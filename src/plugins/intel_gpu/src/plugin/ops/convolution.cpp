@@ -237,6 +237,9 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
                                                dilations,
                                                tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                                weights_have_group_dim);
+        deconvPrim.out_padding = output_padding;
+        deconvPrim.pads_begin = pads_begin;
+        deconvPrim.pads_end = pads_end;
         p.add_primitive(*op, deconvPrim);
     } else {
         auto deconvPrim = cldnn::deconvolution(layerName,
