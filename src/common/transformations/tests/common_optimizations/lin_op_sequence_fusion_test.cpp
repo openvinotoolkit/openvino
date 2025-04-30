@@ -191,17 +191,11 @@ TEST_F(TransformationTestsF, AddAddAddFusionF64) {
     }
     {
         auto input = std::make_shared<opset3::Parameter>(element::f64, Shape{1, 128, 3072});
-        auto add1_const = opset3::Constant::create(element::f64, Shape{128, 1}, {2});
-        auto add2_const = opset3::Constant::create(element::f64, Shape{128, 1}, {3});
-        auto add3_const = opset3::Constant::create(element::f64, Shape{1}, {3});
+        auto add1_const = opset3::Constant::create(element::f64, Shape{128, 1}, {8});
 
-        auto add1 = std::make_shared<opset3::Add>(add1_const, add1_const);
+        auto add1 = std::make_shared<opset3::Add>(input, add1_const);
 
-        auto add2 = std::make_shared<opset3::Add>(input, add1);
-
-        auto add3 = std::make_shared<opset3::Add>(add2, add3_const);
-
-        model_ref = std::make_shared<ov::Model>(NodeVector{add3}, ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(NodeVector{add1}, ParameterVector{input});
     }
 }
 
