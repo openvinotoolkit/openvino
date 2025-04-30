@@ -18,13 +18,14 @@ public:
 
     IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                               [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto inputs_size = input_shapes.size();
+        const auto inputs_size = input_shapes.size();
         OPENVINO_ASSERT(inputs_size >= 3, "SDPAShapeInfer: expected at least 3 inputs, got ", inputs_size);
         const auto& query_dims = input_shapes.front().get();
         VectorDims present_v_dims = input_shapes.back().get();
         const auto& beam_idx_dims = input_shapes[inputs_size - 3].get();
         const auto& permute_axes_origin = m_config.permute_axes;
-        auto permute_axes = (permute_axes_origin.empty()) ? std::vector<size_t>{0, 1, 2, 3} : permute_axes_origin;
+        static const std::vector<size_t> direct_axis_order = {0, 1, 2, 3};
+        const auto& permute_axes = (permute_axes_origin.empty()) ? direct_axis_order : permute_axes_origin;
         // permute_axes[0,1,2,3] gives axis indices of B,H,L,S for query & present_kv
         const size_t batch_index = permute_axes[0];
         const size_t length_index = permute_axes[2];
