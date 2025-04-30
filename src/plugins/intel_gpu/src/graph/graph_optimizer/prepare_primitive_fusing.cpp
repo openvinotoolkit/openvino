@@ -42,6 +42,7 @@
 #include "extract_image_patches_inst.h"
 #include "reduce_inst.h"
 #include "group_normalization_inst.h"
+#include "lora_inst.h"
 #include <vector>
 #include <map>
 #include <list>
@@ -802,6 +803,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<strided_slice>();
 
+            should_fuse |= input.is_type<lora>();
+
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
@@ -995,7 +998,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<gather>()) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
-                                      (parents[i].first->is_type<lrn>());
+                                      (parents[i].first->is_type<lrn>()) ||
+                                      (parents[i].first->is_type<lora>());
             }
 
             // Disable fusion to a node on constant path when second input is in data flow

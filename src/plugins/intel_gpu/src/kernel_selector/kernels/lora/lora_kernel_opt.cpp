@@ -17,6 +17,7 @@ enum KernelsTypes {
     FIRST_TOKEN_B_LARGE,
     SECOND_TOKEN_A,
     SECOND_TOKEN_B,
+    FUSED_OPS,
     TOTAL_KERNELS_NUM
 };
 
@@ -41,6 +42,8 @@ static std::string GetKernelName(std::string base_name, size_t kernel_idx, const
         kernel_name += "_second_token_a";
     } else if (kernel_idx == KernelsTypes::SECOND_TOKEN_B) {
         kernel_name += "_second_token_b";
+    } else if (kernel_idx == KernelsTypes::FUSED_OPS) {
+        kernel_name += "_fused_ops";
     }
 
     return kernel_name;
@@ -190,6 +193,16 @@ CommonDispatchData LoRAKernelOpt::SetDefault(const lora_params& params, size_t k
 
             dispatchData.gws = { RoundUp(output_state, max_workgroup_size), 1, 1 };
             dispatchData.lws = { max_workgroup_size, 1, 1 };
+        } else if (kernel_idx == KernelsTypes::FUSED_OPS) {
+            const auto& output = params.outputs[0];
+            auto out_layout = output.GetLayout();
+
+            std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                             { Tensor::DataChannelName::FEATURE },
+                                                                             { Tensor::DataChannelName::Y, Tensor::DataChannelName::X }};
+
+            dispatchData.gws = { output.Batch().v, output.Feature().v, output.Y().v * output.X().v };
+            dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, out_layout, out_layout, dims_by_gws);
         } else {
             const auto& lora_input = params.inputs[1];
             size_t batch = lora_input.Batch().v * lora_input.Feature().v;
@@ -339,6 +352,8 @@ JitConstants LoRAKernelOpt::GetJitConstants(const lora_params& params, size_t ke
         jit.AddConstant(MakeJitConstant("SECOND_TOKEN_A", 1));
     } else if (kernel_idx == KernelsTypes::SECOND_TOKEN_B) {
         jit.AddConstant(MakeJitConstant("SECOND_TOKEN_B", 1));
+    } else if (kernel_idx == KernelsTypes::FUSED_OPS) {
+        jit.AddConstant(MakeJitConstant("FUSED_OPS_KERNEL", 1));
     }
 
     if (kernel_idx == KernelsTypes::SECOND_TOKEN_A || kernel_idx == KernelsTypes::SECOND_TOKEN_B) {
@@ -389,6 +404,11 @@ JitConstants LoRAKernelOpt::GetJitConstants(const lora_params& params, size_t ke
         jit.AddConstant(MakeJitConstant("MAIN_MATMUL_CODE", GenerateMatMulCode(tuning_params.regM, tuning_params.regN, in_dtype, false)));
 
         jit.AddConstant(MakeJitConstant("ADD_AND_STORE_CODE", GenerateStoreResultCode(tuning_params.regM, tuning_params.regN, in_dtype, false)));
+    } else if (kernel_idx == KernelsTypes::FUSED_OPS) {
+        if (!params.fused_ops.empty()) {
+            FusedOpsConfiguration conf = {"", {"b", "f", "y", "x"}, "output[output_idx]", params.outputs[0].GetDType()};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        }
     }
 
     return jit;
@@ -414,6 +434,9 @@ void LoRAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         const auto& execute_kernels = GetSuitableKernels(prim_params);
         for (size_t kernel_idx = 0; kernel_idx < KernelsTypes::TOTAL_KERNELS_NUM; ++kernel_idx) {
             bool skip_execution = kernel_idx != execute_kernels.first && kernel_idx != execute_kernels.second;
+            if (kernel_idx == KernelsTypes::FUSED_OPS) {
+                skip_execution = prim_params.fused_ops.empty();
+            }
             set_kernel_data(kernel_idx, skip_execution);
         }
 
@@ -500,6 +523,9 @@ KernelsData LoRAKernelOpt::GetKernelsData(const Params& params) const {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
             args.push_back({ArgumentDescriptor::Types::INPUT, 4});
             args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        } else if (kernel_idx == KernelsTypes::FUSED_OPS) {
+            FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                             "", false, false, 0, GetFusedPrimitiveInputsCount(params), 1, prim_params.is_shape_agnostic);
         }
     }
 
