@@ -9,6 +9,7 @@
 namespace ov {
 
 op::v0::Selu::~Selu() = default;
+
 op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Output<Node>& lambda)
     : Op({data, alpha, lambda}) {
     constructor_validate_and_infer_types();

@@ -15,6 +15,8 @@
 namespace ov {
 namespace op {
 namespace v0 {
+ShuffleChannels::~ShuffleChannels() = default;
+
 ShuffleChannels::ShuffleChannels(const Output<Node>& data, const int64_t axis, const int64_t group)
     : Op({data}),
       m_axis(axis),

@@ -10,6 +10,8 @@
 namespace ov {
 namespace op {
 namespace v0 {
+ReorgYolo::~ReorgYolo() = default;
+
 ReorgYolo::ReorgYolo(const Output<Node>& input, const Strides& strides) : Op({input}), m_strides(strides) {
     constructor_validate_and_infer_types();
 }

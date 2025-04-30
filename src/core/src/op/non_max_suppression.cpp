@@ -18,6 +18,7 @@ namespace ov {
 // ------------------------------ V1 ------------------------------
 
 op::v1::NonMaxSuppression::~NonMaxSuppression() = default;
+
 op::v1::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
@@ -107,6 +108,7 @@ AttributeAdapter<op::v1::NonMaxSuppression::BoxEncodingType>::~AttributeAdapter(
 
 // ------------------------------ V3 ------------------------------
 op::v3::NonMaxSuppression::~NonMaxSuppression() = default;
+
 op::v3::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
@@ -206,6 +208,7 @@ AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>::~AttributeAdapter(
 
 // ------------------------------ V4 ------------------------------
 op::v4::NonMaxSuppression::~NonMaxSuppression() = default;
+
 op::v4::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const Output<Node>& max_output_boxes_per_class,
@@ -272,6 +275,7 @@ void op::v4::NonMaxSuppression::validate_and_infer_types() {
 
 // ------------------------------ V5 ------------------------------
 op::v5::NonMaxSuppression::~NonMaxSuppression() = default;
+
 op::v5::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
@@ -550,6 +554,7 @@ EnumNames<op::v5::NonMaxSuppression::BoxEncodingType>::get() {
 
 // ------------------------------ V9 ------------------------------
 op::v9::NonMaxSuppression::~NonMaxSuppression() = default;
+
 op::v9::NonMaxSuppression::NonMaxSuppression(const Output<Node>& boxes,
                                              const Output<Node>& scores,
                                              const op::v9::NonMaxSuppression::BoxEncodingType box_encoding,

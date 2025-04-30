@@ -26,6 +26,8 @@ struct Evaluate : ov::element::NoAction<bool> {
 }  // namespace sin
 
 namespace v0 {
+Sin::~Sin() = default;
+
 Sin::Sin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

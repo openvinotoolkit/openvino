@@ -34,6 +34,7 @@ struct Evaluate : ov::element::NoAction<bool> {
 // ------------------------------ v0 -------------------------------------------
 
 ov::op::v0::SquaredDifference::~SquaredDifference() = default;
+
 ov::op::v0::SquaredDifference::SquaredDifference(const Output<Node>& arg0,
                                                  const Output<Node>& arg1,
                                                  const AutoBroadcastSpec& auto_broadcast)

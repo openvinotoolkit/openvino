@@ -24,6 +24,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace sign
 namespace v0 {
 
+Sign::~Sign() = default;
+
 Sign::Sign(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

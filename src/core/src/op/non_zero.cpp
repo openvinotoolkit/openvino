@@ -49,6 +49,8 @@ private:
 }  // namespace non_zero
 
 namespace v3 {
+NonZero::~NonZero() = default;
+
 NonZero::NonZero(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }

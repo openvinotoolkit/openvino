@@ -12,6 +12,8 @@
 namespace ov {
 namespace op {
 namespace v0 {
+Squeeze::~Squeeze() = default;
+
 Squeeze::Squeeze() : util::SqueezeBase() {}
 
 Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes) : util::SqueezeBase(data, axes) {
@@ -60,6 +62,8 @@ bool Squeeze::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 }  // namespace v0
 
 namespace v15 {
+Squeeze::~Squeeze() = default;
+
 Squeeze::Squeeze() : util::SqueezeBase() {}
 
 Squeeze::Squeeze(const Output<Node>& data, const bool allow_axis_skip)

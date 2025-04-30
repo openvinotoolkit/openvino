@@ -27,6 +27,8 @@ struct Evaluate : ov::element::NoAction<bool> {
 }  // namespace atan
 
 namespace v0 {
+Atan::~Atan() = default;
+
 Atan::Atan(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

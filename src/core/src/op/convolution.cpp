@@ -16,6 +16,7 @@ using namespace std;
 namespace ov {
 // *** Convolution OP SET 1 ***
 op::v1::Convolution::~Convolution() = default;
+
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
                                  const Strides& strides,
@@ -81,6 +82,8 @@ shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& 
 }
 
 // *** ConvolutionBackpropData OP SET 1 ***
+op::v1::ConvolutionBackpropData::~ConvolutionBackpropData() = default;
+
 op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& data,
                                                          const Output<Node>& filters,
                                                          const Output<Node>& output_shape,

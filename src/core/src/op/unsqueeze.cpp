@@ -14,6 +14,7 @@
 #include "unsqueeze_shape_inference.hpp"
 
 ov::op::v0::Unsqueeze::~Unsqueeze() = default;
+
 ov::op::v0::Unsqueeze::Unsqueeze(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& axes)
     : Op({data, axes}) {
     constructor_validate_and_infer_types();

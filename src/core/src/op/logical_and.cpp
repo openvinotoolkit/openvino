@@ -11,6 +11,8 @@
 namespace ov {
 namespace op {
 namespace v1 {
+LogicalAnd::~LogicalAnd() = default;
+
 LogicalAnd::LogicalAnd(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseLogical(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

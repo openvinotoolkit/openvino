@@ -11,6 +11,8 @@
 namespace ov {
 namespace op {
 namespace v5 {
+HSigmoid::~HSigmoid() = default;
+
 HSigmoid::HSigmoid(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

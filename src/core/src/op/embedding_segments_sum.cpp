@@ -9,6 +9,7 @@
 
 namespace ov {
 op::v3::EmbeddingSegmentsSum::~EmbeddingSegmentsSum() = default;
+
 op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table,
                                                    const Output<Node>& indices,
                                                    const Output<Node>& segment_ids,

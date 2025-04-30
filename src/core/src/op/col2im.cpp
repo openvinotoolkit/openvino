@@ -14,6 +14,8 @@ namespace ov {
 namespace op {
 namespace v15 {
 
+Col2Im::~Col2Im() = default;
+
 Col2Im::Col2Im(const Output<Node>& data,
                const Output<Node>& output_size,
                const Output<Node>& kernel_size,

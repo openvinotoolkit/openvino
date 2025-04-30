@@ -13,6 +13,8 @@ namespace ov {
 namespace op {
 namespace v16 {
 
+SegmentMax::~SegmentMax() = default;
+
 SegmentMax::SegmentMax(const Output<Node>& data, const Output<Node>& segment_ids, const op::FillMode fill_mode)
     : Op({data, segment_ids}),
       m_fill_mode(fill_mode) {

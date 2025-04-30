@@ -11,6 +11,8 @@
 namespace ov {
 namespace op {
 namespace v4 {
+HSwish::~HSwish() = default;
+
 HSwish::HSwish(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

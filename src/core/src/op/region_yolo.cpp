@@ -11,6 +11,8 @@
 namespace ov {
 namespace op {
 namespace v0 {
+RegionYolo::~RegionYolo() = default;
+
 RegionYolo::RegionYolo(const Output<Node>& input,
                        const size_t coords,
                        const size_t classes,

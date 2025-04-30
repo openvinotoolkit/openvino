@@ -31,6 +31,8 @@ std::shared_ptr<Node> Sigmoid::clone_with_new_inputs(const OutputVector& new_arg
     return std::make_shared<Sigmoid>(new_args.at(0));
 }
 
+Sigmoid::~Sigmoid() = default;
+
 Sigmoid::Sigmoid(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

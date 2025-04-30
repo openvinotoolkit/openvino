@@ -7,6 +7,7 @@
 #include "itt.hpp"
 
 ov::op::v10::IsNaN::~IsNaN() = default;
+
 ov::op::v10::IsNaN::IsNaN(const Output<Node>& data) : op::Op{{data}} {
     constructor_validate_and_infer_types();
 }

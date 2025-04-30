@@ -24,6 +24,8 @@ struct Evaluate : element::NoAction<bool> {
 
 namespace v0 {
 
+Negative::~Negative() = default;
+
 Negative::Negative(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

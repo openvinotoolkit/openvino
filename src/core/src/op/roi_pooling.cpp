@@ -10,6 +10,8 @@
 namespace ov {
 namespace op {
 namespace v0 {
+ROIPooling::~ROIPooling() = default;
+
 ROIPooling::ROIPooling(const Output<Node>& input,
                        const Output<Node>& coords,
                        const ov::Shape& output_size,

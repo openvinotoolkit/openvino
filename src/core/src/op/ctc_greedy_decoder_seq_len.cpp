@@ -10,6 +10,7 @@
 namespace ov {
 
 op::v6::CTCGreedyDecoderSeqLen::~CTCGreedyDecoderSeqLen() = default;
+
 op::v6::CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const Output<Node>& input,
                                                        const Output<Node>& seq_len,
                                                        const bool merge_repeated,

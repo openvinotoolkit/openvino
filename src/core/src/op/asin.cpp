@@ -25,6 +25,8 @@ struct Evaluate : ov::element::NoAction<bool> {
 
 namespace v0 {
 
+Asin::~Asin() = default;
+
 Asin::Asin(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

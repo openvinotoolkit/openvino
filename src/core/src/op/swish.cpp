@@ -28,6 +28,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace swish
 
 namespace v4 {
+Swish::~Swish() = default;
+
 Swish::Swish(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }

@@ -15,6 +15,8 @@ namespace ov {
 namespace op {
 namespace v0 {
 
+Concat::~Concat() = default;
+
 Concat::Concat(const OutputVector& args, int64_t axis) : Op(args), m_axis(axis) {
     constructor_validate_and_infer_types();
 }

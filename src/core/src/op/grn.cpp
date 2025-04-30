@@ -10,6 +10,7 @@
 namespace ov {
 
 op::v0::GRN::~GRN() = default;
+
 op::v0::GRN::GRN(const Output<Node>& data, float bias) : util::UnaryElementwiseArithmetic(data), m_bias(bias) {
     constructor_validate_and_infer_types();
 }

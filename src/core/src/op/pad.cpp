@@ -12,6 +12,7 @@
 namespace ov {
 
 op::v1::Pad::~Pad() = default;
+
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
                  const Output<Node>& pads_end,
@@ -58,6 +59,7 @@ bool op::v1::Pad::has_evaluate() const {
 }
 
 op::v12::Pad::~Pad() = default;
+
 op::v12::Pad::Pad(const Output<Node>& arg,
                   const Output<Node>& pads_begin,
                   const Output<Node>& pads_end,

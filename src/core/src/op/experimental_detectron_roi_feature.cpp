@@ -15,6 +15,7 @@
 
 namespace ov {
 op::v6::ExperimentalDetectronROIFeatureExtractor::~ExperimentalDetectronROIFeatureExtractor() = default;
+
 op::v6::ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(const OutputVector& args,
                                                                                            const Attributes& attrs)
     : Op(args),

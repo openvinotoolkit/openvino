@@ -11,6 +11,7 @@
 
 namespace ov {
 op::v3::ScatterElementsUpdate::~ScatterElementsUpdate() = default;
+
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
                                                      const Output<Node>& updates,
@@ -32,6 +33,7 @@ std::shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const
 }
 
 op::v12::ScatterElementsUpdate::~ScatterElementsUpdate() = default;
+
 op::v12::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                       const Output<Node>& indices,
                                                       const Output<Node>& updates,

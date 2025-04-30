@@ -9,6 +9,7 @@
 
 namespace ov {
 op::v4::CTCLoss::~CTCLoss() = default;
+
 op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
                          const Output<Node>& logit_length,
                          const Output<Node>& labels,

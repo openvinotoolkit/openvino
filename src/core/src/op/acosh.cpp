@@ -26,6 +26,7 @@ struct Evaluate : ov::element::NoAction<bool> {
 }  // namespace ov
 
 ov::op::v3::Acosh::~Acosh() = default;
+
 ov::op::v3::Acosh::Acosh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

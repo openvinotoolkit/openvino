@@ -40,6 +40,8 @@ struct Evaluate : element::NoAction<bool> {
 
 namespace v0 {
 
+MatMul::~MatMul() = default;
+
 MatMul::MatMul(const Output<Node>& A, const Output<Node>& B, const bool& transpose_a, const bool& transpose_b)
     : Op(OutputVector{A, B}),
       m_transpose_a{transpose_a},

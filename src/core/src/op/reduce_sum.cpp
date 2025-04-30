@@ -25,6 +25,8 @@ struct Evaluate : element::NoAction<bool> {
 };
 }  // namespace reduce_sum
 namespace v1 {
+ReduceSum::~ReduceSum() = default;
+
 ReduceSum::ReduceSum(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();

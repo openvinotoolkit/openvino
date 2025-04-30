@@ -13,6 +13,8 @@ namespace ov {
 namespace op {
 namespace v3 {
 
+ReadValue::~ReadValue() = default;
+
 ReadValue::ReadValue(const Output<Node>& init_value, const std::string& variable_id)
     : ReadValueBase({init_value}),
       m_variable_id(variable_id) {
@@ -46,6 +48,8 @@ bool ReadValue::visit_attributes(AttributeVisitor& visitor) {
 }  // namespace v3
 
 namespace v6 {
+ReadValue::~ReadValue() = default;
+
 ReadValue::ReadValue(const std::shared_ptr<util::Variable>& variable) {
     m_variable = variable;
     constructor_validate_and_infer_types();

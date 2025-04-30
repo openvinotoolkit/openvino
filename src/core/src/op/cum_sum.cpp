@@ -49,6 +49,8 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool excl
 }  // namespace cumsum
 
 namespace v0 {
+CumSum::~CumSum() = default;
+
 CumSum::CumSum(const Output<Node>& arg, const Output<Node>& axis, const bool exclusive, const bool reverse)
     : Op({arg, axis}),
       m_exclusive(exclusive),

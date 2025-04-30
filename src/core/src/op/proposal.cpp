@@ -9,6 +9,7 @@
 
 namespace ov {
 op::v0::Proposal::~Proposal() = default;
+
 op::v0::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& bbox_deltas,
                            const Output<Node>& image_shape,
@@ -79,6 +80,7 @@ void op::v0::Proposal::set_attrs(Attributes attrs) {
 
 // --- v4 ---
 op::v4::Proposal::~Proposal() = default;
+
 op::v4::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& class_bbox_deltas,
                            const Output<Node>& image_shape,

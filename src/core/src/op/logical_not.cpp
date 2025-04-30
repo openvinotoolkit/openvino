@@ -25,6 +25,8 @@ struct Evaluate : element::NoAction<bool> {
 
 namespace v1 {
 
+LogicalNot::~LogicalNot() = default;
+
 LogicalNot::LogicalNot(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }

@@ -24,6 +24,8 @@ bool axis_type(const element::Type& et) {
 }  // namespace
 }  // namespace validate
 
+Split::~Split() = default;
+
 Split::Split(const Output<Node>& data, const Output<Node>& axis, const size_t num_splits)
     : Op({data, axis}),
       m_num_splits{num_splits} {

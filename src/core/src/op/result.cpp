@@ -16,6 +16,8 @@ namespace ov {
 namespace op {
 namespace v0 {
 
+Result::~Result() = default;
+
 Result::Result(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
 }

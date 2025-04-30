@@ -29,6 +29,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace softmax
 
 namespace v1 {
+Softmax::~Softmax() = default;
+
 Softmax::Softmax(const Output<Node>& arg, const size_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
 }
@@ -96,9 +98,11 @@ bool Softmax::has_evaluate() const {
 }  // namespace v1
 
 namespace v8 {
+Softmax::~Softmax() = default;
+
 Softmax::Softmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
-}
+    }
 
 bool Softmax::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v8_Softmax_visit_attributes);

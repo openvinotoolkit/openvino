@@ -12,6 +12,7 @@
 #include "openvino/core/coordinate_diff.hpp"
 
 ov::op::v1::BinaryConvolution::~BinaryConvolution() = default;
+
 ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
                                                  const Output<Node>& kernel,
                                                  const Strides& strides,

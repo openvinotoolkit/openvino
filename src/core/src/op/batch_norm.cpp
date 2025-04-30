@@ -37,6 +37,8 @@ element::Type infer_output_element_type(const Op* const op,
 
 namespace v0 {
 
+BatchNormInference::~BatchNormInference() = default;
+
 BatchNormInference::BatchNormInference(const Output<Node>& input,
                                        const Output<Node>& gamma,
                                        const Output<Node>& beta,
@@ -84,6 +86,8 @@ std::shared_ptr<Node> BatchNormInference::clone_with_new_inputs(const OutputVect
 }  // namespace v0
 
 namespace v5 {
+BatchNormInference::~BatchNormInference() = default;
+
 BatchNormInference::BatchNormInference(const Output<Node>& input,
                                        const Output<Node>& gamma,
                                        const Output<Node>& beta,

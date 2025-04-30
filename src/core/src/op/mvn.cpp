@@ -11,6 +11,7 @@
 
 // ------------------------------ V0 ------------------------------
 ov::op::v0::MVN::~MVN() = default;
+
 ov::op::v0::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
     : Op({data}),
       m_eps{eps},
@@ -83,6 +84,7 @@ std::ostream& ov::op::operator<<(std::ostream& s, const ov::op::MVNEpsMode& type
 }
 
 ov::op::v6::MVN::~MVN() = default;
+
 ov::op::v6::MVN::MVN(const Output<Node>& data,
                      const Output<Node>& reduction_axes,
                      bool normalize_variance,

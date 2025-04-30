@@ -11,6 +11,7 @@ using namespace std;
 namespace ov {
 
 op::v13::ScaledDotProductAttention::~ScaledDotProductAttention() = default;
+
 op::v13::ScaledDotProductAttention::ScaledDotProductAttention(const OutputVector& inputs, bool causal)
     : op::Op(inputs),
       m_causal(causal) {

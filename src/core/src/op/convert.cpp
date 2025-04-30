@@ -175,6 +175,8 @@ bool evaluate_bound(const Node* const node, TensorVector& output_values, const T
 }  // namespace convert
 namespace v0 {
 
+Convert::~Convert() = default;
+
 Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
     : Op({arg}),
       m_destination_type(destination_type) {

@@ -20,6 +20,8 @@
 namespace ov {
 namespace op {
 namespace v1 {
+SpaceToBatch::~SpaceToBatch() = default;
+
 SpaceToBatch::SpaceToBatch(const Output<Node>& data,
                            const Output<Node>& block_shape,
                            const Output<Node>& pads_begin,

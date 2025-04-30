@@ -41,6 +41,8 @@ static bool evaluate_bound(const ov::op::v0::Abs* op, TensorVector& output_value
 }  // namespace abs
 
 namespace v0 {
+Abs::~Abs() = default;
+
 Abs::Abs(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

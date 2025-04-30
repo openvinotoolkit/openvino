@@ -12,6 +12,8 @@
 namespace ov {
 namespace op {
 namespace v15 {
+SliceScatter::~SliceScatter() = default;
+
 SliceScatter::SliceScatter(const Output<Node>& data,
                            const Output<Node>& updates,
                            const Output<Node>& start,

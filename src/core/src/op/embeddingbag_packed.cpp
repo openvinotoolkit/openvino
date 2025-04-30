@@ -9,6 +9,7 @@
 namespace ov {
 
 op::v15::EmbeddingBagPacked::~EmbeddingBagPacked() = default;
+
 op::v15::EmbeddingBagPacked::EmbeddingBagPacked(const Output<Node>& emb_table,
                                                 const Output<Node>& indices,
                                                 const Output<Node>& per_sample_weights,

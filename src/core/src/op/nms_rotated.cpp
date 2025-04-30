@@ -41,6 +41,7 @@ void input_types(const Node* op) {
 // ------------------------------ v13 ------------------------------
 
 op::v13::NMSRotated::~NMSRotated() = default;
+
 op::v13::NMSRotated::NMSRotated(const Output<Node>& boxes,
                                 const Output<Node>& scores,
                                 const Output<Node>& max_output_boxes_per_class,

@@ -9,6 +9,7 @@
 
 namespace ov {
 op::v1::GatherTree::~GatherTree() = default;
+
 op::v1::GatherTree::GatherTree(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,
                                const Output<Node>& max_seq_len,

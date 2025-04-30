@@ -13,6 +13,7 @@
 namespace ov {
 
 op::v0::RNNCell::~RNNCell() = default;
+
 op::v0::RNNCell::RNNCell() {
     m_activations = {"tanh"};
     m_activation_f = get_activation_function(0);

@@ -20,6 +20,8 @@ void check_int_input_at(const Node* op, size_t input_idx) {
     NODE_VALIDATION_CHECK(op, has_valid_type, "Expected i32 or i64 type of the input at port: ", input_idx);
 }
 }  // namespace
+STFT::~STFT() = default;
+
 STFT::STFT(const Output<Node>& data,
            const Output<Node>& window,
            const Output<Node>& frame_size,

@@ -11,6 +11,7 @@ namespace ov {
 // ------------------------------ V6 ------------------------------
 
 op::v6::GatherElements::~GatherElements() = default;
+
 op::v6::GatherElements::GatherElements(const Output<Node>& data, const Output<Node>& indices, const int64_t axis)
     : Op({data, indices}),
       m_axis(axis) {

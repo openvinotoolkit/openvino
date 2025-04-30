@@ -10,6 +10,7 @@
 
 namespace ov {
 op::v3::Bucketize::~Bucketize() = default;
+
 op::v3::Bucketize::Bucketize(const Output<Node>& data,
                              const Output<Node>& buckets,
                              const element::Type output_type,

@@ -55,6 +55,7 @@ std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& inp
 }  // namespace
 
 op::v10::Unique::~Unique() = default;
+
 op::v10::Unique::Unique(const Output<Node>& data,
                         const bool sorted,
                         const element::Type& index_element_type,

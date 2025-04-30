@@ -18,6 +18,8 @@
 namespace ov {
 namespace op {
 namespace v0 {
+SpaceToDepth::~SpaceToDepth() = default;
+
 SpaceToDepth::SpaceToDepth(const Output<Node>& data, const SpaceToDepthMode& mode, size_t block_size)
     : Op({data}),
       m_blocksize(block_size),

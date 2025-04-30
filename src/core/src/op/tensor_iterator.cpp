@@ -10,6 +10,7 @@
 
 namespace ov {
 op::v0::TensorIterator::~TensorIterator() = default;
+
 op::v0::TensorIterator::TensorIterator(const OutputVector& values) : op::util::SubGraphOp(values) {}
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor) {

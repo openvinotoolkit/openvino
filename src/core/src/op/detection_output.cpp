@@ -9,6 +9,7 @@
 
 // ------------------------------ V0 ------------------------------
 ov::op::v0::DetectionOutput::~DetectionOutput() = default;
+
 ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                              const Output<Node>& class_preds,
                                              const Output<Node>& proposals,
@@ -68,6 +69,7 @@ bool ov::op::v0::DetectionOutput::visit_attributes(AttributeVisitor& visitor) {
 
 // ------------------------------ V8 ------------------------------
 ov::op::v8::DetectionOutput::~DetectionOutput() = default;
+
 ov::op::v8::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                              const Output<Node>& class_preds,
                                              const Output<Node>& proposals,

@@ -10,6 +10,7 @@
 namespace ov {
 
 op::v8::AdaptiveAvgPool::~AdaptiveAvgPool() = default;
+
 op::v8::AdaptiveAvgPool::AdaptiveAvgPool(const Output<Node>& data, const Output<Node>& output_shape)
     : Op({data, output_shape}) {
     constructor_validate_and_infer_types();

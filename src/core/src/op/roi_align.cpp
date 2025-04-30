@@ -12,6 +12,7 @@ using namespace std;
 
 namespace ov {
 op::v3::ROIAlign::~ROIAlign() = default;
+
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,
                            const Output<Node>& batch_indices,
@@ -71,6 +72,7 @@ shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new
 // ------------------------------ V9 ------------------------------
 
 op::v9::ROIAlign::~ROIAlign() = default;
+
 op::v9::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,
                            const Output<Node>& batch_indices,

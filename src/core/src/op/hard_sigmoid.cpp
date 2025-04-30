@@ -10,6 +10,7 @@
 
 namespace ov {
 op::v0::HardSigmoid::~HardSigmoid() = default;
+
 op::v0::HardSigmoid::HardSigmoid() : Op() {}
 
 op::v0::HardSigmoid::HardSigmoid(const Output<Node>& data, const Output<Node>& alpha, const Output<Node>& beta)

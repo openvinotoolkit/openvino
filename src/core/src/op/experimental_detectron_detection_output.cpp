@@ -13,6 +13,7 @@
 
 namespace ov {
 op::v6::ExperimentalDetectronDetectionOutput::~ExperimentalDetectronDetectionOutput() = default;
+
 op::v6::ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const Output<Node>& input_rois,
                                                                                    const Output<Node>& input_deltas,
                                                                                    const Output<Node>& input_scores,

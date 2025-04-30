@@ -11,6 +11,7 @@ namespace ov {
 
 // ------------------------------ V5 ------------------------------
 op::v5::GatherND::~GatherND() = default;
+
 op::v5::GatherND::GatherND(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims)
     : GatherNDBase(data, indices, batch_dims) {
     constructor_validate_and_infer_types();
@@ -40,6 +41,7 @@ std::shared_ptr<Node> op::v5::GatherND::clone_with_new_inputs(const OutputVector
 
 // ------------------------------ V8 ------------------------------
 op::v8::GatherND::~GatherND() = default;
+
 op::v8::GatherND::GatherND(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims)
     : GatherNDBase(data, indices, batch_dims) {
     constructor_validate_and_infer_types();

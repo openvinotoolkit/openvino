@@ -10,6 +10,7 @@
 namespace ov {
 
 op::v8::AdaptiveMaxPool::~AdaptiveMaxPool() = default;
+
 op::v8::AdaptiveMaxPool::AdaptiveMaxPool(const Output<Node>& data,
                                          const Output<Node>& output_shape,
                                          const element::Type& index_element_type)

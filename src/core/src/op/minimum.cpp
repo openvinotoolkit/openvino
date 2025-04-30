@@ -32,6 +32,8 @@ struct Evaluate : element::NoAction<bool> {
 
 // ------------------------------ v1 -------------------------------------------
 namespace v1 {
+Minimum::~Minimum() = default;
+
 Minimum::Minimum(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

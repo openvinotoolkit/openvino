@@ -30,6 +30,8 @@ public:
 }  // namespace round
 
 namespace v5 {
+Round::~Round() = default;
+
 Round::Round(const Output<Node>& arg, RoundMode mode) : util::UnaryElementwiseArithmetic(arg), m_mode(mode) {
     constructor_validate_and_infer_types();
 }

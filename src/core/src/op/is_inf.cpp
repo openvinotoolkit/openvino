@@ -8,6 +8,7 @@
 
 namespace ov {
 op::v10::IsInf::~IsInf() = default;
+
 op::v10::IsInf::IsInf(const Output<Node>& data) : op::Op{{data}} {
     constructor_validate_and_infer_types();
 }
