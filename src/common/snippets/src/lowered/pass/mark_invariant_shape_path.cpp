@@ -46,7 +46,7 @@ static bool is_affecting_op(const ExpressionPtr& expr) {
 size_t MarkInvariantShapePath::getInvariantPortShapePath(const ExpressionPort& port) {
     auto& rt = get_rt_info(port);
     const auto rinfo = rt.find("InvariantShapePath");
-    OPENVINO_ASSERT(rinfo != rt.end(), "Invariant path for this expression port has not been marked!");
+    assert(rinfo != rt.end() && "Invariant path for this expression port has not been marked!");
     return rinfo->second.as<size_t>();
 }
 
@@ -60,7 +60,7 @@ ov::RTMap& MarkInvariantShapePath::get_rt_info(const ExpressionPort& port) {
     const auto& source_port = port.get_type() == ExpressionPort::Input ? port.get_port_connector_ptr()->get_source() : port;
     const auto& node = source_port.get_expr()->get_node();
     const auto port_idx = source_port.get_index();
-    OPENVINO_ASSERT(port_idx < node->get_output_size(), "Node has incompatible port count with the expression");
+    assert(port_idx < node->get_output_size() && "Node has incompatible port count with the expression");
     return node->output(port_idx).get_rt_info();
 }
 

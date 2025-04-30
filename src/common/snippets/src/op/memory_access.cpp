@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cassert>
+
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
@@ -103,7 +105,7 @@ void MemoryAccess::set_output_port_descriptor(const PortDescriptor& desc, const 
 
 const MemoryAccess::PortDescriptor& MemoryAccess::get_input_port_descriptor(const size_t i) const {
     const auto it = m_input_ports.find(i);
-    OPENVINO_ASSERT(it != m_input_ports.end(), "Index of input port descriptor should be less than count of input ports");
+    assert(it != m_input_ports.end() && "Index of input port descriptor should be less than count of input ports");
     return it->second;
 }
 
@@ -113,7 +115,7 @@ MemoryAccess::PortDescriptor& MemoryAccess::get_input_port_descriptor(const size
 
 const MemoryAccess::PortDescriptor& MemoryAccess::get_output_port_descriptor(const size_t i) const {
     const auto it = m_output_ports.find(i);
-    OPENVINO_ASSERT(it != m_output_ports.end(), "Index of output port descriptor should be less than count of output ports");
+    assert(it != m_output_ports.end() && "Index of output port descriptor should be less than count of output ports");
     return it->second;
 }
 

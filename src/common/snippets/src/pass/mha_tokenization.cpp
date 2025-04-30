@@ -185,7 +185,7 @@ bool update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ov:
 }
 
 std::vector<int32_t> get_rank_equivalent_order(std::vector<int32_t> default_order, size_t rank) {
-    OPENVINO_ASSERT(rank > 2, "Incorrect order rank for Transpose tokenization");
+    assert(rank > 2 && "Incorrect order rank for Transpose tokenization");
     auto order = std::vector<int32_t>(rank);
     std::iota(order.begin(), order.end(), 0);
     const auto diff = static_cast<int32_t>(rank - default_order.size());
