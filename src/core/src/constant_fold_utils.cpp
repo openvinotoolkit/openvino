@@ -17,7 +17,7 @@
 #include "ov_ops/type_relaxed.hpp"
 
 const ov::element::TypeVector& ov::util::unsupported_types() {
-    static const ov::element::TypeVector types{ov::element::f16, ov::element::bf16};
+    static const ov::element::TypeVector types{ov::element::f16, ov::element::f64, ov::element::bf16};
     return types;
 }
 
