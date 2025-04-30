@@ -505,10 +505,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (sdpa->get_output_element_type(0) != ov::element::f16)
                 return false;
 
-            // - The number of dimensions for each input is expected to be 4
-            if (query_ps.size() != 4 || key_ps.size() != 4 || value_ps.size() != 4) {
+            // - The number of dimensions for each input is expected to be 4 or 3
+            if (!(query_ps.size() == 3 || query_ps.size() == 4) ||
+                !(key_ps.size() == 3 || key_ps.size() == 4) ||
+                !(value_ps.size() == 3 || value_ps.size() == 4))
                 return false;
-            }
 
             // - The head size of all Q, K, and V inputs should be the same static value
             if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[value_ps.size() - 1].is_dynamic()) {
@@ -1162,6 +1163,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::SDPAScaleFusion>();
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ov::intel_gpu::KVCacheFusionMatcher>([](const_node_ptr& node) -> bool {
+            const auto& rank = node->input(0).get_partial_shape().rank().get_length();
+            return rank != 4;
+        });
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
