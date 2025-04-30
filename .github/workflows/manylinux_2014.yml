@@ -136,6 +136,8 @@ jobs:
 
       - name: Install rootless Docker
         run: |
+          XDG_RUNTIME_DIR=/home/runner/run
+          mkdir -p $XDG_RUNTIME_DIR
           PATH=/usr/bin:/sbin:/usr/sbin:$PATH dockerd-rootless.sh 
           /usr/bin/dockerd-rootless-setuptool.sh install --force
 
