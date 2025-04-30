@@ -15,6 +15,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
+#include "remote_tensor.hpp"
 
 ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model) {
@@ -76,18 +77,11 @@ ov::SoPtr<ov::ITensor> ov::hetero::InferRequest::get_tensor(const ov::Output<con
     }
     return tensor;
 }
-#include "remote_tensor.hpp"
+
 void ov::hetero::InferRequest::set_tensor(const ov::Output<const ov::Node>& port,
                                           const ov::SoPtr<ov::ITensor>& tensor) {
     if (auto remote = std::dynamic_pointer_cast<ov::hetero::HeteroRemoteTensor>(tensor._ptr)) {
-        // remote->get_tensor_by_name(
-        //                             requests[i]->get_compiled_model()->get_context()->get_device_name()));
         auto device_name = get_request(port)->get_compiled_model()->get_context()->get_device_name();
-        // if (device_name == "GPU.0") {
-        //     get_request(port)->set_tensor(port, remote->get_tensor(0));
-        // } else {
-        //     get_request(port)->set_tensor(port, remote->get_tensor(1));
-        // }
         get_request(port)->set_tensor(port, remote->get_tensor_by_name(device_name));
     } else {
         get_request(port)->set_tensor(port, tensor);

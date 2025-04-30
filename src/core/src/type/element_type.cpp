@@ -135,9 +135,6 @@ size_t type_idx_for(const std::string& type_name) {
 
 const TypeInfo& get_type_info(Type_t type) {
     const auto type_idx = idx(type);
-    if (!is_valid_type_idx(type_idx)) {
-        std::cout << "!is_valid_type_idx(type_idx)\n";
-    }
     OPENVINO_ASSERT(is_valid_type_idx(type_idx), "Type_t not supported: ", type_idx);
     return types_info[type_idx];
 }
