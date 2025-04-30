@@ -101,7 +101,7 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
-      DOCKER_CONFIG: "/mount/.docker"
+      # DOCKER_CONFIG: "/mount/.docker"
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
@@ -135,7 +135,9 @@ jobs:
           save_to: ${{ env.MANIFEST_PATH }}
 
       - name: Install rootless Docker
-        run: /usr/bin/dockerd-rootless-setuptool.sh install --force
+        run: |
+          PATH=/usr/bin:/sbin:/usr/sbin:$PATH dockerd-rootless.sh 
+          /usr/bin/dockerd-rootless-setuptool.sh install --force
 
       - name: Build OpenVINO
         run: |
