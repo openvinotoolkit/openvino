@@ -21,29 +21,6 @@
 #include "snippets/utils/utils.hpp"
 #include "snippets/op/convert_saturation.hpp"
 
-static bool has_zero_shifts_and_scales(const std::vector<float>& cl,
-                                       const std::vector<float>& ish,
-                                       const std::vector<float>& osc,
-                                       const std::vector<float>& osh) {
-    return std::all_of(cl.cbegin(),
-                       cl.cend(),
-                       [](float val) {
-                           return val == 0.0f;
-                       }) &&
-           std::all_of(ish.cbegin(),
-                       ish.cend(),
-                       [](float val) {
-                           return val == 0.0f;
-                       }) &&
-           std::all_of(osc.cbegin(),
-                       osc.cend(),
-                       [](float val) {
-                           return val == 1.0f;
-                       }) &&
-           std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-               return val == 0.0f;
-           });
-}
 
 ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     MATCHER_SCOPE(FakeQuantizeDecomposition);
@@ -82,9 +59,20 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         if (status) {
             out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         }
-        const bool do_dequantize = !(status && has_zero_shifts_and_scales(cl, ish, osc, osh));
+        const bool do_dequantize = !(status && ((std::all_of(osc.cbegin(),
+                                                             osc.cend(),
+                                                             [](float val) {
+                                                                 return val == 1.f;
+                                                             }) &&
+                                                 std::all_of(osh.cbegin(),
+                                                             osh.cend(),
+                                                             [](float val) {
+                                                                 return val == 0.f;
+                                                             })) ||
+                                                out_scales.size() != 0));
         const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32 ||
                                  fake_quantize_node->get_output_element_type(0) == ov::element::f16;
+
         ov::NodeVector decomp_ops;
         if (input_type != input_low.get_element_type()) {
             input_type = input_low.get_element_type();
@@ -109,11 +97,8 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
                                                                        scale_shape.get_shape(),
                                                                        out_scales);
             decomp_ops.push_back(scales);
-        
-            auto shifted = std::make_shared<ov::op::v1::Subtract>(min, input_low);
-            decomp_ops.push_back(shifted);
-        
-            result = std::make_shared<ov::op::v1::Multiply>(shifted, scales);
+
+            result = std::make_shared<ov::op::v1::Multiply>(min, scales);
             decomp_ops.push_back(result);
         } else {
             // (levels-1)
@@ -207,6 +192,9 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     auto output_low = output_low_constant->cast_vector<float>();
     auto output_high = output_high_constant->cast_vector<float>();
     auto levels = fq_node->get_levels();
+    // z0 = levels if unsigned
+    // z0 = levels / 2 if signed
+    const auto z0 = (fq_node->get_input_element_type(0).is_signed() ? levels / 2 : levels);
     auto broadcast_type = fq_node->get_auto_broadcast();
 
     // We have two ways for computations of scales and shifts to avoid model compilation time growth
@@ -216,7 +204,7 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     //  support
 
     // Calculations of input scales and shift:
-    //   - isc := (levels-1) / (ih - il)
+    //   - isc := (z0-1) / (ih - il)
     //   - ish := -il * isc
     if (input_low_shape == input_high_shape || shape_size(input_low_shape) == 1 || shape_size(input_high_shape) == 1) {
         const auto input_size = std::max(input_low.size(), input_high.size());
@@ -226,7 +214,7 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
             float il = input_low[input_low.size() == 1 ? 0 : i];
             float ih = input_high[input_high.size() == 1 ? 0 : i];
 
-            isc[i] = (levels - 1) / (ih - il);
+            isc[i] = (z0 - 1) / (ih - il);
             ish[i] = -il * isc[i];
         }
         cl = input_low;
@@ -244,8 +232,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
                                            input_high_shape,
                                            input_low_shape,
                                            broadcast_type,
-                                           [levels](float x, float y) -> float {
-                                               return (levels - 1) / (x - y);
+                                           [z0](float x, float y) -> float {
+                                               return (z0 - 1) / (x - y);
                                            });
         ov::reference::autobroadcast_binop(input_low.data(),
                                            isc.data(),
@@ -273,7 +261,7 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     }
 
     // Calculations of output scales and shift:
-    //   - osc := (oh - ol) / (levels-1)
+    //   - osc := (oh - ol) / (z0-1)
     //   - osh := ol
     if (output_low_shape == output_high_shape || shape_size(output_low_shape) == 1 || shape_size(output_high_shape) == 1) {
         const auto output_size = std::max(output_low.size(), output_high.size());
@@ -283,7 +271,7 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
             float ol = output_low[output_low.size() == 1 ? 0 : i];
             float oh = output_high[output_high.size() == 1 ? 0 : i];
 
-            osc[i] = (oh - ol) / (levels - 1);
+            osc[i] = (oh - ol) / (z0 - 1);
             osh[i] = ol;
         }
     } else {  // general broadcasting
@@ -297,8 +285,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
                                            output_high_shape,
                                            output_low_shape,
                                            broadcast_type,
-                                           [levels](float x, float y) -> float {
-                                               return (x - y) / (levels - 1);
+                                           [z0](float x, float y) -> float {
+                                               return (x - y) / (z0 - 1);
                                            });
         osh = output_low;
     }
@@ -314,7 +302,25 @@ std::vector<float> ov::snippets::pass::FakeQuantizeDecomposition::calculateScale
                                                                                   const std::vector<float>& osc,
                                                                                   const std::vector<float>& osh) {
     std::vector<float> out_scales;
-    if (out_type == ov::element::u8 && has_zero_shifts_and_scales(cl, ish, osc, osh)) {
+    if (out_type == ov::element::u8 &&
+        std::all_of(cl.cbegin(),
+                    cl.cend(),
+                    [](float val) {
+                        return val == 0.0f;
+                    }) &&
+        std::all_of(ish.cbegin(),
+                    ish.cend(),
+                    [](float val) {
+                        return val == 0.0f;
+                    }) &&
+        std::all_of(osc.cbegin(),
+                    osc.cend(),
+                    [](float val) {
+                        return val == 1.0f;
+                    }) &&
+        std::all_of(osh.cbegin(), osh.cend(), [](float val) {
+            return val == 0.0f;
+        })) {
         out_scales = isc;
     }
 
