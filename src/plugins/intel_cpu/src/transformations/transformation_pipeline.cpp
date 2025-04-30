@@ -799,54 +799,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 void Transformations::runLptPasses(const std::vector<ov::element::Type>& defaultPrecisions) {
     using namespace ov::pass::low_precision;
     ov::pass::Manager lptManager("CPU:LPT");
+
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
+        {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
+         QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
         PrecisionsRestriction::create<ov::opset1::MatMul>({{{0, 1}, {ov::element::i8}}}),
     });
-
-    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
-
-    CPU_REGISTER_PASS_COMMON(lptManager,
-                             LowPrecision,
-                             supportedPrecisions,
-                             quantizationRestrictions,
-                             LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
-    CPU_DISABLE_PASS_COMMON(lptManager, AvgPoolTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, ConvolutionTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, ConvolutionBackpropDataTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, InterpolateTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, GroupConvolutionTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, MaxPoolTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, MVNTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, NormalizeL2Transformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, RecurrentCellTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMaxTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMeanTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, ReduceMinTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, ReduceSumTransformation);
-    CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
-
-    CPU_SET_CALLBACK_COMMON(
-        lptManager,
-        [](const_node_ptr& node) -> bool {
-            return ov::marked_as_bias(node);
-        },
-        AddTransformation);
-
-    // Enable MatMulTransformation against FC nodes only
-    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
-    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
-    // oneDNN ticket #2696
-    CPU_SET_CALLBACK_COMMON(
-        lptManager,
-        [&](const_node_ptr& node) -> bool {
-            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
-                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
-                return false;
-            }
-            return true;
-        },
-        MatMulTransformation);
 #else
     // Only enable conv/group conv signed input on AMX and avx2_vnni_2 platform.
     std::vector<ov::element::Type> input0LowPrecisionList;
@@ -880,30 +840,57 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         PrecisionsRestriction::create<ov::opset5::LSTMSequence>({{{0, 1}, {ov::element::u8}}}),
         PrecisionsRestriction::create<ov::opset6::GRUSequence>({{{0, 1}, {ov::element::u8}}}),
     });
-
-    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
-        {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
-         QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
-
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
+#endif
     CPU_REGISTER_PASS_COMMON(lptManager,
                              LowPrecision,
                              supportedPrecisions,
                              quantizationRestrictions,
                              LayerTransformation::Params(true, ov::element::f32, defaultPrecisions));
-
-    CPU_SET_CALLBACK_COMMON(
-        lptManager,
-        [&defaultPrecisions](const_node_ptr& node) -> bool {
-            return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) ||
-                   WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
-        },
-        ConvolutionBackpropDataTransformation);
     CPU_SET_CALLBACK_COMMON(
         lptManager,
         [](const_node_ptr& node) -> bool {
             return ov::marked_as_bias(node);
         },
         AddTransformation);
+    CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
+
+    CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, MVNTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, NormalizeL2Transformation);
+    CPU_DISABLE_PASS_ARM(lptManager, RecurrentCellTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ReduceMaxTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ReduceMeanTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ReduceMinTransformation);
+    CPU_DISABLE_PASS_ARM(lptManager, ReduceSumTransformation);
+
+    // Enable MatMulTransformation against FC nodes only
+    // int8 MatMul is disabled because acl_lowp_matmul_t supports 2D case only
+    // most models have 3D/4D cases, so fallback to jit_gemm_i8 gives worse perf than gemm_acl_f16
+    // oneDNN ticket #2696
+    CPU_SET_CALLBACK_ARM(
+        lptManager,
+        [&](const_node_ptr& node) -> bool {
+            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
+                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
+                return false;
+            }
+            return true;
+        },
+        MatMulTransformation);
+
+    CPU_SET_CALLBACK_X64(
+        lptManager,
+        [&defaultPrecisions](const_node_ptr& node) -> bool {
+            return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) ||
+                   WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
+        },
+        ConvolutionBackpropDataTransformation);
 
     CPU_SET_CALLBACK_X64(
         lptManager,
@@ -934,8 +921,6 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
         },
         FuseConvertTransformation);
 
-    CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
-#endif
     lptManager.run_passes(model);
 }
 
