@@ -74,6 +74,7 @@ jobs:
 
   Build:
     needs: [Smart_CI, Docker]
+    if: "!needs.smart_ci.outputs.skip_workflow"
     timeout-minutes: 150
     defaults:
       run:
