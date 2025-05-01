@@ -123,7 +123,6 @@ enum class Type {
     PriorBox,
     PriorBoxClustered,
     Interaction,
-    MHA,
     RandomUniform,
     Unique,
     Ngram,
@@ -135,6 +134,7 @@ enum class Type {
     QKVProjection,
     RMS,
     SearchSorted,
+    SegmentMax,
     LoRA
 };
 

@@ -6,7 +6,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 
 using namespace ov;
 
@@ -23,7 +26,7 @@ TEST(SmartReshapeTests, SS_Squeeze) {
         auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {0}));
         auto relu = std::make_shared<opset5::Relu>(squeeze);
 
-        f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{input});
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3}))
@@ -49,7 +52,7 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end_mask) {
         auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {1}));
         auto relu = std::make_shared<opset5::Relu>(squeeze);
 
-        f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{input});
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({1, 768}))
@@ -83,7 +86,7 @@ TEST(SmartReshapeTests, SS_Squeeze_partial_begin_end) {
         auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {1}));
         auto relu = std::make_shared<opset5::Relu>(squeeze);
 
-        f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{input});
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({1, 768}))
@@ -114,7 +117,7 @@ TEST(SmartReshapeTests, SS_Squeeze_mask_use_negative) {
                                                          std::vector<int64_t>{0, 1});
         auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {0}));
 
-        f = std::make_shared<ov::Model>(NodeVector{squeeze}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{squeeze}, ParameterVector{input});
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({1, 3}))
@@ -140,7 +143,7 @@ TEST(SmartReshapeTests, SS_Squeeze_negative_stride_negative) {
         auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {0}));
         auto relu = std::make_shared<opset5::Relu>(squeeze);
 
-        f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{input});
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3}))
@@ -167,7 +170,7 @@ TEST(SmartReshapeTests, SS_SharedSqueezes) {
         auto squeeze_2 = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {1}, {0}));
         auto relu_1 = std::make_shared<opset5::Relu>(squeeze_1);
         auto relu_2 = std::make_shared<opset5::Relu>(squeeze_2);
-        f = std::make_shared<ov::Model>(NodeVector{relu_1, relu_2}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{relu_1, relu_2}, ParameterVector{input});
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3}))
@@ -193,7 +196,7 @@ TEST(SmartReshapeTests, SS_SqueezeNegativeAxes) {
         auto squeeze = std::make_shared<opset5::Squeeze>(ss, opset5::Constant::create(element::i64, {3}, {-2, 0, -4}));
         auto relu = std::make_shared<opset5::Relu>(squeeze);
 
-        f = std::make_shared<ov::Model>(NodeVector{relu}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{input});
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2}))
@@ -218,7 +221,7 @@ TEST(SmartReshapeTests, Squeeze_SSNegativeAxes) {
                                                          std::vector<int64_t>{1, 1, 1},
                                                          std::vector<int64_t>{1, 1, 1});
 
-        f = std::make_shared<ov::Model>(NodeVector{ss}, ParameterVector{input});
+        f = std::make_shared<ov::Model>(OutputVector{ss}, ParameterVector{input});
     }
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({3, 8, 2}))

@@ -57,7 +57,7 @@ void StringTensorUnpack::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& srcMemory = getSrcMemoryAtPort(0);
     const auto& srcDataDims = srcMemory->getStaticDims();
     const auto& srcData = srcMemory->getDataAs<std::string>();
-    Dim stringCount = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<Dim>());
+    Dim stringCount = std::accumulate(srcDataDims.begin(), srcDataDims.end(), 1, std::multiplies<>());
     size_t totalCharLength = 0;
     for (Dim i = 0; i < stringCount; ++i) {
         totalCharLength += srcData[i].length();
@@ -66,7 +66,7 @@ void StringTensorUnpack::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void StringTensorUnpack::execute(const dnnl::stream& strm) {
+void StringTensorUnpack::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto stringCount = ov::shape_size(getSrcMemoryAtPort(0)->getStaticDims());
     ov::reference::string_tensor_unpack(getSrcDataAtPortAs<const std::string>(0),
                                         getDstDataAtPortAs<int32_t>(0),

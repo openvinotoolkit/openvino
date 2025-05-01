@@ -18,7 +18,7 @@
 #include "primitive_inst.h"
 #include "kernel_selector_helper.h"
 #include "register.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
@@ -76,7 +76,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         ob << _kernels_data.size();
         for (auto& kd : _kernels_data) {
             ob << make_data(&kd.internalBufferDataType, sizeof(kernel_selector::Datatype));
-            ob << kd.internalBufferSizes;
+            ob << kd.internalBuffers;
             ob << kd.kernels;
             ob << kd.kernelName;
         }
@@ -90,7 +90,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         for (size_t i = 0; i < kernels_size; i++) {
             kernel_selector::kernel_data kd;
             ib >> make_data(&kd.internalBufferDataType, sizeof(kernel_selector::Datatype));
-            ib >> kd.internalBufferSizes;
+            ib >> kd.internalBuffers;
             ib >> kd.kernels;
             ib >> kd.kernelName;
             _kernels_data[i] = kd;
@@ -157,21 +157,19 @@ protected:
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
-        std::vector<layout> layouts;
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
+        std::vector<BufferDescriptor> internal_buffers;
         for (auto& kd : _kernels_data) {
-            if (kd.internalBufferSizes.empty())
+            if (kd.internalBuffers.empty())
                 continue;
 
             auto dtype = from_data_type(kd.internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
-            for (auto size : kd.internalBufferSizes) {
-                layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                        {1, 1, 1, (tensor::value_type)(size / bpp)}};
-                layouts.push_back(inbuf_layout);
+            for (const auto& buffer : kd.internalBuffers) {
+                internal_buffers.emplace_back(buffer.byte_count / bpp, dtype, buffer.lockable);
             }
         }
-        return layouts;
+        return internal_buffers;
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {

@@ -8,10 +8,25 @@
 #include <limits>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -175,14 +190,14 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     auto masked_fill_Select = makePattern<ov::opset1::Select>(
         {mul_LogicalAnd, -FLT_MAX, causal_mask_boolean_slice | causal_mask_boolean_strided_slice},
         {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,1,8192,?]>
-    auto copy__ShapeOf = makePattern<ov::opset1::ShapeOf>(
+    auto copy_ShapeOf = makePattern<ov::opset1::ShapeOf>(
         {causal_mask_boolean_slice | causal_mask_boolean_strided_slice});  //  tensor_array<i32[4]>
     auto Constant_47319 = makeConst(ov::element::u8, ov::Shape({}), {0});
-    auto copy__Broadcast =
-        makePattern<ov::opset1::Broadcast>({masked_fill_Select, copy__ShapeOf, Constant_47319},
+    auto copy_Broadcast =
+        makePattern<ov::opset1::Broadcast>({masked_fill_Select, copy_ShapeOf, Constant_47319},
                                            {{"mode", "numpy"}});  //  tensor_array<f32[?,1,8192,..8192]>
     auto SliceAssign_201_Reshape_2 =
-        makePattern<ov::opset1::Reshape>({copy__Broadcast, {-1}}, {{"special_zero", false}});  //  tensor_array<f32[?]>
+        makePattern<ov::opset1::Reshape>({copy_Broadcast, {-1}}, {{"special_zero", false}});  //  tensor_array<f32[?]>
     auto SliceAssign_201_ScatterNDUpdate = makePattern<ov::opset4::ScatterNDUpdate>(
         {SliceAssign_201_Reshape_0, SliceAssign_201_Reshape_1, SliceAssign_201_Reshape_2});  //  tensor_array<f32[?]>
     auto SliceAssign_201_Reshape_3 =
@@ -244,11 +259,21 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
             }
         }
 
+        auto attention_mask_it = pattern_map.find(attention_mask);
+        auto batch_size_it = pattern_map.find(batch_size);
+        auto cache_positions_it = pattern_map.find(cache_positions);
+        auto kvLen_it = pattern_map.find(kvLen);
+
+        if (attention_mask_it == pattern_map.end() || batch_size_it == pattern_map.end() ||
+            cache_positions_it == pattern_map.end() || kvLen_it == pattern_map.end()) {
+            return false;
+        }
+
         ov::OutputVector inputs{
-            pattern_map.find(attention_mask)->second,
-            pattern_map.find(batch_size)->second,
-            pattern_map.find(cache_positions)->second,
-            pattern_map.find(kvLen)->second,
+            attention_mask_it->second,
+            batch_size_it->second,
+            cache_positions_it->second,
+            kvLen_it->second,
         };
         auto replacement = std::make_shared<ov::intel_cpu::CausalMaskPreprocessNode>(inputs, config);
         ov::replace_node(root, replacement);

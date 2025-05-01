@@ -23,14 +23,21 @@
 #include <utility>
 
 #include "openvino/core/log_util.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -274,6 +281,7 @@ public:
     bool operator<(const Symbol& rhs) const {
         return get_id() < rhs.get_id();
     }
+    bool validate = true;
 };
 
 inline Symbol operator-(const Symbol& lhs) {
@@ -1398,7 +1406,7 @@ public:
             if (sym.is_independent_var()) {
                 auto id = sym.get_id();
                 if (symbol_value_map.count(id)) {
-                    if (symbol_value_map[id] != value) {
+                    if (sym.validate && symbol_value_map[id] != value) {
                         _VERBOSE_LOG(" in-consistency between multiple references of same symbol(",
                                      sym.get_name(),
                                      "): ",

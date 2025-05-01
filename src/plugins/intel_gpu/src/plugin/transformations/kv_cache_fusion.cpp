@@ -24,15 +24,10 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov::intel_gpu {
-
-class KVCacheFusionMatcher : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("KVCacheFusionMatcher");
-    KVCacheFusionMatcher();
-};
 
 KVCacheFusionMatcher::KVCacheFusionMatcher() {
     using namespace ov::pass::pattern;

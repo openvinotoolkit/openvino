@@ -165,7 +165,6 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
         GPU_DEBUG_COUT << "[Warning] [GPU] Exceeded max size of memory allocation: " << "Required " << layout.bytes_count() << " bytes, already occupied : "
                        << used_mem << " bytes, but available memory size is " << get_max_memory_size() << " bytes" << std::endl;
         GPU_DEBUG_COUT << "Please note that performance might drop due to memory swap." << std::endl;
-        return false;
     }
 #endif
 

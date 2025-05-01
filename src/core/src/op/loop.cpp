@@ -393,4 +393,6 @@ Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
 }
 }  // namespace v5
 }  // namespace op
+
+AttributeAdapter<op::v5::Loop::SpecialBodyPorts>::~AttributeAdapter() = default;
 }  // namespace ov

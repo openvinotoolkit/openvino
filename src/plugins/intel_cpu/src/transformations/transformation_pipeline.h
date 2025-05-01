@@ -22,9 +22,7 @@ class Transformations {
 public:
     Transformations(std::shared_ptr<ov::Model> initialModel, const Config& config)
         : model(std::move(initialModel)),
-          config(config) {
-        CPU_DEBUG_CAPS_MAYBE_UNUSED(this->config);
-    }
+          config(config) {}
 
     void UpToLpt();
     void CpuSpecificOpSet();
@@ -38,6 +36,7 @@ private:
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void Lpt(const std::vector<ov::element::Type>& defaultPrecisions);
+    void runLptPasses(const std::vector<ov::element::Type>& defaultPrecisions);
 
     void MainSnippets(void);
 

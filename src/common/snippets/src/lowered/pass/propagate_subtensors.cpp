@@ -59,7 +59,6 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             if (port.is_processed()) {
                 const auto& expr = port.get_expr_port()->get_expr();
                 const auto& desc = port.get_expr_port()->get_descriptor_ptr();
-                auto subtensor = desc->get_subtensor();
                 if (port.get_dim_idx() < desc->get_subtensor().size()) {
                     desc->set_subtensor_dim(port.get_dim_idx(), new_dim_value);
                 }
@@ -136,8 +135,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
             expr_it = inner_end;
             continue;
         }
-        if ((ov::is_type<snippets::op::BroadcastMove>(expr_it->get()->get_node()) ||
-            ov::is_type<snippets::op::BroadcastLoad>(expr_it->get()->get_node())) &&
+        if ((ov::is_type_any_of<snippets::op::BroadcastMove, snippets::op::BroadcastLoad>(
+                expr_it->get()->get_node())) &&
             loop_by_last_dim) {
             // WA: we have to break subtensor propagation if we try to propagate new last dim through Broadcast nodes
             // which broadcast last dim in original dimension value anyway
@@ -153,8 +152,12 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
     // After subtensor propagation, the original shapes must be restored
     for (const auto& elem : original_shapes)
         elem.first->set_shape(elem.second);
-    for (auto expr_it = begin; expr_it != shape_inference_end_it; expr_it++)
-        (*expr_it)->updateShapes();
+    for (auto expr_it = begin; expr_it != shape_inference_end_it; expr_it++) {
+        const auto expr = *expr_it;
+        if (ov::is_type<snippets::op::LoopBase>(expr->get_node()))
+            continue;
+        expr->updateShapes();
+    }
 }
 }  // namespace
 

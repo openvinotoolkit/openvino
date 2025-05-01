@@ -6,21 +6,26 @@ set(TARGET_NAME "openvino_intel_gpu_graph")
 
 file(GLOB SUBDIRS "${CMAKE_CURRENT_SOURCE_DIR}/impls/*")
 
+find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 foreach(SUBDIR IN LISTS SUBDIRS)
     if(IS_DIRECTORY ${SUBDIR})
         get_filename_component(SUBDIR_NAME ${SUBDIR} NAME)
-        if (NOT SUBDIR_NAME STREQUAL "registry")
-            list(APPEND AVAILABLE_IMPL_TYPES ${SUBDIR_NAME})
-            list(APPEND EXCLUDE_PATHS ${SUBDIR})
-        endif()
+        list(APPEND AVAILABLE_IMPL_TYPES ${SUBDIR_NAME})
+        list(APPEND EXCLUDE_PATHS ${SUBDIR})
     endif()
 endforeach()
 
-set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os -Wno-suggest-override>>)
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os -Wno-suggest-override>>)
+else()
+    set(COMMON_COMPILE_OPTIONS $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
+endif()
 set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
                         $<BUILD_INTERFACE:${INCLUDE_DIR}>
                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
                         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/impls>
 )
 
 set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
@@ -56,10 +61,6 @@ macro(ov_gpu_add_backend_target)
         list(APPEND TARGET_DEFINITIONS $<TARGET_PROPERTY:${lib},INTERFACE_COMPILE_DEFINITIONS>)
     endforeach()
 
-    foreach(lib IN LISTS TARGET_LINK_LIBRARIES)
-        list(APPEND TARGET_INCLUDES $<TARGET_PROPERTY:${lib},INTERFACE_INCLUDE_DIRECTORIES>)
-    endforeach()
-
     ov_add_target(
         NAME ${ARG_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -81,10 +82,25 @@ macro(ov_gpu_add_backend_target)
 
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
-        target_include_directories(${ARG_NAME} PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>)
+        target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
         add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
     endif()
 endmacro()
+
+set(CODEGEN_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/kernels_db_gen.py")
+set(CODEGEN_TEST_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/test_kernels_db_gen.py")
+
+enable_testing()
+
+add_custom_target(run_codegen_test
+    COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
+    DEPENDS "${CODEGEN_SCRIPT}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+add_test(NAME TestOCLCodePreprocessing
+         COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
+         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 foreach(IMPL_TYPE IN LISTS AVAILABLE_IMPL_TYPES)
     add_subdirectory(impls/${IMPL_TYPE})
@@ -111,6 +127,8 @@ ov_add_target(
             ${COMMON_LINK_LIBRARIES}
             ${EXTRA_LINK_LIBRARIES}
             openvino::reference # for loop primitive subroutines
+    DEPENDENCIES
+        run_codegen_test
     ADD_CPPLINT
 )
 

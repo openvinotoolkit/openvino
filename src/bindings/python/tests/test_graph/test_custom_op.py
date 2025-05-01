@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import sys
 import pytest
 import numpy as np
 from contextlib import nullcontext as does_not_raise
@@ -97,13 +98,17 @@ class CustomOpWithAttribute(Op):
         self.set_output_type(0, self.get_input_element_type(0), self.get_input_partial_shape(0))
 
     def clone_with_new_inputs(self, new_inputs):
-        return CustomOpWithAttribute(new_inputs)
+        return CustomOpWithAttribute(new_inputs, self._attrs)
 
     def get_type_info(self):
         return CustomOpWithAttribute.class_type_info
 
     def visit_attributes(self, visitor):
         visitor.on_attributes(self._attrs)
+        return True
+
+    def evaluate(self, outputs, inputs):
+        inputs[0].copy_to(outputs[0])
         return True
 
 
@@ -133,7 +138,7 @@ def prepared_paths(request, tmp_path):
     ({"wrong_np": np.array([1.5, 2.5], dtype="complex128")}, pytest.raises(TypeError), "Unsupported NumPy array dtype: complex128"),
     ({"wrong": {}}, pytest.raises(TypeError), "Unsupported attribute type: <class 'dict'>")
 ])
-def test_visit_attributes_custom_op(prepared_paths, attributes, expectation, raise_msg):
+def test_visit_attributes_custom_op(device, prepared_paths, attributes, expectation, raise_msg):
     input_shape = [2, 1]
 
     param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
@@ -155,6 +160,14 @@ def test_visit_attributes_custom_op(prepared_paths, attributes, expectation, rai
 
     if e is not None:
         assert raise_msg in str(e.value)
+
+    input_data = np.ones([2, 1], dtype=np.float32)
+    expected_output = np.maximum(0.0, input_data)
+
+    compiled_model = compile_model(model_with_op_attr, device)
+    input_tensor = Tensor(input_data)
+    results = compiled_model({"data1": input_tensor})
+    assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)
 
 
 def test_custom_add_op():
@@ -186,9 +199,9 @@ def test_custom_add_model():
     assert op_types == ["Parameter", "Parameter", "CustomAdd", "Result"]
 
 
-def test_custom_op():
+def test_custom_op(device):
     model = create_snake_model()
-    compiled_model = compile_model(model)
+    compiled_model = compile_model(model, device)
 
     assert isinstance(compiled_model, CompiledModel)
     request = compiled_model.create_infer_request()

@@ -28,6 +28,7 @@ class TestTile(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dims", [(2, 2), (1, 1), (1, 2, 3, 4)])
     def test_tile(self, dims, ie_device, precision, ir_version):
         self._test(*self.create_model(dims), ie_device, precision, ir_version)

@@ -12,13 +12,12 @@ namespace ov::intel_cpu {
 class ShlFCExecutor : public Executor {
 public:
     ShlFCExecutor(const FCAttrs& attrs,
-                  const PostOps& postOps,
                   const MemoryArgs& memory,
                   const ExecutorContext::CPtr context);
 
     void execute(const MemoryArgs& memory) override;
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::gemm_shl;
     }
 

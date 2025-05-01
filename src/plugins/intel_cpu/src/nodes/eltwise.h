@@ -43,6 +43,7 @@ public:
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
+    bool canFuseConvert(const NodePtr& convertNode) const;
     bool canFuseParent(const NodePtr& parentNode) const;
     bool canFuse(const NodePtr& node) const override;
     void appendPostOps(dnnl::post_ops& ops,

@@ -129,6 +129,8 @@ public:
     std::shared_ptr<ov::Model> convert_subgraph(size_t index) const;
 
 private:
+    ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
+
     std::shared_ptr<TorchDecoder> m_decoder;
     const TensorMap& m_ext_tensor_map;
     std::shared_ptr<TensorMap> m_tensor_map;

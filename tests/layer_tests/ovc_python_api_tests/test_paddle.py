@@ -5,9 +5,9 @@ import tempfile
 import unittest
 
 import numpy as np
-import openvino.runtime as ov
+import openvino as ov
 import pytest
-from openvino.runtime import PartialShape, Model
+from openvino import PartialShape, Model
 from openvino.test_utils import compare_functions
 
 from common.mo_convert_test_class import CommonMOConvertTest
@@ -130,7 +130,7 @@ class TestPaddleConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_conversion_params(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_legacy_frontend):
+                                 temp_dir):
         fw_model = params['fw_model']
         test_params = params['params_test']
         ref_model = params['ref_model']

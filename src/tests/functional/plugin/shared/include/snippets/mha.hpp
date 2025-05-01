@@ -42,9 +42,9 @@ protected:
     void SetUp() override;
     void compile_model() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void init_thresholds() override;
     virtual std::shared_ptr<SnippetsFunctionBase> get_subgraph() const = 0;
     virtual void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) = 0;
-    virtual void init_thresholds();
 
     size_t m_thread_count;
     std::vector<ov::element::Type> m_input_types;
@@ -58,8 +58,14 @@ public:
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
     void init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) override;
+    void init_thresholds() override;
 
     bool m_with_mul = false;
+};
+
+class MHA2D : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };
 
 class MHASelect : public MHA {
@@ -109,6 +115,11 @@ protected:
 };
 
 class MHAWithExtractedReshape : public MHA {
+protected:
+    std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+};
+
+class MHARankUpgradeToReductionReshape : public MHA {
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
 };

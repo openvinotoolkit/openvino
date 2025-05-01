@@ -200,6 +200,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             const auto& bt_layout = instance.get_impl_params()->output_layouts[1];
             auto bt_shape = bt_layout.get_shape();
             std::swap(beam_table_prev, beam_table_new);
+            instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
 
             if (!beam_table_new || beam_table_new->count() < ov::shape_size(bt_shape)) {
                 bt_shape[desc->concat_axis] += instance.get_prealloc_iter_num();
@@ -239,6 +240,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             execute_stage(events, instance, res_events, dq_stage);
 
             auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
+            OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable should not be null.");
             compressed_cache_variable->get_compression_scale_state()->set();
 
             if (desc->get_compression_zp_inputs_num() > 0) {
@@ -263,7 +265,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
             if (desc->compressed) {
                 auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
-
+                OPENVINO_ASSERT(compressed_cache_variable != nullptr, "compressed_cache_variable is nullptr!!!");
                 auto scale_state = compressed_cache_variable->get_compression_scale_state();
                 auto out_scale_mem = instance.get_network().get_engine().reinterpret_buffer(instance.output_memory(2), scale_state->get_memory()->get_layout());
                 res_events.push_back(scale_state->get_memory()->copy_from(stream, *out_scale_mem, false));

@@ -92,10 +92,10 @@ void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
                                                        {LayoutType::ncsp, ov::element::i32},
                                                        {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > DEFAULT_INDEX_IDX) {
-        inDataConfigurators.push_back({LayoutType::ncsp, ov::element::i32});
+        inDataConfigurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
     if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX) {
-        inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
+        inDataConfigurators.emplace_back(LayoutType::ncsp, inDataPrecision);
     }
 
     addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
@@ -167,7 +167,7 @@ bool EmbeddingBagOffset::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void EmbeddingBagOffset::execute(const dnnl::stream& strm) {
+void EmbeddingBagOffset::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights) {

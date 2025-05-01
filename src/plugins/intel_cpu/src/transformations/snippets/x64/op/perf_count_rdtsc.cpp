@@ -13,15 +13,12 @@ PerfCountRdtscBegin::PerfCountRdtscBegin() : PerfCountBeginBase() {
     validate_and_infer_types_except_PerfCountEnd();
 }
 
-std::shared_ptr<Node> PerfCountRdtscBegin::clone_with_new_inputs(const OutputVector& inputs) const {
+std::shared_ptr<Node> PerfCountRdtscBegin::clone_with_new_inputs([[maybe_unused]] const OutputVector& inputs) const {
     return std::make_shared<PerfCountRdtscBegin>();
 }
 
 /////////////////////////PerfCountRdtscEnd//////////////////////
-PerfCountRdtscEnd::PerfCountRdtscEnd(const Output<Node>& pc_begin)
-    : ov::snippets::op::PerfCountEndBase({pc_begin}),
-      accumulation(0ul),
-      iteration(0u) {
+PerfCountRdtscEnd::PerfCountRdtscEnd(const Output<Node>& pc_begin) : ov::snippets::op::PerfCountEndBase({pc_begin}) {
     constructor_validate_and_infer_types();
 }
 

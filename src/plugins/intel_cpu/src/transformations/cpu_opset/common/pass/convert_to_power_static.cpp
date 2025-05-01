@@ -4,12 +4,22 @@
 
 #include "convert_to_power_static.hpp"
 
-#include <openvino/opsets/opset6.hpp>
-
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/fully_connected.hpp"
@@ -78,21 +88,21 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
     std::shared_ptr<ov::opset1::Constant> powerNode =
         ov::as_type_ptr<ov::opset1::Constant>(node->get_input_node_shared_ptr(constPort));
     const float value = powerNode->cast_vector<float>()[0];
-    if (std::is_same<BaseOp, ov::opset1::Power>::value) {
+    if (std::is_same_v<BaseOp, ov::opset1::Power>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 value,
                                                                 1.0f,
                                                                 0.0f,
                                                                 node->output(0).get_element_type());
     }
-    if (std::is_same<BaseOp, ov::opset1::Add>::value) {
+    if (std::is_same_v<BaseOp, ov::opset1::Add>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 1.0f,
                                                                 1.0f,
                                                                 value,
                                                                 node->output(0).get_element_type());
     }
-    if (std::is_same<BaseOp, ov::opset1::Subtract>::value) {
+    if (std::is_same_v<BaseOp, ov::opset1::Subtract>) {
         float scale = 1.0f;
         float shift = value;
         if (constPort == 0) {
@@ -106,7 +116,7 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
                                                                 shift,
                                                                 node->output(0).get_element_type());
     }
-    if (std::is_same<BaseOp, ov::opset1::Multiply>::value) {
+    if (std::is_same_v<BaseOp, ov::opset1::Multiply>) {
         return std::make_shared<ov::intel_cpu::PowerStaticNode>(node->input(nonConstPort).get_source_output(),
                                                                 1.f,
                                                                 value,

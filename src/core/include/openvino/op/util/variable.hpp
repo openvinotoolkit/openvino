@@ -59,6 +59,7 @@ class OPENVINO_API AttributeAdapter<std::shared_ptr<op::util::Variable>>
 public:
     explicit AttributeAdapter(std::shared_ptr<op::util::Variable>& value)
         : DirectValueAccessor<std::shared_ptr<op::util::Variable>>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>");
 };

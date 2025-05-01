@@ -18,7 +18,6 @@
 #include "input.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "utils/cpu_utils.hpp"
@@ -32,6 +31,10 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
+
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 using namespace dnnl;
 
@@ -60,7 +63,7 @@ struct DeconvKey {
     dnnl::primitive_attr attr;
     impl_desc_type implType;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const DeconvKey& rhs) const;
 };
 
@@ -127,7 +130,7 @@ class DeconvolutionShapeInferFactory : public ShapeInferFactory {
 public:
     DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
 
-    ShapeInferPtr makeShapeInfer() const override {
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<DeconvolutionShapeInfer>(m_op);
     }
 
@@ -151,7 +154,7 @@ private:
             return m_shape_infer->get_pads_end();
         }
 
-        port_mask_t get_port_mask() const override {
+        [[nodiscard]] port_mask_t get_port_mask() const override {
             return m_port_mask;
         };
 
@@ -244,7 +247,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         autoPad = one_of(groupConvBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
     }
     for (size_t i = 0; i < deconvAttrs.dilation.size(); i++) {
-        deconvAttrs.kernel.push_back(weightDims[withGroups + 2 + i]);
+        deconvAttrs.kernel.push_back(weightDims[static_cast<int>(withGroups) + 2 + i]);
     }
 #if defined(OV_CPU_WITH_ACL)
     deconvAttrs.aclFastMath = context->getConfig().aclFastMath;
@@ -252,8 +255,12 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 
     externOutShape = inputShapes.size() == 3;
     biasPort = externOutShape ? 3 : 2;
-    if (externOutShape && (isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2)))) {
-        lastOutputSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+    if (externOutShape) {
+        isConstOutShape = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+        if (isConstOutShape) {
+            lastOutputSpatialDims =
+                ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
+        }
     }
     if (externOutShape && isDynamicNode()) {
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
@@ -299,7 +306,7 @@ void Deconvolution::createDnnlCompatibleWeights() {
     } else {
         order = {1, 0};
     }
-    for (size_t i = 2 + withGroups; i < blockedDims.size(); i++) {
+    for (size_t i = 2 + static_cast<int>(withGroups); i < blockedDims.size(); i++) {
         order.push_back(i);
     }
 
@@ -607,7 +614,8 @@ void Deconvolution::getSupportedDescriptors() {
     // OV ConvBackWardData defines weight shape as [Conv_OC, Conv_IC, ....].
     // ONEDNN Deconv define weight shape as [Deconv_OC, Deconv_IC,...],
     // Deconv_OC = Conv_IC , Deconv_IC = Conv_OC
-    std::swap(dnnlCompatibleWeiDims[withGroups + 0], dnnlCompatibleWeiDims[withGroups + 1]);
+    std::swap(dnnlCompatibleWeiDims[static_cast<int>(withGroups) + 0],
+              dnnlCompatibleWeiDims[static_cast<int>(withGroups) + 1]);
     setPostOps(*attr, outShape.getStaticDims());
 
     if (isInt8) {
@@ -857,7 +865,7 @@ const std::vector<impl_desc_type>& Deconvolution::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
         std::vector<impl_desc_type> result;
         std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result), [](impl_desc_type type) {
-            return !(type & impl_desc_type::brgconv);
+            return (type & impl_desc_type::brgconv) == 0;
         });
         return result;
     }();
@@ -880,9 +888,9 @@ bool Deconvolution::isImplicit1x1PaddingAsymmetric(const VectorDims& inputDims) 
             return (i - 1) * s + 1 - o;
         };
         for (size_t i = 0; i < spatialRank; i++) {
-            int64_t inputDim = static_cast<int64_t>(inputDims[i + 2]);
-            int64_t outputDim = static_cast<int64_t>(lastOutputSpatialDims[i]);
-            int64_t stride = static_cast<int64_t>(deconvAttrs.stride[i]);
+            auto inputDim = static_cast<int64_t>(inputDims[i + 2]);
+            auto outputDim = static_cast<int64_t>(lastOutputSpatialDims[i]);
+            auto stride = static_cast<int64_t>(deconvAttrs.stride[i]);
             if (calPaddingEnd(inputDim, outputDim, stride) > 0) {
                 return true;
             }
@@ -1203,7 +1211,7 @@ Deconvolution::DeconvDNNLExecutor::DeconvDNNLExecutor(const dnnl::deconvolution_
                                                       const dnnl::memory::desc& outMemDesc,
                                                       const dnnl::engine& engine,
                                                       bool constWeight)
-    : DnnlExecutor(pd) {
+    : DnnlExecutorLegacy(pd) {
     if (inMemDesc != getDnnlSrcDesc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, getDnnlSrcDesc(), engine)});
     }
@@ -1229,7 +1237,7 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
     if (shapeMemPtr->getStaticDims()[0] != spDimsNum) {
         OPENVINO_THROW("Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements");
     }
-    const int32_t* outShapePtr = shapeMemPtr->getDataAs<const int32_t>();
+    const auto* outShapePtr = shapeMemPtr->getDataAs<const int32_t>();
     std::vector<int32_t> outSpDims(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
     return outSpDims;
 }

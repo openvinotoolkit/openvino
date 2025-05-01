@@ -12,6 +12,7 @@
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -43,6 +44,16 @@ class typed_primitive_inst;
 
 struct ImplementationManager;
 
+struct BufferDescriptor {
+    explicit BufferDescriptor(const layout& l, bool lockable = false) : m_lockable(lockable), m_layout(l) {}
+    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false)
+        : BufferDescriptor(layout(shape, type, format::bfyx), lockable) {}
+    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false)
+        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable) {}
+    bool m_lockable = false;
+    layout m_layout;
+};
+
 /*
     Base class for all implementations.
 */
@@ -55,8 +66,7 @@ struct primitive_impl {
         primitive_impl(nullptr, std::move(kernel_name), is_dynamic) {}
     virtual ~primitive_impl() = default;
 
-    virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
-    virtual std::set<size_t> get_lockable_internal_buffers() const { return {}; }
+    virtual std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const = 0;
     virtual void set_node_params(const program_node&) {}
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
@@ -195,24 +205,27 @@ public:
          this->_can_be_optimized = optimized;
     }
     std::shared_ptr<const primitive> desc() const { return _impl_params->desc; }
-    program_node const& get_node() const { return *_node; }
+    program_node const& get_node() const {
+        OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr for build_deps.");
+        return *_node;
+    }
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
     const ExecutionConfig& get_config() const { return get_network().get_config(); }
 
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     void check_memory_to_set(const memory& mem, const layout& layout) const;
-    const std::list<const cldnn::program_node *>& get_users() const { return _node->get_users(); }
+    const std::list<const cldnn::program_node *>& get_users() const { return get_node().get_users(); }
     const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
     void init_users() {
         std::vector<primitive_id> users;
         for (auto u : get_users()) {
             users.push_back(u->id());
         }
-        _users = _network.get_primitives(users);
+        _users = get_network().get_primitives(users);
     }
 
-    const std::unordered_set<size_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
+    const memory_restricter<uint32_t>& get_runtime_memory_dependencies() const { return _runtime_memory_dependencies; }
 
     const kernel_impl_params* get_impl_params() const { return _impl_params.get(); }
     // return pointer to const to prevent arbitrary 'execute' call -> use primitive_inst.execute() instead
@@ -295,9 +308,9 @@ public:
 
     static memory::ptr allocate_output(engine& engine,
                                        memory_pool& pool,
-                                       const program_node& _node,
+                                       const program_node& node,
                                        const kernel_impl_params& impl_params,
-                                       const std::unordered_set<size_t>& memory_dependencies,
+                                       const memory_restricter<uint32_t>& memory_dependencies,
                                        uint32_t net_id,
                                        bool is_internal,
                                        size_t idx = 0,
@@ -306,7 +319,8 @@ public:
                                        memory* curr_memory = nullptr,
                                        bool runtime_alloc = false);
 
-    std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
+    const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
+    size_t get_max_output_layout_count(size_t idx = 0) const { return _max_output_layout_count[idx]; }
 
     std::string get_implementation_name() const;
 
@@ -354,7 +368,7 @@ protected:
     // it should be added to this set
     std::vector<std::pair<primitive_inst*, int32_t>> _deps;
 
-    // List of depandant shape_of primitives for shape_of subgraphs
+    // List of dependant shape_of primitives for shape_of subgraphs
     std::vector<primitive_inst*> dependant_shape_of_insts;
 
     std::vector<primitive_inst*> _users;
@@ -368,7 +382,7 @@ protected:
     std::vector<primitive_inst*> _exec_deps;
 
     // List of primitive ids that this primitive can't share memory buffers with
-    std::unordered_set<size_t> _runtime_memory_dependencies;
+    memory_restricter<uint32_t> _runtime_memory_dependencies;
 
     // This is sub-network generated on demand to execute unfused primitives sequence instead of single fused primitive
     // Needed for dynamic path only, as fusion in some cases may be illegal, but it can't be checked on program build phase,
@@ -412,7 +426,7 @@ protected:
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
                                               bool reset_mem = true,
                                               bool runtime_alloc = false);
-    memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
+    memory::ptr allocate_internal_buffer(const layout& layout, size_t idx, bool reset = true, bool lockable = false);
     void allocate_shape_info_memory();
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
@@ -477,7 +491,7 @@ protected:
                 continue;
             }
 
-            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(*_node)))
+            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
                 return true;
         }
         return false;
@@ -504,7 +518,6 @@ struct typed_primitive_impl : public primitive_impl {
 
     using primitive_impl::primitive_impl;
 
-private:
     event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
         if (instance.type() != PType::type_id())
             throw std::invalid_argument("Implementation type does not match primitive type");
@@ -515,11 +528,7 @@ private:
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    std::vector<layout> get_internal_buffer_layouts() const override {
-        return get_internal_buffer_layouts_impl();
-    }
-
-    virtual std::vector<layout> get_internal_buffer_layouts_impl() const {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const override {
         return {};
     }
 
@@ -554,7 +563,6 @@ public:
     using typed_node = typed_program_node<PType>;
     using typed_impl = typed_primitive_impl<PType>;
 
-    const typed_node* node;
     std::shared_ptr<const PType> argument;
 
     template<typename T>
@@ -568,11 +576,11 @@ public:
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
 
     typed_primitive_inst_base(network& network)
-        : primitive_inst(network), node(nullptr), argument(nullptr) {}
+        : primitive_inst(network), argument(nullptr) {}
 
 protected:
     typed_primitive_inst_base(network& network, typed_node const& node, bool allocate_memory)
-        : primitive_inst(network, node, allocate_memory), node(&node), argument(node.get_primitive()) {}
+        : primitive_inst(network, node, allocate_memory), argument(node.get_primitive()) {}
 
     typed_primitive_inst_base(network& network, typed_node const& node, memory::ptr buffer)
         : typed_primitive_inst_base(network, node, false) {

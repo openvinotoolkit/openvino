@@ -4,9 +4,9 @@
 
 #include "zero_variable_state.hpp"
 
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "zero_remote_tensor.hpp"
 
 namespace intel_npu {
 

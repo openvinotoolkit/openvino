@@ -8,7 +8,7 @@
 
 #include "node.h"
 
-#define MAX_INPUT_INTERPOLATE 8
+enum { MAX_INPUT_INTERPOLATE = 8 };
 
 namespace ov::intel_cpu {
 
@@ -36,6 +36,14 @@ struct InterpolateAttrs {
     InterpolateLayoutType layout;
     std::vector<float> dataScales;
     bool hasPad = false;
+    // Some FEs or preprocessing step resize spatial dimension for tensors with NHWC layout memory,
+    // but import them with a planar layout[abcd] with axis[1,2] for convenience. In this case, for pillow modes without
+    // pad, the nhwc layout path and the specific kernel(nhwc layout executor) can be used for this planar layout and
+    // axis settings(NCHWAsNHWC is true) to get better perf. To this end the following mapping is used:
+    // 1. logical shape alignment [abcd-nhwc] to [adbc-nchw].
+    // 2. axis alignment [1,2] to [2,3].
+    // 3. config planar layout support and treated it as channel_first layout.
+    bool NCHWAsNHWC = false;
 };
 
 inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
@@ -112,10 +120,10 @@ public:
     virtual void exec(const std::vector<MemoryCPtr>& src,
                       const std::vector<MemoryPtr>& dst,
                       const void* post_ops_data_) = 0;
-    virtual impl_desc_type getImplType() const = 0;
+    [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
 
     virtual ~InterpolateExecutor() = default;
-    VectorDims getSrcDimPad5d() const {
+    [[nodiscard]] VectorDims getSrcDimPad5d() const {
         return srcDimPad5d;
     }
     const uint8_t* padPreprocess(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst);
@@ -141,8 +149,8 @@ private:
                        float cubicCoeff,
                        InterpolateLayoutType layout);
 
-    float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-    int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+    [[nodiscard]] float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
+    [[nodiscard]] int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
     void linearOnnxCF(int outCoord,
                       float scale,
                       int inShape,
@@ -168,11 +176,11 @@ using InterpolateExecutorCPtr = std::shared_ptr<const InterpolateExecutor>;
 
 class InterpolateExecutorBuilder {
 public:
-    ~InterpolateExecutorBuilder() = default;
-    virtual bool isSupported(const InterpolateAttrs& InterpolateAttrs,
-                             const std::vector<MemoryDescPtr>& srcDescs,
-                             const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    virtual InterpolateExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    virtual ~InterpolateExecutorBuilder() = default;
+    [[nodiscard]] virtual bool isSupported(const InterpolateAttrs& InterpolateAttrs,
+                                           const std::vector<MemoryDescPtr>& srcDescs,
+                                           const std::vector<MemoryDescPtr>& dstDescs) const = 0;
+    [[nodiscard]] virtual InterpolateExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
 };
 
 using InterpolateExecutorBuilderPtr = std::shared_ptr<InterpolateExecutorBuilder>;

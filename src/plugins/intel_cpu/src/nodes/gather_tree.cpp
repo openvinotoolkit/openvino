@@ -80,7 +80,7 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void GatherTree::execute(const dnnl::stream& strm) {
+void GatherTree::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has not compiled executor.");
     }
@@ -142,7 +142,7 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
       batchSize{stepIdxDims[1]},
       beamWidth{stepIdxDims[2]},
       bbSize{batchSize * beamWidth},
-      parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1lu, std::multiplies<size_t>())} {
+      parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1lu, std::multiplies<>())} {
     if (maxTime != static_cast<int32_t>(parentIdxDims[0]) || maxTime != static_cast<int32_t>(dstDims[0]) ||
         batchSize != parentIdxDims[1] || batchSize != dstDims[1] || batchSize != maxSeqLenDims[0] ||
         beamWidth != parentIdxDims[2] || beamWidth != dstDims[2]) {
@@ -172,9 +172,9 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
                 finalIdx[idx + beam] = endToken;
             }
 
-            for (int32_t parent = static_cast<int32_t>(beam); time >= 0; time--, idx -= bbSize) {
+            for (auto parent = static_cast<int32_t>(beam); time >= 0; time--, idx -= bbSize) {
                 if (parent < 0 || parent >= static_cast<int32_t>(beamWidth) ||
-                    static_cast<size_t>(idx + parent) >= parentIdxSize) {
+                    static_cast<size_t>(idx) + parent >= parentIdxSize) {
                     incorrectResult = true;
                     break;
                 }

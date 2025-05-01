@@ -84,14 +84,16 @@ void Subgraph::set_virtual_port_count(const size_t count) {
 }
 
 auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool {
-    return ov::is_type<ov::op::v1::Transpose>(op) ||
-           ov::is_type<ov::op::v1::Softmax>(op) ||
-           ov::is_type<ov::op::v8::Softmax>(op) ||
-           ov::is_type<ov::op::v0::MatMul>(op) ||
-           ov::is_type<ov::op::v1::Broadcast>(op) || // Broadcast is domain sensetive op because the output shape depends on
-           ov::is_type<ov::op::v3::Broadcast>(op) ||   // the both input and broadcast shapes (the both - are inputs of op). Note: is used only in MHA pattern
-           ov::is_type<ov::op::v12::GroupNormalization>(op) ||
-           ov::is_type<op::Reshape>(op);
+    // Broadcast is domain sensetive op because the output shape depends on
+    // the both input and broadcast shapes (the both - are inputs of op). Note: is used only in MHA pattern
+    return ov::is_type_any_of<ov::op::v1::Transpose,
+                              ov::op::v1::Softmax,
+                              ov::op::v8::Softmax,
+                              ov::op::v0::MatMul,
+                              ov::op::v1::Broadcast,
+                              ov::op::v3::Broadcast,
+                              ov::op::v12::GroupNormalization,
+                              op::Reshape>(op);
 }
 
 auto Subgraph::is_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> bool {
@@ -104,7 +106,7 @@ void Subgraph::init_config() {
     for (const auto& op : ops) {
         update(config.m_is_quantized, ov::is_type<ov::op::v0::FakeQuantize>(op));
         update(config.m_has_domain_sensitive_ops, is_domain_sensitive_op(op));
-        update(config.m_has_broadcast_sensitive_ops, ov::is_type<ov::op::v12::GroupNormalization>(op) || ov::is_type<op::Reshape>(op));
+        update(config.m_has_broadcast_sensitive_ops, ov::is_type_any_of<ov::op::v12::GroupNormalization, op::Reshape>(op));
     }
 }
 
@@ -140,7 +142,7 @@ auto Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
             if (are_prev_or_next_ops) {
                 push_prc_size(transpose->get_element_type().size());
             }
-        } else if (ov::is_type<ov::op::v1::Softmax>(op) || ov::is_type<ov::op::v8::Softmax>(op)) {
+        } else if (ov::is_type_any_of<ov::op::v1::Softmax, ov::op::v8::Softmax>(op)) {
             // Softmax always uses 2 FP32 Buffers after decomposition.
             // They are inplace and the same, so we can push precision size only once
             push_prc_size(ov::element::f32.size());
@@ -283,10 +285,8 @@ void Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, c
 }
 
 auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool {
-    return ov::is_type<ov::op::v1::Transpose>(node) ||
-           ov::is_type<ov::op::v1::Broadcast>(node) ||
-           ov::is_type<ov::op::v3::Broadcast>(node) ||
-           ov::is_type<ov::op::v1::Reshape>(node);
+    return ov::is_type_any_of<ov::op::v1::Transpose, ov::op::v1::Broadcast, ov::op::v3::Broadcast, ov::op::v1::Reshape>(
+        node);
 }
 
 bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept {
@@ -486,7 +486,8 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
 
 #ifdef SNIPPETS_DEBUG_CAPS
     if (m_linear_ir->get_config().debug_config->perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
-        lowered::pass::InsertPerfCount perf_count_pass({});
+        const std::map<std::string, std::string> bound_names = {};
+        lowered::pass::InsertPerfCount perf_count_pass(bound_names);
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }
 #endif
@@ -558,7 +559,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
 }
 
 const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {
-    OPENVINO_ASSERT(m_generator, "Generator has not been inited!");
+    assert(m_generator && "Generator has not been inited!");
     return m_generator->get_target_machine()->get_runtime_configurator();
 }
 

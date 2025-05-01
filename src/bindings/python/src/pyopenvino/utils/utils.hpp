@@ -32,6 +32,52 @@ namespace py = pybind11;
 
 namespace Common {
 namespace utils {
+
+class OutPyBuffer : public std::streambuf {
+public:
+    OutPyBuffer(py::object bytes_io_stream) : m_py_stream{std::move(bytes_io_stream)} {}
+
+protected:
+    std::streamsize xsputn(const char_type* s, std::streamsize n) override {
+        return m_py_stream.attr("write")(py::bytes(s, n)).cast<std::streamsize>();
+    }
+
+    int_type overflow(int_type c) override {
+        char as_char = c;
+        if (m_py_stream.attr("write")(py::bytes(&as_char, 1)).cast<int>() != 1) {
+            return traits_type::eof();
+        }
+        return c;
+    }
+
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override {
+        const int python_direction = [&]{
+            switch (dir) {
+                case std::ios_base::beg:
+                    return 0;
+                case std::ios_base::cur:
+                    return 1;
+                case std::ios_base::end:
+                    return 2;
+                default:
+                    return -1;
+            }
+        }();
+        if (python_direction == -1) {
+            return pos_type(off_type(-1));
+        }
+        const auto abs_pos = m_py_stream.attr("seek")(off, python_direction).cast<int>();
+        return pos_type(abs_pos);
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(pos, std::ios_base::beg, which);
+    }
+    
+private:
+    py::object m_py_stream;
+};
+
 class MemoryBuffer : public std::streambuf {
 public:
     MemoryBuffer(char* data, std::size_t size) {
@@ -54,20 +100,23 @@ protected:
             break;
         default:
             return pos_type(off_type(-1));
-        }
+    }
         return (gptr() < eback() || gptr() > egptr()) ? pos_type(off_type(-1)) : pos_type(gptr() - eback());
     }
 
     pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
         return seekoff(pos, std::ios_base::beg, which);
     }
+
 };
 
-    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
+    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE, MODEL_DISTRIBUTION_POLICY };
 
     struct EmptyList {};
 
-    PY_TYPE check_list_element_type(const py::list& list);
+    template <typename T>
+    // Checks element type of list and set
+    PY_TYPE check_container_element_type(const T& container);
 
     py::object from_ov_any_no_leaves(const ov::Any& any);
 
@@ -90,6 +139,8 @@ protected:
     bool py_object_is_any_map(const py::object& py_obj);
 
     ov::AnyMap py_object_to_any_map(const py::object& py_obj);
+
+    std::unordered_map<std::string, ov::Any> py_object_to_unordered_any_map(const py::object& py_obj);
 
     ov::Any py_object_to_any(const py::object& py_obj);
 

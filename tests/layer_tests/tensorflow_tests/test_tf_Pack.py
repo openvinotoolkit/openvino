@@ -46,11 +46,9 @@ class TestPack(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_pack_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                        use_legacy_frontend):
+    def test_pack_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_pack_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_negative_axis = [
         dict(input_shape=[2, 4], input_num=2, axis=-1, input_type=np.float32),
@@ -60,11 +58,9 @@ class TestPack(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_negative_axis)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_pack_negative_axis(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_legacy_frontend):
+    def test_pack_negative_axis(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_pack_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexPack(CommonTFLayerTest):
@@ -102,11 +98,9 @@ class TestComplexPack(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_pack_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_legacy_frontend):
+    def test_complex_pack_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_complex_pack_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data_negative_axis = [
         dict(input_shape=[2, 4], input_num=2, axis=-1),
@@ -116,8 +110,6 @@ class TestComplexPack(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_negative_axis)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_pack_negative_axis(self, params, ie_device, precision, ir_version, temp_dir,
-                                        use_legacy_frontend):
+    def test_complex_pack_negative_axis(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_complex_pack_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

@@ -10,9 +10,11 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -64,7 +66,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             return false;
         }
 
-        bool is_quantized_int8 = pattern_map.count(q_proj_weight_const_i8);
+        bool is_quantized_int8 = pattern_map.find(q_proj_weight_const_i8) != pattern_map.end();
 
         OutputVector args = {src};
         OutputVector deq_scales;
@@ -132,8 +134,8 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             }
 
             proj_size.push_back(wshape[0]);
-            args.push_back(constw);
-            deq_scales.push_back(deq_scale);
+            args.emplace_back(constw);
+            deq_scales.emplace_back(deq_scale);
             outputs.push_back(mm->get_default_output());
         }
 
@@ -232,7 +234,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
             return false;
         }
 
-        bool is_quantized_int8 = pattern_map.count(qkv_proj_weight_const_i8);
+        bool is_quantized_int8 = pattern_map.find(qkv_proj_weight_const_i8) != pattern_map.end();
 
         std::shared_ptr<opset1::Constant> qkv_proj_weight_node;
         if (is_quantized_int8) {
@@ -247,7 +249,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
         }
 
         auto w_shape = qkv_proj_weight_node->get_shape();
-        if (w_shape[0] != static_cast<uint64_t>(proj_size * 3)) {
+        if (w_shape[0] != static_cast<uint64_t>(proj_size) * 3) {
             return false;
         }
 
@@ -262,9 +264,9 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
         OutputVector args = {pattern_map.at(input), qkv_proj_weight_node, qkv_proj_weight_node, qkv_proj_weight_node};
         if (is_quantized_int8) {
             auto scales = pattern_map.at(qkv_proj_weight_scales_per_OC).get_node_shared_ptr();
-            args.push_back(scales);
-            args.push_back(scales);
-            args.push_back(scales);
+            args.emplace_back(scales);
+            args.emplace_back(scales);
+            args.emplace_back(scales);
         }
         auto old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);

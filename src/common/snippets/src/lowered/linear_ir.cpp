@@ -58,12 +58,12 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
 }
 
 const ExpressionFactoryPtr& LinearIR::get_expr_factory() const {
-    OPENVINO_ASSERT(m_expression_factory, "ExpresstionFactory is missed!");
+    assert(m_expression_factory && "ExpresstionFactory is missed!");
     return m_expression_factory;
 }
 
 std::vector<PortConnectorPtr> LinearIR::get_expression_inputs_by_node(const std::shared_ptr<Node>& n) const {
-    OPENVINO_ASSERT(n != nullptr, "Failed expression inputs getting: node is null");
+    assert(n != nullptr && "Failed expression inputs getting: node is null");
     std::vector<PortConnectorPtr> inputs(n->get_input_size(), nullptr);
     for (const auto& input : n->inputs()) {
         const auto input_source = input.get_source_output();
@@ -205,7 +205,7 @@ void LinearIR::unregister_expression(const ExpressionPtr& expr) {
 
     const auto& node = expr->get_node();
     m_node2expression_map.erase(node);
-    OPENVINO_ASSERT(!ov::is_type<ov::op::v0::Parameter>(node) && !ov::is_type<ov::op::v0::Result>(node),
+    OPENVINO_ASSERT((!ov::is_type_any_of<ov::op::v0::Parameter, ov::op::v0::Result>(node)),
                     "unregister_expression mustn't be called for parameter or result expressions");
     if (const auto buffer_expr = ov::as_type_ptr<BufferExpression>(expr)) {
         const auto& it = std::find(m_buffer_expressions.cbegin(), m_buffer_expressions.cend(), buffer_expr);

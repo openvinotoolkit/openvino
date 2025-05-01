@@ -17,7 +17,9 @@
 #include "transformations/utils/utils.hpp"
 using namespace ov::gen_pattern;
 
-ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config) : m_config(config) {
+ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config, UpdateShapeFunc func)
+    : m_config(config),
+      m_update_shape_func(std::move(func)) {
     MATCHER_SCOPE(ConvertPagedAttnInputs);
 
     auto Q = ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank());
@@ -68,7 +70,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                                                           rotation_deltas,
                                                           rotation_trig_lut});
     auto result = pa_1 | pa_2;
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<ov::op::v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
         auto value_cache = ov::as_type_ptr<ov::op::v0::Parameter>(pa_op->get_input_node_shared_ptr(4));
@@ -83,7 +85,7 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                                     const size_t group_size,
                                     const bool bychannel,
                                     const std::vector<size_t>& orders) {
-            size_t _block_size = block_size;
+            ov::Dimension::value_type _block_size = block_size;
             ov::Dimension::value_type _head_nums = head_nums;
             ov::Dimension::value_type _head_size = head_size;
             ov::Dimension::value_type _group_size = group_size;
@@ -94,17 +96,9 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
                 }
             }
             size_t group_num = _head_size / _group_size;
-            if (precision == ov::element::u8) {
-                if (bychannel) {
-                    _block_size += 2 * sizeof(float);
-                } else {
-                    _head_size += sizeof(float) * 2 * group_num;
-                }
-            } else if (precision == ov::element::u4) {
-                _head_size += sizeof(float) * 2 * group_num * 2;
-            }
-            auto block_shape = ov::PartialShape::dynamic(4);
+            m_update_shape_func(precision, bychannel, group_num, _head_size, _block_size);
 
+            auto block_shape = ov::PartialShape::dynamic(4);
             block_shape[orders[0]] = -1;
             block_shape[orders[1]] = _head_nums;
             block_shape[orders[2]] = _block_size;
@@ -116,31 +110,37 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
         auto value_cache_precision = format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
         key_cache->set_element_type(key_cache_precision);
         value_cache->set_element_type(value_cache_precision);
-        if (!pa_op->get_rt_info().count("num_k_heads") || !pa_op->get_rt_info().count("k_head_size") ||
-            !pa_op->get_rt_info().count("num_v_heads") || !pa_op->get_rt_info().count("num_v_heads")) {
+        bool status = false;
+        if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
+            pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("num_v_heads")) {
+            const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
+                                                          pa_op->get_rt_info()["k_head_size"].as<size_t>(),
+                                                          m_config.keyCacheBlockSize,
+                                                          key_cache_precision,
+                                                          m_config.keyCacheGroupSize,
+                                                          m_config.keyCacheQuantBychannel,
+                                                          m_config.keyCacheDimOrder);
+            const auto value_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_v_heads"].as<size_t>(),
+                                                            pa_op->get_rt_info()["v_head_size"].as<size_t>(),
+                                                            m_config.valueCacheBlockSize,
+                                                            value_cache_precision,
+                                                            m_config.valueCacheGroupSize,
+                                                            m_config.valueCacheQuantBychannel,
+                                                            m_config.valueCacheDimOrder);
+
+            key_cache->set_partial_shape(key_cache_shape);
+            value_cache->set_partial_shape(value_cache_shape);
+            status = true;
+        } else {
             OPENVINO_DEBUG("PagedAttn ",
                            pa_op->get_friendly_name(),
                            " doesn't have rtinfo for num_k_heads/k_head_size/num_v_heads/num_v_heads");
-            return false;
+            status = false;
         }
-        const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
-                                                      pa_op->get_rt_info()["k_head_size"].as<size_t>(),
-                                                      m_config.keyCacheBlockSize,
-                                                      key_cache_precision,
-                                                      m_config.keyCacheGroupSize,
-                                                      m_config.keyCacheQuantBychannel,
-                                                      m_config.keyCacheDimOrder);
-        const auto value_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_v_heads"].as<size_t>(),
-                                                        pa_op->get_rt_info()["v_head_size"].as<size_t>(),
-                                                        m_config.valueCacheBlockSize,
-                                                        value_cache_precision,
-                                                        m_config.valueCacheGroupSize,
-                                                        m_config.valueCacheQuantBychannel,
-                                                        m_config.valueCacheDimOrder);
 
-        key_cache->set_partial_shape(key_cache_shape);
-        value_cache->set_partial_shape(value_cache_shape);
-        return true;
+        key_cache->validate_and_infer_types();
+        value_cache->validate_and_infer_types();
+        return status;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);

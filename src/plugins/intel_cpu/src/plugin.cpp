@@ -12,6 +12,7 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/transformation_pipeline.h"
@@ -23,12 +24,15 @@
 #include "weights_cache.hpp"
 
 #if defined(__linux__)
-#    include <signal.h>
 #    include <sys/auxv.h>
 #    include <sys/mman.h>
+
+#    include <csignal>
 #endif
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 
 using namespace ov::threading;
 
@@ -54,7 +58,7 @@ static std::string getDeviceFullName() {
 #    else
         __cpuid(regs[0], regs[0], regs[1], regs[2], regs[3]);
 #    endif
-        char* ch = reinterpret_cast<char*>(&regs[0]);
+        auto* ch = reinterpret_cast<char*>(&regs[0]);
         for (size_t j = 0; j < sizeof(regs); j++) {
             if (ch[j] != '\0') {
                 brand_string += ch[j];
@@ -74,8 +78,8 @@ static std::string getDeviceFullName() {
 #    endif
 
 class SigAltStackSetup {
-    stack_t new_stack{0};
-    stack_t old_stack{0};
+    stack_t new_stack{nullptr};
+    stack_t old_stack{nullptr};
 
 public:
     SigAltStackSetup() {
@@ -84,7 +88,8 @@ public:
 
         auto minsigstksz = getauxval(AT_MINSIGSTKSZ);
         auto new_size = minsigstksz + SIGSTKSZ;
-        void* altstack = mmap(NULL, new_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+        void* altstack =
+            mmap(nullptr, new_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
         if (altstack == MAP_FAILED) {
             return;
         }
@@ -103,9 +108,9 @@ public:
         stack_t current_stack;
         if (new_stack.ss_sp) {
             // restore old stack if new_stack is still the current one
-            if (sigaltstack(NULL, &current_stack) == 0) {
+            if (sigaltstack(nullptr, &current_stack) == 0) {
                 if (current_stack.ss_sp == new_stack.ss_sp) {
-                    sigaltstack(&old_stack, NULL);
+                    sigaltstack(&old_stack, nullptr);
                 }
             }
             munmap(new_stack.ss_sp, new_stack.ss_size);
@@ -147,7 +152,7 @@ Plugin::~Plugin() {
 }
 
 static bool streamsSet(const ov::AnyMap& config) {
-    return config.count(ov::num_streams.name());
+    return config.find(ov::num_streams.name()) != config.end();
 }
 
 void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
@@ -202,7 +207,7 @@ static Config::ModelType getModelType(const std::shared_ptr<const Model>& model)
         return Config::ModelType::CNN;
     }
 
-    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && model->get_variables().size() > 0) ||
+    if ((op::util::has_op_with_type<op::v13::ScaledDotProductAttention>(model) && !model->get_variables().empty()) ||
         op::util::has_op_with_type<ov::op::PagedAttentionExtension>(model)) {
         return Config::ModelType::LLM;
     }
@@ -219,15 +224,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
         static const std::set<ov::element::Type_t> supported_precisions = {
-            ov::element::Type_t::u4,   ov::element::Type_t::i4,      ov::element::Type_t::u8,
-            ov::element::Type_t::i8,   ov::element::Type_t::f8e4m3,  ov::element::Type_t::f8e5m2,
-            ov::element::Type_t::u16,  ov::element::Type_t::i16,     ov::element::Type_t::u32,
-            ov::element::Type_t::i32,  ov::element::Type_t::u64,     ov::element::Type_t::i64,
-            ov::element::Type_t::bf16, ov::element::Type_t::f16,     ov::element::Type_t::f32,
-            ov::element::Type_t::f64,  ov::element::Type_t::boolean, ov::element::Type_t::string,
-            ov::element::Type_t::nf4,  ov::element::Type_t::dynamic};
+            ov::element::Type_t::u4,     ov::element::Type_t::i4,      ov::element::Type_t::u8,
+            ov::element::Type_t::i8,     ov::element::Type_t::f8e4m3,  ov::element::Type_t::f8e5m2,
+            ov::element::Type_t::u16,    ov::element::Type_t::i16,     ov::element::Type_t::u32,
+            ov::element::Type_t::i32,    ov::element::Type_t::u64,     ov::element::Type_t::i64,
+            ov::element::Type_t::bf16,   ov::element::Type_t::f16,     ov::element::Type_t::f32,
+            ov::element::Type_t::f64,    ov::element::Type_t::boolean, ov::element::Type_t::string,
+            ov::element::Type_t::nf4,    ov::element::Type_t::f4e2m1,  ov::element::Type_t::f8e8m0,
+            ov::element::Type_t::dynamic};
 
-        if (!supported_precisions.count(input_precision)) {
+        if (supported_precisions.find(input_precision) == supported_precisions.end()) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
                                            input_precision,
                                            " is not supported yet...");
@@ -397,12 +403,12 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::key_cache_group_size) {
         return static_cast<decltype(ov::key_cache_group_size)::value_type>(engConfig.keyCacheGroupSize);
     } else if (name == ov::value_cache_group_size) {
-        return static_cast<decltype(ov::value_cache_group_size)::value_type>(engConfig.valueCacheGroupSize);
+        return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
     }
     return get_ro_property(name, options);
 }
 
-ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const ov::AnyMap& options) const {
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
     };
@@ -478,18 +484,18 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         std::vector<std::string> capabilities;
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
-            capabilities.push_back(ov::device::capability::BF16);
+            capabilities.emplace_back(ov::device::capability::BF16);
         }
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-            capabilities.push_back(ov::device::capability::WINOGRAD);
+            capabilities.emplace_back(ov::device::capability::WINOGRAD);
         }
-        capabilities.push_back(ov::device::capability::FP32);
+        capabilities.emplace_back(ov::device::capability::FP32);
         if (hasHardwareSupport(ov::element::f16)) {
-            capabilities.push_back(ov::device::capability::FP16);
+            capabilities.emplace_back(ov::device::capability::FP16);
         }
-        capabilities.push_back(ov::device::capability::INT8);
-        capabilities.push_back(ov::device::capability::BIN);
-        capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+        capabilities.emplace_back(ov::device::capability::INT8);
+        capabilities.emplace_back(ov::device::capability::BIN);
+        capabilities.emplace_back(ov::device::capability::EXPORT_IMPORT);
         return decltype(ov::device::capabilities)::value_type(std::move(capabilities));
     } else if (name == ov::range_for_async_infer_requests) {
         const std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 1, 1);
@@ -575,17 +581,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
-    if (config.count(ov::cache_encryption_callbacks.name())) {
-        const auto& encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
+    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
+        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
         decript_from_string = true;
     }
 
     auto _config = config;
     std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (_config.count(ov::internal::cached_model_buffer.name())) {
-        model_buffer = _config.at(ov::internal::cached_model_buffer.name()).as<std::shared_ptr<ov::AlignedBuffer>>();
-        _config.erase(ov::internal::cached_model_buffer.name());
+    if (auto blob_it = _config.find(ov::hint::compiled_blob.name()); blob_it != _config.end()) {
+        auto compiled_blob = blob_it->second.as<ov::Tensor>();
+        model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
+                                                                      compiled_blob.get_byte_size(),
+                                                                      compiled_blob);
+        _config.erase(blob_it);
     }
 
     ModelDeserializer deserializer(

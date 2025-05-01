@@ -5,14 +5,15 @@
 #pragma once
 
 #include <node.h>
-#include <stdlib.h>
 
 #include <cassert>
 #include <climits>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -97,6 +98,7 @@ struct PlainTensor {
     size_t m_capacity = 0;
     size_t m_element_size = 0;
     size_t m_offset = 0;
+    size_t m_sub_byte_multiplier = 1;
     ov::element::Type_t m_dt = ov::element::Type_t::dynamic;
     MemoryPtr m_mem;  // hold memory ptr reference
 
@@ -104,28 +106,28 @@ struct PlainTensor {
         return m_ptr != nullptr;
     }
 
-    VectorDims shape() const {
+    [[nodiscard]] VectorDims shape() const {
         return VectorDims(m_dims, m_dims + m_rank);
     }
 
-    size_t size(int i) const {
+    [[nodiscard]] size_t size(int i) const {
         if (i < 0) {
             i += m_rank;
         }
         assert(static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_dims[i];
     }
-    size_t stride(int i) const {
+    [[nodiscard]] size_t stride(int i) const {
         assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
         return m_strides[i];
     }
 
-    size_t stride_bytes(int i) const {
-        return stride(i) * m_element_size;
+    [[nodiscard]] size_t stride_bytes(int i) const {
+        return stride(i) * m_element_size / m_sub_byte_multiplier;
     }
 
     template <typename T>
-    std::vector<T> get_strides() const {
+    [[nodiscard]] std::vector<T> get_strides() const {
         std::vector<T> strides(m_rank);
         for (size_t i = 0; i < m_rank; i++) {
             strides[i] = static_cast<T>(m_strides[i]);
@@ -148,6 +150,7 @@ struct PlainTensor {
         m_element_size = other.m_element_size;
         m_capacity = other.m_capacity;
         m_offset = other.m_offset;
+        m_sub_byte_multiplier = other.m_sub_byte_multiplier;
         return *this;
     }
 
@@ -169,7 +172,7 @@ struct PlainTensor {
                strides.data());
     }
 
-    ov::element::Type get_precision() const {
+    [[nodiscard]] ov::element::Type get_precision() const {
         return m_dt;
     }
 
@@ -233,12 +236,13 @@ struct PlainTensor {
         sub_tensor.m_ptr = m_ptr;
         sub_tensor.m_offset = m_offset + off;
         sub_tensor.m_dt = m_dt;
+        sub_tensor.m_sub_byte_multiplier = m_sub_byte_multiplier;
         sub_tensor.m_element_size = m_element_size;
         return sub_tensor;
     }
 
     // slice: return a sub-view (w/o ownership/refcount to original data)
-    PlainTensor slice(int axis, int start, int end, int step = 1) const {
+    [[nodiscard]] PlainTensor slice(int axis, int start, int end, int step = 1) const {
         PlainTensor sub_tensor;
         assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
 
@@ -267,12 +271,13 @@ struct PlainTensor {
         sub_tensor.m_ptr = m_ptr;
         sub_tensor.m_offset = m_offset + off;
         sub_tensor.m_dt = m_dt;
+        sub_tensor.m_sub_byte_multiplier = m_sub_byte_multiplier;
         sub_tensor.m_element_size = m_element_size;
 
         return sub_tensor;
     }
 
-    bool is_dense() const {
+    [[nodiscard]] bool is_dense() const {
         // check if it's dense tensor
         size_t stride = 1;
         for (int i = m_rank - 1; i >= 0; i--) {
@@ -300,7 +305,7 @@ struct PlainTensor {
 
        simplified form is when whole tensor is dense
     */
-    PlainTensor reshape(const std::vector<size_t>& target_shape) const {
+    [[nodiscard]] PlainTensor reshape(const std::vector<size_t>& target_shape) const {
         // only valid for dense memory
         PlainTensor new_tensor_view;
         assert(is_dense());
@@ -311,7 +316,7 @@ struct PlainTensor {
         return new_tensor_view;
     }
 
-    PlainTensor permute(const std::vector<size_t>& order) const {
+    [[nodiscard]] PlainTensor permute(const std::vector<size_t>& order) const {
         PlainTensor new_tensor_view;
         assert(order.size() == m_rank);
         new_tensor_view.m_capacity = 0;
@@ -320,6 +325,7 @@ struct PlainTensor {
         new_tensor_view.m_rank = m_rank;
         new_tensor_view.m_dt = m_dt;
         new_tensor_view.m_element_size = m_element_size;
+        new_tensor_view.m_sub_byte_multiplier = m_sub_byte_multiplier;
         new_tensor_view.m_offset = m_offset;
         auto it_order = order.begin();
         // also should check order has no repeat element
@@ -339,6 +345,7 @@ struct PlainTensor {
                 const size_t* strides = nullptr) {
         m_element_size = element_size;
         m_dt = dt;
+        m_sub_byte_multiplier = sub_byte_data_type_multiplier();
         // initialize strides for compact/dense tensor
         m_rank = new_dims.size();
         assert(m_rank <= PLAINTENSOR_RANK_MAX);
@@ -383,8 +390,14 @@ struct PlainTensor {
         resize(new_dims, sizeof(DT), precision_of<DT>::value, data, strides);
     }
 
+    size_t sub_byte_data_type_multiplier() const {
+        if (one_of(m_dt, ov::element::i4, ov::element::u4))
+            return 2;
+        return 1;
+    }
+
     template <int dim>
-    int64_t offset() const {
+    [[nodiscard]] int64_t offset() const {
         return m_offset;
     }
     template <int dim, typename I>
@@ -400,9 +413,25 @@ struct PlainTensor {
         return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
     }
 
+    template <typename DT,
+              ov::element::Type_t SRC_PREC,
+              std::enable_if_t<SRC_PREC != ov::element::u4, bool> = true,
+              typename... Is>
+    DT* ptr(Is... indices) const {
+        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...);
+    }
+
+    template <typename DT,
+              ov::element::Type_t SRC_PREC,
+              std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true,
+              typename... Is>
+    DT* ptr(Is... indices) const {
+        return reinterpret_cast<DT*>(m_ptr.get()) + offset<0>(indices...) / 2;
+    }
+
     template <typename... Is>
     void* ptr_v(Is... indices) const {
-        return reinterpret_cast<void*>(m_ptr.get() + offset<0>(indices...) * m_element_size);
+        return reinterpret_cast<void*>(m_ptr.get() + offset<0>(indices...) * m_element_size / m_sub_byte_multiplier);
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
@@ -428,7 +457,7 @@ struct PlainTensor {
         // assign every element to value
         std::vector<size_t> index(m_rank, 0);
         auto* dst = reinterpret_cast<DT*>(m_ptr.get() + m_offset * m_element_size);
-        while (1) {
+        while (true) {
             size_t off = 0;
             for (int i = m_rank - 1; i >= 0; i--) {
                 if (index[i] >= m_dims[i]) {
@@ -486,7 +515,7 @@ struct PlainTensor {
 
     int max_repr_len = 256;
 
-    std::string repr(int max_total_lines = 16, int lines_per_row = 1) const {
+    [[nodiscard]] std::string repr(int max_total_lines = 16, int lines_per_row = 1) const {
         if (!m_ptr) {
             return "{empty}";
         }
@@ -537,7 +566,7 @@ struct PlainTensor {
                 } else if (m_dt == ov::element::Type_t::u8) {
                     ss << (ptr<uint8_t>())[i] << ",";
                 } else if (m_dt == ov::element::Type_t::boolean) {
-                    ss << static_cast<bool>((ptr<uint8_t>())[i]) << ",";
+                    ss << static_cast<int>(static_cast<bool>((ptr<uint8_t>())[i])) << ",";
                 } else {
                     ss << "?,";
                 }
