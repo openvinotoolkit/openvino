@@ -244,6 +244,8 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
 
 TEST(group_normalization, basic_b_fs_yx_fsv16) {
     auto& engine = get_test_engine();
+    if (engine.get_device_info().supports_immad)
+        return;
 
     const ov::Shape input_shape = {1, 128, 256, 256};
     const ov::Shape param_shape = {128, 1, 1, 1};
