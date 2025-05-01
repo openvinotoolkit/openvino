@@ -20,7 +20,8 @@ class Snapshot;  // Forward declaration
 namespace patterns {
 namespace avoid {
 
-// Note: this pattern is only utilized by the online partitioner
+// Note: this pattern is only utilized by the online partitionerls
+
 class RMSNorm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::avoid::RMSNorm");
@@ -32,6 +33,7 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::avoid::SinCos");
     SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& avoid_device);
 };
+
 }  // namespace avoid
 }  // namespace patterns
 }  // namespace npuw
