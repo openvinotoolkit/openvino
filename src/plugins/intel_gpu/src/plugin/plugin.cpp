@@ -181,7 +181,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::string device_id = get_device_id(orig_config);
 
     auto context = get_default_context(device_id);
-    context->initialize();
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] compile_model: Couldn't find config for GPU with id ", device_id);
 
@@ -219,18 +218,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
     if (remote_properties.empty()) {
-        auto context = get_default_context(m_default_device_id);
-        context->initialize();
-
-        return context;
+        return get_default_context(m_default_device_id);
     }
     return std::make_shared<RemoteContextImpl>(get_default_contexts(), remote_properties);
 }
 
-std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string& device_id) const {
+std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string& device_id, bool initialize) const {
     auto contexts = get_default_contexts();
     OPENVINO_ASSERT(contexts.count(device_id), "[GPU] Context was not initialized for ", device_id, " device");
-    return contexts.at(device_id);
+
+    auto context = contexts.at(device_id);
+    if (initialize)
+        context->initialize();
+
+    return context;
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) const {
@@ -238,9 +239,6 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
 
     if (params.find(ov::device::id.name()) != params.end())
         device_id = params.at(ov::device::id.name()).as<std::string>();
-
-    auto context = get_default_context(device_id);
-    context->initialize();
 
     return get_default_context(device_id);
 }
@@ -280,7 +278,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     std::string device_id = get_device_id(orig_config);
 
     auto ctx = get_default_context(device_id);
-    ctx->initialize();
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
@@ -535,7 +532,7 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, device_info.num_ccs == 1 ? 2 : device_info.num_ccs);
         return decltype(ov::range_for_streams)::value_type {range};
     } else if (name == ov::intel_gpu::memory_statistics) {
-        const auto& ctx = get_default_context(device_id);
+        const auto& ctx = get_default_context(device_id, false);
         if (!ctx->is_initialized()) {
             decltype(ov::intel_gpu::memory_statistics)::value_type res;
             auto add_zero_mem_usage = [&res](auto alloc_type) {

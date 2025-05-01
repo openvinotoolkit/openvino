@@ -28,13 +28,14 @@ public:
     bool is_same(const device::ptr other) override;
 
     void set_mem_caps(const memory_capabilities& memory_capabilities) override;
+    void set_sub_device_idx(uint32_t idx);
 
     void initialize() override;
     bool is_initialized() const override { return _is_initialized; };
 
     ~ocl_device() = default;
 
-private:
+protected:
     void initialize_device(const cl::Device dev, const cl::Context& ctx);
 
     bool _is_initialized = false;

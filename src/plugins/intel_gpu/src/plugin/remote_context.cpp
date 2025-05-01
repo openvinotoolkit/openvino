@@ -72,7 +72,7 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
 
     m_device = device_map.begin()->second;
 
-    GPU_DEBUG_LOG << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
+    GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
 
     m_device_name = get_device_name(known_contexts, m_device);
 
@@ -80,12 +80,12 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
 }
 
 cldnn::engine& RemoteContextImpl::get_engine() {
-    OPENVINO_ASSERT(m_is_initialized, "[GPU] Can't retrieve engine from uninitialized RemoteContext. Please initialize the context first");
+    OPENVINO_ASSERT(m_is_initialized, "[GPU] Can't obtain engine from uninitialized RemoteContext. Please initialize the context first");
     return *m_engine;
 }
 
 const cldnn::engine& RemoteContextImpl::get_engine() const {
-    OPENVINO_ASSERT(m_is_initialized, "[GPU] Can't retrieve engine from uninitialized RemoteContext. Please initialize the context first");
+    OPENVINO_ASSERT(m_is_initialized, "[GPU] Can't obtain engine from uninitialized RemoteContext. Please initialize the context first");
     return *m_engine;
 }
 
@@ -238,24 +238,23 @@ void RemoteContextImpl::check_if_shared() const {
 }
 
 void RemoteContextImpl::initialize() {
-    if (m_is_initialized)
-        return;
-
-    GPU_DEBUG_TRACE_DETAIL << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
+    std::call_once(m_initialize_flag, [this]() {
+        GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
 
 #ifdef OV_GPU_WITH_SYCL
-    const auto engine_type = cldnn::engine_types::sycl;
+        const auto engine_type = cldnn::engine_types::sycl;
 #else
-    const auto engine_type = cldnn::engine_types::ocl;
+        const auto engine_type = cldnn::engine_types::ocl;
 #endif
-    const auto runtime_type = cldnn::runtime_types::ocl;
+        const auto runtime_type = cldnn::runtime_types::ocl;
 
-    m_device->initialize();  // Initialize associated device before use
-    m_engine = cldnn::engine::create(engine_type, runtime_type, m_device);
+        m_device->initialize();  // Initialize associated device before use
+        m_engine = cldnn::engine::create(engine_type, runtime_type, m_device);
 
-    init_properties();
+        init_properties();
 
-    m_is_initialized = true;
+        m_is_initialized = true;
+});
 }
 
 }  // namespace ov::intel_gpu

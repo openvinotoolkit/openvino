@@ -204,6 +204,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.dev_name = device.getInfo<CL_DEVICE_NAME>();
     info.driver_version = device.getInfo<CL_DRIVER_VERSION>();
     info.dev_type = get_device_type(device);
+    info.sub_device_idx = std::numeric_limits<uint32_t>::max();
 
     info.execution_units_count = device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
 
@@ -283,12 +284,11 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         std::fill_n(std::begin(info.uuid.uuid), ov::device::UUID::MAX_UUID_SIZE, 0);
     }
 
+    bool bus_info_supported = extensions.find("cl_khr_pci_bus_info") != std::string::npos;
     bool device_attr_supported = extensions.find("cl_intel_device_attribute_query") != std::string::npos;
     bool nv_device_attr_supported = extensions.find("cl_nv_device_attribute_query") != std::string::npos;
     info.has_separate_cache = false;
     if (device_attr_supported) {
-        // TODO: check PCI bus info
-        // device.getInfo<CL_DEVICE_PCI_BUS_INFO_KHR>();
         info.ip_version = device.getInfo<CL_DEVICE_IP_VERSION_INTEL>();
         info.gfx_ver = parse_version(info.ip_version);
         info.device_id = device.getInfo<CL_DEVICE_ID_INTEL>();
@@ -318,6 +318,14 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         info.num_sub_slices_per_slice = 0;
         info.num_eus_per_sub_slice = 0;
         info.num_threads_per_eu = 0;
+    }
+
+    if (bus_info_supported) {
+        auto pci_bus_info = device.getInfo<CL_DEVICE_PCI_BUS_INFO_KHR>();
+        info.pci_info.pci_domain = pci_bus_info.pci_domain;
+        info.pci_info.pci_bus = pci_bus_info.pci_bus;
+        info.pci_info.pci_device = pci_bus_info.pci_device;
+        info.pci_info.pci_function = pci_bus_info.pci_function;
     }
 
     info.num_ccs = 1;
@@ -412,20 +420,45 @@ bool ocl_device::is_same(const device::ptr other) {
     if (!casted)
         return false;
 
-    if (_device.get() && casted->_device.get() && _device != casted->_device)
-        return false;
-
-    if (_platform != casted->_platform)
-        return false;
-
-    if (_info.uuid.uuid == casted->_info.uuid.uuid)
+    // Short path if cl_device is the same
+    if (_platform == casted->_platform && _device.get() && casted->_device.get() && _device == casted->_device)
         return true;
 
-    return false;
+    // Check other device attributes
+    if (_info.uuid.uuid != casted->_info.uuid.uuid)
+        return false;
+
+    if (_info.pci_info != casted->_info.pci_info)
+        return false;
+
+    if (_info.sub_device_idx != casted->_info.sub_device_idx)
+        return false;
+
+    if (_info.vendor_id != casted->_info.vendor_id ||
+        _info.dev_name != casted->_info.dev_name ||
+        _info.driver_version != casted->_info.driver_version)
+        return false;
+
+    if (_info.dev_type != casted->_info.dev_type ||
+        _info.gfx_ver != casted->_info.gfx_ver ||
+        _info.arch != casted->_info.arch)
+        return false;
+
+    if (_info.ip_version != casted->_info.ip_version || _info.device_id != casted->_info.device_id)
+        return false;
+
+    if (_info.execution_units_count != casted->_info.execution_units_count || _info.max_global_mem_size != casted->_info.max_global_mem_size)
+        return false;
+
+    return true;
 }
 
 void ocl_device::set_mem_caps(const memory_capabilities& memory_capabilities) {
     _mem_caps = memory_capabilities;
+}
+
+void ocl_device::set_sub_device_idx(uint32_t idx) {
+    _info.sub_device_idx = idx;
 }
 
 void ocl_device::initialize() {
