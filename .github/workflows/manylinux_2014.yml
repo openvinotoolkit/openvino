@@ -71,6 +71,7 @@ jobs:
           images: |
             ov_build/ubuntu_22_04_x64_docker
             ov_build/manylinux2014_x86_64
+            ov_build/manylinux_2_28
             ov_test/ubuntu_20_04_x64_py313
             ov_test/ubuntu_22_04_x64
             ov_test/ubuntu_24_04_x64
@@ -86,10 +87,10 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb-manylinux
+    runs-on: aks-linux-16-cores-32gb
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_docker }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux_2_28 }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -e DOCKER_CONFIG -v ${{ github.workspace }}:${{ github.workspace }}
@@ -134,12 +135,14 @@ jobs:
           build_type: ${{ env.CMAKE_BUILD_TYPE }}
           save_to: ${{ env.MANIFEST_PATH }}
 
-      - name: Install rootless Docker
+      - name: Build OpenVINO
         run: |
-          XDG_RUNTIME_DIR=/home/runner/run
-          mkdir -p $XDG_RUNTIME_DIR
-          PATH=/usr/bin:/sbin:/usr/sbin:$PATH dockerd-rootless.sh 
-          /usr/bin/dockerd-rootless-setuptool.sh install --force
+          python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+          cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DENABLE_TESTS=ON -DCMAKE_VERBOSE_MAKEFILE=ON -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=ON -DENABLE_OV_JAX_FRONTEND=OFF -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
+          cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
+          cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install
+          cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/api_tests --component tests
+          
 
       - name: Build OpenVINO
         run: |
