@@ -85,6 +85,7 @@ void ScaledAttnLayerGPUTest::SetUp() {
 
     transpose_prepare(inputShapes, input_transpose);
     init_input_shapes(inputShapes);
+
     ov::ParameterVector inputParams;
     // q, k, v
     inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]));
@@ -156,12 +157,18 @@ void ScaledAttnLayerGPUTest::SetUp() {
     manager.run_passes(functionRefs);
 
     auto it = std::find_if(inputShapes[1].second.begin(), inputShapes[1].second.end(), [&](const ov::Shape& shape){
-        return shape[2] >= 384 || shape[3] >= 128;
+        return shape[0] >= 128 || shape[2] >= 384 || shape[3] >= 128;
     });
 
+    bool has_diff_head_size = inputShapes[1].first.begin()[3] != inputShapes[2].first.begin()[3];
+
     bool has_long_seq = it != inputShapes[1].second.end();
+
     if (inType == ov::element::f16) {
-        if (has_long_seq) {
+        if (has_diff_head_size && !has_scale) {
+            abs_threshold = 0.1;
+            rel_threshold = 0.1;
+        } else if (has_long_seq) {
             abs_threshold = 0.025;
             rel_threshold = 0.025;
         } else {
@@ -197,7 +204,6 @@ void ScaledAttnLayerGPUTest::transpose_prepare(std::vector<InputShape>& shapes,
         return;
     }
 
-    shapes.insert(shapes.begin()+1, shapes[1]);
     if (input_transpose.empty()) {
         return;
     }
@@ -261,7 +267,11 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_3D {
         {ov::test::InputShape{ov::PartialShape{-1, -1, 80},
             {ov::Shape{16, 128, 80}, ov::Shape{16, 1, 80}, ov::Shape{2, 10, 80}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 80},
+            {ov::Shape{16, 128, 80}, ov::Shape{16, 1, 80}, ov::Shape{2, 10, 80}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, -1, 80},
             {ov::Shape{16, 128, 80}, ov::Shape{16, 1, 80}, ov::Shape{2, 10, 80}}}
         },
@@ -293,7 +303,11 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
             {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
             {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
         },
@@ -307,7 +321,11 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
             {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
             {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
         },
@@ -321,7 +339,11 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
         {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
             {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
+            {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
             {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
         },
@@ -336,7 +358,11 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
             {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 128},
+            {ov::Shape{1, 1, 100, 128}, ov::Shape{1, 1, 1, 128}, ov::Shape{2, 1, 10, 128}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 128},
             {ov::Shape{1, 1, 100, 128}, ov::Shape{1, 1, 1, 128}, ov::Shape{2, 1, 10, 128}}}
         },
@@ -351,7 +377,11 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 80},
             {ov::Shape{16, 1, 128, 80}, ov::Shape{16, 1, 1, 80}, ov::Shape{2, 1, 10, 80}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 80},
+            {ov::Shape{16, 1, 128, 80}, ov::Shape{16, 1, 1, 80}, ov::Shape{2, 1, 10, 80}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 80},
             {ov::Shape{16, 1, 128, 80}, ov::Shape{16, 1, 1, 80}, ov::Shape{2, 1, 10, 80}}}
         },
@@ -366,7 +396,11 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 256},
             {ov::Shape{1, 8, 7, 256}, ov::Shape{1, 8, 1, 256}, ov::Shape{2, 8, 10, 256}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 256},
+            {ov::Shape{1, 8, 7, 256}, ov::Shape{1, 8, 1, 256}, ov::Shape{2, 8, 10, 256}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 256},
             {ov::Shape{1, 8, 7, 256}, ov::Shape{1, 8, 1, 256}, ov::Shape{2, 8, 10, 256}}}
         },
@@ -381,7 +415,11 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 72},
             {ov::Shape{1, 8, 100, 72}, ov::Shape{1, 8, 32, 72}, ov::Shape{1, 8, 1, 72}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 72},
+            {ov::Shape{1, 8, 100, 72}, ov::Shape{1, 8, 32, 72}, ov::Shape{1, 8, 1, 72}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 72},
             {ov::Shape{1, 8, 100, 72}, ov::Shape{1, 8, 32, 72}, ov::Shape{1, 8, 1, 72}}}
         },
@@ -390,6 +428,61 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
             {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 32, 32}, ov::Shape{1, 1, 1, 1}}}
         },
     },
+    // different head size
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
+        },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
+            {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
+            {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 32},
+            {ov::Shape{2, 5, 100, 32}, ov::Shape{2, 5, 1, 32}, ov::Shape{2, 5, 387, 32}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 387, 387}}}
+        },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 96},
+            {ov::Shape{1, 8, 100, 96}, ov::Shape{1, 8, 1, 96}, ov::Shape{2, 8, 10, 96}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
+        },
+    }
 };
 
 const std::vector<std::vector<int64_t>> transpose_value{{0, 1, 2, 3}, {0, 1, 2, 3}, {0, 2, 1, 3}};
@@ -414,7 +507,11 @@ const std::vector<std::vector<InputShape>> static_shapes{
         {ov::test::InputShape{ov::PartialShape{1, 8, 100, 128},
             {ov::Shape{1, 8, 100, 128}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 128},
+            {ov::Shape{1, 8, 100, 128}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{1, 8, 100, 128},
             {ov::Shape{1, 8, 100, 128}}}
         },
@@ -428,7 +525,11 @@ const std::vector<std::vector<InputShape>> static_shapes{
         {ov::test::InputShape{ov::PartialShape{1, 8, 64, 128},
             {ov::Shape{1, 8, 64, 128}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 13, 128},
+            {ov::Shape{1, 8, 13, 128}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{1, 8, 13, 128},
             {ov::Shape{1, 8, 13, 128}}}
         },
@@ -442,7 +543,11 @@ const std::vector<std::vector<InputShape>> static_shapes{
         {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
             {ov::Shape{1, 8, 100, 72}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
             {ov::Shape{1, 8, 100, 72}}}
         },
@@ -456,7 +561,11 @@ const std::vector<std::vector<InputShape>> static_shapes{
         {ov::test::InputShape{ov::PartialShape{1, 8, 1, 72},
             {ov::Shape{1, 8, 1, 72}}}
         },
-        // kv shape
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // v shape
         {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
             {ov::Shape{1, 8, 100, 72}}}
         },
@@ -478,5 +587,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic_GPU,
                          ScaledAttnLayerGPUTest,
                          static_shape_params,
                          ScaledAttnLayerGPUTest::getTestCaseName);
-
 } // namespace
