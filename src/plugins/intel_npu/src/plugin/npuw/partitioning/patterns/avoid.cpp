@@ -77,7 +77,6 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
-        std::cout << "!!!!!!!!!!!!!!!!!!!!! WE ARE IN CALLBACK !!!!!!!!!!!!!!!!!!!!!" << std::endl;
         auto& node_to_output = m.get_pattern_value_map();
         
         auto matched_gather = node_to_output.at(gather).get_node_shared_ptr();
