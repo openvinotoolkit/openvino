@@ -102,15 +102,24 @@ void PluginGraph::initialize(const Config& config) {
         zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                 ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
-    bool turbo = false;
-    if (config.has<TURBO>()) {
-        turbo = config.get<TURBO>();
+    uint32_t command_queue_options = 0;
+
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
+            OPENVINO_THROW("Turbo is not supported by the current driver");
+        }
+        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+    }
+
+    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
+        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
     _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                     zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
                                                     _command_queue_group_ordinal,
-                                                    turbo);
+                                                    command_queue_options);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
@@ -120,7 +129,8 @@ void PluginGraph::initialize(const Config& config) {
 
     _batch_size = get_batch_size(_metadata);
 
-    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
 
         _last_submitted_event.resize(number_of_command_lists);

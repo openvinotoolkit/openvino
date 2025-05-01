@@ -14,7 +14,7 @@
 /**
  * @brief Last version of the Command Queue functions used within plugin
  */
-using ze_command_queue_npu_dditable_ext_last_t = ze_command_queue_npu_dditable_ext_1_0_t;
+using ze_command_queue_npu_dditable_ext_last_t = ze_command_queue_npu_dditable_ext_t;
 /**
  * @brief Last version of the Graph Profiling functions used within plugin
  */

@@ -297,7 +297,6 @@ void Properties::registerProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::turbo, TURBO);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::bypass_umd_caching, BYPASS_UMD_CACHING);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::defer_weights_load, DEFER_WEIGHTS_LOAD);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compiler_dynamic_quantization, COMPILER_DYNAMIC_QUANTIZATION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
@@ -327,6 +326,15 @@ void Properties::registerProperties() {
                 return config.get<MAX_TILES>();
             }
         });
+
+        TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY, [&] {
+            if (_backend && _backend->getInitStructs()) {
+                if (_backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
+                    return true;
+                }
+            }
+            return false;
+        }());
     } else if (_pType == PropertiesType::COMPILED_MODEL) {
         // These properties require different handling in plugin vs compiled_model
         TRY_REGISTER_CUSTOM_PROPERTY(ov::workload_type,
@@ -337,6 +345,7 @@ void Properties::registerProperties() {
                                          return config.get<WORKLOAD_TYPE>();
                                      });
         // compiled-model only
+        TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY, true);
         TRY_REGISTER_SIMPLE_PROPERTY(ov::loaded_from_cache, LOADED_FROM_CACHE);
     }
 
