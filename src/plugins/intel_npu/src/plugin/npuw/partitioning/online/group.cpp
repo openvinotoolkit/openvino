@@ -245,7 +245,7 @@ void Group::fuse(const Group::GPtr& gptr_prod) {
 // This group absorbs the consumer
 void Group::fuseWith(const Group::GPtr& gptr_cons) {
     // Update ov::node to own::ade::NodeHandle map
-    if (!m_avoided_devices.empty() || !gptr_cons->m_avoided_devices.empty()) {
+    if (m_avoided_devices != gptr_cons->m_avoided_devices) {
         return;
     }
 
@@ -272,7 +272,7 @@ void Group::fuseInputs(const std::pair<Group::GPtr, Group::GPtr>& gptr_inputs) {
     Group::GPtr absorbing_group = gptr_inputs.first;
     Group::GPtr absorbed_group = gptr_inputs.second;
 
-    if (!absorbing_group->m_avoided_devices.empty() || !absorbed_group->m_avoided_devices.empty()) {
+    if (absorbing_group->m_avoided_devices != absorbed_group->m_avoided_devices) {
         return;
     }
 

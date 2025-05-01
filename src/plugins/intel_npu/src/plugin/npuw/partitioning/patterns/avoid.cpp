@@ -63,20 +63,6 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, co
 
 // From DeepSeek
 SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& avoid_device) {
-    // auto iids = opp::wrap_type<ov::op::v0::Parameter>();
-    // auto cvt_iids = opp::wrap_type<ov::op::v0::Convert>({iids});
-    // auto cvt_any_1 = opp::wrap_type<ov::op::v0::Convert>({ov::op::any_input()});
-    // auto gather = opp::wrap_type<ov::op::v8::Gather>({param_62071, cvt_iids});
-    // auto pow = opp::wrap_type<ov::op::v1::Power>({gather});
-    // auto reduce_mean = opp::wrap_type<ov::op::v1::ReduceMean>({pow});
-    // auto add = opp::wrap_type<ov::op::v1::Add>({reduce_mean});
-    // auto sqrt = opp::wrap_type<ov::op::v0::Sqrt>({add});
-    // auto constant_for_div = opp::wrap_type<ov::op::v0::Constant>();
-    // auto divide = opp::wrap_type<ov::op::v1::Divide>({constant_for_div, sqrt});
-    // auto multiply = opp::wrap_type<ov::op::v1::Multiply>({cvt_gather, divide});
-    // auto constant_1 = opp::wrap_type<ov::op::v0::Constant>();
-    // auto multiply_2 = opp::wrap_type<ov::op::v1::Multiply>({constant_1, multiply});
-
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
     auto concat_1 = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input()});
@@ -93,19 +79,6 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         std::cout << "!!!!!!!!!!!!!!!!!!!!! WE ARE IN CALLBACK !!!!!!!!!!!!!!!!!!!!!" << std::endl;
         auto& node_to_output = m.get_pattern_value_map();
-        // auto matched_cvt_iids = node_to_output.at(cvt_iids).get_node_shared_ptr();
-        // auto matched_gather = node_to_output.at(gather).get_node_shared_ptr();
-        // auto matched_cvt_gather = node_to_output.at(cvt_gather).get_node_shared_ptr();
-        // auto matched_cvt_any = node_to_output.at(cvt_any).get_node_shared_ptr();
-        // auto matched_pow = node_to_output.at(pow).get_node_shared_ptr();
-        // auto matched_reduce_mean = node_to_output.at(reduce_mean).get_node_shared_ptr();
-        // auto matched_cvt_any_2 = node_to_output.at(cvt_any_2).get_node_shared_ptr();
-        // auto matched_add = node_to_output.at(add).get_node_shared_ptr();
-        // auto matched_sqrt = node_to_output.at(sqrt).get_node_shared_ptr();
-        // auto matched_cvt_any_3 = node_to_output.at(cvt_any_3).get_node_shared_ptr();
-        // auto matched_divide = node_to_output.at(divide).get_node_shared_ptr();
-        // auto matched_multiply = node_to_output.at(multiply).get_node_shared_ptr();
-        // auto matched_multiply_2 = node_to_output.at(multiply_2).get_node_shared_ptr();
         
         auto matched_gather = node_to_output.at(gather).get_node_shared_ptr();
         auto matched_concat_1 = node_to_output.at(concat_1).get_node_shared_ptr();
@@ -117,22 +90,6 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
         auto matched_concat_2 = node_to_output.at(concat_2).get_node_shared_ptr();
         auto matched_cos = node_to_output.at(cos).get_node_shared_ptr();
 
-
-        // node_to_gptr->at(matched_cvt_iids)->avoid(avoid_device);
-        // node_to_gptr->at(matched_gather)->avoid(avoid_device);
-        // node_to_gptr->at(matched_cvt_gather)->avoid(avoid_device);
-        // node_to_gptr->at(matched_cvt_any)->avoid(avoid_device);
-        // node_to_gptr->at(matched_pow)->avoid(avoid_device);
-        // node_to_gptr->at(matched_reduce_mean)->avoid(avoid_device);
-        // node_to_gptr->at(matched_cvt_any_2)->avoid(avoid_device);
-        // node_to_gptr->at(matched_add)->avoid(avoid_device);
-        // node_to_gptr->at(matched_sqrt)->avoid(avoid_device);
-        // node_to_gptr->at(matched_cvt_any_3)->avoid(avoid_device);
-        // node_to_gptr->at(matched_divide)->avoid(avoid_device);
-        // node_to_gptr->at(matched_multiply)->avoid(avoid_device);
-        // node_to_gptr->at(matched_multiply_2)->avoid(avoid_device);
-
-        // node_to_gptr->at(matched_shape_of)->avoid(avoid_device);
         node_to_gptr->at(matched_gather)->avoid(avoid_device);
         node_to_gptr->at(matched_concat_1)->avoid(avoid_device);
         node_to_gptr->at(matched_broadcast)->avoid(avoid_device);
