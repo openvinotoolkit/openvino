@@ -268,6 +268,27 @@ typedef cl_bitfield         cl_device_feature_capabilities_intel;
 
 #endif // cl_intel_device_attribute_query
 
+/***************************************************************
+* cl_khr_pci_bus_info
+***************************************************************/
+
+#if !defined(cl_khr_pci_bus_info)
+#define cl_khr_pci_bus_info 1
+
+#define CL_KHR_PCI_BUS_INFO_EXTENSION_VERSION CL_MAKE_VERSION(1, 0, 0)
+
+typedef struct _cl_device_pci_bus_info_khr {
+    cl_uint pci_domain;
+    cl_uint pci_bus;
+    cl_uint pci_device;
+    cl_uint pci_function;
+} cl_device_pci_bus_info_khr;
+
+/* cl_device_info */
+#define CL_DEVICE_PCI_BUS_INFO_KHR                          0x410F
+
+#endif // cl_khr_pci_bus_info
+
 #ifndef CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_
 #define CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_(F) \
     F(cl_device_info, CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL, cl::vector<cl_queue_family_properties_intel>) \

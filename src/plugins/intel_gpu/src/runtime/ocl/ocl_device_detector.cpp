@@ -158,7 +158,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
 
     devices_list = sort_devices(devices_list);
 
-    bool initialize_device = user_context != nullptr || user_device != nullptr || initialize_devices;
+    const bool initialize_device = user_context != nullptr || user_device != nullptr || initialize_devices;
     std::map<std::string, device::ptr> ret;
     uint32_t idx = 0;
     for (auto& dptr : devices_list) {
@@ -179,6 +179,7 @@ std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(vo
                     continue;
                 }
                 auto sub_device_ptr = std::make_shared<ocl_device>(sub_device, cl::Context(sub_device), root_device->get_platform(), initialize_device);
+                sub_device_ptr->set_sub_device_idx(sub_idx);
                 ret[map_id + "." + std::to_string(sub_idx++)] = sub_device_ptr;
             }
         }

@@ -70,6 +70,7 @@ private:
     std::mutex m_cache_mutex;
 
     bool m_is_initialized = false;
+    std::once_flag m_initialize_flag;
 
     ov::AnyMap properties;
 };
