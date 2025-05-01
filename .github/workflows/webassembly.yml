@@ -79,6 +79,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
     defaults:
       run:
         shell: bash
