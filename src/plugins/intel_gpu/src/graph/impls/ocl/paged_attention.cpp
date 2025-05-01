@@ -340,13 +340,11 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                 // Original score aggregation buffer content: {4, 2, 1, 1}
                 // Cumulative window size sum buffer content: {0, 4, 6, 7, 8}
                 size_t cumulative_sum = 0;
-                cumulative_window_size_sum_lock->operator[](0) = cumulative_sum;
-                std::cout << "cumulative_window_size_sum_lock[0]=" << cumulative_sum << "\n";
+                cumulative_window_size_sum_lock->operator[](0) = static_cast<int32_t>(cumulative_sum);
                 for (size_t i = 0; i < score_aggregation_mem_lock.size(); i++) {
                     cumulative_sum += score_aggregation_mem_lock[i];
-                    cumulative_window_size_sum_lock->operator[](i + 1) = cumulative_sum;
-                    std::cout << "cumulative_window_size_sum_lock[" << i +1 << "]=" << cumulative_sum << "\n";
-            }
+                    cumulative_window_size_sum_lock->operator[](i + 1) = static_cast<int32_t>(cumulative_sum);
+                }
             }
         }
 

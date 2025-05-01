@@ -456,7 +456,8 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     auto scale_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
     auto sliding_window_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};
     auto alibi_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
-    auto max_context_len_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};;
+    auto max_context_len_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto score_aggregation_layout = layout{ov::PartialShape::dynamic(1), data_types::i32, format::bfyx};
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -470,7 +471,8 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
                                          input_info("scale"),
                                          input_info("sliding_window"),
                                          input_info("alibi"),
-                                         input_info("max_context_len")};
+                                         input_info("max_context_len"),
+                                         input_info("score_aggregation")};
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
     pa_prim.head_size = 64;
@@ -495,6 +497,7 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     topology.add(input_layout("sliding_window", sliding_window_layout));
     topology.add(input_layout("alibi", alibi_layout));
     topology.add(input_layout("max_context_len", max_context_len_layout));
+    topology.add(input_layout("score_aggregation", score_aggregation_layout));
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("target_shape", target_shape));
     topology.add(data("subtract_one", subtract_one));
