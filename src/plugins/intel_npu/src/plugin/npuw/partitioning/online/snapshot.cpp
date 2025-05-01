@@ -434,8 +434,9 @@ void Snapshot::earlyAvoids() {
         case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
             if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos") {
-                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm and SinCos as patterns (don't confuse with operations)."
-                         << " Avoid pattern " << avoid.pattern << " is skipped!");
+                LOG_WARN(
+                    "OPENVINO_NPUW_AVOID only supports RMSNorm and SinCos as patterns (don't confuse with operations)."
+                    << " Avoid pattern " << avoid.pattern << " is skipped!");
                 break;
             }
             handle_patterns = true;

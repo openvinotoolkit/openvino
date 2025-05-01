@@ -78,7 +78,7 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        
+
         auto matched_gather = node_to_output.at(gather).get_node_shared_ptr();
         auto matched_concat_1 = node_to_output.at(concat_1).get_node_shared_ptr();
         auto matched_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
@@ -101,7 +101,7 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
 
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(cos, "TagSinCos"), std::move(callback)); 
+    register_matcher(std::make_shared<opp::Matcher>(cos, "TagSinCos"), std::move(callback));
 }
 }  // namespace avoid
 }  // namespace patterns
