@@ -8,7 +8,6 @@
 #include "../online/group.hpp"     // online::Group
 #include "../online/snapshot.hpp"  // online::Snapshot
 #include "openvino/op/ops.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
@@ -73,7 +72,7 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({broadcast, convert});
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
     auto concat_2 = opp::wrap_type<ov::op::v0::Concat>({transpose, opp::any_input()});
-    auto cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
+    auto sin_cos = opp::wrap_type<ov::op::v0::Sin, ov::op::v0::Cos>({concat_2});
 
     auto node_to_gptr = snapshot->getNodeToGroupMap();
 
@@ -88,7 +87,7 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
         auto matched_matmul = node_to_output.at(matmul).get_node_shared_ptr();
         auto matched_transpose = node_to_output.at(transpose).get_node_shared_ptr();
         auto matched_concat_2 = node_to_output.at(concat_2).get_node_shared_ptr();
-        auto matched_cos = node_to_output.at(cos).get_node_shared_ptr();
+        auto matched_sin_cos = node_to_output.at(sin_cos).get_node_shared_ptr();
 
         node_to_gptr->at(matched_gather)->avoid(avoid_device);
         node_to_gptr->at(matched_concat_1)->avoid(avoid_device);
@@ -98,13 +97,12 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
         node_to_gptr->at(matched_matmul)->avoid(avoid_device);
         node_to_gptr->at(matched_transpose)->avoid(avoid_device);
         node_to_gptr->at(matched_concat_2)->avoid(avoid_device);
-        node_to_gptr->at(matched_cos)->avoid(avoid_device);
+        node_to_gptr->at(matched_sin_cos)->avoid(avoid_device);
 
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(cos, "TagSinCos"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(sin_cos, "TagSinCos"), std::move(callback));
 }
-
 }  // namespace avoid
 }  // namespace patterns
 }  // namespace npuw
