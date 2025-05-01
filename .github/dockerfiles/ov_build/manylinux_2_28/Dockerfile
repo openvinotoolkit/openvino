@@ -18,7 +18,7 @@ RUN useradd ${USER_NAME} -u ${USER_ID} -g ${GROUP_ID} -ms /bin/bash
 #RUN chmod +x /install_build_dependencies.sh && bash -e /install_build_dependencies.sh
 
 RUN dnf groupinstall -y "Development Tools" && \
-    dnf install -y wget bzip2 gcc-c++ libmpc-devel mpfr-devel gmp-devel
+    dnf install -y wget bzip2 gcc-c++ libmpc-devel mpfr-devel gmp-devel cmake ccache ninja-build make
 
 RUN wget https://ftp.gnu.org/gnu/gcc/gcc-10.2.0/gcc-10.2.0.tar.gz && \
     tar -xvf gcc-10.2.0.tar.gz && \
