@@ -138,72 +138,71 @@ jobs:
       - name: Build OpenVINO
         run: |
           python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DENABLE_TESTS=ON -DCMAKE_VERBOSE_MAKEFILE=ON -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=ON -DENABLE_OV_JAX_FRONTEND=OFF -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
-          cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
-          cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install
-          cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/api_tests --component tests
-          
+          cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DENABLE_TESTS=ON -DCMAKE_VERBOSE_MAKEFILE=ON -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=ON -DENABLE_OV_JAX_FRONTEND=OFF -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
+          cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
 
-      - name: Build OpenVINO
-        run: |
-          docker run --rm \
-            -v ${{ env.OPENVINO_REPO }}:/work/src \
-            -v ${{ env.INSTALL_DIR }}:/work/install \
-            -v ${{ env.INSTALL_TEST_DIR }}:/work/api_tests \
-            -e SCCACHE_AZURE_BLOB_CONTAINER \
-            -e SCCACHE_AZURE_CONNECTION_STRING \
-            -e SCCACHE_SERVER_PORT \
-            -e SCCACHE_IGNORE_SERVER_IO_ERROR \
-            -e SCCACHE_CACHE_SIZE \
-            -e SCCACHE_AZURE_KEY_PREFIX \
-            -e CMAKE_CXX_COMPILER_LAUNCHER \
-            -e CMAKE_C_COMPILER_LAUNCHER \
-            -e CI_BUILD_NUMBER \
-            -e CI_BUILD_DEV_TAG \
-            -w /work/src \
-            ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
-            /bin/bash -c "
-              python3.12 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt
-              cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DENABLE_TESTS=ON -DCMAKE_VERBOSE_MAKEFILE=ON -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=ON -DENABLE_OV_JAX_FRONTEND=OFF -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
-              cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
-              cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install
-              cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/api_tests --component tests
-            "
-            
-      - name: Build Python API (Python 3.9-3.13)
-        run: |
-          SUPPORTED_PYTHON_VERSIONS=("3.9" "3.10" "3.11" "3.12" "3.13")
-          for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
-            simpler_python_version=$(echo $PY_VER | sed -e 's/\.//g')
-            python_path=/opt/python/cp${simpler_python_version}-cp${simpler_python_version}/bin
-            docker run --rm \
-              -v ${{ env.OPENVINO_REPO }}:/work/src \
-              -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
-              -v ${{ env.PIP_CACHE_PATH }}:/work/pip_cache \
-              -v ${{ env.INSTALL_DIR }}:/work/install \
-              -e SCCACHE_AZURE_BLOB_CONTAINER \
-              -e SCCACHE_AZURE_CONNECTION_STRING \
-              -e SCCACHE_SERVER_PORT \
-              -e SCCACHE_IGNORE_SERVER_IO_ERROR \
-              -e SCCACHE_CACHE_SIZE \
-              -e SCCACHE_AZURE_KEY_PREFIX \
-              -e CMAKE_CXX_COMPILER_LAUNCHER \
-              -e CMAKE_C_COMPILER_LAUNCHER \
-              -e CI_BUILD_NUMBER \
-              -e CI_BUILD_DEV_TAG \
-              -w /work/src \
-              ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
-              /bin/bash -c "
-                export PATH=${python_path}:\$PATH
-                PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-                export "PIP_CACHE_DIR=/work/pip_cache/${PIP_VER}"
-                python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt &&
-                cmake -DOpenVINODeveloperPackage_DIR=/work/build -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src/src/bindings/python -B /work/build_py${PY_VER} &&
-                cmake --build /work/build_py${PY_VER} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
-                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels &&
-                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install --component pyopenvino_python${PY_VER}
-              "
-          done
+#      - name: Build OpenVINO
+#        run: |
+#          docker run --rm \
+#            -v ${{ env.OPENVINO_REPO }}:/work/src \
+#            -v ${{ env.INSTALL_DIR }}:/work/install \
+#            -v ${{ env.INSTALL_TEST_DIR }}:/work/api_tests \
+#            -e SCCACHE_AZURE_BLOB_CONTAINER \
+#            -e SCCACHE_AZURE_CONNECTION_STRING \
+#            -e SCCACHE_SERVER_PORT \
+#            -e SCCACHE_IGNORE_SERVER_IO_ERROR \
+#            -e SCCACHE_CACHE_SIZE \
+#            -e SCCACHE_AZURE_KEY_PREFIX \
+#            -e CMAKE_CXX_COMPILER_LAUNCHER \
+#            -e CMAKE_C_COMPILER_LAUNCHER \
+#            -e CI_BUILD_NUMBER \
+#            -e CI_BUILD_DEV_TAG \
+#            -w /work/src \
+#            ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
+#            /bin/bash -c "
+#              python3.12 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt
+#              cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DENABLE_TESTS=ON -DCMAKE_VERBOSE_MAKEFILE=ON -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=ON -DENABLE_OV_JAX_FRONTEND=OFF -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src -B /work/build &&
+#              cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
+#              cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install
+#              cmake --install /work/build --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/api_tests --component tests
+#            "
+#
+#      - name: Build Python API (Python 3.9-3.13)
+#        run: |
+#          SUPPORTED_PYTHON_VERSIONS=("3.9" "3.10" "3.11" "3.12" "3.13")
+#          for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
+#            simpler_python_version=$(echo $PY_VER | sed -e 's/\.//g')
+#            python_path=/opt/python/cp${simpler_python_version}-cp${simpler_python_version}/bin
+#            docker run --rm \
+#              -v ${{ env.OPENVINO_REPO }}:/work/src \
+#              -v ${{ env.INSTALL_WHEELS_DIR }}:/work/wheels \
+#              -v ${{ env.PIP_CACHE_PATH }}:/work/pip_cache \
+#              -v ${{ env.INSTALL_DIR }}:/work/install \
+#              -e SCCACHE_AZURE_BLOB_CONTAINER \
+#              -e SCCACHE_AZURE_CONNECTION_STRING \
+#              -e SCCACHE_SERVER_PORT \
+#              -e SCCACHE_IGNORE_SERVER_IO_ERROR \
+#              -e SCCACHE_CACHE_SIZE \
+#              -e SCCACHE_AZURE_KEY_PREFIX \
+#              -e CMAKE_CXX_COMPILER_LAUNCHER \
+#              -e CMAKE_C_COMPILER_LAUNCHER \
+#              -e CI_BUILD_NUMBER \
+#              -e CI_BUILD_DEV_TAG \
+#              -w /work/src \
+#              ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux2014_x86_64 }} \
+#              /bin/bash -c "
+#                export PATH=${python_path}:\$PATH
+#                PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
+#                export "PIP_CACHE_DIR=/work/pip_cache/${PIP_VER}"
+#                python3 -m pip install -r /work/src/src/bindings/python/wheel/requirements-dev.txt &&
+#                cmake -DOpenVINODeveloperPackage_DIR=/work/build -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S /work/src/src/bindings/python -B /work/build_py${PY_VER} &&
+#                cmake --build /work/build_py${PY_VER} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
+#                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/wheels --component python_wheels &&
+#                cmake --install /work/build_py${PY_VER} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix /work/install --component pyopenvino_python${PY_VER}
+#              "
+#          done
 
       - name: Pack Artifacts
         run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
