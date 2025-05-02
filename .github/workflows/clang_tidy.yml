@@ -15,11 +15,6 @@ concurrency:
 
 permissions: read-all
 
-env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
-  PYTHON_VERSION: '3.11'
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
-
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -101,12 +96,8 @@ jobs:
       SCCACHE_LOG: warn
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
-      INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
-      MODELS_PATH: /__w/openvino/openvino/testdata
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release_faster_build
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy
 
     steps:
       - name: Clone OpenVINO
@@ -138,7 +129,7 @@ jobs:
         run: |
           cmake \
           --build ${BUILD_DIR} \
-          --parallel 8 \
+          --parallel $(($(nproc) - 1)) \
           --config ${{ env.CMAKE_BUILD_TYPE }} \
           --target openvino_intel_cpu_plugin
 
