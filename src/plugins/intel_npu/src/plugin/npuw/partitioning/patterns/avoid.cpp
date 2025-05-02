@@ -79,6 +79,7 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
+        auto matched_shape_of = node_to_output.at(shape_of).get_node_shared_ptr();
         auto matched_gather = node_to_output.at(gather).get_node_shared_ptr();
         auto matched_concat_1 = node_to_output.at(concat_1).get_node_shared_ptr();
         auto matched_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
@@ -89,6 +90,7 @@ SinCos::SinCos(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, cons
         auto matched_concat_2 = node_to_output.at(concat_2).get_node_shared_ptr();
         auto matched_sin_cos = node_to_output.at(sin_cos).get_node_shared_ptr();
 
+        node_to_gptr->at(matched_shape_of)->avoid(avoid_device);
         node_to_gptr->at(matched_gather)->avoid(avoid_device);
         node_to_gptr->at(matched_concat_1)->avoid(avoid_device);
         node_to_gptr->at(matched_broadcast)->avoid(avoid_device);
