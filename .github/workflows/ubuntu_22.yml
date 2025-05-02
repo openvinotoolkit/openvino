@@ -68,7 +68,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_x64\":\"mock\",\"ov_build\":{\"ubuntu_22_04_x64_nvidia\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_x64_nvidia\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -89,6 +89,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
