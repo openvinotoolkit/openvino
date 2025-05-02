@@ -154,7 +154,8 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
                                          input_info("max_context_len")};
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
-    pa_prim.head_size = 64;
+    pa_prim.k_head_size = 64;
+    pa_prim.v_head_size = 64;
     pa_prim.kv_heads_num = 2;
     pa_prim.heads_num = 2;
     pa_prim.scale_val = 1.f;
