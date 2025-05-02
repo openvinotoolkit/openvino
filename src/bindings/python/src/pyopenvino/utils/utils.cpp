@@ -238,7 +238,14 @@ py::object from_ov_any(const ov::Any& any) {
     } else if (any.is<std::set<ov::hint::ModelDistributionPolicy>>()) {
         return py::cast(any.as<std::set<ov::hint::ModelDistributionPolicy>>());
     } else if (any.is<std::shared_ptr<const ov::Model>>()) {
-        return py::cast(any.as<std::shared_ptr<ov::Model>>());
+        auto const_model_ptr = any.as<std::shared_ptr<const ov::Model>>();
+        if (!const_model_ptr) {
+            std::cerr << "Warning: Input pointer is null!" << std::endl;
+            return py::none();
+        }
+
+        auto non_const_ptr = std::const_pointer_cast<ov::Model>(const_model_ptr);
+        return py::cast(non_const_ptr);
     } else if (any.is<ov::hint::ExecutionMode>()) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
