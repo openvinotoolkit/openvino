@@ -1819,8 +1819,8 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
                 return false;
             }
 
-            if (interp->get_input_size() > 3 &&
-                ov::as_type_ptr<const ov::op::v0::Constant>(interp->input_value(AXES_ID).get_node_shared_ptr()) == nullptr) {
+            if (interp->get_input_size() > 3 && ov::as_type_ptr<const ov::op::v0::Constant>(
+                                                    interp->input_value(AXES_ID).get_node_shared_ptr()) == nullptr) {
                 errorMessage = "Only const 'axes' input is supported in Interpolate-4";
                 return false;
             }
@@ -1848,8 +1848,9 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
                 errorMessage = "Only const 'scales_or_sizes' input is supported for static shapes in Interpolate-11";
                 return false;
             }
-            if (interp->get_input_size() > 2 && ov::as_type_ptr<const ov::op::v0::Constant>(
-                                                    interp->input_value(AXES_ID_V11).get_node_shared_ptr()) == nullptr) {
+            if (interp->get_input_size() > 2 &&
+                ov::as_type_ptr<const ov::op::v0::Constant>(interp->input_value(AXES_ID_V11).get_node_shared_ptr()) ==
+                    nullptr) {
                 errorMessage = "Only const 'axes' input is supported in Interpolate-11";
                 return false;
             }
@@ -2067,8 +2068,9 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             }
 
             if (isAxesSpecified) {
-                axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->input_value(AXES_ID_V11).get_node_shared_ptr())
-                           ->cast_vector<int>();
+                axes =
+                    ov::as_type_ptr<const ov::op::v0::Constant>(interp->input_value(AXES_ID_V11).get_node_shared_ptr())
+                        ->cast_vector<int>();
                 if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2) {
                     interpAttrs.NCHWAsNHWC = true;
                     axes[0] = 2;
