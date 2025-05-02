@@ -127,6 +127,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     }
 
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
+    apply_rt_info_property(ov::hint::dynamic_quantization_group_size_unsupported, rt_info);
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only with
     // ov::CacheMode::OPTIMIZE_SIZE setting. Not setting WEIGHTS_PATH will result in not
