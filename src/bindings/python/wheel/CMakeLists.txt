@@ -107,12 +107,12 @@ set(wheel_build_command
         --ignore-requires-python
         --wheel-dir ${openvino_wheels_output_dir}
         --verbose
-        "${CMAKE_CURRENT_SOURCE_DIR}/..")
+        ".")
 
 add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMAND ${setup_py_env} ${wheel_build_command}
     DEPENDS ${ov_setup_py_deps}
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    WORKING_DIRECTORY "${OpenVINO_SOURCE_DIR}"
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
 set(ie_wheel_deps ${openvino_wheel_path})

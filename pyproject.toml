@@ -28,12 +28,14 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 license-files = [
-    "readme.txt", 
-    "../../../LICENSE",
-    "../../../licensing/runtime-third-party-programs.txt",
-    "../../../licensing/onetbb_third-party-programs.txt",
-    "../../../licensing/onednn_third-party-programs.txt",
+    "LICENSE",
+    "licensing/runtime-third-party-programs.txt",
+    "licensing/onetbb_third-party-programs.txt",
+    "licensing/onednn_third-party-programs.txt",
 ]
+[tool.setuptools.packages.find]
+where = ["./src/bindings/python"]
+include = ["pyopenvino"] 
 
 [tool.black]
 line-length = 160

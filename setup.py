@@ -43,10 +43,10 @@ elif machine == "riscv64":
     ARCH = "riscv64"
 
 # The following variables can be defined in environment or .env file
-SCRIPT_DIR = Path(__file__).resolve().parents[0]
+SCRIPT_DIR = Path(__file__).resolve().parent
 WORKING_DIR = Path.cwd()
 BUILD_BASE = f"build_{PYTHON_VERSION}"
-OPENVINO_SOURCE_DIR = os.getenv("OPENVINO_SOURCE_DIR", SCRIPT_DIR.parents[2])
+OPENVINO_SOURCE_DIR = os.getenv("OPENVINO_SOURCE_DIR", SCRIPT_DIR)
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR", f'{OPENVINO_SOURCE_DIR}/build_wheel')
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
 CONFIG = os.getenv("BUILD_TYPE", "Release")
