@@ -64,7 +64,6 @@ public:
 
         if (m_attrs.nonConstantWeights) {
             m_primArgs[DNNL_ARG_WEIGHTS].set_data_handle(memory.at(ARG_WEI)->getData());
-            return;
         }
 
         m_primArgs[DNNL_ARG_SCRATCHPAD].set_data_handle(m_scratchPadMemory->getData());
