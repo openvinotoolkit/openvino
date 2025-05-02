@@ -325,6 +325,11 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
+        } else if (property.first == ov::hint::model) {
+            if (!py::isinstance<ov::Model>(property.second)) {
+                std::cout << "not a model@@" << std::endl;
+            }
+            properties_to_cpp[property.first] = py::cast<std::shared_ptr<ov::Model>>(property.second);
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }
