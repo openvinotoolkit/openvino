@@ -239,7 +239,8 @@ bool ConvolutionTransformation::transform(ov::pass::pattern::Matcher &m) {
             reshapeFromWeights == nullptr ?
             convolution->input_value(1).get_node_shared_ptr() :
             convolution->get_input_node_ptr(1)->input_value(0).get_node_shared_ptr());
-        std::shared_ptr<ov::opset1::Subtract> subtractFromWeights = ov::as_type_ptr<ov::opset1::Subtract>(multiplyFromWeights->input_value(0).get_node_shared_ptr());
+        std::shared_ptr<ov::opset1::Subtract> subtractFromWeights =
+            ov::as_type_ptr<ov::opset1::Subtract>(multiplyFromWeights->input_value(0).get_node_shared_ptr());
 
         {
             if (reshapeFromWeights != nullptr) {

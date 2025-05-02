@@ -69,7 +69,8 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         prim.scale_val = std::optional<float>();
     }
 
-    std::shared_ptr<ov::op::v0::Constant> sliding_windows_const = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(sliding_window_idx).get_node_shared_ptr());
+    std::shared_ptr<ov::op::v0::Constant> sliding_windows_const =
+        ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(sliding_window_idx).get_node_shared_ptr());
     if (sliding_windows_const) {
         OPENVINO_ASSERT(ov::shape_size(sliding_windows_const->get_output_shape(0)) == 1);
         prim.sliding_window = sliding_windows_const->cast_vector<size_t>()[0];
