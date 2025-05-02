@@ -64,12 +64,12 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         bool is_convert = false;
         if (auto convert_node = ov::as_type_ptr<ov::op::v0::Convert>(fc_input_b.get_node_shared_ptr())) {
             is_convert = true;
-            fc_input_b = convert_node->get_input_node_shared_ptr(0);
+            fc_input_b = convert_node->input_value(0);
         }
 
         auto transpose_node = ov::as_type_ptr<ov::op::v1::Transpose>(fc_input_b.get_node_shared_ptr());
         if (transpose_node) {
-            fc_input_b = transpose_node->get_input_node_shared_ptr(0);
+            fc_input_b = transpose_node->input_value(0);
         }
 
         auto shape_a = fc_input_a.get_partial_shape();

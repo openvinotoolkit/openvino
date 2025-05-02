@@ -92,8 +92,8 @@ IndirectGemmOpt::IndirectGemmOpt() {
         auto order_in1 = gemm_node->get_input1_transpose_order();
         auto order_out = gemm_node->get_output_transpose_order();
 
-        auto indirect_gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(gemm_node->get_input_node_shared_ptr(0),
-                                                                               gemm_node->get_input_node_shared_ptr(1),
+        auto indirect_gemm = std::make_shared<ov::intel_gpu::op::IndirectGemm>(gemm_node->input_value(0),
+                                                                               gemm_node->input_value(1),
                                                                                indirect_kv_cache->output(1), // beam table
                                                                                matmul_kv_cache_index == 0,
                                                                                matmul_kv_cache_index == 1,
@@ -190,9 +190,9 @@ IndirectSDPAOpt::IndirectSDPAOpt() {
         auto is_causal = sdpa->get_causal();
 
         OutputVector data_inputs;
-        data_inputs.push_back(sdpa->get_input_node_shared_ptr(0)); // Q
-        data_inputs.push_back(sdpa->get_input_node_shared_ptr(1)); // K
-        data_inputs.push_back(sdpa->get_input_node_shared_ptr(2)); // V
+        data_inputs.push_back(sdpa->input_value(0)); // Q
+        data_inputs.push_back(sdpa->input_value(1)); // K
+        data_inputs.push_back(sdpa->input_value(2)); // V
 
         if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
             data_inputs.push_back(sdpa->get_input_source_output(3));
