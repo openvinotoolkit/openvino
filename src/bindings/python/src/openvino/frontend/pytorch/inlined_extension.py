@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Tuple, Type, Union
+from typing import Any, Tuple, Type, Union, Optional, Callable
 import torch
 import numpy as np
 import openvino as ov
@@ -11,7 +11,9 @@ from openvino.frontend.pytorch.utils import pt_to_ov_type_map
 
 
 class ConstWrap:
-    def __init__(self, value: Any):
+    """Wraps a constant value for comparison and representation."""
+
+    def __init__(self, value: Any) -> None:
         self.value = value
 
     def __eq__(self, x: Any) -> bool:
@@ -26,7 +28,9 @@ def unpack(
     types: Union[Type, Tuple[Type, ...]],
     index: int = 0
 ) -> Tuple[Tuple[Any, ...], Any, int]:
-    unpacked_result = ()
+    """Unpacks nested structures into a flat tuple."""
+    unpacked_result: Tuple[Any, ...] = ()
+    packer_result: Any = None
     if isinstance(packed, tuple):
         packer_result = ()
         for el in packed:
@@ -54,7 +58,8 @@ def unpack(
     return unpacked_result, packer_result, index
 
 
-def pack(unpacked, packer):
+def pack(unpacked: Tuple[Any, ...], packer: Any) -> Any:
+    """Packs unpacked elements back into their original structure."""
     if isinstance(packer, (tuple, list)):
         return type(packer)(pack(unpacked, el) for el in packer)
     if isinstance(packer, dict):
@@ -67,15 +72,19 @@ def pack(unpacked, packer):
 global_counter_id = 0
 
 
-# makes a custom op class from a func and input/output signatures
-def make_custom_op_class(func, input_signature, output_signature, input_packer, output_packer):
+def make_custom_op_class(func: Callable,
+                         input_signature: Tuple[Tuple[Any, Any], ...],
+                         output_signature: Tuple[Tuple[Any, Any], ...],
+                         input_packer: Any,
+                         output_packer: Any) -> Type[ov.Op]:
+    """Creates a custom operation class from a function and signatures."""
     global global_counter_id
 
     class InlinedCustomOp(ov.Op):
         class_type_info = ov.runtime.DiscreteTypeInfo(
             "InlinedCustomOp", "extension")
 
-        def __init__(self, *args):
+        def __init__(self, *args: Any) -> None:
             # TODO: What about attributes?
             super().__init__(self, args)
             # `id` attribute distinguishes different instances of the same
@@ -84,7 +93,7 @@ def make_custom_op_class(func, input_signature, output_signature, input_packer, 
             self.attrs = {"id": global_counter_id}
             self.constructor_validate_and_infer_types()
 
-        def evaluate(self, outputs, inputs):
+        def evaluate(self, outputs: Any, inputs: Any) -> bool:
             # TODO: Check memory sharing
             inputs_torch = tuple(torch.from_numpy(input.data)
                                  for input in inputs)
@@ -94,21 +103,22 @@ def make_custom_op_class(func, input_signature, output_signature, input_packer, 
             assert result_packer == output_packer
             for i, tensor in enumerate(result):
                 if isinstance(tensor, torch.Tensor):
-                    ov_t = ov.Tensor(tensor.numpy(force=True), shared_memory=True)
+                    ov_t = ov.Tensor(tensor.numpy(
+                        force=True), shared_memory=True)
                 else:
                     ov_t = ov.Tensor(np.array(tensor), shared_memory=True)
                 # TODO: set the output tensor directly without copying
                 ov_t.copy_to(outputs[i])
             return True
 
-        def has_evaluate(self, *args):
+        def has_evaluate(self, *args: Any) -> bool:
             return True
 
-        def visit_attributes(self, visitor):
+        def visit_attributes(self, visitor: Any) -> bool:
             visitor.on_attributes(self.attrs)
             return True
 
-        def validate_and_infer_types(self):
+        def validate_and_infer_types(self) -> None:
             # TODO: Validate input signature
             assert output_signature != (), (
                 "Operation does not produce any output. "
@@ -121,20 +131,26 @@ def make_custom_op_class(func, input_signature, output_signature, input_packer, 
     return InlinedCustomOp
 
 
-def make_signature(args):
-    """Convert each torch.Tensor object in args to a tuple (element_type, partial_shape) in OpenVINO terms."""
+def make_signature(args: Any) -> Tuple[Tuple[Any, Any], ...]:
+    """Generate a signature tuple for PyTorch tensors.
+
+    Maps PyTorch tensor types to OpenVINO types and partial shapes, setting
+    all dimensions dynamic preserving rank. Currently assumes that all input
+    arguments are torch.Tensor.
+    """
     # TODO: Extend beyond just tensors
-    return tuple((pt_to_ov_type_map[str(arg.dtype)], ov.PartialShape.dynamic(len(arg.shape))) for arg in args)
+    return tuple(
+        (pt_to_ov_type_map.get(str(arg.dtype)), ov.PartialShape.dynamic(arg.ndim))
+        for arg in args
+    )
 
 
-# Returns a tuple of tuples (element_type, partial_shape) for each argument,
-# flattening nested structures if needed, setting all dimensions dynamic
-# preserving rank. Currently assumes that all input arguments are torch.Tensor
-def make_input_signature(args):
+def make_input_signature(args: Any) -> Tuple[Tuple[Any, Any], ...]:
+    """Generates an input signature for the provided arguments."""
     return make_signature(args)
 
 
-def make_output_signature(args):
+def make_output_signature(args: Any) -> Tuple[Tuple[Any, Any], ...]:
     if args is None:
         args = ()
     if not isinstance(args, tuple):
@@ -142,7 +158,11 @@ def make_output_signature(args):
     return make_signature(args)
 
 
-def make_trampoline_class(func, op, op_attrs):
+def make_trampoline_class(func: Callable,
+                          op: Optional[Type[ov.Op]],
+                          op_attrs: Any) -> Type[torch.autograd.Function]:
+    """Creates a trampoline class for a function."""
+
     class Trampoline(torch.autograd.Function):
         # this is a marker for this type of extension
         target_extension = InlineConversionExtension()
@@ -150,46 +170,51 @@ def make_trampoline_class(func, op, op_attrs):
         # This function defines how the operation behaves when called as a
         # part of PyTorch model code in eager execution or while jit.trace
         @staticmethod
-        def forward(ctx, *call_args):
+        def forward(ctx: Any, *call_args: Any) -> Any:
+            cls = ctx._forward_cls
             if not op:
                 input_signature = make_input_signature(call_args)
             # TODO: Try to trace `func` with the hope to obtain traceable
             # shapes to build more precise `validate_and_infer_types`
             # automatically (unlikely possible)
             packed_args, packed_kwargs = pack(
-                call_args, __class__.input_packer)
+                call_args, cls.input_packer)
             result = func(*packed_args, **packed_kwargs)
-            result, __class__.output_packer, _ = unpack(result, torch.Tensor)
+            result, cls.output_packer, _ = unpack(result, torch.Tensor)
             if not op:
                 output_signature = make_output_signature(result)
-                __class__.op = make_custom_op_class(func, input_signature,
-                                                    output_signature,
-                                                    __class__.input_packer,
-                                                    __class__.output_packer)
+                cls.op = make_custom_op_class(func, input_signature,
+                                              output_signature,
+                                              cls.input_packer,
+                                              cls.output_packer)
             else:
-                __class__.op = op
+                cls.op = op
             return result
 
-        # Unpack each element that is a tuple, a list, or a dict to a tuple of
-        # their values and concatenate together. Build `packer` function to
-        # pack the result back to the original nested data types, save this
-        # `packer` to class member to use it later in `forward`.
-        @staticmethod
-        def unpack_inputs(args, kwargs):
-            unpacked, __class__.input_packer, _ = unpack(
+        @classmethod
+        def unpack_inputs(cls, args: Any, kwargs: Any) -> Tuple[Any, ...]:
+            """Unpacks inputs for the operation.
+
+            Unpack each element that is a tuple, a list, or a dict to a
+            tuple of their values and concatenate together. Build `packer`
+            function to pack the result back to the original nested data
+            types, save this `packer` to class member to use it later in
+            `forward`."""
+            unpacked, cls.input_packer, _ = unpack(
                 (args, kwargs), torch.Tensor)
             return unpacked
 
-        @staticmethod
-        def pack_outputs(result):
-            return pack(result, __class__.output_packer)
+        @classmethod
+        def pack_outputs(cls, result: Any) -> Any:
+            """Packs outputs for the operation."""
+            return pack(result, cls.output_packer)
 
-        @staticmethod
-        def convert(node_context):
-            """Defines how the operation is represented in OpenVINO model graph"""
-            inputs = [node_context.get_input(i) for i in range(
-                node_context.get_input_size())]
-            node = __class__.op(*inputs, **op_attrs)
+        @classmethod
+        def convert(cls, node_context: Any) -> Tuple[ov.Output, ...]:
+            """Defines how the operation is represented in graph"""
+            num_inps = node_context.get_input_size()
+            inputs = [node_context.get_input(i) for i in range(num_inps)]
+            node = cls.op(*inputs, **op_attrs)
             # to trigger prim::TupleUnpack bypass in FrontEnd transformation
             node.get_rt_info()['__torch_tuple_unpackable__'] = True
             return node.outputs()
@@ -197,9 +222,20 @@ def make_trampoline_class(func, op, op_attrs):
     return Trampoline
 
 
-def inlined_extension(*args, **op_attrs):
-    def make_trampoline(func, op=None):
-        def trampoline(*args, **kwargs):
+def inlined_extension(*args: Any, **op_attrs: Any) -> Callable:
+    """Creates an inlined extension for a function.
+
+    Args:
+        *args (Any): Arguments for the extension.
+        **op_attrs (Any): Attributes for the operation.
+
+    Returns:
+        Callable: The inlined extension.
+    """
+
+    def make_trampoline(func: Callable,
+                        op: Optional[Type[ov.Op]] = None) -> Callable:
+        def trampoline(*args: Any, **kwargs: Any) -> Any:
             # Keep trampoline class creation at the point when the function is
             # called to make each time a new trampoline. It is required
             # because `func` is fused inside Trampoline class and can have
@@ -214,7 +250,7 @@ def inlined_extension(*args, **op_attrs):
             # custom op. Non-traceable part of inputs (and outputs) is captured
             # as `trampoline` class fields.
             args = trampoline.unpack_inputs(args, kwargs)
-            result = trampoline.apply(*args)
+            result = trampoline.apply(*args)  # type: ignore
             # pack to the expected nested data types here
             return trampoline.pack_outputs(result)
         return trampoline

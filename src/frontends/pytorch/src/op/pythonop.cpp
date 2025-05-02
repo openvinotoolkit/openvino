@@ -13,7 +13,7 @@ namespace op {
 
 OutputVector translate_pythonop(const NodeContext& context) {
     auto decoder = context.get_decoder();
-    if(decoder->has_converter()) {
+    if (decoder->has_converter()) {
         // If the node has a custom converter, use it
         // A custom converter is defined for in-model definition of a custom operation.
         return decoder->convert(&context);
