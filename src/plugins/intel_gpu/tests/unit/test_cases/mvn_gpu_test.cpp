@@ -974,3 +974,72 @@ TEST_P(mvn_random_test_bsv32, random_cached) {
     this->execute(GetParam(), true);
 }
 #endif
+
+TEST(mvn_gpu_test, fusion_mul_add) {
+
+    auto run_network = [&](bool use_opt_kernel = false) -> cldnn::memory::ptr {
+        auto& engine = get_test_engine();
+        const size_t b_length = 2;
+        const size_t f_length = 10;
+        const size_t y_length = 32;
+        cldnn::layout input0_dyn_layout({-1,-1,y_length}, data_types::f16, format::bfyx);
+        cldnn::layout input1_dyn_layout({-1,-1,y_length}, data_types::f16, format::bfyx);
+        cldnn::layout input2_dyn_layout({-1,-1,y_length}, data_types::f16, format::bfyx);
+
+        cldnn::layout input0_static_layout({b_length, f_length, y_length}, data_types::f16, format::bfyx);
+        cldnn::layout input1_static_layout({b_length, 1,        y_length}, data_types::f16, format::bfyx);
+        cldnn::layout input2_static_layout({b_length, 1,        y_length}, data_types::f16, format::bfyx);
+
+        auto input0 = engine.allocate_memory(input0_static_layout);
+        auto input1 = engine.allocate_memory(input1_static_layout);
+        auto input2 = engine.allocate_memory(input2_static_layout);
+
+        std::vector<ov::float16> input0_values(input0->count(), 0.f);
+        std::vector<ov::float16> input1_values(input1->count(), 2.f);
+        std::vector<ov::float16> input2_values(input2->count(), 0.1f);
+        for (size_t i = 0; i < input0_values.size(); i++) {
+            input0_values[i] = ov::float16(i * 0.03f);
+        }
+        set_values(input0, input0_values);
+        set_values(input1, input1_values);
+        set_values(input0, input2_values);
+
+        topology topo;
+        topo.add(input_layout("input0", input0_dyn_layout));
+        topo.add(input_layout("input1", input1_dyn_layout));//Gather, ADD_1
+        topo.add(input_layout("input2", input2_dyn_layout));//Gather_1
+        topo.add(mvn("mvn", input_info("input0"), true, 1e-06f, true, {2}));
+        topo.add(eltwise("mul", {input_info("mvn"), input_info("input1")}, eltwise_mode::prod, {}, data_types::f16));
+        topo.add(eltwise("add", {input_info("mul"), input_info("input2")}, eltwise_mode::sum, {}, data_types::f16));
+        topo.add(reorder("result",input_info("add"), format::bfyx, data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        if (use_opt_kernel) {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"mvn", {format::type::bfyx, "mvn_gpu_bfyx_opt"}} }));
+        } else {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"mvn", {format::type::bfyx, "mvn_gpu_ref"}} }));
+        }
+
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+
+        net->set_input_data("input0", input0);
+        net->set_input_data("input1", input1);
+        net->set_input_data("input2", input2);
+
+        auto outputs = net->execute();
+        auto output = outputs.at("result").get_memory();
+        return output;
+    };
+
+    auto mem_ref_ptr = run_network(false);
+    auto mem_opt_ptr = run_network(true);
+    cldnn::mem_lock<float> ref_data(mem_ref_ptr, get_test_stream());
+    cldnn::mem_lock<float> opt_data(mem_opt_ptr, get_test_stream());
+
+    ASSERT_EQ(ref_data.size(), opt_data.size());
+    for (size_t i = 0; i < ref_data.size(); i++) {
+        ASSERT_NEAR(static_cast<float>(ref_data[i]), static_cast<float>(opt_data[i]), 1.e-1f);
+    }
+}

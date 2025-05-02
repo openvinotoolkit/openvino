@@ -135,7 +135,8 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
                               "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
             }
         }
-        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED);
+        //TODO: Need to know why set to DISABLE.
+        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::ENABLED);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 
