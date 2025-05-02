@@ -146,7 +146,7 @@ jobs:
           export CC=/usr/local/gcc-10.2.0/bin/gcc
           export CXX=/usr/local/gcc-10.2.0/bin/g++
           python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DENABLE_TESTS=ON -DCMAKE_VERBOSE_MAKEFILE=ON -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=ON -DENABLE_OV_JAX_FRONTEND=OFF -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
+          cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 -DCMAKE_LINKER=lld -DENABLE_CPPLINT=OFF -DENABLE_NCC_STYLE=OFF -DENABLE_TESTS=ON -DCMAKE_VERBOSE_MAKEFILE=ON -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF -DENABLE_OV_PYTORCH_FRONTEND=ON -DENABLE_OV_JAX_FRONTEND=OFF -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
