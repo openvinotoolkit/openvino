@@ -32,11 +32,10 @@ class TestKerasSoftplus(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_float32_precommit)
     @pytest.mark.precommit
     @pytest.mark.xfail(reason="49516")
-    def test_keras_softplus_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_legacy_frontend):
+    def test_keras_softplus_float32(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_keras_softplus_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)
 
     test_data_float32 = [dict(input_names=["x1"], input_shapes=[[5]], input_type=tf.float32),
                          dict(input_names=["x1"], input_shapes=[[5, 4]], input_type=tf.float32),
@@ -50,8 +49,7 @@ class TestKerasSoftplus(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(reason="49516")
-    def test_keras_softplus_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_legacy_frontend):
+    def test_keras_softplus_float32(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_keras_softplus_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)

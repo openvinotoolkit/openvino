@@ -87,10 +87,8 @@ class TestBinaryComparison(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_binary_comparison(self, input_shape1, input_shape2, binary_op, is_const, input_type,
-                               ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+                               ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' and input_type == np.int16 and is_const:
             pytest.skip('150501: Accuracy error on GPU for int16 type and constant operand')
         self._test(*self.create_binary_comparison_net(input_shape1, input_shape2, binary_op, is_const, input_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

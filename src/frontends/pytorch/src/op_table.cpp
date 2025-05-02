@@ -805,6 +805,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function floordiv>", op::translate_floor_divide},
         {"<built-in function getitem>", op::translate_getitem},  // TODO: Check if there is any other way to handle this
         {"<built-in function mul>", op::translate_mul},
+        {"<built-in function neg>", op::translate_neg},
         {"<built-in function sub>", op::translate_sub},
         {"aten._adaptive_avg_pool1d.default", op::translate_adaptive_avg_pool1d},
         {"aten._adaptive_avg_pool2d.default", op::translate_adaptive_avg_pool2d},
@@ -1074,6 +1075,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.view_as_complex.default", op::translate_view_as_complex},
         {"aten.view_as_real.default", op::translate_view_as_real},
         {"aten.where.self", op::translate_where},
+        {"aten.zero.default", op::translate_zeros_like_fx},
         {"aten.zeros.default", op::translate_zeros_fx},
         {"aten.zeros.names", op::translate_zeros_fx},
         {"aten.zeros_like.default", op::translate_zeros_like_fx},
