@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,22 +25,25 @@ void TokenizeMLPSnippetsTests::run() {
     disable_rt_info_check();
 }
 
-TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32) {
-    const auto& f =
-        MLPSeqTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}}, std::vector<ov::element::Type>({ov::element::f32}), 2);
+TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_f32_HL2) {
+    const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
+                                                       std::vector<ov::element::Type>({ov::element::f32}),
+                                                       2,
+                                                       2);
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
 }
 
 TEST_F(TokenizeMLPSnippetsTests, smoke_Snippets_MLP_SEQ_TypeRelaxed_2D_i8) {
-    const auto& f =
-        MLPSeqTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}}, std::vector<ov::element::Type>({ov::element::u8}), 2);
+    const auto& f = MLPSeqQuantizedTypeRelaxedFunction(std::vector<PartialShape>{{64, 64}},
+                                                       std::vector<ov::element::Type>({ov::element::u8}),
+                                                       2,
+                                                       2);
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
 }
-
 
 }  // namespace snippets
 }  // namespace test

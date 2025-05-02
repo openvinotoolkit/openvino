@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,10 +40,16 @@ namespace ov::test::snippets {
  *         |
  *      Output
  */
-class MLPSeqTypeRelaxedFunction : public SnippetsFunctionBase {
+class MLPSeqQuantizedTypeRelaxedFunction : public SnippetsFunctionBase {
 public:
-    explicit MLPSeqTypeRelaxedFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions, size_t num_layers)
-        : SnippetsFunctionBase(inputShapes), precisions(precisions), num_layers(num_layers) {
+    explicit MLPSeqQuantizedTypeRelaxedFunction(const std::vector<PartialShape>& inputShapes,
+                                                const std::vector<ov::element::Type>& precisions,
+                                                size_t num_input_layers,
+                                                size_t num_hidden_layers)
+        : SnippetsFunctionBase(inputShapes),
+          precisions(precisions),
+          num_input_layers(num_input_layers),
+          num_hidden_layers(num_hidden_layers) {
         OPENVINO_ASSERT(!precisions.empty(), "Precisions vector is empty");
     }
 
@@ -52,13 +58,19 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 
     const std::vector<ov::element::Type> precisions;
-    const size_t num_layers;
+    const size_t num_input_layers, num_hidden_layers;
 };
 
 class MLPSeqFunction : public SnippetsFunctionBase {
 public:
-    explicit MLPSeqFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions, size_t num_layers)
-        : SnippetsFunctionBase(inputShapes), precisions(precisions), num_layers(num_layers) {
+    explicit MLPSeqFunction(const std::vector<PartialShape>& inputShapes,
+                            const std::vector<ov::element::Type>& precisions,
+                            size_t num_input_layers,
+                            size_t num_hidden_layers)
+        : SnippetsFunctionBase(inputShapes),
+          precisions(precisions),
+          num_input_layers(num_input_layers),
+          num_hidden_layers(num_hidden_layers) {
         OPENVINO_ASSERT(!precisions.empty(), "Precisions vector is empty");
     }
 
@@ -67,7 +79,7 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 
     const std::vector<ov::element::Type> precisions;
-    const size_t num_layers;
+    const size_t num_input_layers, num_hidden_layers;
 };
 
 }  // namespace ov::test::snippets

@@ -104,7 +104,7 @@ void MLP::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& 
 }
 
 std::shared_ptr<SnippetsFunctionBase> MLP::get_subgraph() const {
-    return std::make_shared<ov::test::snippets::MLPSeqFunction>(inputDynamicShapes, m_input_types, 2);
+    return std::make_shared<ov::test::snippets::MLPSeqFunction>(inputDynamicShapes, m_input_types, 2, 2);
 }
 
 TEST_P(MLP, CompareWithRefImpl) {

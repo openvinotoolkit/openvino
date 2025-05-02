@@ -30,6 +30,12 @@ static inline std::vector<std::vector<element::Type>> precision_f32(size_t count
     return prc;
 }
 
+static inline std::vector<std::vector<element::Type>> precision_i8(size_t count) {
+    std::vector<std::vector<element::Type>> prc;
+    prc.emplace_back(std::vector<element::Type>(count, element::i8));
+    return prc;
+}
+
 static inline std::vector<std::vector<element::Type>> precision_bf16_if_supported(size_t count) {
     std::vector<std::vector<element::Type>> prc;
     if (is_bf16_supported_by_brgemm())
