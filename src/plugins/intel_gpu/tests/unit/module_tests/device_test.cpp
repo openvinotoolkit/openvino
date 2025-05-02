@@ -131,6 +131,9 @@ TEST(devices_test, is_same_device) {
     const bool initialize = false;
     auto devices = device_detector.get_available_devices(nullptr, nullptr, 0, std::numeric_limits<int>::max() /* ignore sub-devices */, initialize);
 
+    if (devices.empty())
+        GTEST_SKIP() << "No available devices found";
+
     for (const auto& device : devices) {
         ASSERT_TRUE(device.second->is_same(device.second));
     }
@@ -142,47 +145,45 @@ TEST(devices_test, is_same_device) {
         ASSERT_FALSE(first_device->is_same(second_device));
     }
 
-    if (devices.size() > 1) {
-        auto orig_device = std::dynamic_pointer_cast<ocl::ocl_device>(devices.begin()->second);
-        auto new_device = std::make_shared<ocl::ocl_device_extended>(orig_device);
+    auto orig_device = std::dynamic_pointer_cast<ocl::ocl_device>(devices.begin()->second);
+    auto new_device = std::make_shared<ocl::ocl_device_extended>(orig_device);
 
-        ASSERT_TRUE(new_device->is_same(orig_device));
+    ASSERT_TRUE(new_device->is_same(orig_device));
 
-        auto new_device_info = new_device->get_info();
-        auto orig_uuid = new_device_info.uuid.uuid;
-        new_device_info.uuid.uuid[0] += 1;
-        new_device->set_device_info(new_device_info);
-        ASSERT_FALSE(new_device->is_same(orig_device));
-        new_device_info.uuid.uuid = orig_uuid;
+    auto new_device_info = new_device->get_info();
+    auto orig_uuid = new_device_info.uuid.uuid;
+    new_device_info.uuid.uuid[0] += 1;
+    new_device->set_device_info(new_device_info);
+    ASSERT_FALSE(new_device->is_same(orig_device));
+    new_device_info.uuid.uuid = orig_uuid;
 
-        auto orig_pci_bus = new_device_info.pci_info.pci_bus;
-        new_device_info.pci_info.pci_bus += 1;
-        new_device->set_device_info(new_device_info);
-        ASSERT_FALSE(new_device->is_same(orig_device));
-        new_device_info.pci_info.pci_bus = orig_pci_bus;
+    auto orig_pci_bus = new_device_info.pci_info.pci_bus;
+    new_device_info.pci_info.pci_bus += 1;
+    new_device->set_device_info(new_device_info);
+    ASSERT_FALSE(new_device->is_same(orig_device));
+    new_device_info.pci_info.pci_bus = orig_pci_bus;
 
-        auto orig_sub_device_idx = new_device_info.sub_device_idx;
-        new_device_info.sub_device_idx += 1;
-        new_device->set_device_info(new_device_info);
-        ASSERT_FALSE(new_device->is_same(orig_device));
-        new_device_info.sub_device_idx = orig_sub_device_idx;
-        new_device_info.pci_info.pci_bus = orig_pci_bus;
+    auto orig_sub_device_idx = new_device_info.sub_device_idx;
+    new_device_info.sub_device_idx += 1;
+    new_device->set_device_info(new_device_info);
+    ASSERT_FALSE(new_device->is_same(orig_device));
+    new_device_info.sub_device_idx = orig_sub_device_idx;
+    new_device_info.pci_info.pci_bus = orig_pci_bus;
 
-        auto orig_vendor = new_device_info.vendor_id;
-        new_device_info.vendor_id += 1;
-        new_device->set_device_info(new_device_info);
-        ASSERT_FALSE(new_device->is_same(orig_device));
-        new_device_info.vendor_id = orig_vendor;
+    auto orig_vendor = new_device_info.vendor_id;
+    new_device_info.vendor_id += 1;
+    new_device->set_device_info(new_device_info);
+    ASSERT_FALSE(new_device->is_same(orig_device));
+    new_device_info.vendor_id = orig_vendor;
 
-        auto orig_eu_count = new_device_info.execution_units_count;
-        new_device_info.execution_units_count += 1;
-        new_device->set_device_info(new_device_info);
-        ASSERT_FALSE(new_device->is_same(orig_device));
-        new_device_info.execution_units_count = orig_eu_count;
+    auto orig_eu_count = new_device_info.execution_units_count;
+    new_device_info.execution_units_count += 1;
+    new_device->set_device_info(new_device_info);
+    ASSERT_FALSE(new_device->is_same(orig_device));
+    new_device_info.execution_units_count = orig_eu_count;
 
-        new_device->set_device_info(new_device_info);
-        ASSERT_TRUE(new_device->is_same(orig_device));
-    }
+    new_device->set_device_info(new_device_info);
+    ASSERT_TRUE(new_device->is_same(orig_device));
 }
 
 TEST(devices_test, on_demand_initialization) {
@@ -222,18 +223,19 @@ TEST(devices_test, user_context_initialization) {
     const bool initialize = true;
     auto devices = device_detector.get_available_devices(nullptr, nullptr, 0, -1, initialize);
 
-    if (!devices.empty()) {
-        auto initialized_device = std::dynamic_pointer_cast<ocl::ocl_device>(devices.begin()->second);
-        auto user_context = initialized_device->get_context();
+    if (devices.empty())
+        GTEST_SKIP() << "No available devices found";
 
-        auto shared_devices = device_detector.get_available_devices(user_context.get(), nullptr, 0, std::numeric_limits<int>::max() /* ignore sub-devices */);
-        ASSERT_EQ(shared_devices.size(), 1);
+    auto initialized_device = std::dynamic_pointer_cast<ocl::ocl_device>(devices.begin()->second);
+    auto user_context = initialized_device->get_context();
 
-        auto shared_ocl_device = std::dynamic_pointer_cast<ocl::ocl_device>(shared_devices.begin()->second);
-        ASSERT_TRUE(shared_ocl_device->is_initialized());
+    auto shared_devices = device_detector.get_available_devices(user_context.get(), nullptr, 0, std::numeric_limits<int>::max() /* ignore sub-devices */);
+    ASSERT_EQ(shared_devices.size(), 1);
 
-        ASSERT_EQ(shared_ocl_device->get_device(), initialized_device->get_device());
-        ASSERT_EQ(shared_ocl_device->get_context(), initialized_device->get_context());
-        ASSERT_TRUE(initialized_device->is_same(shared_ocl_device));
-    }
+    auto shared_ocl_device = std::dynamic_pointer_cast<ocl::ocl_device>(shared_devices.begin()->second);
+    ASSERT_TRUE(shared_ocl_device->is_initialized());
+
+    ASSERT_EQ(shared_ocl_device->get_device(), initialized_device->get_device());
+    ASSERT_EQ(shared_ocl_device->get_context(), initialized_device->get_context());
+    ASSERT_TRUE(initialized_device->is_same(shared_ocl_device));
 }
