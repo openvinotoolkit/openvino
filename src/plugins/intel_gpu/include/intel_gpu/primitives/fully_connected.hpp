@@ -141,6 +141,7 @@ struct fully_connected : public primitive_base<fully_connected> {
 
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
+
     std::shared_ptr<fully_connected> clone() const { return std::make_shared<fully_connected>(*this); }
 
     /// @brief Primitive id containing weights data.
