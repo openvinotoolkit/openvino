@@ -53,4 +53,33 @@ size_t sve_vlen() {
         return svcntd();
     }
 }
+
+template <typename TA, typename TB>
+static void cvt_copy(TA* dst, TB* src, size_t n) {
+    size_t i = 0;
+    if constexpr (std::is_same<TA, TB>::value) {
+        auto pg_dst = sve_predicate<sizeof(TA)>();
+        auto vlen = sve_vlen<sizeof(TA)>();
+        for (; i + vlen <= n; i += vlen) {
+            auto vb = svld1(pg_dst, src + i);
+            svst1(pg_dst, dst + i, vb);
+        }
+        auto pgt = sve_predicate<TA, sizeof(TA)>(i, n);
+        auto vb = svld1(pg_dst, src + i);
+        svst1(pg_dst, dst + i, vb);
+        return;
+    } else if constexpr (std::is_same<TA, float>::value && std::is_same<TB, ov::float16>::value) {
+        auto src_ptr = reinterpret_cast<float16_t*>(src);
+        auto pg_vl2 = svwhilelt_b16(svcnth() / 2, svcnth());
+        auto vlen = svcnth() / 2;
+        auto pg_dst = svptrue_b32();
+        for (; i + vlen <= n; i += vlen) {
+            auto load_src = svld1_f16(pg_vl2, src_ptr + i);
+            auto src_interleave = svzip1_f16(load_src, load_src);
+            auto cvt_dst = svcvt_f32_f16_z(pg_dst, src_interleave);
+            svst1(pg_dst, dst + i, cvt_dst);
+        }
+    }
+}
+
 }  // namespace ov::intel_cpu::sve_utils

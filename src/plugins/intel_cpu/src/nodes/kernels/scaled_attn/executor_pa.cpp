@@ -32,7 +32,6 @@
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
 #    include "nodes/kernels/aarch64/sve_utils.hpp"
 #    include "nodes/kernels/kai/kleidi_kernel.hpp"
-using namespace ov::intel_cpu::sve_utils;
 #endif
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -2593,9 +2592,9 @@ struct MHAHelper {
                 PlainTensor f32_cvt;
                 if (q_is_xf16) {
                     f32_cvt.resize<float>({size_t{rnd_up(cur_kv_len, _block_size)}});
-                    cvt_copy(f32_cvt.ptr<float>(0),
-                             reinterpret_cast<DATA_TYPE*>(score),
-                             rnd_up(cur_kv_len, _block_size));
+                    sve_utils::cvt_copy(f32_cvt.ptr<float>(0),
+                                        reinterpret_cast<DATA_TYPE*>(score),
+                                        rnd_up(cur_kv_len, _block_size));
                     soft_in = f32_cvt.ptr<float>(0);
                 }
                 if (_sliding_window) {
@@ -2641,9 +2640,9 @@ struct MHAHelper {
                                                alibi_slope);
                 }
                 if (score_output) {
-                    cvt_copy(score_output + h * rnd_up(cur_kv_len, 16),
-                             reinterpret_cast<DATA_TYPE*>(score),
-                             cur_kv_len);
+                    sve_utils::cvt_copy(score_output + h * rnd_up(cur_kv_len, 16),
+                                        reinterpret_cast<DATA_TYPE*>(score),
+                                        cur_kv_len);
                 }
             }
 
@@ -3164,7 +3163,8 @@ struct MHA {
                     v_ptr,
                     _helper._block_size,
                     _helper.SV,
-                    _helper._value_group_size);
+                    _helper._value_group_size,
+                    _helper._quant_value_bychannel);
 #    else
                 pack_32NxK<DATA_TYPE, VALUE_PREC>(
                     _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
@@ -3176,6 +3176,7 @@ struct MHA {
                     _helper.SV,
                     _helper._value_group_size,
                     _helper._quant_value_bychannel);
+#    endif
             } else {
                 // need to decompress
                 if (!q_cache_is_same) {
@@ -3929,9 +3930,11 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
     }
     if (data_type == ov::element::f16) {
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
-            executor = std::make_shared<AttentionExecutor<ov::float16, uint8_t, ov::element::u8>>(key_group_size,
-                                                                                                  value_group_size,
-                                                                                                  quant_key_bychannel);
+            executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u8>>(
+                key_group_size,
+                value_group_size,
+                quant_key_bychannel,
+                quant_value_bychannel);
         } else {
             OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
         }
