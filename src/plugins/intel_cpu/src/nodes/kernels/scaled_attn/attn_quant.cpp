@@ -487,7 +487,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
                                       const ov::intel_cpu::PlainTensor& subsequence_begins,
                                       const ov::intel_cpu::PlainTensor& block_indices,
                                       const ov::intel_cpu::PlainTensor& block_indices_begins,
-                                      float* buffer,
+                                      ov::intel_cpu::PlainTensor& temp_buffer,
                                       size_t sub_seq_id,
                                       size_t h) {
     // scale f32[S] zp f32[S] offset in bytes
@@ -528,7 +528,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
         size_t block_offset = block_number_start + past_len / block_size;
         auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_offset;
         parallel_for(total_blocks, [&](size_t block_id) {
-            size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id];
+            size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_size * block_id;
             auto block_number = block_indices.ptr<int32_t>()[block_id + block_offset];
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
             auto p_scales = reinterpret_cast<float*>(base);
@@ -536,6 +536,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
             auto p_data = base + params_offset;
             size_t valid_length = 0;
             bool is_first_block = block_id == 0;
+            float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
             if (is_first_block) {
                 valid_length = std::min(static_cast<size_t>(q_len), block_size - prev_nums);
             } else {
@@ -700,14 +701,13 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                   : k_dst.m_dims[2];
     if (quant_key_by_channel) {
         parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
-            float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
             quantize_block_by_channel<T, KEY_DST_PREC>(k_src,
                                                        k_dst,
                                                        past_lens,
                                                        subsequence_begins,
                                                        block_indices,
                                                        block_indices_begins,
-                                                       buffer,
+                                                       temp_buffer,
                                                        sub_seq_id,
                                                        h);
         });
@@ -725,14 +725,13 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
     // quant value
     if (quant_value_by_channel) {
         parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
-            float* buffer = temp_buffer.ptr<float>(parallel_get_thread_num());
             quantize_block_by_channel<T, VALUE_DST_PREC>(v_src,
                                                          v_dst,
                                                          past_lens,
                                                          subsequence_begins,
                                                          block_indices,
                                                          block_indices_begins,
-                                                         buffer,
+                                                         temp_buffer,
                                                          sub_seq_id,
                                                          h);
         });
