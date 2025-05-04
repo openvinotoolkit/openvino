@@ -14,6 +14,10 @@ on:
         description: 'Filter for func_tests.'
         required: false
         default: '*smoke*'
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
     paths:
     - '.github/workflows/linux_sanitizers.yml'
@@ -26,7 +30,7 @@ concurrency:
 permissions: read-all
 
 env:
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   BUILD_DIR: /__w/openvino/openvino/openvino_build
   OPENVINO_REPO: /__w/openvino/openvino/openvino
   INSTALL_TEST_DIR: /__w/openvino/openvino/openvino_install/tests/

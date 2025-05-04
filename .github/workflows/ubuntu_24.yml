@@ -1,6 +1,11 @@
 name: Linux (Ubuntu 24.04, Python 3.12)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -96,6 +101,7 @@ jobs:
       build-debian-packages: true
       build-contrib: true
       build-additional-python-packages: true
+      target-branch: ${{ inputs.target-branch }}
       cmake-options: >- 
             -G 'Ninja Multi-Config'
             -DENABLE_CPPLINT=OFF
