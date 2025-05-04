@@ -24,13 +24,17 @@ on:
         description: 'Python version to setup. E.g., "3.11"'
         type: string
         required: true
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
 
 permissions: read-all
 
 env:
   PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Openvino_tokenizers:

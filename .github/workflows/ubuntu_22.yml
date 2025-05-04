@@ -4,6 +4,11 @@ on:
     # at 00:00 on Wednesday and Saturday
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -21,7 +26,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -102,6 +107,7 @@ jobs:
       build-debian-packages: true
       build-rpm-packages: false
       build-additional-python-packages: true
+      target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_CPPLINT=OFF

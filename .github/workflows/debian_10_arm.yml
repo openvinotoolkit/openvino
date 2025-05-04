@@ -1,6 +1,11 @@
 name: Debian 10 ARM
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -94,6 +99,7 @@ jobs:
       build-contrib: false
       build-rpm-packages: false
       build-additional-python-packages: true
+      target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
         -DTHREADS_PTHREAD_ARG=-pthread
         -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
