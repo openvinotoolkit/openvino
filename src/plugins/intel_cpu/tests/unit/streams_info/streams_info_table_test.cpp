@@ -1889,7 +1889,7 @@ StreamsCalculationTestCase _1sockets_mock_tput_7 = {
     "THROUGHPUT",
     {},
     {{16, 4, 8, 4, 0, 0, 0}},
-    {{4, MAIN_CORE_PROC, 1, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {4, LP_EFFICIENT_CORE_PROC, 1, 0, 0}},
+    {{4, MAIN_CORE_PROC, 1, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {2, LP_EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
 StreamsCalculationTestCase _1sockets_mock_tput_8 = {
     1,

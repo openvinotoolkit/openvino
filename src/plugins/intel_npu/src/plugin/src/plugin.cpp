@@ -222,14 +222,15 @@ void Plugin::init_options() {
         }
     }
 
+    // parse again env_variables to update registered configs which have env vars set
+    _globalConfig.parseEnvVars();
+
+    // filter out unsupported options
     filter_config_by_compiler_support(_globalConfig);
 
     if (_backend) {
         _backend->registerOptions(*_options);
     }
-
-    // parse again env_variables to update registered configs which have env vars set
-    _globalConfig.parseEnvVars();
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -515,11 +516,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remoteProperties) const {
-    return std::make_shared<RemoteContextImpl>(_backend, _globalConfig, remoteProperties);
+    return std::make_shared<RemoteContextImpl>(_backend, remoteProperties);
 }
 
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
-    return std::make_shared<RemoteContextImpl>(_backend, _globalConfig);
+    return std::make_shared<RemoteContextImpl>(_backend);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
