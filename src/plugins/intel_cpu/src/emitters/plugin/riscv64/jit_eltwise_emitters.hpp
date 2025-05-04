@@ -7,6 +7,20 @@
 #include "jit_emitter.hpp"
 
 namespace ov::intel_cpu::riscv64 {
+class jit_floor_emitter : public jit_emitter {
+public:
+    jit_floor_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc = element::f32);
+    jit_floor_emitter(jit_generator* host, cpu_isa_t host_isa, const std::shared_ptr<Node>& node);
+               
+    size_t get_inputs_num() const override;
+               
+     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<Node>& node = nullptr);
+               
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+ };   
 
 class jit_abs_emitter : public jit_emitter {
 public:
