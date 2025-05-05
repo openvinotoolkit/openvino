@@ -52,7 +52,8 @@ bool TokenizeMLPSeqSnippets::is_tensor_supported(const ov::descriptor::Tensor& t
 
 bool TokenizeMLPSeqSnippets::is_matmul_supported(const std::shared_ptr<ov::Node>& node) {
     const auto matmul = ov::as_type_ptr<ov::opset1::MatMul>(node);
-    if (!matmul || matmul->get_transpose_a() || !ov::is_type<ov::op::v0::Constant>(matmul->get_input_node_shared_ptr(1)) ||
+    if (!matmul || matmul->get_transpose_a() ||
+        !ov::is_type<ov::op::v0::Constant>(matmul->input_value(1).get_node_shared_ptr()) ||
         !is_tensor_supported(matmul->get_input_tensor(0)) || !is_tensor_supported(matmul->get_input_tensor(1))) {
         return false;
     }
@@ -145,7 +146,7 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
                 possible_param_count++;
             } else if (is_supported_intermediate_op(interm_op)) {
                 possible_param_count += get_potential_body_params(interm_op);
-                if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(matmul0->get_input_node_shared_ptr(0))) {
+                if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(matmul0->input_value(0).get_node_shared_ptr())) {
                     possible_hidden_virtual_ports_count += ov::snippets::utils::get_non_scalar_constant_count_for_fq(fq);
                 }
             } else {

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,12 +40,13 @@ namespace ov::test::snippets {
  *         |
  *      Output
  */
-class MLPSeqQuantizedTypeRelaxedFunction : public SnippetsFunctionBase {
+
+class MLPSeqFunction : public SnippetsFunctionBase {
 public:
-    explicit MLPSeqQuantizedTypeRelaxedFunction(const std::vector<PartialShape>& inputShapes,
-                                                const std::vector<ov::element::Type>& precisions,
-                                                size_t num_input_nodes,
-                                                size_t num_hidden_layers)
+    explicit MLPSeqFunction(const std::vector<PartialShape>& inputShapes,
+                            const std::vector<ov::element::Type>& precisions,
+                            size_t num_input_nodes,
+                            size_t num_hidden_layers)
         : SnippetsFunctionBase(inputShapes),
           precisions(precisions),
           num_input_nodes(num_input_nodes),
@@ -61,12 +62,12 @@ protected:
     const size_t num_input_nodes, num_hidden_layers;
 };
 
-class MLPSeqFunction : public SnippetsFunctionBase {
+class MLPSeqQuantizedTypeRelaxedFunction : public SnippetsFunctionBase {
 public:
-    explicit MLPSeqFunction(const std::vector<PartialShape>& inputShapes,
-                            const std::vector<ov::element::Type>& precisions,
-                            size_t num_input_nodes,
-                            size_t num_hidden_layers)
+    explicit MLPSeqQuantizedTypeRelaxedFunction(const std::vector<PartialShape>& inputShapes,
+                                                const std::vector<ov::element::Type>& precisions,
+                                                size_t num_input_nodes,
+                                                size_t num_hidden_layers)
         : SnippetsFunctionBase(inputShapes),
           precisions(precisions),
           num_input_nodes(num_input_nodes),
