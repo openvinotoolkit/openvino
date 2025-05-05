@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
@@ -58,7 +59,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
             return true;
     }
 
-    if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
+    if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
         return true;
     }
     // When input node has dynamic shape with 4 dimension, this function return false
@@ -114,13 +115,15 @@ void ExecutionConfig::finalize(cldnn::engine& engine) {
     PluginConfig::finalize(ctx.get(), nullptr);
 }
 
-void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm) {
+void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model) {
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
-    if (!info.supports_immad) {
+    if (is_paged_attention_model || !info.supports_immad) {
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
-    if (!is_llm)
+
+    if (!is_llm) {
         apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
+    }
 
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
 
@@ -133,13 +136,21 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 }
 
 void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {
-    const auto is_LLM = ov::op::util::is_large_language_model(model) ||
-                        ov::op::util::has_op_with_type<ov::intel_gpu::op::KVCache>(model.shared_from_this());
-    apply_rt_info(context, get_rt_info(model), is_LLM);
+    auto is_paged_attention_model = false;
+    const auto is_LLM = ov::op::util::is_large_language_model(model, [&is_paged_attention_model](std::shared_ptr<ov::Node> node) {
+        if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
+            is_paged_attention_model = true;
+            return true;
+        } else if (ov::is_type<ov::intel_gpu::op::KVCache>(node)) {
+            return true;
+        }
+
+        return false;
+    });
+    apply_rt_info(context, get_rt_info(model), is_LLM, is_paged_attention_model);
 
     const auto& ops = model.get_ops();
 
-    auto is_paged_attention_model = false;
     std::function<void(std::shared_ptr<Node>)> process_op = [&, this](std::shared_ptr<Node> op) {
         if (requires_new_shape_infer(op)) {
             m_allow_new_shape_infer = true;
@@ -152,7 +163,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
 
         // Allow using onednn for models with LSTMSequence op as it's much more performant than existing ocl impl
-        if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
+        if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v5::GRUSequence>(op)) {
             m_use_onednn = true;
         }
 
@@ -162,10 +173,6 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
                     process_op(sub_op);
                 }
             }
-        }
-
-        if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
-            is_paged_attention_model = true;
         }
     };
 
@@ -225,7 +232,7 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     }
 
 #ifdef ENABLE_DEBUG_CAPS
-    // For now we apply env/config only for build with debug caps, but it can be updated in the future to allow
+    // For now we apply config file only for build with debug caps, but it can be updated in the future to allow
     // reading release options for any build type
     apply_config_options(context->get_device_name(), get_debug_config());
 #endif // ENABLE_DEBUG_CAPS
