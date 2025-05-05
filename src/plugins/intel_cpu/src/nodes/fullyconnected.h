@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -93,7 +94,7 @@ protected:
     void toNumaNodeImpl(int numaID) override;
 
 private:
-    enum InputId : size_t {
+    enum InputId : uint8_t {
         DATA = 0,
         WEIGHTS,
         BIAS,
@@ -119,7 +120,6 @@ private:
     void needSplitMemoryForTensorParallel();
 
     FCAttrs attrs;
-    PostOps postOps;
     MemoryArgs memory;
     ExecutorFactoryPtr<FCAttrs> factory;
     ExecutorPtr executor = nullptr;

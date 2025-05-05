@@ -56,7 +56,7 @@ void compile_graph::run(program& p) {
                                     node->get_primitive()->type_string(),
                                     "\noriginal_type: ",
                                     node->get_primitive()->origin_op_type_name,
-                                    fail_reason);
+                                    " ", fail_reason);
                 } catch (std::exception&) {
                     exception = std::current_exception();
                 }

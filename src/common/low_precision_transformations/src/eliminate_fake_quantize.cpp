@@ -10,6 +10,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "itt.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -69,10 +70,10 @@ bool check_interval(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
     if (need_to_check_intervals) {
         auto tmp_fq = as_type_ptr<ov::opset1::FakeQuantize>(fq->clone_with_new_inputs({
             constant,
-            fq->get_input_node_shared_ptr(1),
-            fq->get_input_node_shared_ptr(2),
-            fq->get_input_node_shared_ptr(3),
-            fq->get_input_node_shared_ptr(4)}));
+            fq->input_value(1),
+            fq->input_value(2),
+            fq->input_value(3),
+            fq->input_value(4)}));
         auto result = NetworkHelper::fold_fake_quantize(tmp_fq, false);
         const auto result_constant = as_type_ptr<ov::opset1::Constant>(result);
         if (result_constant == nullptr) {

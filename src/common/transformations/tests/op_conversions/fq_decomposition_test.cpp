@@ -9,8 +9,16 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -81,7 +89,7 @@ protected:
             const auto oh = std::make_shared<opset1::Constant>(ranges_prec, oh_shape);
 
             const auto fq = std::make_shared<opset1::FakeQuantize>(data, il, ih, ol, oh, levels);
-            f = std::make_shared<ov::Model>(NodeVector{fq}, ParameterVector{data});
+            f = std::make_shared<ov::Model>(OutputVector{fq}, ParameterVector{data});
 
             pass::Manager manager;
             manager.register_pass<ov::pass::InitNodeInfo>();
@@ -132,10 +140,10 @@ protected:
                     result = std::make_shared<opset1::Convert>(result, data_prec);
                 }
 
-                f_ref = std::make_shared<ov::Model>(NodeVector{result}, params);
+                f_ref = std::make_shared<ov::Model>(OutputVector{result}, params);
             } else {
                 const auto fq = std::make_shared<opset1::FakeQuantize>(data, il, ih, ol, oh, levels);
-                f_ref = std::make_shared<ov::Model>(NodeVector{fq}, params);
+                f_ref = std::make_shared<ov::Model>(OutputVector{fq}, params);
             }
         }
 

@@ -188,6 +188,7 @@ REGISTER_FACTORY(v4, CTCLoss);
 // REGISTER_FACTORY(v4, Range);
 
 // ------------------------------ Supported v5 ops ------------------------------ //
+REGISTER_FACTORY(v5, GRUSequence);
 REGISTER_FACTORY(v5, HSigmoid);
 REGISTER_FACTORY(v5, LogSoftmax);
 REGISTER_FACTORY(v5, LSTMSequence);
@@ -198,7 +199,6 @@ REGISTER_FACTORY(v5, Loop);
 
 // ----------------------------- Unsupported v5 ops ----------------------------- //
 // REGISTER_FACTORY(v5, BatchNormInference);
-// REGISTER_FACTORY(v5, GRUSequence);
 // REGISTER_FACTORY(v5, RNNSequence);
 
 // ------------------------------ Supported v6 ops ------------------------------ //
@@ -245,6 +245,7 @@ REGISTER_FACTORY(v9, ROIAlign);
 REGISTER_FACTORY(v9, RDFT);
 REGISTER_FACTORY(v9, IRDFT);
 REGISTER_FACTORY(v9, Eye);
+REGISTER_FACTORY(v9, NonMaxSuppression);
 
 // ------------------------------ Supported v10 ops ----------------------------- //
 REGISTER_FACTORY(v10, IsFinite);

@@ -9,6 +9,7 @@
 #include <tuple>
 #include <vector>
 
+#include "openvino/op/scatter_nd_update.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {

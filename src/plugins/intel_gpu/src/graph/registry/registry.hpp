@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -140,6 +140,7 @@ REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);
 REGISTER_IMPLS(lstm_cell);
 REGISTER_IMPLS(lstm_seq);
+REGISTER_IMPLS(gru_seq);
 REGISTER_IMPLS(non_max_suppression);
 REGISTER_IMPLS(pooling);
 REGISTER_IMPLS(reduce);
@@ -154,6 +155,7 @@ REGISTER_IMPLS(softmax);
 REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
 REGISTER_IMPLS(tile);
+REGISTER_IMPLS(col2im);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
@@ -166,7 +168,6 @@ REGISTER_DEFAULT_IMPLS(adaptive_pooling, OCL_S);
 REGISTER_DEFAULT_IMPLS(batch_to_space, OCL_S);
 REGISTER_DEFAULT_IMPLS(border, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(bucketize, OCL_S);
-REGISTER_DEFAULT_IMPLS(col2im, OCL_S);
 REGISTER_DEFAULT_IMPLS(custom_gpu_primitive, OCL_S);
 REGISTER_DEFAULT_IMPLS(data, COMMON_S, COMMON_D);
 REGISTER_DEFAULT_IMPLS(depth_to_space, OCL_S);

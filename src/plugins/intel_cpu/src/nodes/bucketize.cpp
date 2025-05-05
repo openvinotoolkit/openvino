@@ -10,7 +10,8 @@
 #include <vector>
 
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/op/bucketize.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -83,7 +84,7 @@ inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
            (static_cast<uint32_t>(ov::element::Type_t(precision4)) << 24);
 }
 
-void Bucketize::execute(const dnnl::stream& strm) {
+void Bucketize::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto precision_mask = getElementsMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {
@@ -201,7 +202,7 @@ void Bucketize::prepareParams() {
 
     // update with_bins/num_values/num_bin_values
     auto input_tensor_dims = inputTensorMemPtr->getStaticDims();
-    if (input_tensor_dims.size() < 1) {
+    if (input_tensor_dims.empty()) {
         THROW_CPU_NODE_ERR("has incorrect dimensions of the input.");
     }
     auto input_bin_dims = inputBinsMemPtr->getStaticDims();
