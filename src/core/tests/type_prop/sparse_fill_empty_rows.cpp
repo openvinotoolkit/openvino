@@ -219,7 +219,7 @@ TEST_F(TypePropSparseFillEmptyRowsTest, invalid_dense_shape_rank) {
 
     OV_EXPECT_THROW(std::ignore = make_op(values, dense_shape, indices, default_value),
                     ov::NodeValidationFailure,
-                    HasSubstr("The dense_shape input must be a 1D tensor"));
+                    HasSubstr("The dense_shape input must be 1D"));
 }
 
 TEST_F(TypePropSparseFillEmptyRowsTest, invalid_indices_rank) {
@@ -252,7 +252,7 @@ TEST_F(TypePropSparseFillEmptyRowsTest, invalid_indices_dimension) {
 
     OV_EXPECT_THROW(std::ignore = make_op(values, dense_shape, indices, default_value),
                     ov::NodeValidationFailure,
-                    HasSubstr("The indices_shape's second dimension must have 2 elements"));
+                    HasSubstr("the second dimension having 2 elements"));
 }
 
 TEST_F(TypePropSparseFillEmptyRowsTest, invalid_indices_element_type) {
@@ -285,7 +285,7 @@ TEST_F(TypePropSparseFillEmptyRowsTest, mismatch_values_and_indices_dimensions) 
 
     OV_EXPECT_THROW(std::ignore = make_op(values, dense_shape, indices, default_value),
                     ov::NodeValidationFailure,
-                    HasSubstr("The first dimension of indices must match the size of values"));
+                    HasSubstr("first dimension matching the size of values"));
 }
 
 TEST_F(TypePropSparseFillEmptyRowsTest, incorrect_dense_shape_dimension) {
@@ -296,7 +296,7 @@ TEST_F(TypePropSparseFillEmptyRowsTest, incorrect_dense_shape_dimension) {
 
     OV_EXPECT_THROW(std::ignore = make_op(values, dense_shape, indices, default_value),
                     ov::NodeValidationFailure,
-                    HasSubstr("The dense_shape input must have exactly 2 elements"));
+                    HasSubstr("have exactly 2 elements"));
 }
 
 TEST_F(TypePropSparseFillEmptyRowsTest, out_of_bounds_row_index) {
