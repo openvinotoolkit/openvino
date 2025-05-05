@@ -51,6 +51,8 @@ INSTANTIATE_TEST_SUITE_P(
                            {0, 1, 2},
                            {0},
                            {0, 0, 0},
+                           {-1, -1, -1},
+                           {10, 10}
                        }),
                        ::testing::Values(ov::test::PagedAttentionMiscInpStruct{{1}, 0, {0, 0}, 10}),
                        ::testing::Values(ov::test::PagedAttentionRotationStruct{{0, 0, 0, 0}, {4, 32}, {4, 4}}),
@@ -72,6 +74,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttention_scale,
                                                 {0, 1, 2},
                                                 {0, 1, 2},
                                                 {0, 1, 2},
+                                                {-1, -1, -1},
+                                                {10, 10}
                                             }),
                                             ::testing::ValuesIn({
                                                 // Negative scale NaN?

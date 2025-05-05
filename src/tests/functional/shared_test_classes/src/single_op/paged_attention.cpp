@@ -37,6 +37,8 @@ std::string PagedAttentionLayerTest::getTestCaseName(const testing::TestParamInf
         result << "rotation_deltas=" << ov::test::utils::vec2str(rotation_attr.value().rotation_deltas) << "_";
         result << "rotation_trig_lut=" << ov::test::utils::vec2str(rotation_attr.value().rotation_trig_lut) << "_";
     }
+    result << "free_block_indices=" << ov::test::utils::vec2str(i32_attr.free_block_indices) << "_";
+    result << "max_blocks=" << ov::test::utils::vec2str(i32_attr.max_blocks) << "_";
     result << "IT=" << type.get_type_name() << "_";
     result << "trgDev=" << device_type;
     return result.str();
@@ -91,9 +93,19 @@ void PagedAttentionLayerTest::SetUp() {
     auto alibi_slopes_const = ov::op::v0::Constant::create(ov::element::f32, {misc_attrs.alibi_slopes.size()}, misc_attrs.alibi_slopes);
     auto max_context_len_const = ov::op::v0::Constant::create(ov::element::i32, {}, {misc_attrs.max_context_len});
 
+    /*
+    * [13/6]: free_block_indices
+    * shape: [num_blocks], type: i32
+    * [14/17]: max_blocks
+    * shape: [batch_size_in_sequences], type: i32
+    */
+    auto free_block_indices = ov::op::v0::Constant::create(ov::element::i32, {}, {misc_attrs.free_block_indices});
+    auto max_blocks = ov::op::v0::Constant::create(ov::element::i32, {}, {misc_attrs.max_blocks});
 
     std::shared_ptr<ov::Node> paged_attn;
     if (!rotation_attr.has_value()) {
+        
+
         paged_attn = std::make_shared<ov::op::PagedAttentionExtension>(
             params[0],
             params[1],
@@ -107,7 +119,9 @@ void PagedAttentionLayerTest::SetUp() {
             scale_const,
             sliding_window_const,
             alibi_slopes_const,
-            max_context_len_const);
+            max_context_len_const,
+            free_block_indices,
+            max_blocks);
     } else {
     /*
     * [13]: rotated_block_indices​, optional​
@@ -146,7 +160,9 @@ void PagedAttentionLayerTest::SetUp() {
         max_context_len_const,
         rotated_block_indices,
         rotation_deltas,
-        rotation_trig_lut);
+        rotation_trig_lut,
+    free_block_indices,
+max_blocks);
     }
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(paged_attn->output(0))};
     function = std::make_shared<ov::Model>(results, params, "PagedAttentionInference");

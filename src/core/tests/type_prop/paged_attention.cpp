@@ -49,7 +49,7 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_13_inputs) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
 
-TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_eviction_per_block) {
+TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_18_inputs_eviction_per_block) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -68,6 +68,9 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_evic
     const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12, 1});
     const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{256, 4});
 
+    const auto free_block_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{15});
+    const auto max_blocks = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{7});
+
     const auto op = std::make_shared<op::PagedAttentionExtension>(query,
                                                                   key,
                                                                   value,
@@ -83,7 +86,9 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_evic
                                                                   max_context_len,
                                                                   rotated_block_indices,
                                                                   rotation_deltas,
-                                                                  rotation_trig_lut);
+                                                                  rotation_trig_lut,
+                                                                  free_block_indices,
+                                                                  max_blocks);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
@@ -107,6 +112,9 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_evic
     const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12, 5});
     const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{256, 4});
 
+    const auto free_block_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{15});
+    const auto max_blocks = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{7});
+
     const auto op = std::make_shared<op::PagedAttentionExtension>(query,
                                                                   key,
                                                                   value,
@@ -122,7 +130,9 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_evic
                                                                   max_context_len,
                                                                   rotated_block_indices,
                                                                   rotation_deltas,
-                                                                  rotation_trig_lut);
+                                                                  rotation_trig_lut,
+                                                                  free_block_indices,
+                                                                  max_blocks);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
