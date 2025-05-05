@@ -83,6 +83,7 @@
     "clearCache" : false,
     "checkIfBordersDiffer" : true,
     "printCSV" : true,
+    "template" : "is used by Mode to resolve output representation",
     "usePrevRunCache" : false,
     "verboseOutput": false,
     "venvCfg": {
