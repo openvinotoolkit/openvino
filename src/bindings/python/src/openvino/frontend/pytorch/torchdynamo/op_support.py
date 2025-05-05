@@ -255,6 +255,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.view.default": None,
             "torch.ops.aten.view_copy.default": None,
             "torch.ops.aten.where.self": None,
+            "torch.ops.aten.zero.default": None,
             "torch.ops.aten.zeros.default": None,
             "torch.ops.aten.zeros_like.default": None,
             "torch.ops.torchvision.deform_conv2d.default": None,
