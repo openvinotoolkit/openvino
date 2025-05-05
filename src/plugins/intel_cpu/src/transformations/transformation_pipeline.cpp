@@ -1377,6 +1377,8 @@ void Transformations::MainSnippets() {
                 if (input_shape[1].get_length() > 256)
                     return true;
                 const auto& output_shape = n->get_output_partial_shape(0);
+                if (output_shape.rank().get_length() != 2)
+                    return true;
                 if (output_shape[1].is_dynamic() || output_shape[1].get_length() > 256)
                     return true;
                 return false;
