@@ -195,7 +195,9 @@ TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ov::Model
 
 TRANSFORMATIONS_API bool is_large_language_model(
     const ov::Model& model,
-    std::function<bool(std::shared_ptr<ov::Node>)> custom_condition = nullptr);
+    std::function<bool(std::shared_ptr<ov::Node>)> func = [](std::shared_ptr<ov::Node>) {
+        return false;
+    });
 
 /**
  * \brief Check if 'other_shape' can be broadcasted to 'ref_shape'
