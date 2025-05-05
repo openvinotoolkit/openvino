@@ -369,23 +369,23 @@ void paged_attention(T* out,                                 // Output attention
     ctx.sliding_window = sliding_window_ptr ? sliding_window_ptr[0] : 0;
 
     // Initialize updated arrays
-    std::memcpy(updated_block_indices, block_indices, num_blocks * sizeof(int32_t));
-    std::memcpy(updated_block_indices_begins, block_indices_begins, (batch_sequence_count + 1) * sizeof(int32_t));
-    std::memcpy(updated_free_block_indices, free_block_indices, num_blocks * sizeof(int32_t));
+    std::memcpy(updated_block_indices, block_indices, ctx.num_blocks * sizeof(int32_t));
+    std::memcpy(updated_block_indices_begins, block_indices_begins, (ctx.batch_sequence_count + 1) * sizeof(int32_t));
+    std::memcpy(updated_free_block_indices, free_block_indices, ctx.num_blocks * sizeof(int32_t));
 
     // Seed per-sequence counts
-    ctx.sequence_block_count.resize(batch_sequence_count);
-    for (size_t s = 0; s < batch_sequence_count; ++s) {
+    ctx.sequence_block_count.resize(ctx.batch_sequence_count);
+    for (size_t s = 0; s < ctx.batch_sequence_count; ++s) {
         int32_t begin = updated_block_indices_begins[s];
         int32_t end = updated_block_indices_begins[s + 1];
         ctx.sequence_block_count[s] = end - begin;
     }
 
     // Compute scale factor
-    T scale = scale_ptr ? scale_ptr[0] : T(1) / std::sqrt(T(value_head_size));
+    T scale = scale_ptr ? scale_ptr[0] : T(1) / std::sqrt(T(ctx.value_head_size));
 
     // Loop over tokens
-    for (size_t token_idx = 0; token_idx < batch_tokens; ++token_idx) {
+    for (size_t token_idx = 0; token_idx < ctx.batch_tokens; ++token_idx) {
         size_t seq_idx = get_sequence_index(token_idx, ctx);
 
         // Update KV cache if new token in this sequence
@@ -394,8 +394,8 @@ void paged_attention(T* out,                                 // Output attention
         }
 
         // Per-head attention
-        for (size_t head = 0; head < num_heads; ++head) {
-            const T* q_vector = query + token_idx * query_feature_size + head * query_head_size;
+        for (size_t head = 0; head < ctx.num_heads; ++head) {
+            const T* q_vector = query + token_idx * ctx.query_feature_size + head * ctx.query_head_size;
 
             int32_t past_tokens = past_lens ? past_lens[seq_idx] : 0;
             int32_t new_tokens =
@@ -430,7 +430,7 @@ void paged_attention(T* out,                                 // Output attention
             softmax(scores);
 
             // Accumulate values
-            std::vector<T> output_vector(value_head_size, T(0));
+            std::vector<T> output_vector(ctx.value_head_size, T(0));
             for (int32_t k = 0; k < total_keys; ++k) {
                 T weight = scores[k];
                 if (k < past_tokens) {
@@ -453,8 +453,8 @@ void paged_attention(T* out,                                 // Output attention
             }
 
             // Copy output
-            T* destination = out + token_idx * value_feature_size + head * value_head_size;
-            std::memcpy(destination, output_vector.data(), value_head_size * sizeof(T));
+            T* destination = out + token_idx * ctx.value_feature_size + head * ctx.value_head_size;
+            std::memcpy(destination, output_vector.data(), ctx.value_head_size * sizeof(T));
         }
     }
 }

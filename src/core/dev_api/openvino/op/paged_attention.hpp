@@ -127,6 +127,7 @@ protected:
     std::vector<ov::element::Type> m_output_type = {ov::element::dynamic,
                                                     ov::element::dynamic,
                                                     ov::element::i32,
+                                                    ov::element::i32,
                                                     ov::element::i32};
 };
 

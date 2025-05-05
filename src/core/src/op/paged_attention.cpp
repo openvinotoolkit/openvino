@@ -316,6 +316,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
 
     set_output_type(2, m_output_type[2], {block_ps});
     set_output_type(3, m_output_type[3], {block_ps});
+    set_output_type(3, m_output_type[4], {block_ps});
 }
 
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
@@ -325,12 +326,12 @@ std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const o
 }
 
 void PagedAttentionExtension::set_out_type(int index, const ov::element::Type& output_type) {
-    OPENVINO_ASSERT(index < 4, "Output index should be 0, 1, 2 or 3, but got " + std::to_string(index));
+    OPENVINO_ASSERT(index < 5, "Output index should be 0, 1, 2, 3, or 4, but got " + std::to_string(index));
     m_output_type[index] = output_type;
 }
 
 const ov::element::Type PagedAttentionExtension::get_out_type(int index) const {
-    OPENVINO_ASSERT(index < 4, "Output index should be 0, 1, 2 or 3, but got " + std::to_string(index));
+    OPENVINO_ASSERT(index < 5, "Output index should be 0, 1, 2, 3, or 4, but got " + std::to_string(index));
     return m_output_type[index];
 }
 

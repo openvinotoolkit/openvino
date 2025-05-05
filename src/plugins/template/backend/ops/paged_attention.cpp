@@ -13,8 +13,9 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
 
     ov::reference::paged_attention<T>(outputs[0].data<T>(),
                                       outputs[1].data<T>(),
-                                      outputs[2].data<T>(),
-                                      outputs[3].data<T>(),
+                                      outputs[2].data<int32_t>(),
+                                      outputs[3].data<int32_t>(),
+                                      outputs[4].data<int32_t>(),
                                       inputs[0].data<T>(),         // q
                                       inputs[1].data<T>(),         // k
                                       inputs[2].data<T>(),         // v
