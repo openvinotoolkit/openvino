@@ -21,17 +21,25 @@ layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*no
 
 template<typename ShapeType>
 std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_node const& /*node*/, kernel_impl_params const& impl_param) {
-    auto data_layout = impl_param.get_input_layout(0);
+    const auto& q_layout = impl_param.get_input_layout(0);
+    const auto& desc = impl_param.typed_desc<paged_attention>();
+    auto data_layout = q_layout;
+
+    if (desc->k_head_size != desc->v_head_size) {
+        auto data_shape = { q_layout.get_partial_shape()[0],
+                            ov::Dimension(desc->heads_num * desc->v_head_size) };
+
+        data_layout = data_layout.clone_with_other_shape(data_shape);
+    }
+
     data_layout.data_padding = padding();
 
     const auto& key_cache_ps = impl_param.get_input_layout(3).get_partial_shape();
     bool valid_block_size = key_cache_ps[3].is_dynamic() || key_cache_ps[3].get_length() == paged_attention::block_size;
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation. "
                                       "Expected ", paged_attention::block_size, ", but got ", key_cache_ps[3].get_length());
-
     std::vector<layout> output_layouts{ data_layout };
 
-    const auto& desc = impl_param.typed_desc<paged_attention>();
     if (desc->has_scores_output()) {
         const auto past_lens_idx = 5;
         const auto output_dt = data_layout.data_type;
@@ -67,7 +75,8 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
 
     json_composite paged_attention_info;
     paged_attention_info.add("paged_attention_block_size", desc->block_size);
-    paged_attention_info.add("head_size", desc->head_size);
+    paged_attention_info.add("k_head_size", desc->k_head_size);
+    paged_attention_info.add("v_head_size", desc->v_head_size);
     paged_attention_info.add("heads_num", desc->heads_num);
     paged_attention_info.add("kv_heads_num", desc->kv_heads_num);
     paged_attention_info.add("scale", desc->scale_val.value_or(1.0f));
@@ -85,7 +94,8 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
     : parent(network, node) {
     const auto desc = node.get_primitive();
 
-    const auto head_size = desc->head_size;
+    const auto k_head_size = desc->k_head_size;
+    const auto v_head_size = desc->v_head_size;
     const auto heads_num = desc->heads_num;
     const auto kv_heads_num = desc->kv_heads_num;
     const auto pa_block_size = desc->block_size;
@@ -97,6 +107,7 @@ paged_attention_inst::typed_primitive_inst(network& network, const paged_attenti
     }
 
     OPENVINO_ASSERT(heads_num % kv_heads_num == 0);
-    OPENVINO_ASSERT(head_size % pa_block_size == 0);
+    OPENVINO_ASSERT(k_head_size % pa_block_size == 0);
+    OPENVINO_ASSERT(v_head_size % pa_block_size == 0);
 }
 }  // namespace cldnn
