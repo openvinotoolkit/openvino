@@ -192,9 +192,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     auto output_low = output_low_constant->cast_vector<float>();
     auto output_high = output_high_constant->cast_vector<float>();
     auto levels = fq_node->get_levels();
-    // z0 = levels if unsigned
-    // z0 = levels / 2 if signed
-    const auto z0 = (fq_node->get_input_element_type(0).is_signed() ? levels / 2 : levels);
+    // z0 = levels if unsigned, 0 if signed
+    const auto z0 = (fq_node->get_input_element_type(0).is_signed() ? levels / 2 : 0);
     auto broadcast_type = fq_node->get_auto_broadcast();
 
     // We have two ways for computations of scales and shifts to avoid model compilation time growth
@@ -204,8 +203,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     //  support
 
     // Calculations of input scales and shift:
-    //   - isc := (z0-1) / (ih - il)
-    //   - ish := -il * isc
+    //   - isc := (levels-1) / (ih - il)
+    //   - ish := -il * isc - z0
     if (input_low_shape == input_high_shape || shape_size(input_low_shape) == 1 || shape_size(input_high_shape) == 1) {
         const auto input_size = std::max(input_low.size(), input_high.size());
         isc.resize(input_size, 0);
@@ -214,8 +213,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
             float il = input_low[input_low.size() == 1 ? 0 : i];
             float ih = input_high[input_high.size() == 1 ? 0 : i];
 
-            isc[i] = (z0 - 1) / (ih - il);
-            ish[i] = -il * isc[i];
+            isc[i] = (levels - 1) / (ih - il);
+            ish[i] = -il * isc[i] - z0;
         }
         cl = input_low;
         ch = input_high;
@@ -232,8 +231,8 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
                                            input_high_shape,
                                            input_low_shape,
                                            broadcast_type,
-                                           [z0](float x, float y) -> float {
-                                               return (z0 - 1) / (x - y);
+                                           [levels](float x, float y) -> float {
+                                               return (levels - 1) / (x - y);
                                            });
         ov::reference::autobroadcast_binop(input_low.data(),
                                            isc.data(),
@@ -262,7 +261,7 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
 
     // Calculations of output scales and shift:
     //   - osc := (oh - ol) / (z0-1)
-    //   - osh := ol
+    //   - osh := ol + z0 * osc
     if (output_low_shape == output_high_shape || shape_size(output_low_shape) == 1 || shape_size(output_high_shape) == 1) {
         const auto output_size = std::max(output_low.size(), output_high.size());
         osc.resize(output_size, 0);
@@ -272,7 +271,7 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
             float oh = output_high[output_high.size() == 1 ? 0 : i];
 
             osc[i] = (oh - ol) / (z0 - 1);
-            osh[i] = ol;
+            osh[i] = ol + z0 * osc[i];
         }
     } else {  // general broadcasting
         PartialShape scale_pshape = output_low_constant->get_output_partial_shape(0);
