@@ -80,8 +80,10 @@ struct ISTFT_impl : typed_primitive_impl_ocl<ISTFT> {
         stream& stream = instance.get_network().get_stream();
         // This is needed to clear the output memory before executing the kernel for static shapes model.
         // Ref kernel assumes that output memory is already cleared.
-        instance.output_memory(0).fill(stream, false);
-        return parent::execute_impl(events, instance);
+        auto output_evt = instance.output_memory(0).fill(stream, false);
+        std::vector<event::ptr> ext_events(events);
+        ext_events.push_back(output_evt);
+        return parent::execute_impl(ext_events, instance);
     }
 };
 

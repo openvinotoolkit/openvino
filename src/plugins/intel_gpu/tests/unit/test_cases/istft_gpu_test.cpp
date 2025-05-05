@@ -143,20 +143,17 @@ public:
         topology.add(input_layout("window", params.window->get_layout()));
         topology.add(input_layout("frameSize", scalar_layout));
         topology.add(input_layout("frameStep", scalar_layout));
+        std::vector<input_info> inputs = {
+            input_info("signal"),
+            input_info("window"),
+            input_info("frameSize"),
+            input_info("frameStep"),
+        };
         if (params.length) {
             topology.add(input_layout("length", scalar_layout));
-            topology.add(ISTFT("istft",
-                               input_info("signal"),
-                               input_info("window"),
-                               input_info("frameSize"),
-                               input_info("frameStep"),
-                               input_info("length"),
-                               params.center,
-                               params.normalized));
-        } else {
-            topology.add(
-                ISTFT("istft", input_info("signal"), input_info("window"), input_info("frameSize"), input_info("frameStep"), params.center, params.normalized));
+            inputs.push_back(input_info("length"));
         }
+        topology.add(ISTFT("istft", inputs, params.center, params.normalized));
 
         cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), stream, false);
 

@@ -16,41 +16,14 @@ struct ISTFT : public primitive_base<ISTFT> {
 
     /// @brief Constructs ISTFT primitive.
     /// @param id This primitive id.
-    /// @param signal signal input.
-    /// @param window window input.
-    /// @param frame_size Size of the frame.
-    /// @param frame_step Step between frames.
+    /// @param inputs List of input primitives(check specification for details).
     /// @param center Enable/Disable center(check specification for details).
     /// @param normalized Enable/Disable center(check specification for details).
     ISTFT(const primitive_id& id,
-          const input_info& signal,
-          const input_info& window,
-          const input_info& frame_size,
-          const input_info& frame_step,
+          const std::vector<input_info>& inputs,
           const bool center,
           const bool normalized)
-        : primitive_base(id, {signal, window, frame_size, frame_step}),
-          center(center),
-          normalized(normalized) {}
-
-    /// @brief Constructs ISTFT primitive.
-    /// @param id This primitive id.
-    /// @param signal signal input.
-    /// @param window window input.
-    /// @param frame_size Size of the frame.
-    /// @param frame_step Step between frames.
-    /// @param length Length of the output signal.
-    /// @param center Enable/Disable center(check specification for details).
-    /// @param normalized Enable/Disable center(check specification for details).
-    ISTFT(const primitive_id& id,
-          const input_info& signal,
-          const input_info& window,
-          const input_info& frame_size,
-          const input_info& frame_step,
-          const input_info& length,
-          const bool center,
-          const bool normalized)
-        : primitive_base(id, {signal, window, frame_size, frame_step, length}),
+        : primitive_base(id, inputs),
           center(center),
           normalized(normalized) {}
 
