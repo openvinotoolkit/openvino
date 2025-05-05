@@ -111,7 +111,18 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
         /* ======== Matcher Pass ========== */
 
         /****** Skeleton ******/
-        /* Skeleton on MLP sequence-pattern is (There are should be 2 min FC):
+        /* Skeleton on MLP sequence-pattern is:
+         *            MatMul0
+         *               |
+         *    Eltwise/FakeQuantize (1 or more)
+         *               |
+         *            MatMul1
+         *               |
+         *    Eltwise/FakeQuantize (1 or more)
+         *               |
+         *            MatMul2
+         *               |
+         *              ...
          */
 
         const auto matmul0 = ov::as_type_ptr<ov::opset1::MatMul>(pattern_to_output.at(m_matmul0).get_node_shared_ptr());
