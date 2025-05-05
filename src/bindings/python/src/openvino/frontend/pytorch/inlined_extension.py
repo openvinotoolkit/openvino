@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Callable, Dict, Tuple, Type, Union, Optional
+from typing import Any, Callable, Union, Optional
 import torch
 import numpy as np
 import openvino as ov
@@ -16,8 +16,8 @@ class ConstWrap:
     def __init__(self, value: Any) -> None:
         self.value = value
 
-    def __eq__(self, x: Any) -> bool:
-        return self.value == x
+    def __eq__(self, other: Any) -> bool:
+        return self.value == other
 
     def __repr__(self) -> str:
         return f"ConstWrap({str(self.value)})"
@@ -25,11 +25,11 @@ class ConstWrap:
 
 def unpack(
     packed: Any,
-    types: Union[Type, Tuple[Type, ...]],
+    types: Union[type, tuple[type, ...]],
     index: int = 0
-) -> Tuple[Tuple[Any, ...], Any, int]:
+) -> tuple[tuple, Any, int]:
     """Unpacks nested structures into a flat tuple."""
-    unpacked_result: Tuple[Any, ...] = ()
+    unpacked_result: tuple = ()
     packer_result: Any = None
     if isinstance(packed, tuple):
         packer_result = ()
@@ -45,10 +45,10 @@ def unpack(
             packer_result.append(packer)
     elif isinstance(packed, dict):
         packer_result = {}
-        for k, v in packed.items():
-            unpacked, packer, index = unpack(v, types, index)
+        for key, el in packed.items():
+            unpacked, packer, index = unpack(el, types, index)
             unpacked_result += unpacked
-            packer_result[k] = packer
+            packer_result[key] = packer
     elif isinstance(packed, types):
         unpacked_result = (packed,)
         packer_result = index
@@ -58,7 +58,7 @@ def unpack(
     return unpacked_result, packer_result, index
 
 
-def pack(unpacked: Tuple[Any, ...], packer: Any) -> Any:
+def pack(unpacked: tuple, packer: Any) -> Any:
     """Packs unpacked elements back into their original structure."""
     if isinstance(packer, (tuple, list)):
         return type(packer)(pack(unpacked, el) for el in packer)
@@ -73,14 +73,14 @@ global_counter_id = 0
 
 
 def make_custom_op_class(func: Callable,
-                         input_signature: Tuple[Tuple[Any, Any], ...],
-                         output_signature: Tuple[Tuple[Any, Any], ...],
+                         input_signature: tuple[tuple[Any, Any], ...],
+                         output_signature: tuple[tuple[Any, Any], ...],
                          input_packer: Any,
-                         output_packer: Any) -> Type[ov.Op]:
+                         output_packer: Any) -> type:
     """Creates a custom operation class from a function and signatures."""
     global global_counter_id
 
-    class InlinedCustomOp(ov.Op):
+    class InlinedCustomOp(ov.Op):  # type: ignore
         class_type_info = ov.runtime.DiscreteTypeInfo(
             "InlinedCustomOp", "extension")
 
@@ -131,7 +131,7 @@ def make_custom_op_class(func: Callable,
     return InlinedCustomOp
 
 
-def make_signature(args: Any) -> Tuple[Tuple[Any, Any], ...]:
+def make_signature(args: Any) -> tuple[tuple[Any, Any], ...]:
     """Generate a signature tuple for PyTorch tensors.
 
     Maps PyTorch tensor types to OpenVINO types and partial shapes, setting
@@ -145,12 +145,12 @@ def make_signature(args: Any) -> Tuple[Tuple[Any, Any], ...]:
     )
 
 
-def make_input_signature(args: Any) -> Tuple[Tuple[Any, Any], ...]:
+def make_input_signature(args: Any) -> tuple[tuple[Any, Any], ...]:
     """Generates an input signature for the provided arguments."""
     return make_signature(args)
 
 
-def make_output_signature(args: Any) -> Tuple[Tuple[Any, Any], ...]:
+def make_output_signature(args: Any) -> tuple[tuple[Any, Any], ...]:
     if args is None:
         args = ()
     if not isinstance(args, tuple):
@@ -159,8 +159,8 @@ def make_output_signature(args: Any) -> Tuple[Tuple[Any, Any], ...]:
 
 
 def make_trampoline_class(func: Callable,
-                          op: Optional[Type[ov.Op]],
-                          op_attrs: Any) -> Type[torch.autograd.Function]:
+                          op: Optional[type],
+                          op_attrs: Any) -> type[torch.autograd.Function]:
     """Creates a trampoline class for a function."""
 
     class Trampoline(torch.autograd.Function):
@@ -192,7 +192,7 @@ def make_trampoline_class(func: Callable,
             return result
 
         @classmethod
-        def unpack_inputs(cls, args: Any, kwargs: Any) -> Tuple[Any, ...]:
+        def unpack_inputs(cls, args: Any, kwargs: Any) -> tuple:
             """Unpacks inputs for the operation.
 
             Unpack each element that is a tuple, a list, or a dict to a
@@ -211,8 +211,8 @@ def make_trampoline_class(func: Callable,
             return pack(result, cls.output_packer)
 
         @classmethod
-        def convert(cls, node_context: Any) -> Tuple[ov.Output, ...]:
-            """Defines how the operation is represented in graph"""
+        def convert(cls, node_context: Any) -> tuple:
+            """Defines how the operation is represented in graph."""
             num_inps = node_context.get_input_size()
             inputs = [node_context.get_input(i) for i in range(num_inps)]
             node = cls.op(*inputs, **op_attrs)
@@ -223,20 +223,12 @@ def make_trampoline_class(func: Callable,
     return Trampoline
 
 
-def inlined_extension(*args: Tuple[Any, ...], **op_attrs: Dict[str, Any]) -> Callable:
-    """Creates an inlined extension for a function.
-
-    Example:
-        ```python
-        @inlined_extension
-        def some_func(x):
-            return x + 1
-        ```
-    """
+def inlined_extension(*args: Any, **op_attrs: Any) -> Callable:
+    """Creates an inlined extension for a function."""
 
     def make_trampoline(func: Callable,
-                        op: Optional[Type[ov.Op]] = None) -> Callable:
-        def trampoline(*args: Tuple[Any, ...], **kwargs: Dict[str, Any]) -> Callable:
+                        op: Optional[type] = None) -> Callable:
+        def trampoline(*args: Any, **kwargs: Any) -> Any:
             # Keep trampoline class creation at the point when the function is
             # called to make each time a new trampoline. It is required
             # because `func` is fused inside Trampoline class and can have
