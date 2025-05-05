@@ -7,7 +7,7 @@
 #include <regex>
 #include <string_view>
 
-#include "driver_graph.hpp"
+#include "graph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -191,12 +191,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
     networkMeta.name = model->get_friendly_name();
 
-    return std::make_shared<DriverGraph>(_zeGraphExt,
-                                         _zeroInitStruct,
-                                         graphHandle,
-                                         std::move(networkMeta),
-                                         config,
-                                         nullptr);
+    return std::make_shared<Graph>(_zeGraphExt, _zeroInitStruct, graphHandle, std::move(networkMeta), nullptr, config);
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,
@@ -211,12 +206,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContain
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
 
-    return std::make_shared<DriverGraph>(_zeGraphExt,
-                                         _zeroInitStruct,
-                                         graphHandle,
-                                         std::move(networkMeta),
-                                         config,
-                                         std::move(blobPtr));
+    return std::make_shared<Graph>(_zeGraphExt,
+                                   _zeroInitStruct,
+                                   graphHandle,
+                                   std::move(networkMeta),
+                                   std::move(blobPtr),
+                                   config);
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
