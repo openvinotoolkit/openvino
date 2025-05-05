@@ -1875,6 +1875,15 @@ void primitive_inst::prepare_primitive() {
             return;
         }
 
+        if (_node->is_type<read_value>()) {
+            auto prim = get_node().as<read_value>().get_primitive();
+            auto& variable = get_network().get_variable(prim->variable_id);
+
+            if (variable.is_set() && can_be_optimized()) {
+                set_flag(ExecutionFlags::SKIP);
+            }
+        }
+
         // Check successor reorder if layouts are same
         // Need to set can_be_optimized for user reorder at predecessor because
         // if the user is can_be_optimized and output node then current nodes' output should be allocated to host.
