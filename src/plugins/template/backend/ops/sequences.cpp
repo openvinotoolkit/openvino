@@ -6,6 +6,10 @@
 #include "evaluate_node.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "openvino/reference/sequences.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_sequence.hpp"
 // clang-format on
 
 namespace rnn_seq_v5 {
@@ -15,17 +19,17 @@ inline void evaluate(const std::shared_ptr<ov::op::v5::RNNSequence>& op,
                      const ov::TensorVector& inputs) {
     using T1 = typename ov::element_type_traits<t1>::value_type;
     using T2 = typename ov::element_type_traits<t2>::value_type;
-    ov::reference::rnn_sequence<T1, T2>(static_cast<char*>(inputs[0].data()),
+    ov::reference::rnn_sequence<T1, T2>(static_cast<const char*>(inputs[0].data()),
                                         inputs[0].get_shape(),
-                                        static_cast<char*>(inputs[1].data()),
+                                        static_cast<const char*>(inputs[1].data()),
                                         inputs[1].get_shape(),
-                                        static_cast<char*>(inputs[2].data()),
+                                        static_cast<const char*>(inputs[2].data()),
                                         inputs[2].get_shape(),
-                                        static_cast<char*>(inputs[3].data()),
+                                        static_cast<const char*>(inputs[3].data()),
                                         inputs[3].get_shape(),
-                                        static_cast<char*>(inputs[4].data()),
+                                        static_cast<const char*>(inputs[4].data()),
                                         inputs[4].get_shape(),
-                                        static_cast<char*>(inputs[5].data()),
+                                        static_cast<const char*>(inputs[5].data()),
                                         inputs[5].get_shape(),
                                         static_cast<char*>(outputs[0].data()),
                                         static_cast<char*>(outputs[1].data()),
@@ -61,19 +65,19 @@ inline void evaluate(const std::shared_ptr<ov::op::v5::LSTMSequence>& op,
                      const ov::TensorVector& inputs) {
     using T1 = typename ov::element_type_traits<t1>::value_type;
     using T2 = typename ov::element_type_traits<t2>::value_type;
-    ov::reference::lstm_sequence<T1, T2>(static_cast<char*>(inputs[0].data()),
+    ov::reference::lstm_sequence<T1, T2>(static_cast<const char*>(inputs[0].data()),
                                          inputs[0].get_shape(),
-                                         static_cast<char*>(inputs[1].data()),
+                                         static_cast<const char*>(inputs[1].data()),
                                          inputs[1].get_shape(),
-                                         static_cast<char*>(inputs[2].data()),
+                                         static_cast<const char*>(inputs[2].data()),
                                          inputs[2].get_shape(),
-                                         static_cast<char*>(inputs[3].data()),
+                                         static_cast<const char*>(inputs[3].data()),
                                          inputs[3].get_shape(),
-                                         static_cast<char*>(inputs[4].data()),
+                                         static_cast<const char*>(inputs[4].data()),
                                          inputs[4].get_shape(),
-                                         static_cast<char*>(inputs[5].data()),
+                                         static_cast<const char*>(inputs[5].data()),
                                          inputs[5].get_shape(),
-                                         static_cast<char*>(inputs[6].data()),
+                                         static_cast<const char*>(inputs[6].data()),
                                          inputs[6].get_shape(),
                                          static_cast<char*>(outputs[0].data()),
                                          static_cast<char*>(outputs[1].data()),
@@ -112,17 +116,17 @@ inline void evaluate(const std::shared_ptr<ov::op::v5::GRUSequence>& op,
                      const ov::TensorVector& inputs) {
     using T1 = typename ov::element_type_traits<t1>::value_type;
     using T2 = typename ov::element_type_traits<t2>::value_type;
-    ov::reference::gru_sequence<T1, T2>(static_cast<char*>(inputs[0].data()),
+    ov::reference::gru_sequence<T1, T2>(static_cast<const char*>(inputs[0].data()),
                                         inputs[0].get_shape(),
-                                        static_cast<char*>(inputs[1].data()),
+                                        static_cast<const char*>(inputs[1].data()),
                                         inputs[1].get_shape(),
-                                        static_cast<char*>(inputs[2].data()),
+                                        static_cast<const char*>(inputs[2].data()),
                                         inputs[2].get_shape(),
-                                        static_cast<char*>(inputs[3].data()),
+                                        static_cast<const char*>(inputs[3].data()),
                                         inputs[3].get_shape(),
-                                        static_cast<char*>(inputs[4].data()),
+                                        static_cast<const char*>(inputs[4].data()),
                                         inputs[4].get_shape(),
-                                        static_cast<char*>(inputs[5].data()),
+                                        static_cast<const char*>(inputs[5].data()),
                                         inputs[5].get_shape(),
                                         static_cast<char*>(outputs[0].data()),
                                         static_cast<char*>(outputs[1].data()),
@@ -160,17 +164,17 @@ inline void evaluate(const std::shared_ptr<ov::op::internal::AUGRUSequence>& op,
                      const ov::TensorVector& inputs) {
     using T1 = typename ov::element_type_traits<t1>::value_type;
     using T2 = typename ov::element_type_traits<t2>::value_type;
-    ov::reference::gru_sequence<T1, T2>(static_cast<char*>(inputs[0].data()),
+    ov::reference::gru_sequence<T1, T2>(static_cast<const char*>(inputs[0].data()),
                                         inputs[0].get_shape(),
-                                        static_cast<char*>(inputs[1].data()),
+                                        static_cast<const char*>(inputs[1].data()),
                                         inputs[1].get_shape(),
-                                        static_cast<char*>(inputs[2].data()),
+                                        static_cast<const char*>(inputs[2].data()),
                                         inputs[2].get_shape(),
-                                        static_cast<char*>(inputs[3].data()),
+                                        static_cast<const char*>(inputs[3].data()),
                                         inputs[3].get_shape(),
-                                        static_cast<char*>(inputs[4].data()),
+                                        static_cast<const char*>(inputs[4].data()),
                                         inputs[4].get_shape(),
-                                        static_cast<char*>(inputs[5].data()),
+                                        static_cast<const char*>(inputs[5].data()),
                                         inputs[5].get_shape(),
                                         static_cast<char*>(outputs[0].data()),
                                         static_cast<char*>(outputs[1].data()),
@@ -179,7 +183,7 @@ inline void evaluate(const std::shared_ptr<ov::op::internal::AUGRUSequence>& op,
                                         op->get_clip(),
                                         op->get_direction(),
                                         op->get_linear_before_reset(),
-                                        static_cast<char*>(inputs[6].data()));
+                                        static_cast<const char*>(inputs[6].data()));
 }
 }  // namespace augru_seq
 

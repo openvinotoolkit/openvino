@@ -36,6 +36,7 @@ If you want to contribute to OpenVINO Python API, here is the list of learning m
 * [How to extend OpenVINO Python API](./docs/code_examples.md)
 * [How to test OpenVINO Python API](./docs/test_examples.md)
 * [How to upgrade local Python version](./docs/python_version_upgrade.md)
+* [How we manage stub .pyi files](./docs/stubs.md)
 
 ## See also
 

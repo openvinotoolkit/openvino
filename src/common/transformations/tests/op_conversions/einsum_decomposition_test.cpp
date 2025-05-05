@@ -7,7 +7,24 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/einsum.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
@@ -166,7 +183,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul) {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
-        model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2});
+        model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
     {
@@ -205,7 +222,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul) {
         auto order_out = ov::op::v0::Constant::create(element::i64, {3}, {1, 0, 2});
         auto transpose_out = std::make_shared<ov::op::v1::Transpose>(reshape_out, order_out);
 
-        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1, data_2});
+        model_ref = std::make_shared<Model>(OutputVector{transpose_out}, ParameterVector{data_1, data_2});
     }
 }
 
@@ -217,7 +234,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
-        model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2});
+        model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
     {
@@ -288,7 +305,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_dynamic) {
         auto order_out = ov::op::v0::Constant::create(element::i64, {3}, {1, 0, 2});
         auto transpose_out = std::make_shared<ov::op::v1::Transpose>(reshape_out, order_out);
 
-        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1, data_2});
+        model_ref = std::make_shared<Model>(OutputVector{transpose_out}, ParameterVector{data_1, data_2});
     }
 }
 
@@ -300,7 +317,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_ellipsis_dynamic) {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_2);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl...,m...lj->mkj");
-        model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2});
+        model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
     {
@@ -374,7 +391,7 @@ TEST_F(TransformationTestsF, Einsum_2in_matmul_ellipsis_dynamic) {
         // Transpose to the original order of output labels.
         auto Constant_1363 = makeConst(element::i64, ov::Shape({3}), {1, 0, 2});
         auto transpose_out = makeOP<opset1::Transpose>({reshape_out, Constant_1363});
-        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1, data_2});
+        model_ref = std::make_shared<Model>(OutputVector{transpose_out}, ParameterVector{data_1, data_2});
     }
 }
 
@@ -384,7 +401,7 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1}, "ij...iji->j...i");
-        model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1});
+        model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1});
         manager.register_pass<ov::pass::EinsumDecomposition>();
         manager.register_pass<ov::pass::ConstantFolding>();
     }
@@ -422,7 +439,7 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_ellipsis_static_cf) {
         // Transpose to the original order of output labels.
         auto Constant_1386 = makeConst(element::i64, ov::Shape({3}), {1, 2, 0});
         auto transpose_out = makeOP<opset1::Transpose>({remove_reduced_dims, Constant_1386});
-        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1});
+        model_ref = std::make_shared<Model>(OutputVector{transpose_out}, ParameterVector{data_1});
     }
 }
 
@@ -432,7 +449,7 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) 
     {
         auto data_1 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_1);
         auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1}, "ij...iji->j...i");
-        model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1});
+        model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
     {
@@ -449,7 +466,7 @@ TEST_F(TransformationTestsF, Einsum_1in_repeated_labels_empty_ellipsis_dynamic) 
         // Transpose to the original order of output labels.
         auto Constant_3027 = makeConst(element::i64, ov::Shape({2}), {1, 0});
         auto transpose_out = makeOP<opset1::Transpose>({data_1_diagonal, Constant_3027});
-        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1});
+        model_ref = std::make_shared<Model>(OutputVector{transpose_out}, ParameterVector{data_1});
     }
 }
 
@@ -464,7 +481,7 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_s
         auto data_3 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
         auto einsum =
             std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2, data_3}, "ba...b,bcccdd,...dbcc->c...b");
-        model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2, data_3});
+        model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2, data_3});
         manager.register_pass<ov::pass::EinsumDecomposition>();
         manager.register_pass<ov::pass::ConstantFolding>();
     }
@@ -549,7 +566,7 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_s
         auto Reshape_8578 = makeOP<opset1::Reshape>({MatMul_8575, Constant_8577}, {{"special_zero", false}});
         auto Constant_8579 = makeConst(element::i64, ov::Shape({5}), {0, 2, 3, 4, 1});
         auto node_6 = makeOP<opset1::Transpose>({Reshape_8578, Constant_8579});
-        model_ref = std::make_shared<Model>(NodeVector{node_6}, ParameterVector{node_4, node_2, node_0});
+        model_ref = std::make_shared<Model>(OutputVector{node_6}, ParameterVector{node_4, node_2, node_0});
     }
 }
 
@@ -564,7 +581,7 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
         auto data_3 = std::make_shared<ov::op::v0::Parameter>(element::f32, data_shape_3);
         auto einsum =
             std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2, data_3}, "a...b,bcccdd,...dbcc->c...b");
-        model = std::make_shared<Model>(NodeVector{einsum}, ParameterVector{data_1, data_2, data_3});
+        model = std::make_shared<Model>(OutputVector{einsum}, ParameterVector{data_1, data_2, data_3});
         manager.register_pass<ov::pass::EinsumDecomposition>();
     }
     {
@@ -665,6 +682,6 @@ TEST_F(TransformationTestsF, Einsum_3in_broadcast_duplicated_ellipsis_repeated_d
         auto reshape_out = makeOP<opset1::Reshape>({matmul, reshape_out_subshape}, {{"special_zero", false}});
         auto Constant_1965 = makeConst(element::i64, ov::Shape({5}), {0, 2, 3, 4, 1});
         auto transpose_out = makeOP<opset1::Transpose>({reshape_out, Constant_1965});
-        model_ref = std::make_shared<Model>(NodeVector{transpose_out}, ParameterVector{data_1, data_2, data_3});
+        model_ref = std::make_shared<Model>(OutputVector{transpose_out}, ParameterVector{data_1, data_2, data_3});
     }
 }

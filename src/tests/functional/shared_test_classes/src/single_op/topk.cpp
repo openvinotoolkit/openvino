@@ -5,6 +5,7 @@
 #include "shared_test_classes/single_op/topk.hpp"
 #include <random>
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include "openvino/op/topk.hpp"
 
 namespace ov {
 namespace test {

@@ -82,7 +82,7 @@ private:
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto divide = std::make_shared<op::v1::Divide>(in1, in2);
-        return std::make_shared<Model>(NodeVector{divide}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{divide}, ParameterVector{in1, in2});
     }
 };
 
@@ -115,7 +115,7 @@ private:
         const auto in1 = std::make_shared<op::v0::Parameter>(input_type, input_shape1);
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto divide = std::make_shared<op::v1::Divide>(in1, in2, pythondiv);
-        return std::make_shared<Model>(NodeVector{divide}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{divide}, ParameterVector{in1, in2});
     }
 };
 

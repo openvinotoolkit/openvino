@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
@@ -18,6 +19,7 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
+#include "intel_gpu/op/kv_cache.hpp"
 
 
 namespace ov::intel_gpu {
@@ -57,7 +59,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
             return true;
     }
 
-    if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
+    if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
         return true;
     }
     // When input node has dynamic shape with 4 dimension, this function return false
@@ -132,7 +134,9 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 }
 
 void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {
-    apply_rt_info(context, get_rt_info(model), ov::op::util::is_large_language_model(model));
+    const auto is_LLM = ov::op::util::is_large_language_model(model) ||
+                        ov::op::util::has_op_with_type<ov::intel_gpu::op::KVCache>(model.shared_from_this());
+    apply_rt_info(context, get_rt_info(model), is_LLM);
 
     const auto& ops = model.get_ops();
 
@@ -149,11 +153,11 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
 
         // Allow using onednn for models with LSTMSequence op as it's much more performant than existing ocl impl
-        if (ov::is_type<ov::op::v5::LSTMSequence>(op)) {
+        if (ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v5::GRUSequence>(op)) {
             m_use_onednn = true;
         }
 
-        if (auto multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(op)) {
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 for (auto& sub_op : sub_graph->get_ops()) {
                     process_op(sub_op);
@@ -182,6 +186,10 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     }
 
+    // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
+    if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
+        m_could_use_flashattn_v2 = false;
+    }
     m_optimize_data = true;
 }
 
@@ -218,7 +226,7 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     }
 
 #ifdef ENABLE_DEBUG_CAPS
-    // For now we apply env/config only for build with debug caps, but it can be updated in the future to allow
+    // For now we apply config file only for build with debug caps, but it can be updated in the future to allow
     // reading release options for any build type
     apply_config_options(context->get_device_name(), get_debug_config());
 #endif // ENABLE_DEBUG_CAPS

@@ -251,7 +251,7 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
         [&cfg, &plugin](const std::shared_ptr<const ov::Model>& model_ptr) {
             if (model_ptr != nullptr &&
                 ov::util::contains(plugin.get_property(ov::supported_properties), ov::hint::model)) {
-                cfg[ov::hint::model.name()] = std::const_pointer_cast<ov::Model>(model_ptr);
+                cfg[ov::hint::model.name()] = model_ptr;
             }
         },
         [&cfg, &plugin](const std::string& model_path) {
@@ -577,8 +577,6 @@ void ov::CoreImpl::register_compile_time_plugins() {
 }
 
 void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
-    std::lock_guard<std::mutex> lock(get_mutex());
-
     using namespace ov::util;
     auto parse_result = pugixml::parse_xml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
@@ -589,6 +587,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
+
+    std::lock_guard<std::mutex> lock(get_mutex());
 
     FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
         std::string deviceName = pugixml::get_str_attr(pluginNode, "name");
@@ -839,7 +839,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
+        cacheContent.model = model;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
@@ -877,7 +877,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
+        cacheContent.model = model;
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
         });
@@ -908,7 +908,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-                const auto model = util::read_model(model_path, "", extensions, parsed._core_config.get_enable_mmap());
+                const auto model =
+                    util::read_model(model_path, "", get_extensions_copy(), parsed._core_config.get_enable_mmap());
                 return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
             });
     } else {
@@ -1430,6 +1431,12 @@ void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& 
     }
 }
 
+std::vector<ov::Extension::Ptr> ov::CoreImpl::get_extensions_copy() const {
+    std::lock_guard<std::mutex> lock(get_mutex());
+    std::vector<ov::Extension::Ptr> extensions_copy(extensions.begin(), extensions.end());
+    return extensions_copy;
+};
+
 void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
     std::lock_guard<std::mutex> lock(get_mutex());
     add_extensions_unsafe(extensions);
@@ -1753,20 +1760,20 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
     auto local_core_config = coreConfig;
     local_core_config.set(properties);
-    return ov::util::read_model(modelPath, binPath, extensions, local_core_config.get_enable_mmap());
+    return ov::util::read_model(modelPath, binPath, get_extensions_copy(), local_core_config.get_enable_mmap());
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     const ov::Tensor& weights,
                                                     bool frontendMode) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
-    return ov::util::read_model(model, weights, extensions, frontendMode);
+    return ov::util::read_model(model, weights, get_extensions_copy(), frontendMode);
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::shared_ptr<AlignedBuffer>& model,
                                                     const std::shared_ptr<AlignedBuffer>& weights) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
-    return ov::util::read_model(model, weights, extensions);
+    return ov::util::read_model(model, weights, get_extensions_copy());
 }
 
 std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string& deviceName) const {

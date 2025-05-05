@@ -5,9 +5,10 @@
 #include "log_softmax.h"
 
 #include <cmath>
-#include <openvino/opsets/opset5.hpp>
 
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/log_softmax.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -93,7 +94,7 @@ void LogSoftmax::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void LogSoftmax::execute(const dnnl::stream& strm) {
+void LogSoftmax::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
 

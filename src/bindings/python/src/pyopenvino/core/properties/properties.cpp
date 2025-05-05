@@ -266,6 +266,7 @@ void regmodule_properties(py::module m) {
         "openvino.properties.intel_gpu.CapabilityGPU submodule that simulates ov::intel_gpu::capability");
 
     m_capability_gpu.attr("HW_MATMUL") = ov::intel_gpu::capability::HW_MATMUL;
+    m_capability_gpu.attr("USM_MEMORY") = ov::intel_gpu::capability::USM_MEMORY;
 
     // Submodule log
     py::module m_log = m_properties.def_submodule("log", "openvino.properties.log submodule that simulates ov::log");
@@ -339,4 +340,5 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_npu, ov::intel_npu::defer_weights_load, "defer_weights_load");
     wrap_property_RW(m_intel_npu, ov::intel_npu::compiler_dynamic_quantization, "compiler_dynamic_quantization");
     wrap_property_RW(m_intel_npu, ov::intel_npu::qdq_optimization, "qdq_optimization");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::run_inferences_sequentially, "run_inferences_sequentially");
 }

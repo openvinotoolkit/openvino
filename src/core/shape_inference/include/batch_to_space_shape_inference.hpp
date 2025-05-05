@@ -8,7 +8,6 @@
 
 #include "dimension_util.hpp"
 #include "openvino/op/batch_to_space.hpp"
-#include "openvino/opsets/opset2.hpp"
 #include "utils.hpp"
 
 namespace ov {

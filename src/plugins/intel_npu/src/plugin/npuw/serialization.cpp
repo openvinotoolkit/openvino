@@ -8,9 +8,11 @@
 #include "lazy_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "spatial.hpp"
+#include "util.hpp"
 
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
@@ -92,7 +94,8 @@ enum class AnyType : int {
     FLOAT,
     BOOL,
     CACHE_MODE,
-    ELEMENT_TYPE
+    ELEMENT_TYPE,
+    ANYMAP
 };
 
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
@@ -131,6 +134,9 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     } else if (var.is<ov::element::Type>()) {
         write(stream, static_cast<int>(AnyType::ELEMENT_TYPE));
         write(stream, var.as<ov::element::Type>());
+    } else if (var.is<ov::AnyMap>()) {
+        write(stream, static_cast<int>(AnyType::ANYMAP));
+        write(stream, var.as<ov::AnyMap>());
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -146,6 +152,14 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::CacheMode& var) {
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::element::Type& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::AnyMap& var) {
+    write(stream, var.size());
+    for (const auto& el : var) {
+        write(stream, el.first);
+        write_any(stream, el.second);
+    }
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
@@ -297,6 +311,10 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         ov::element::Type val;
         read(stream, val);
         var = val;
+    } else if (type == AnyType::ANYMAP) {
+        ov::AnyMap val;
+        read(stream, val);
+        var = val;
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -314,9 +332,23 @@ void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {
     stream.read(reinterpret_cast<char*>(&var), sizeof var);
 }
 
+void ov::npuw::s11n::read(std::istream& stream, ov::AnyMap& var) {
+    std::size_t var_size = 0;
+    read(stream, var_size);
+    for (std::size_t i = 0; i < var_size; ++i) {
+        std::string k;
+        read(stream, k);
+        ov::Any v;
+        read_any(stream, v);
+        var[k] = v;
+    }
+}
+
 // Weightless
 // FIXME: all serialization needs a good rewriting
-void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx) {
+void ov::npuw::s11n::write_weightless(std::ostream& stream,
+                                      const std::vector<ov::Tensor>& var,
+                                      const ov::npuw::s11n::WeightsContext& ctx) {
     write(stream, var.size());
     for (const auto& t : var) {
         if (!t) {
@@ -341,7 +373,7 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov
 
 void ov::npuw::s11n::read_weightless(std::istream& stream,
                                      std::vector<ov::Tensor>& var,
-                                     const ov::npuw::s11n::Weights& weights) {
+                                     const ov::npuw::s11n::WeightsContext& ctx) {
     var.clear();
     std::size_t size;
     read(stream, size);
@@ -365,7 +397,16 @@ void ov::npuw::s11n::read_weightless(std::istream& stream,
             std::size_t offset = 0;
             read(stream, offset);
             ov::Tensor t(type, shape);
-            std::memcpy(t.data(), weights->get_ptr(offset), byte_size);
+
+            if (ctx.weights) {
+                std::memcpy(t.data(), ctx.weights->get_ptr(offset), byte_size);
+            } else {
+                auto it = ctx.consts_cache.find({offset, byte_size});
+                NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
+                t = ov::npuw::util::copy_tensor_from_const(it->second);
+                NPUW_ASSERT(t.get_byte_size() == byte_size && t.get_shape() == shape && t.get_element_type() == type);
+            }
+
             var.push_back(t);
         } else {
             ov::Tensor t;

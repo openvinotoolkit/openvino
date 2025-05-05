@@ -5,7 +5,10 @@
 #include "transformations/common_optimizations/change_placeholder_types.hpp"
 
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 

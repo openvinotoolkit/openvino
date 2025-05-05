@@ -110,11 +110,13 @@ protected:
 
 };
 
-    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
+    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE, MODEL_DISTRIBUTION_POLICY };
 
     struct EmptyList {};
 
-    PY_TYPE check_list_element_type(const py::list& list);
+    template <typename T>
+    // Checks element type of list and set
+    PY_TYPE check_container_element_type(const T& container);
 
     py::object from_ov_any_no_leaves(const ov::Any& any);
 
@@ -137,6 +139,8 @@ protected:
     bool py_object_is_any_map(const py::object& py_obj);
 
     ov::AnyMap py_object_to_any_map(const py::object& py_obj);
+
+    std::unordered_map<std::string, ov::Any> py_object_to_unordered_any_map(const py::object& py_obj);
 
     ov::Any py_object_to_any(const py::object& py_obj);
 

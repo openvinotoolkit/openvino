@@ -15,13 +15,13 @@
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/sqrt.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 
 // Common transformations
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
@@ -62,7 +62,6 @@
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
-#include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
 #include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
@@ -180,7 +179,6 @@
 #include "dnnl.hpp"
 #include "nodes/fake_quantize.h"
 #include "nodes/llm_mlp.h"
-#include "nodes/mha.h"
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
 #include "nodes/paged_attn.h"
@@ -193,6 +191,7 @@
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 
 namespace ov::intel_cpu {
@@ -266,7 +265,8 @@ bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, con
     return true;
 }
 
-bool Transformations::fuse_type_to_pa(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
+bool Transformations::fuse_type_to_pa(const std::shared_ptr<ov::Node>& node,
+                                      [[maybe_unused]] const precisions_map& precisions) {
     auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
     if (!pa) {
         return false;
@@ -468,9 +468,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     cacheConfig.keyCacheBlockSize = 32;
     cacheConfig.valueCacheBlockSize = 32;
 
-    bool byChannel = node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode);
-    cacheConfig.keyCacheQuantBychannel = byChannel;
-    cacheConfig.valueCacheQuantBychannel = false;
+    cacheConfig.keyCacheQuantBychannel =
+        node::PagedAttention::isQuantByChannel(config.keyCacheQuantMode, config.keyCachePrecision, true);
+    cacheConfig.valueCacheQuantBychannel =
+        node::PagedAttention::isQuantByChannel(config.valueCacheQuantMode, config.valueCachePrecision, false);
     cacheConfig.keyCacheDimOrder = {0, 1, 2, 3};
     cacheConfig.valueCacheDimOrder = {0, 1, 2, 3};
     auto update_paged_attention_shape_func = [](const ov::element::Type& precision,
@@ -485,7 +486,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 head_size += sizeof(float) * 2 * group_num;
             }
         } else if (precision == ov::element::u4) {
-            head_size += sizeof(float) * 2 * group_num * 2;
+            if (bychannel) {
+                block_size += 2 * sizeof(float) * 2;
+            } else {
+                head_size += sizeof(float) * 2 * group_num * 2;
+            }
         }
     };
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
@@ -704,7 +709,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
-    auto nmsCallback = [](const_node_ptr& node) -> bool {
+    auto nmsCallback = []([[maybe_unused]] const_node_ptr& node) -> bool {
         // TODO: remove nmsCallback at all
         const bool isLegacyApi = false;
         return isLegacyApi ? false : true;
@@ -730,7 +735,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SimplifyCTCGreedyDecoderSeqLen);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGather7ToGather1);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGather8ToGather7);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertMinimum);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertBroadcastToTiles);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertReduceMeanToPooling);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertReduceMaxToPooling);
@@ -1214,8 +1218,11 @@ void Transformations::MainSnippets() {
         if (shape.is_dynamic()) {
             return false;
         }
-        const auto parallel_work_amount =
-            std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<>());
+        auto parallel_work_amount = ov::Dimension(1);
+        if (shape.size() > 2) {
+            parallel_work_amount =
+                std::accumulate(shape.rbegin() + 2, shape.rend(), parallel_work_amount, std::multiplies<>());
+        }
         // Ticket 160154: enable tokenization for MHA with insufficient parallel work amount
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
@@ -1256,7 +1263,11 @@ void Transformations::MainSnippets() {
                                    ov::op::v0::Sqrt,
                                    ov::op::v1::Subtract,
                                    ov::op::v4::Swish,
-                                   ov::op::v0::Tanh>(n));
+                                   ov::op::v0::Tanh,
+                                   ov::op::v1::LogicalAnd,
+                                   ov::op::v1::LogicalOr,
+                                   ov::op::v1::LogicalXor,
+                                   ov::op::v1::LogicalNot>(n));
 #else
         // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant,
         // and CPU Plugin does not support Mish for x64
@@ -1371,8 +1382,8 @@ void Transformations::MainSnippets() {
         },
         snippets::pass::TokenizeSnippets);
 
-    auto mm_supports_transpose_b = [this](const std::shared_ptr<const ov::Node>& n) {
-        MAYBE_UNUSED(config.inferencePrecision);
+    auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) {
+        [[maybe_unused]] const auto& inferencePrecision = config.inferencePrecision;
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
 #if defined(SNIPPETS_LIBXSMM_TPP)
@@ -1389,7 +1400,7 @@ void Transformations::MainSnippets() {
             }
             ov::element::TypeVector precisions;
             auto push_precision = [&](const ov::element::Type& precision) {
-                if (config.inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
+                if (inferencePrecision == ov::element::bf16 && precision == ov::element::f32)
                     precisions.push_back(ov::element::bf16);
                 else
                     precisions.push_back(precision);
