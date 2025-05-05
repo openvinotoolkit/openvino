@@ -13,18 +13,14 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
 
     ov::reference::paged_attention<T>(outputs[0].data<T>(),
                                       outputs[1].data<T>(),
+                                      outputs[2].data<T>(),
+                                      outputs[3].data<T>(),
                                       inputs[0].data<T>(),         // q
                                       inputs[1].data<T>(),         // k
                                       inputs[2].data<T>(),         // v
                                       inputs[3].data<T>(),         // kc
                                       inputs[4].data<T>(),         // vc
-                                      inputs[0].get_shape(),       // qs
-                                      inputs[1].get_shape(),       // ks
-                                      inputs[2].get_shape(),       // vs
-                                      inputs[3].get_shape(),       // kcs
-                                      inputs[4].get_shape(),       // vcs
                                       inputs[5].data<int32_t>(),   // pl
-                                      inputs[5].get_shape(),       // pls
                                       inputs[6].data<int32_t>(),   // sb
                                       inputs[7].data<int32_t>(),   // bi
                                       inputs[8].data<int32_t>(),   // bib
@@ -35,12 +31,19 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
                                       inputs[13].get_shape().size() != 0 ? inputs[13].data<int32_t>() : nullptr,  // rbi
                                       inputs[14].get_shape().size() != 0 ? inputs[14].data<int32_t>() : nullptr,  // rd
                                       inputs[15].get_shape().size() != 0 ? inputs[15].data<T>() : nullptr,        // trl
-                                      inputs[13].get_shape(),       // rbis
-                                      inputs[14].get_shape(),       // rds
-                                      inputs[15].get_shape(),       // trls
-                                      inputs[16].data<int32_t>(),   // fbi
-                                      inputs[17].data<int32_t>());  // mb
-        return true;
+                                      inputs[16].data<int32_t>(),                                                 // fbi
+                                      inputs[17].data<int32_t>(),                                                 // mb
+                                      inputs[0].get_shape(),                                                      // qs
+                                      inputs[1].get_shape(),                                                      // ks
+                                      inputs[2].get_shape(),                                                      // vs
+                                      inputs[3].get_shape(),                                                      // kcs
+                                      inputs[4].get_shape(),                                                      // vcs
+                                      inputs[5].get_shape(),                                                      // pls
+                                      inputs[13].get_shape(),  // rbis
+                                      inputs[14].get_shape(),  // rds
+                                      inputs[15].get_shape()   // rtls
+    );
+    return true;
 }
 
 template <>

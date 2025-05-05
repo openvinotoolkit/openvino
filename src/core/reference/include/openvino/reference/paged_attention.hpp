@@ -41,8 +41,6 @@ struct PagedAttentionContext {
     const int32_t* subsequence_begins;
     const int32_t* block_indices;
     const int32_t* block_indices_begins;
-    const int32_t* sliding_window_ptr;
-    const int32_t* max_context_len_ptr;
     const int32_t* max_blocks;
     const void* alibi_slopes;
 
@@ -66,7 +64,7 @@ struct PagedAttentionContext {
     size_t query_feature_size;
     size_t key_feature_size;
     size_t value_feature_size;
-    size_t max_context_length;
+    int32_t max_context_length;
     int32_t sliding_window;
     size_t num_rotated_blocks;
     size_t rotation_lut_rows;
@@ -303,8 +301,6 @@ void paged_attention(T* out,                                 // Output attention
                      const int32_t* subsequence_begins,    // [batch_seq+1]
                      const int32_t* block_indices,         // [num_blocks]
                      const int32_t* block_indices_begins,  // [batch_seq+1]
-                     const int32_t* free_block_indices,    // [num_blocks]
-                     const int32_t* max_blocks,            // [batch_seq]
                      const T* scale_ptr,                   // (Optional) scale factor
                      const int32_t* sliding_window_ptr,    // (Optional)
                      const T* alibi_slopes,                // (Optional) [num_heads]
@@ -313,24 +309,18 @@ void paged_attention(T* out,                                 // Output attention
                      const int32_t* rotated_block_indices,  // (Optional) [num_rotated_blocks]
                      const int32_t* rotation_deltas,        // (Optional) [num_rotated_blocks × rotation_deltas_dim]
                      const T* rotation_trig_lut,            // (Optional) [rotation_lut_rows, head_size]
+                     const int32_t* free_block_indices,     // [num_blocks]
+                     const int32_t* max_blocks,             // [batch_seq]
 
-                     // Numeric dimensions
-                     size_t batch_tokens,
-                     size_t batch_sequence_count,
-                     size_t num_heads,
-                     size_t block_size,
-                     size_t num_blocks,
-                     size_t query_head_size,
-                     size_t key_head_size,
-                     size_t value_head_size,
-                     size_t query_feature_size,
-                     size_t key_feature_size,
-                     size_t value_feature_size,
-                     size_t max_context_length,
-                     int32_t sliding_window,
-                     size_t num_rotated_blocks,
-                     size_t rotation_lut_rows,
-                     size_t rotation_deltas_total_length) {
+                     const ov::Shape& query_shape,
+                     const ov::Shape& key_shape,
+                     const ov::Shape& value_shape,
+                     const ov::Shape& key_cache_shape,
+                     const ov::Shape& value_cache_shape,
+                     const ov::Shape& past_lens_shape,
+                     const ov::Shape& rotated_block_indices_shape,
+                     const ov::Shape& rotation_deltas_shape,
+                     const ov::Shape& rotation_trig_lut_shape) {
     using namespace paged_attention_utils;
 
     // Build context
@@ -348,8 +338,6 @@ void paged_attention(T* out,                                 // Output attention
     ctx.subsequence_begins = subsequence_begins;
     ctx.block_indices = block_indices;
     ctx.block_indices_begins = block_indices_begins;
-    ctx.sliding_window_ptr = sliding_window_ptr;
-    ctx.max_context_len_ptr = max_context_len_ptr;
     ctx.rotated_block_indices = rotated_block_indices;
     ctx.rotation_deltas = rotation_deltas;
     ctx.updated_block_indices = updated_block_indices;
@@ -358,22 +346,27 @@ void paged_attention(T* out,                                 // Output attention
     ctx.max_blocks = max_blocks;
 
     // Populate dimensions
-    ctx.batch_tokens = batch_tokens;
-    ctx.batch_sequence_count = batch_sequence_count;
-    ctx.num_heads = num_heads;
-    ctx.block_size = block_size;
-    ctx.num_blocks = num_blocks;
-    ctx.query_head_size = query_head_size;
-    ctx.key_head_size = key_head_size;
-    ctx.value_head_size = value_head_size;
-    ctx.query_feature_size = query_feature_size;
-    ctx.key_feature_size = key_feature_size;
-    ctx.value_feature_size = value_feature_size;
-    ctx.max_context_length = max_context_length;
-    ctx.sliding_window = sliding_window;
-    ctx.num_rotated_blocks = num_rotated_blocks;
-    ctx.rotation_lut_rows = rotation_lut_rows;
-    ctx.rotation_deltas_dim = num_rotated_blocks ? (rotation_deltas_total_length / num_rotated_blocks) : 0;
+    ctx.batch_tokens = query_shape[0];
+    ctx.query_feature_size = query_shape[1];
+    ctx.key_feature_size = key_shape[1];
+    ctx.value_feature_size = value_shape[1];
+
+    ctx.num_blocks = key_cache_shape[0];
+    ctx.num_heads = key_cache_shape[1];
+    ctx.block_size = key_cache_shape[2];
+    ctx.key_head_size = key_cache_shape[3];
+    ctx.value_head_size = value_cache_shape[3];
+
+    ctx.query_head_size = ctx.query_feature_size / ctx.num_heads;
+
+    ctx.batch_sequence_count = past_lens_shape[0];
+
+    ctx.num_rotated_blocks = rotated_block_indices_shape.empty() ? 0 : rotated_block_indices_shape[0];
+    ctx.rotation_deltas_dim =
+        rotation_deltas_shape.empty() || ctx.num_rotated_blocks == 0 ? 0 : rotation_deltas_shape[1];
+    ctx.rotation_lut_rows = rotation_trig_lut_shape.empty() ? 0 : rotation_trig_lut_shape[0];
+    ctx.max_context_length = max_context_len_ptr ? max_context_len_ptr[0] : 0;
+    ctx.sliding_window = sliding_window_ptr ? sliding_window_ptr[0] : 0;
 
     // Initialize updated arrays
     std::memcpy(updated_block_indices, block_indices, num_blocks * sizeof(int32_t));
@@ -407,7 +400,7 @@ void paged_attention(T* out,                                 // Output attention
             int32_t past_tokens = past_lens ? past_lens[seq_idx] : 0;
             int32_t new_tokens =
                 subsequence_begins ? (subsequence_begins[seq_idx + 1] - subsequence_begins[seq_idx]) : 0;
-            int32_t total_keys = past_tokens + new_tokens;
+            int32_t total_keys = std::min(past_tokens + new_tokens, ctx.max_context_length);
 
             std::vector<T> scores(total_keys, T(0));
 
@@ -417,7 +410,13 @@ void paged_attention(T* out,                                 // Output attention
                 if (k < past_tokens) {
                     int32_t block_id, offset;
                     if (find_cached_token(seq_idx, k, ctx, block_id, offset)) {
-                        score_value = compute_score_for_cached_key(q_vector, head, ctx, block_id, offset);
+                        if (block_id == ctx.block_indices[ctx.block_indices_begins[seq_idx]] &&
+                            offset < ctx.sliding_window) {
+                            scores[k] = -std::numeric_limits<T>::infinity();
+                            continue;
+                        } else {
+                            score_value = compute_score_for_cached_key(q_vector, head, ctx, block_id, offset);
+                        }
                     }
                 } else {
                     int32_t new_idx =
@@ -437,14 +436,19 @@ void paged_attention(T* out,                                 // Output attention
                 if (k < past_tokens) {
                     int32_t block_id, offset;
                     if (find_cached_token(seq_idx, k, ctx, block_id, offset)) {
-                        accumulate_value_for_cached_key(head, ctx, block_id, offset, weight, output_vector);
+                        if (!(block_id == ctx.block_indices[ctx.block_indices_begins[seq_idx]] &&
+                              offset < ctx.sliding_window)) {
+                            accumulate_value_for_cached_key(head, ctx, block_id, offset, weight, output_vector);
+                        } else {
+                            continue;
+                        }
                     }
                 } else {
                     int32_t new_idx =
                         subsequence_begins ? (subsequence_begins[seq_idx] + (k - past_tokens)) : (k - past_tokens);
                     accumulate_value_for_new_key<T>(new_idx, head, ctx, weight, output_vector);
                 }
-                size_t global_index = seq_idx * size_t(max_context_length) + k;
+                size_t global_index = seq_idx * ctx.max_context_length + k;
                 score[global_index] = scores[k];
             }
 
