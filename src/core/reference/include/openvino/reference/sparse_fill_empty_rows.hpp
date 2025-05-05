@@ -14,21 +14,19 @@ namespace ov::reference {
 
 template <typename T, typename T_IDX>
 void sparse_fill_empty_rows(const T* values,
-                           const size_t values_size,
-                           const T_IDX* dense_shape,
-                           const T_IDX* indices,
-                           const size_t indices_size,
-                           const T default_value,
-                           T_IDX* output_indices,
-                           T* output_values,
-                           bool* empty_row_indicator) {
-    const T_IDX num_rows = dense_shape[0];
-    const size_t num_entries = values_size;
+                            const size_t values_size,
+                            const T_IDX* dense_shape,
+                            const T_IDX* indices,
+                            const size_t indices_size,
+                            const T default_value,
+                            T_IDX* output_indices,
+                            T* output_values,
+                            bool* empty_row_indicator) {
+    const auto num_rows = dense_shape[0];
 
     std::unordered_set<T_IDX> existing_rows;
-    for (size_t i = 0; i < num_entries; i++) {
-        // Only 2D inputs are supported, so every second idx is a row idx
-        existing_rows.insert(indices[i * 2]);
+    for (size_t i = 0, idx = 0; i < values_size; i++, idx += 2) {
+        existing_rows.insert(indices[idx]);
     }
 
     std::vector<T_IDX> empty_rows;
@@ -41,51 +39,39 @@ void sparse_fill_empty_rows(const T* values,
         }
     }
 
-    // Copy all existing entries
-    size_t output_idx = 0;
-    for (size_t i = 0; i < num_entries; i++) {
-        output_indices[output_idx * 2] = indices[i * 2];
-        output_indices[output_idx * 2 + 1] = indices[i * 2 + 1];
-        output_values[output_idx] = values[i];
-        output_idx++;
+    // Vector of pairs containing ((row, column), source_index) for
+    // both existing values and new empty rows to be added
+    const size_t total_rows = values_size + empty_rows.size();
+    std::vector<std::pair<std::pair<T_IDX, T_IDX>, size_t>> row_col_pairs(total_rows);
+
+    // Add existing values and then empty rows
+    for (size_t i = 0, idx = 0; i < values_size; i++, idx += 2) {
+        row_col_pairs[i] = {{indices[idx], indices[idx + 1]}, i};
+    }
+    for (size_t i = 0; i < empty_rows.size(); i++) {
+        row_col_pairs[values_size + i] = {{empty_rows[i], 0}, values_size + i};
     }
 
-    // Add entries for empty rows, first column
-    for (const auto& row : empty_rows) {
-        output_indices[output_idx * 2] = row;
-        output_indices[output_idx * 2 + 1] = 0;
-        output_values[output_idx] = default_value;
-        output_idx++;
-    }
-
-    // Sort the output in row-major order (first by row, then by column)
-    std::vector<size_t> permutation(output_idx);
-    for (size_t i = 0; i < output_idx; i++) {
-        permutation[i] = i;
-    }
-    std::stable_sort(permutation.begin(), permutation.end(), [&](size_t a, size_t b) {
-        T_IDX row_a = output_indices[a * 2];
-        T_IDX col_a = output_indices[a * 2 + 1];
-        T_IDX row_b = output_indices[b * 2];
-        T_IDX col_b = output_indices[b * 2 + 1];
-
-        if (row_a != row_b) {
-            return row_a < row_b;
+    std::sort(row_col_pairs.begin(), row_col_pairs.end(), [](const auto& a, const auto& b) {
+        if (a.first.first != b.first.first) {
+            return a.first.first < b.first.first;
         }
-        return col_a < col_b;
+        return a.first.second < b.first.second;
     });
-    std::vector<T_IDX> sorted_indices(output_idx * 2);
-    std::vector<T> sorted_values(output_idx);
 
-    for (size_t i = 0; i < output_idx; i++) {
-        size_t src_idx = permutation[i];
-        sorted_indices[i * 2] = output_indices[src_idx * 2];
-        sorted_indices[i * 2 + 1] = output_indices[src_idx * 2 + 1];
-        sorted_values[i] = output_values[src_idx];
+    for (size_t i = 0, out_idx = 0; i < total_rows; i++, out_idx += 2) {
+        const auto& [row_col, src_idx] = row_col_pairs[i];
+        const auto& [row, col] = row_col;
+
+        output_indices[out_idx] = row;
+        output_indices[out_idx + 1] = col;
+
+        if (src_idx < values_size) {
+            output_values[i] = values[src_idx];
+        } else {
+            output_values[i] = default_value;
+        }
     }
-
-    std::copy(sorted_indices.begin(), sorted_indices.end(), output_indices);
-    std::copy(sorted_values.begin(), sorted_values.end(), output_values);
 }
 
 }  // namespace ov::reference
