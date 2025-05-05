@@ -59,6 +59,13 @@ def getParams():
         help="run utility with specified name",
         default="no_utility",
     )
+    parser.add_argument(
+        "-t",
+        "--template",
+        dest="template",
+        help="launched with template",
+        default="undefined",
+    )
 
     parser.add_argument(
         "-x",
@@ -84,6 +91,22 @@ def getParams():
         presetCfgData = loadJSONToObject(presetCfgPath)
         return argHolder, presetCfgData, presetCfgPath
 
+    if argHolder.template != "undefined":
+        # todo collecting od additional args to helpers
+        it = iter(additionalArgs)
+        addDict = dict(zip(it, it))
+        mergedArgs = {**(args.__dict__), **addDict}
+        argHolder = DictHolder(mergedArgs)
+        customCfgPath = "custom_cfg_on_run.json"
+        # todo: add params to template
+        jsonObj = {"template" : {"name" : argHolder.template}}
+        for k, v in addDict.items():
+            jsonObj["template"][k] = v
+            if k == '-d':
+                print("Docs here:\n*************\ncommon part\n\nAPI:\nindependent params: --verbosity\n1. python3 commit_slider.py -t broken_compilation -d common for documentation.\n2. python3 commit_slider.py -t broken_compilation -cmake '<cmake params>'\n enter number of API for detailes information")
+                exit()
+        saveJSON(jsonObj, customCfgPath)
+
     customCfgData = loadJSONToString(customCfgPath)
     if mulKey in customCfgData:
         customCfgData = multiplyCfgByKey(json.loads(customCfgData))
@@ -108,6 +131,9 @@ def loadJSONToObject(path):
     file.close()
     return obj
 
+def saveJSON(obj, path):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, ensure_ascii=False, indent=4)
 
 def customizeCfg(customCfg, presetCfg: str):
     if isinstance(customCfg, list):

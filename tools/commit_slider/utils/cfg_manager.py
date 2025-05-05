@@ -36,6 +36,9 @@ class CfgManager():
             fullCfg = self.generatebmFunctionalTemplate()
         elif tmplName == "bm_arm_mac":
             fullCfg = self.generateArmBmTemplate()
+        elif tmplName == "broken_compilation":
+            from utils.templates.common_template import Template
+            fullCfg = Template.getTemplate().generateBrokenCompTemplate(self.readJsonTmpl("broken_compilation.json"), self.cfg["template"])
         else:
             raise Exception(
                 "Unknown template '{}'".format(tmplName)
@@ -73,6 +76,31 @@ class CfgManager():
             subPath = tmpl["subPath"]
         tmpJSON["dlbConfig"]["subPath"] = subPath
         tmpJSON["cachedPathConfig"]["subPath"] = subPath
+
+        return tmpJSON
+
+    def dgenerateBrokenCompTemplate(self):
+        tmpl = self.cfg["template"]
+        tmpJSON = self.readJsonTmpl("broken_compilation.json")
+
+        # if "errorPattern" in tmpl and\
+        #     "precommitPath" in tmpl and\
+        #     "testCmd" in tmpl:
+        #     tmpJSON["runConfig"]["stopPattern"] = tmpl["errorPattern"]
+        #     tmpJSON["dlbConfig"]["commonPath"] = tmpl["precommitPath"]
+        #     tmpJSON["cachedPathConfig"]["commonPath"] = tmpl["precommitPath"]
+        #     tmpJSON["appCmd"] = CfgManager.singlestepStrFormat(
+        #         tmpJSON["appCmd"],
+        #         tmpl["appCmd"],
+        #         "testCmd"
+        #     )
+        # else:
+        #     raise("Template is incomplete.")
+        # subPath = "private_linux_manylinux2014_release/"
+        # if "subPath" in tmpl:
+        #     subPath = tmpl["subPath"]
+        # tmpJSON["dlbConfig"]["subPath"] = subPath
+        # tmpJSON["cachedPathConfig"]["subPath"] = subPath
 
         return tmpJSON
 
