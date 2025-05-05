@@ -404,7 +404,7 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!get_node().is_type<kv_cache>() && !input_shape_changed && _impl_params->get_output_layout().is_static())
+    if (!get_node().is_type<kv_cache>() && !get_node().is_type<strided_slice>() && !input_shape_changed && _impl_params->get_output_layout().is_static())
         return;
 
     std::vector<event::ptr> dependencies_events;
@@ -455,7 +455,6 @@ void primitive_inst::update_shape() {
     }
 
     _impl_params->memory_deps = memory_deps;
-
 
     auto new_layouts = get_node().type()->calc_output_layouts(*_node, *_impl_params);
     for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
@@ -1874,6 +1873,15 @@ void primitive_inst::prepare_primitive() {
         if (get_flag(ExecutionFlags::SKIP)) {
             update_shape_done_by_other = false; // reset
             return;
+        }
+
+        if (_node->is_type<read_value>()) {
+            auto prim = get_node().as<read_value>().get_primitive();
+            auto& variable = get_network().get_variable(prim->variable_id);
+
+            if (variable.is_set() && can_be_optimized()) {
+                set_flag(ExecutionFlags::SKIP);
+            }
         }
 
         // Check successor reorder if layouts are same

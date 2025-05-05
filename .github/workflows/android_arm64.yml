@@ -1,6 +1,11 @@
 name: Android ARM64 with vcpkg
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -74,6 +79,7 @@ jobs:
 
   Build:
     needs: [Smart_CI, Docker]
+    if: "!needs.smart_ci.outputs.skip_workflow"
     timeout-minutes: 150
     defaults:
       run:
