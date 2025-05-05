@@ -25,19 +25,33 @@ std::shared_ptr<ov::Node> CallDftCtorWithArgs(const ov::test::utils::DFTOpType o
 }
 }  // namespace
 
-std::shared_ptr<ov::Node> make_dft(const ov::Output<Node>& data_node,
+std::shared_ptr<ov::Node> make_dft(ov::ParameterVector& parameters,
                                    const std::vector<int64_t>& axes,
                                    const std::vector<int64_t>& signal_size,
-                                   const ov::test::utils::DFTOpType op_type) {
-    auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{axes.size()}, axes);
+                                   const ov::test::utils::DFTOpType op_type,
+                                   utils::InputLayerType axes_in_type,
+                                   utils::InputLayerType size_in_type) {
+    std::shared_ptr<ov::Node> signal_size_node;
+    std::shared_ptr<ov::Node> axes_node;
+
+    if (axes_in_type == utils::InputLayerType::PARAMETER) {
+        axes_node = parameters.emplace_back(std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{axes.size()}));
+    } else {
+        axes_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{axes.size()}, axes);
+    }
 
     if (!signal_size.empty()) {
-        auto signal_size_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64,
-                                                                       ov::Shape{signal_size.size()},
-                                                                       signal_size);
-        return CallDftCtorWithArgs(op_type, data_node, axesNode, signal_size_node);
+        if (size_in_type == utils::InputLayerType::PARAMETER) {
+            signal_size_node = parameters.emplace_back(
+                std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{signal_size.size()}));
+        } else {
+            signal_size_node = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64,
+                                                                      ov::Shape{signal_size.size()},
+                                                                      signal_size);
+        }
+        return CallDftCtorWithArgs(op_type, parameters[0], axes_node, signal_size_node);
     }
-    return CallDftCtorWithArgs(op_type, data_node, axesNode);
+    return CallDftCtorWithArgs(op_type, parameters[0], axes_node);
 }
 }  // namespace utils
 }  // namespace test
