@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <variant>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
