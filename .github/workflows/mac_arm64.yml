@@ -1,6 +1,11 @@
 name: macOS ARM64 (Python 3.11)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
@@ -33,6 +38,7 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   NODEJS_VERSION: '21'
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -95,6 +101,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
+          ref: ${{ env.TARGET_BRANCH }}
 
       #
       # Print system info
@@ -133,7 +140,7 @@ jobs:
 
       - name: Setup NodeJS
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODEJS_VERSION }}
 
@@ -142,7 +149,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
+        uses: hendrikmuhs/ccache-action@63069e3931dedbf3b63792097479563182fe70d1 # v1.2.18
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo

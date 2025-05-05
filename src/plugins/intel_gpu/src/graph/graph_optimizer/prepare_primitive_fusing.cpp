@@ -440,6 +440,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          deconv.get_output_layout().get_tensor(),
                                                                          desc->grouped_weights_shape);
 
+            deconv_with_bias_prim->pads_begin = desc->pads_begin;
+            deconv_with_bias_prim->pads_end = desc->pads_end;
+            deconv_with_bias_prim->out_padding = desc->out_padding;
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
             fuse_bias_f(deconv, new_deconv_node, bias_node, eltw_node);
         } else if (replace_candidate.is_type<fully_connected>()) {
@@ -890,7 +893,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
+            if (input_data.is_type<fully_connected>()) {
+                // Do not allow quantization fusion
+                auto& fc = input_data.as<fully_connected>();
+                auto desc = fc.get_primitive();
+                // WA: OneDNN weight-compressed dyn-quan matmul does not support fusion with quantization
+                auto fc_in_dt = fc.get_input_layout(0).data_type;
+                bool is_onednn_compressed_weights_dyn_quan = supports_immad && desc->compressed_weights && data_type_traits::is_i8_u8(fc_in_dt);
+                should_fuse |= !is_onednn_compressed_weights_dyn_quan && quantize_node.get_scale_shift_opt();
+            }
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 

@@ -71,6 +71,7 @@
 #include "reverse_inst.h"
 #include "unique_inst.hpp"
 #include "condition_inst.h"
+#include "gru_seq_inst.h"
 #include "scaled_dot_product_attention_inst.h"
 #include "to_string_utils.h"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
@@ -1649,6 +1650,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             } else {
                 if (get_config().get_use_onednn()) {
                     lo.enable_onednn_for<lstm_seq>();
+                    lo.enable_onednn_for<gru_seq>();
                 }
             }
         }
@@ -1857,12 +1859,11 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 }
 
-void program::load(cldnn::BinaryInputBuffer& ib) {
+void program::load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr) {
     init_program();
 
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
     std::string weights_path = _config.get_weights_path();
-    auto model_ptr = _config.get_model();
     if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
         if (model_ptr) {
             weights_memory = std::make_shared<WeightsMemory>(model_ptr);

@@ -412,6 +412,21 @@ ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
     return return_value;
 }
 
+std::unordered_map<std::string, ov::Any> py_object_to_unordered_any_map(const py::object& py_obj) {
+    OPENVINO_ASSERT(py_object_is_any_map(py_obj), "Unsupported attribute type.");
+    std::unordered_map<std::string, ov::Any> return_value = {};
+    for (auto& item : py::cast<py::dict>(py_obj)) {
+        std::string key = py::cast<std::string>(item.first);
+        py::object value = py::cast<py::object>(item.second);
+        if (py_object_is_any_map(value)) {
+            return_value[key] = Common::utils::py_object_to_any_map(value);
+        } else {
+            return_value[key] = Common::utils::py_object_to_any(value);
+        }
+    }
+    return return_value;
+}
+
 template <typename... Args, std::size_t... I>
 std::tuple<Args...> tuple_from_py_tuple_impl(const py::tuple& py_tuple, std::index_sequence<I...>) {
     return std::make_tuple(py_tuple[I].cast<Args>()...);
