@@ -39,12 +39,8 @@ class TestIsNan(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_is_nan_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
+    def test_is_nan_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.xfail('104855')
-        if use_legacy_frontend:
-            pytest.skip("IsNan operation is not supported via legacy frontend.")
         self._test(*self.create_is_nan_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
