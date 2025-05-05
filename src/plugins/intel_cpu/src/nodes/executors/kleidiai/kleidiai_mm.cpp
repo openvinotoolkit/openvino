@@ -5,6 +5,7 @@
 #include "kleidiai_mm.hpp"
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 
 #include "cpu_memory.h"
@@ -32,7 +33,7 @@ static std::vector<T> normalizeDimsTo2D(const std::vector<T>& dims) {
 }
 
 static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr& weightDesc) {
-    if (attrs.dynamicQuantizationGroupSize != UINT64_MAX)
+    if (attrs.dynamicQuantizationGroupSize != std::numeric_limits<uint64_t>::max())
         return false;
 
     if (weightDesc->getPrecision() != element::i8)
@@ -124,7 +125,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         sr = ukernel_i8.get_sr();
 
         float* bias = biasMem->getDataAs<float>();
-        int8_t* rhs_native_qs8cx = static_cast<int8_t*>(weightsMemory->getData());
+        int8_t* rhs_native_qs8cx = weightsMemory->getDataAs<int8_t>();
         float* rhs_scales = static_cast<float*>(memory.at(ARG_WEI | ARG_ATTR_SCALES)->getData());
 
         const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(N, K, nr, kr, sr);
@@ -198,7 +199,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
 
     if (!useDynamicQuant) {
         float* rhs_packed = static_cast<float*>(rhsPackedMem->getData());
-        
+
         parallel_for(n_blocks, [&](size_t n_block) {
             size_t n_start = (n_block * BLOCK_SIZE);
             size_t n_end = std::min(n_start + BLOCK_SIZE, N);
@@ -208,21 +209,21 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
             const float* rhs_ptr = (rhs_packed + rhs_packed_offset / sizeof(float));
             float* dst_ptr = (dst + dst_offset / (sizeof(float)));
             ukernel_f32.run_matmul(M,
-                n_block_size,
-                K,
-                lhs,
-                lhs_stride,
-                rhs_ptr,
-                dst_ptr,
-                dst_stride_row,
-                dst_stride_col,
-                FLOAT_MIN,
-                FLOAT_MAX);
-            });
-        } else {
+                                   n_block_size,
+                                   K,
+                                   lhs,
+                                   lhs_stride,
+                                   rhs_ptr,
+                                   dst_ptr,
+                                   dst_stride_row,
+                                   dst_stride_col,
+                                   FLOAT_MIN,
+                                   FLOAT_MAX);
+        });
+    } else {
         // Create packed LHS and RHS
-        int8_t* lhs_packed_qa8dx = static_cast<int8_t*>(lhsPackedMem->getData());
-        int8_t* rhs_packed_qs8cx = static_cast<int8_t*>(rhsPackedMem->getData());
+        int8_t* lhs_packed_qa8dx = lhsPackedMem->getDataAs<int8_t>();
+        int8_t* rhs_packed_qs8cx = rhsPackedMem->getDataAs<int8_t>();
 
         kai_run_lhs_quant_pack_qai8dxp_f32(M,
                                            K,  // Dimensions
@@ -236,7 +237,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
         );
 
         const size_t lhs_packed_offset = ukernel_i8.get_lhs_packed_offset(0, K);
-        const void* lhs_ptr = (const void*)((const char*)lhs_packed_qa8dx + lhs_packed_offset);
+        const void* lhs_ptr = static_cast<const void*>(lhs_packed_qa8dx + lhs_packed_offset);
 
         parallel_for(n_blocks, [&](size_t n_block) {
             size_t n_start = (n_block * BLOCK_SIZE);
@@ -244,7 +245,7 @@ void MatMulKleidiAIExecutor::execute(const MemoryArgs& memory) {
             size_t n_block_size = n_end - n_start;
             const size_t rhs_packed_offset = ukernel_i8.get_rhs_packed_offset(n_start, K);
             const size_t dst_offset = ukernel_i8.get_dst_offset(0, n_start, dst_stride_row);
-            const void* rhs_ptr = (const void*)((const char*)rhs_packed_qs8cx + rhs_packed_offset);
+            const void* rhs_ptr = static_cast<const void*>(rhs_packed_qs8cx + rhs_packed_offset);
             float* dst_ptr = (dst + dst_offset / sizeof(float));
             ukernel_i8.run_matmul(M,
                                   n_block_size,
