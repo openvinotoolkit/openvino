@@ -9,9 +9,7 @@
 #include "openvino/op/op.hpp"
 #include "sparse_fill_empty_rows_shape_inference.hpp"
 
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v16 {
 
 SparseFillEmptyRows::SparseFillEmptyRows(const Output<Node>& values,
                                          const Output<Node>& dense_shape,
@@ -19,11 +17,6 @@ SparseFillEmptyRows::SparseFillEmptyRows(const Output<Node>& values,
                                          const Output<Node>& default_value)
     : Op({values, dense_shape, indices, default_value}) {
     constructor_validate_and_infer_types();
-}
-
-bool SparseFillEmptyRows::visit_attributes(ov::AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v16_SparseFillEmptyRows_visit_attributes);
-    return true;
 }
 
 void SparseFillEmptyRows::validate_and_infer_types() {
@@ -54,6 +47,4 @@ std::shared_ptr<Node> SparseFillEmptyRows::clone_with_new_inputs(const ov::Outpu
     return std::make_shared<SparseFillEmptyRows>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v16
