@@ -17,7 +17,7 @@ namespace ov::test {
 
 class TypePropPagedAttentionInternalTest : public TypePropOpTest<op::PagedAttentionExtension> {};
 
-TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_13_inputs) {
+TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_15_inputs) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
@@ -31,6 +31,8 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_13_inputs) {
     const auto sliding_window = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
     const auto alibi_slopes = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{9});
     const auto max_context_len = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto free_block_indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{15});
+    const auto max_blocks = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{7});
 
     const auto op = std::make_shared<op::PagedAttentionExtension>(query,
                                                                   key,
@@ -44,7 +46,9 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_13_inputs) {
                                                                   scale,
                                                                   sliding_window,
                                                                   alibi_slopes,
-                                                                  max_context_len);
+                                                                  max_context_len,
+                                                                  free_block_indices,
+                                                                  max_blocks);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
@@ -93,7 +97,7 @@ TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_18_inputs_evic
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
 
-TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_16_inputs_eviction_per_token) {
+TEST_F(TypePropPagedAttentionInternalTest, paged_attention_static_18_inputs_eviction_per_token) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
