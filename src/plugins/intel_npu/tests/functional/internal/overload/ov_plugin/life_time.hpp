@@ -245,11 +245,13 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, CanInferAfterCompiledBlobPropTensorIsD
             configuration.erase(ov::hint::compiled_blob.name());  // cleanup
         }
 
+        // check if the shared object (strSO destroyed above) persists in compiled_model
         std::ostringstream sstream;
         ov::InferRequest inferRequest;
-        compiled_model.export_model(sstream);
+        OV_ASSERT_NO_THROW(compiled_model.export_model(sstream));
         EXPECT_TRUE(sstream.tellp() > 0);
         OV_ASSERT_NO_THROW(inferRequest = compiled_model.create_infer_request());
+        compiled_model = {};  // dtor of compiled model won't affect created infer request
         OV_ASSERT_NO_THROW(inferRequest.infer());
     }
     configuration.erase(ov::intel_npu::defer_weights_load.name());  // cleanup

@@ -52,7 +52,25 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
         core.compile_model(model, target_device, configuration).export_model(sstream);
     }
 
-    // header tests
+    // header tests, stream works if handled by OV caching mechanism
+    {
+        auto strSO = std::make_shared<std::string>(sstream.str());
+        auto tensor = ov::Tensor(ov::element::u8, ov::Shape{strSO->size()}, strSO->data());
+        auto impl = ov::get_tensor_impl(tensor);
+        impl._so = strSO;
+        tensor = ov::make_tensor(impl);
+        configuration.emplace(ov::hint::compiled_blob(tensor));
+        configuration.emplace(
+            std::make_pair(ov::loaded_from_cache.name(), ov::Any(true)));  // caching mechanism mocked here
+        sstream.seekg(headerView.size(), std::ios::beg);                   // skip header
+        OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
+
+        // cleanup
+        configuration.erase(ov::loaded_from_cache.name());
+        configuration.erase(ov::hint::compiled_blob.name());
+    }
+
+    // header tests, stream won't work if not handled by OV caching mechanism
     {
         auto strSO = std::make_shared<std::string>(sstream.str());
         auto tensor = ov::Tensor(ov::element::u8, ov::Shape{strSO->size()}, strSO->data());
@@ -61,28 +79,42 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
         tensor = ov::make_tensor(impl);
         configuration.emplace(ov::hint::compiled_blob(tensor));
         sstream.seekg(headerView.size(), std::ios::beg);  // skip header
-        OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
-        configuration.erase(configuration.find(ov::hint::compiled_blob.name()));
+        OV_EXPECT_THROW(
+            auto compiledModel = core.import_model(sstream, target_device, configuration),
+            ov::Exception,
+            testing::HasSubstr("metadata"));  // OVNPU suffix can be parsed from metadata, but not correct version
+        configuration.erase(ov::hint::compiled_blob.name());  // cleanup
     }
 
-    // suffix tests
+    // header tests, stream won't impact import_model if application manages ov::Tensor offset
     {
-        sstream.write(suffixView.data(), suffixView.size());
         auto strSO = std::make_shared<std::string>(sstream.str());
-        auto tensor = ov::Tensor(ov::element::u8, ov::Shape{strSO->size()}, strSO->data());
+        auto tensor = ov::Tensor(ov::element::u8,
+                                 ov::Shape{strSO->size() - headerView.size()},
+                                 strSO->data() + headerView.size());
         auto impl = ov::get_tensor_impl(tensor);
         impl._so = strSO;
         tensor = ov::make_tensor(impl);
         configuration.emplace(ov::hint::compiled_blob(tensor));
-        OV_EXPECT_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration),
-                        ov::Exception,
-                        testing::HasSubstr("Blob is missing NPU metadata!"));
-        configuration.emplace(ov::intel_npu::disable_version_check(true));
+        // header is no longer skipped by stream
         OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
+        configuration.erase(ov::hint::compiled_blob.name());  // cleanup
     }
-    // cleanup
-    configuration.erase(ov::intel_npu::disable_version_check.name());
-    configuration.erase(configuration.find(ov::hint::compiled_blob.name()));
+
+    // suffix tests, stream won't impact import_model if application manages ov::Tensor size
+    {
+        sstream.write(suffixView.data(), suffixView.size());
+        auto strSO = std::make_shared<std::string>(sstream.str());
+        auto tensor = ov::Tensor(ov::element::u8,
+                                 ov::Shape{strSO->size() - headerView.size() - suffixView.size()},
+                                 strSO->data() + headerView.size());
+        auto impl = ov::get_tensor_impl(tensor);
+        impl._so = strSO;
+        tensor = ov::make_tensor(impl);
+        configuration.emplace(ov::hint::compiled_blob(tensor));
+        OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
+        configuration.erase(ov::hint::compiled_blob.name());  // cleanup
+    }
 }
 
 }  // namespace behavior

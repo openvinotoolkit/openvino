@@ -528,7 +528,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
 
     ov::AnyMap npu_plugin_properties = properties;
     std::shared_ptr<ov::AlignedBuffer> modelBuffer;
-    [[maybe_unused]] ov::SharedStreamBuffer buffer = {nullptr, 0};
+    ov::SharedStreamBuffer buffer = {nullptr, 0};
     std::istream stream{origStream.rdbuf()};
     // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
@@ -540,13 +540,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
                                                                      compiled_blob);
         buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size());
         stream.rdbuf(&buffer);
-        auto orig_stream_rdstate = origStream.rdstate();
-        auto orig_stream_start_pos = origStream.tellg();
-        if (orig_stream_start_pos >= 0) {                        // original stream is not empty
-            stream.seekg(orig_stream_start_pos, std::ios::cur);  // skip OV header in case of cached blob
-        } else {
-            origStream.clear(
-                orig_stream_rdstate);  // tellg on an empty istream might bring original stream in a bad state
+        if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
+            loadedFromCache != npu_plugin_properties.end() && loadedFromCache->second.as<bool>() != false) {
+            stream.seekg(origStream.tellg(), std::ios::cur);  // skip OV header in case of cached blob
         }
         npu_plugin_properties.erase(blob_it);
     }
