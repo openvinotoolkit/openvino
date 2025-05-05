@@ -75,7 +75,7 @@ Predicate::Predicate(std::nullptr_t) : Predicate() {}
 
 bool Predicate::operator()(pass::pattern::PatternSymbolMap& m, const Output<Node>& output) const {
     bool result = m_pred(m, output);
-    OPENVINO_DEBUG("Predicate `", m_name, "` has ", (result ? "passed" : "failed"), ". Applied to ", output);
+    //OPENVINO_DEBUG("Predicate `", m_name, "` has ", (result ? "passed" : "failed"), ". Applied to ", output);
     return result;
 }
 

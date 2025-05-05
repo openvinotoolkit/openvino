@@ -80,11 +80,21 @@ typename Shape::const_reference Shape::operator[](std::ptrdiff_t i) const {
 }
 
 typename Shape::reference Shape::at(std::ptrdiff_t i) {
-    return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+    try {
+        return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+    } catch (...) {
+        std::cout << "SHAPE=" << *this;
+        throw ;
+    }
 }
 
 typename Shape::const_reference Shape::at(std::ptrdiff_t i) const {
-    return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+    try {
+        return std::vector<size_t>::operator[](util::normalize_shape_index(i, size()));
+    } catch (...) {
+        std::cout << "SHAPE=" << *this;
+        throw ;
+    }
 }
 
 AttributeAdapter<ov::Shape>::~AttributeAdapter() = default;

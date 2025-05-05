@@ -97,7 +97,104 @@ auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
     return T::defaultValue();
 }
 
+struct KVAxesPosition {
+    uint32_t batch;
+    uint32_t seq_len;
+};
+
+void reshape_to_static(std::shared_ptr<ov::Model> model,
+                       const uint32_t input_size,
+                       const uint32_t kvcache_size,
+                       const KVAxesPosition& kv_axes_position) {
+    std::map<std::string, ov::PartialShape> new_shapes;
+    for (const auto& input : model->inputs()) {
+        const auto& input_name = input.get_any_name();
+        const auto& partial_shape = input.get_partial_shape();
+        std::cout << "reshape_to_static: " << input_name << "prec="<< input.get_element_type() <<  ", shape_before=" << partial_shape << std::flush;
+
+        ov::PartialShape new_shape;
+        if (input_name.find("input_ids") != std::string::npos) {
+            new_shape = ov::PartialShape({input_size});
+        } else if (input_name.find("inputs_embeds") != std::string::npos) {
+            // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
+            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
+            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
+            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
+        } else if (input_name.find("attention_mask") != std::string::npos) {
+            new_shape = ov::PartialShape({1, kvcache_size});
+        } else if (input_name.find("position_ids") != std::string::npos) {
+            new_shape = ov::PartialShape({input_size});
+        } else if (partial_shape.rank() == 4){
+//            std::cout << "reshape_to_static: " << input.get_any_name() << ", shape="<< partial_shape << std::endl;
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+
+            new_shape[kv_axes_position.batch] = 1;
+            new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
+
+            new_shape[1] = 8;
+            new_shape[3] = 128;
+            auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input.get_node_shared_ptr());
+            if (param) {
+                param->set_element_type(ov::element::u8);
+            }
+                
+
+                /*<dim>-1</dim>
+					<dim>8</dim>
+					<dim>0</dim>
+					<dim>128</dim>*/
+        } else if (input_name.find("block_indices") != std::string::npos) {
+            new_shape = ov::PartialShape({input_size});
+        } else if (input_name.find("block_indices_begins") != std::string::npos) {
+            new_shape = ov::PartialShape({2});
+        } else if (input_name.find("subsequence_begins") != std::string::npos) {
+            new_shape = ov::PartialShape({2});
+        } else if (input_name.find("past_lens") != std::string::npos) {
+            new_shape = ov::PartialShape({1});
+        } else if (input_name.find("sampled_tokens_indices") != std::string::npos) {
+            new_shape = ov::PartialShape({input_size});
+        }
+
+//         block_indices [1] => [ 6  ] 
+// gather_indices [1] => [ 0  ]
+// input_ids [1] => [ 5109  ]
+// inputs_embeds [1,0] => [  ]
+// position_ids [1] => [ 7  ]
+// past_lens [1] => [ 7  ]
+// subsequence_begins [2] => [ 0 1  ]
+// block_indices_begins [2] => [ 0 1  ]
+// max_context_len [] => [ 8  ]
+
+
+// reshape_to_static: past_lens, shape_before=[?], shape_after=[]
+// reshape_to_static: subsequence_begins, shape_before=[?], shape_after=[]
+// reshape_to_static: block_indices, shape_before=[?], shape_after=[]
+// reshape_to_static: block_indices_begins, shape_before=[?], shape_after=[]
+// reshape_to_static: max_context_len, shape_before=[], shape_after=[]
+// reshape_to_static: sampled_tokens_indices, shape_before=[?], shape_after=[]
+
+
+        std::cout << ", shape_after=" << new_shape << std::endl;
+
+        new_shapes.emplace(input_name, new_shape);
+    }
+    model->reshape(new_shapes);
+}
+
+
 void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& props) {
+    
+    //m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
+
+    //LOG_DEBUG("4. Make prefill model with static shapes");
+    //const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
+    //const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
+    std::cout << "-------\nreshape\n--------\n";
+    reshape_to_static(model, 1, 1024, {0, 2}); 
+    std::cout << "-------\nreshape\n--------\n";
+    //LOG_DEBUG("5. Make kvcache model with static shapes");
+    
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
     if (cfg_get<::intel_npu::NPUW_FOLD>(props) && cfg_get<::intel_npu::NPUW_FUNCALL_FOR_ALL>(props)) {
@@ -142,11 +239,14 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     } else {
         LOG_INFO("ov::npuw::CompiledModel will be created.");
         // CACHE_DIR isn't supported with NPU_USE_NPUW
-        if (properties.count(ov::cache_dir.name())) {
-            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with configuration: NPU_USE_NPUW : YES, NPUW_LLM : NO");
+        auto prop_new = properties;
+        if (prop_new.count(ov::cache_dir.name())) {
+            //OPENVINO_THROW("Option 'CACHE_DIR' is not supported with configuration: NPU_USE_NPUW : YES, NPUW_LLM : NO");
+            LOG_INFO("Option 'CACHE_DIR' is not supported with configuration: NPU_USE_NPUW : YES, NPUW_LLM : NO");
+            prop_new.erase(ov::cache_dir.name());
         }
-        pre_load_transform(model, properties);
-        compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
+        pre_load_transform(model, prop_new);
+        compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, prop_new);
     }
     LOG_INFO("Done");
     return compiled_model;

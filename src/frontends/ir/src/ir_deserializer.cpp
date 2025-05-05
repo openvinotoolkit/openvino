@@ -30,6 +30,7 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "rt_info_deserializer.hpp"
 #include "transformations/rt_info/attributes.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "utils.hpp"
 
 using namespace ov::util;
@@ -884,6 +885,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         "ExperimentalDetectronPriorGridGenerator",
         "ExperimentalDetectronROIFeatureExtractor",
         "ExperimentalDetectronTopKROIs",
+        "PagedAttentionExtension",
         "GRUCell",
         "RNNCell",
         "Proposal"};

@@ -213,9 +213,9 @@ void PagedAttentionExtension::validate_and_infer_types() {
     }
 
     if (m_output_type[1].is_dynamic()) {
-        set_output_type(1, get_input_element_type(0), {Dimension::dynamic()});
+        set_output_type(1, get_input_element_type(0), {1024});
     } else {
-        set_output_type(1, m_output_type[1], {Dimension::dynamic()});
+        set_output_type(1, m_output_type[1], {1024});
     }
 }
 

@@ -11,6 +11,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/util/file_util.hpp"
+#include <openvino/core/graph_util.hpp>
 
 namespace ov {
 
@@ -106,10 +107,18 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
+    const auto model_path = "failed_" + model->get_friendly_name() + ".xml";
+    const auto extra_path = "failed_" + model->get_friendly_name() + ".bin";
+
+    ov::save_model(model, model_path);
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model, device_name, config);
         return {exec._ptr, exec._so};
     });
+
+    std::filesystem::remove(model_path);
+    std::filesystem::remove(extra_path);
+    
 }
 
 CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& config) {

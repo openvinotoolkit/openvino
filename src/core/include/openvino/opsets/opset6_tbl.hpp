@@ -169,3 +169,4 @@ _OPENVINO_OP_REG(GatherElements, ov::op::v6)
 _OPENVINO_OP_REG(MVN, ov::op::v6)
 _OPENVINO_OP_REG(Assign, ov::op::v6)     // new version
 _OPENVINO_OP_REG(ReadValue, ov::op::v6)  // new version
+_OPENVINO_OP_REG(PagedAttentionExtension, ov::op)  // tbd version

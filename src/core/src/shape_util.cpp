@@ -62,7 +62,7 @@ Shape get_broadcast_shape(const Shape& first, const Shape& second, const op::Aut
 std::ptrdiff_t normalize_shape_index(std::ptrdiff_t idx, size_t rank) {
     idx = normalize(idx, static_cast<int64_t>(rank));
     if (static_cast<decltype(rank)>(idx) >= rank) {
-        OPENVINO_THROW("Accessing out-of-range dimension");
+        OPENVINO_THROW("Accessing out-of-range dimension: idx=",idx,", rank=", rank);
     } else {
         return idx;
     }

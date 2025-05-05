@@ -260,10 +260,39 @@ bool ov::PartialShape::merge_rank(const Rank& r) {
         return (static_cast<int64_t>(m_dimensions.size()) == r.get_length());
     }
 }
+#include <windows.h>
+#include <dbghelp.h>
+#include <iostream>
+#pragma comment(lib, "dbghelp.lib")
+
+void print_stacktrace() {
+    const int max_frames = 100;
+    void* stack[max_frames];
+    HANDLE process = GetCurrentProcess();
+    SymInitialize(process, NULL, TRUE);
+
+    USHORT frames = CaptureStackBackTrace(0, max_frames, stack, NULL);
+    for (USHORT i = 0; i < frames; ++i) {
+        DWORD64 address = (DWORD64)(stack[i]);
+        char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+        SYMBOL_INFO* symbol = (SYMBOL_INFO*)buffer;
+        symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+        symbol->MaxNameLen = MAX_SYM_NAME;
+
+        if (SymFromAddr(process, address, 0, symbol)) {
+            std::cout << i << ": " << symbol->Name << " - 0x" << symbol->Address << "\n";
+        } else {
+            std::cout << i << ": ???\n";
+        }
+    }
+}
 
 ov::Shape ov::PartialShape::to_shape() const {
     if (is_dynamic()) {
+        std::cout << "DYNAMIC_SHAPE=" << *this << std::endl;
+        print_stacktrace();
         OPENVINO_THROW("to_shape was called on a dynamic shape.");
+        
     }
 
     std::vector<size_t> shape_dimensions(m_dimensions.size());
@@ -308,7 +337,7 @@ bool ov::PartialShape::broadcast_merge_into(PartialShape& dst,
             // Ranks are both static.
             auto dst_rank = dst.rank().get_length();
             auto src_rank = src.rank().get_length();
-            auto new_rank = std::max(dst_rank, src_rank);
+            auto new_rank = (std::max)(dst_rank, src_rank);
             std::vector<Dimension> dims(new_rank);
             bool success = true;
             for (int64_t i = 0; i < new_rank; i++) {
@@ -369,12 +398,24 @@ bool ov::PartialShape::all_non_negative() const {
 }
 
 const ov::Dimension& ov::PartialShape::operator[](std::ptrdiff_t i) const {
-    return m_dimensions[util::normalize_shape_index(i, m_dimensions.size())];
+    try {
+        return m_dimensions[util::normalize_shape_index(i, m_dimensions.size())];
+    } catch (...) {
+        std::cout << "SHAPE=" << *this << std::endl;
+        throw ;
+    }
 }
 
 ov::Dimension& ov::PartialShape::operator[](std::ptrdiff_t i) {
-    m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
-    return m_dimensions[util::normalize_shape_index(i, m_dimensions.size())];
+    try {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;  // We can't guarantee that the shape remains static or dynamic.
+        return m_dimensions[util::normalize_shape_index(i, m_dimensions.size())];
+    } catch (...) {
+        std::cout << "SHAPE=" << *this << std::endl;
+        throw;
+    }
+
+
 }
 
 ov::AttributeAdapter<ov::PartialShape>::~AttributeAdapter() = default;
