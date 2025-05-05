@@ -39,7 +39,7 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
                                       inputs[14].get_shape(),       // rds
                                       inputs[15].get_shape(),       // trls
                                       inputs[16].data<int32_t>(),   // fbi
-                                      inputs[17].data<int32_t>();)  // mb
+                                      inputs[17].data<int32_t>());  // mb
         return true;
 }
 
