@@ -708,6 +708,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::softmax", op::translate_softmax},
         {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
         {"aten::sort", op::translate_sort},
+        {"aten::special_expit",
+         op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>, 1>},
         // aten::split - Supported in limited set of patterns
         // aten::split_with_sizes - Supported in limited set of patterns
         {"aten::sqrt", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>, 1>},
@@ -807,6 +809,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function floordiv>", op::translate_floor_divide},
         {"<built-in function getitem>", op::translate_getitem},  // TODO: Check if there is any other way to handle this
         {"<built-in function mul>", op::translate_mul},
+        {"<built-in function neg>", op::translate_neg},
         {"<built-in function sub>", op::translate_sub},
         {"aten._adaptive_avg_pool1d.default", op::translate_adaptive_avg_pool1d},
         {"aten._adaptive_avg_pool2d.default", op::translate_adaptive_avg_pool2d},
@@ -1076,6 +1079,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.view_as_complex.default", op::translate_view_as_complex},
         {"aten.view_as_real.default", op::translate_view_as_real},
         {"aten.where.self", op::translate_where},
+        {"aten.zero.default", op::translate_zeros_like_fx},
         {"aten.zeros.default", op::translate_zeros_fx},
         {"aten.zeros.names", op::translate_zeros_fx},
         {"aten.zeros_like.default", op::translate_zeros_like_fx},

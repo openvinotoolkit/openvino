@@ -22,9 +22,8 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
     /// @brief Constructs dynamic_quantize primitive
     /// @param id This primitive id
     /// @param input Input primitive id
-    /// @param group_sizes Quantization group size
-    /// @param data_type Output data type of quantized
-    /// @param output_size Output data size of the primitive
+    /// @param attrs Quantization attributes
+    /// @param input_size Rank of input tensor
     dynamic_quantize(const primitive_id& id,
            const input_info& input,
            const Attributes& attrs,

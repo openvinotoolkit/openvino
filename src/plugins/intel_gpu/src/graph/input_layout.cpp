@@ -72,7 +72,7 @@ void input_layout_inst::update_shape() {
     auto mem_layout = _outputs[0]->get_layout();
     // Set SHAPE_CHANGED flag if the actual data layout has changed, or if the node is included
     // into shape_of subgraph to trigger proper shape_of subgraph shape recalculation
-    if (_impl_params->get_output_layout() != mem_layout || _node->is_in_shape_of_subgraph()) {
+    if (_impl_params->get_output_layout() != mem_layout || get_node().is_in_shape_of_subgraph()) {
         set_flag(ExecutionFlags::SHAPE_CHANGED);
     }
     _impl_params->output_layouts[0] = mem_layout;

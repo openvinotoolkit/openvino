@@ -640,7 +640,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         kernel_selector::sdpa_configuration config;
 
         const auto desc = impl_param.typed_desc<paged_attention>();
-        config.head_size = desc->head_size;
+        config.k_head_size = desc->k_head_size;
+        config.v_head_size = desc->v_head_size;
         config.heads_num = desc->heads_num;
         config.kv_heads_num = desc->kv_heads_num;
         config.has_alibi_input = desc->has_alibi;

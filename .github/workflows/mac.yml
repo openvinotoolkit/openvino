@@ -1,6 +1,11 @@
 name: macOS (Python 3.11)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
@@ -35,6 +40,7 @@ env:
   NODEJS_VERSION: '21'
   MANIFEST_FILE: manifest.yml
   PRODUCT_TYPE: public_macos_x86_64_release
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
 
@@ -102,6 +108,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
+          ref: ${{ env.TARGET_BRANCH }}
 
       #
       # Print system info
@@ -149,7 +156,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
+        uses: hendrikmuhs/ccache-action@63069e3931dedbf3b63792097479563182fe70d1 # v1.2.18
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
@@ -419,3 +426,4 @@ jobs:
             ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/{1}', env.ARTIFACTS_DIR, needs.Build.outputs.openvino_npm_archive_name) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+          branch_name: ${{ inputs.target-branch }}
