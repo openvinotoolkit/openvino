@@ -203,7 +203,7 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     //  support
 
     // Calculations of input scales and shift:
-    //   - isc := (levels-1) / (ih - il)
+    //   - isc := (z0-1) / (ih - il)
     //   - ish := -il * isc - z0
     if (input_low_shape == input_high_shape || shape_size(input_low_shape) == 1 || shape_size(input_high_shape) == 1) {
         const auto input_size = std::max(input_low.size(), input_high.size());
@@ -213,7 +213,7 @@ bool ov::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
             float il = input_low[input_low.size() == 1 ? 0 : i];
             float ih = input_high[input_high.size() == 1 ? 0 : i];
 
-            isc[i] = (levels - 1) / (ih - il);
+            isc[i] = (z0 - 1) / (ih - il);
             ish[i] = -il * isc[i] - z0;
         }
         cl = input_low;
