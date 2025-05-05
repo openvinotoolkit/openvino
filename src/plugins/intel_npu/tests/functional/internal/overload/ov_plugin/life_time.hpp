@@ -227,24 +227,32 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, CreateRequestWithCoreRemoved) {
 TEST_P(OVHoldersTestOnImportedNetworkNPU, CanInferAfterCompiledBlobPropTensorIsDestroyed) {
     ov::Core core = createCoreWithTemplate();
 
-    ov::CompiledModel compiled_model;
-    {
-        std::stringstream sstream;
-        core.compile_model(function, target_device, configuration).export_model(sstream);
-        auto strSO = std::make_shared<std::string>(sstream.str());
-        auto tensor = ov::Tensor(ov::element::u8, ov::Shape{strSO->size()}, strSO->data());
-        auto impl = ov::get_tensor_impl(tensor);
-        impl._so = strSO;
-        tensor = ov::make_tensor(impl);
-        compiled_model = core.import_model(sstream, target_device, {ov::hint::compiled_blob(tensor)});
-    }
+    for (size_t i = 0; i < 2; ++i) {
+        ov::CompiledModel compiled_model;
+        if (i != 0) {
+            configuration.emplace(ov::intel_npu::defer_weights_load(true));
+        }
+        {
+            std::stringstream sstream;
+            core.compile_model(function, target_device, configuration).export_model(sstream);
+            auto strSO = std::make_shared<std::string>(sstream.str());
+            auto tensor = ov::Tensor(ov::element::u8, ov::Shape{strSO->size()}, strSO->data());
+            auto impl = ov::get_tensor_impl(tensor);
+            impl._so = strSO;
+            tensor = ov::make_tensor(impl);
+            configuration.emplace(ov::hint::compiled_blob(tensor));
+            compiled_model = core.import_model(sstream, target_device, configuration);
+            configuration.erase(ov::hint::compiled_blob.name());  // cleanup
+        }
 
-    std::ostringstream sstream;
-    ov::InferRequest inferRequest;
-    compiled_model.export_model(sstream);
-    EXPECT_TRUE(sstream.tellp() > 0);
-    OV_ASSERT_NO_THROW(inferRequest = compiled_model.create_infer_request());
-    OV_ASSERT_NO_THROW(inferRequest.infer());
+        std::ostringstream sstream;
+        ov::InferRequest inferRequest;
+        compiled_model.export_model(sstream);
+        EXPECT_TRUE(sstream.tellp() > 0);
+        OV_ASSERT_NO_THROW(inferRequest = compiled_model.create_infer_request());
+        OV_ASSERT_NO_THROW(inferRequest.infer());
+    }
+    configuration.erase(ov::intel_npu::defer_weights_load.name());  // cleanup
 }
 
 }  // namespace behavior

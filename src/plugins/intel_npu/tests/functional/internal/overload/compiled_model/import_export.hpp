@@ -4,6 +4,7 @@
 
 #include "behavior/compiled_model/import_export.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace ov {
@@ -14,7 +15,7 @@ namespace behavior {
 
 using OVCompiledGraphImportExportTestNPU = OVCompiledGraphImportExportTest;
 
-TEST_P(OVCompiledGraphImportExportTestNPU, CanCorrectlyImportModelWithEmptyIStreamAndCompiledBlobProp) {
+TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithEmptyIStreamAndCompiledBlobProp) {
     ov::Core core;
     std::shared_ptr<std::string> strSO;
     {
@@ -39,24 +40,49 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanCorrectlyImportModelWithEmptyIStre
     configuration.erase(configuration.find(ov::hint::compiled_blob.name()));  // cleanup
 }
 
-TEST_P(OVCompiledGraphImportExportTestNPU, CanCorrectlyImportModelWithApplicationHeaderAndCompiledBlobProp) {
+TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAndCompiledBlobProp) {
     ov::Core core;
-    const std::string_view view("<dummy_application_header>");
-    std::stringstream sstream(&view.at(0));
-    sstream.seekp(view.size(), std::ios::beg);
+    const std::string_view headerView("<dummy_application_header>");
+    const std::string_view suffixView("<dummy_application_suffix>");
+    std::stringstream sstream;
+
+    sstream.write(headerView.data(), headerView.size());
     {
         auto model = ov::test::utils::make_conv_pool_relu();
         core.compile_model(model, target_device, configuration).export_model(sstream);
     }
-    auto strSO = std::make_shared<std::string>(sstream.str());
-    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{strSO->size()}, strSO->data());
-    auto impl = ov::get_tensor_impl(tensor);
-    impl._so = strSO;
-    tensor = ov::make_tensor(impl);
-    configuration.emplace(ov::hint::compiled_blob(tensor));
-    sstream.seekg(view.size(), std::ios::beg);
-    OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
-    configuration.erase(configuration.find(ov::hint::compiled_blob.name()));  // cleanup
+
+    // header tests
+    {
+        auto strSO = std::make_shared<std::string>(sstream.str());
+        auto tensor = ov::Tensor(ov::element::u8, ov::Shape{strSO->size()}, strSO->data());
+        auto impl = ov::get_tensor_impl(tensor);
+        impl._so = strSO;
+        tensor = ov::make_tensor(impl);
+        configuration.emplace(ov::hint::compiled_blob(tensor));
+        sstream.seekg(headerView.size(), std::ios::beg);  // skip header
+        OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
+        configuration.erase(configuration.find(ov::hint::compiled_blob.name()));
+    }
+
+    // suffix tests
+    {
+        sstream.write(suffixView.data(), suffixView.size());
+        auto strSO = std::make_shared<std::string>(sstream.str());
+        auto tensor = ov::Tensor(ov::element::u8, ov::Shape{strSO->size()}, strSO->data());
+        auto impl = ov::get_tensor_impl(tensor);
+        impl._so = strSO;
+        tensor = ov::make_tensor(impl);
+        configuration.emplace(ov::hint::compiled_blob(tensor));
+        OV_EXPECT_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration),
+                        ov::Exception,
+                        testing::HasSubstr("Blob is missing NPU metadata!"));
+        configuration.emplace(ov::intel_npu::disable_version_check(true));
+        OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
+    }
+    // cleanup
+    configuration.erase(ov::intel_npu::disable_version_check.name());
+    configuration.erase(configuration.find(ov::hint::compiled_blob.name()));
 }
 
 }  // namespace behavior
