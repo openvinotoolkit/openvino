@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Tuple, Type, Union, Optional, Callable
+from typing import Any, Callable, Dict, Tuple, Type, Union, Optional
 import torch
 import numpy as np
 import openvino as ov
@@ -20,7 +20,7 @@ class ConstWrap:
         return self.value == x
 
     def __repr__(self) -> str:
-        return f'ConstWrap({str(self.value)})'
+        return f"ConstWrap({str(self.value)})"
 
 
 def unpack(
@@ -199,7 +199,8 @@ def make_trampoline_class(func: Callable,
             tuple of their values and concatenate together. Build `packer`
             function to pack the result back to the original nested data
             types, save this `packer` to class member to use it later in
-            `forward`."""
+            `forward`.
+            """
             unpacked, cls.input_packer, _ = unpack(
                 (args, kwargs), torch.Tensor)
             return unpacked
@@ -216,26 +217,26 @@ def make_trampoline_class(func: Callable,
             inputs = [node_context.get_input(i) for i in range(num_inps)]
             node = cls.op(*inputs, **op_attrs)
             # to trigger prim::TupleUnpack bypass in FrontEnd transformation
-            node.get_rt_info()['__torch_tuple_unpackable__'] = True
+            node.get_rt_info()["__torch_tuple_unpackable__"] = True
             return node.outputs()
 
     return Trampoline
 
 
-def inlined_extension(*args: Any, **op_attrs: Any) -> Callable:
+def inlined_extension(*args: Tuple[Any, ...], **op_attrs: Dict[str, Any]) -> Callable:
     """Creates an inlined extension for a function.
 
-    Args:
-        *args (Any): Arguments for the extension.
-        **op_attrs (Any): Attributes for the operation.
-
-    Returns:
-        Callable: The inlined extension.
+    Example:
+        ```python
+        @inlined_extension
+        def some_func(x):
+            return x + 1
+        ```
     """
 
     def make_trampoline(func: Callable,
                         op: Optional[Type[ov.Op]] = None) -> Callable:
-        def trampoline(*args: Any, **kwargs: Any) -> Any:
+        def trampoline(*args: Tuple[Any, ...], **kwargs: Dict[str, Any]) -> Callable:
             # Keep trampoline class creation at the point when the function is
             # called to make each time a new trampoline. It is required
             # because `func` is fused inside Trampoline class and can have
