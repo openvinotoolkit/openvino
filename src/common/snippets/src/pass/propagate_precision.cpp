@@ -171,7 +171,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
         if (actual_type != it->second) {
             was_updated = true;
             auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                result->get_input_node_shared_ptr(0),
+                result->input_value(0),
                 expected_type);
             copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
             result->set_argument(0, convert);

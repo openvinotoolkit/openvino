@@ -175,6 +175,7 @@ TEST_P(SDPAOptimizationTestsP, PassesSequence) {
     model = tests::make_llm_kv_cache_sdpa_pattern(batch,
                                                   32,
                                                   128,
+                                                  128,
                                                   model_element_type,
                                                   qkv_order,
                                                   causal,

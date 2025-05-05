@@ -139,7 +139,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         }
         ov::OutputVector weight_nodes_as_output_vector;
         for (size_t i = 0; i < weight_nodes.size(); ++i) {
-            weight_nodes_as_output_vector.push_back(weight_nodes[i]);
+            weight_nodes_as_output_vector.push_back(weight_nodes[i]->output(0));
         }
         auto fused_weight = std::make_shared<ov::op::v0::Concat>(weight_nodes_as_output_vector, 0);
         fused_weight->set_friendly_name(weight_nodes[0]->get_friendly_name() + "_fused_weight");
@@ -147,7 +147,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
 
         ov::OutputVector scales_as_output_vector;
         for (size_t i = 0; i < scale_nodes.size(); ++i) {
-            scales_as_output_vector.push_back(scale_nodes[i]);
+            scales_as_output_vector.push_back(scale_nodes[i]->output(0));
         }
 
         auto fused_scale = std::make_shared<ov::op::v0::Concat>(scales_as_output_vector, 0);
@@ -218,7 +218,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         if (bias_nodes.size() == fc_nodes.size()) {
             ov::OutputVector bias_nodes_as_output_vector;
             for (size_t i = 0; i < bias_nodes.size(); ++i) {
-                bias_nodes_as_output_vector.push_back(bias_nodes[i]);
+                bias_nodes_as_output_vector.push_back(bias_nodes[i]->output(0));
             }
             fused_bias = std::make_shared<ov::op::v0::Concat>(bias_nodes_as_output_vector, bias_rank - 1);
             fused_bias->set_friendly_name(bias_nodes[0]->get_friendly_name() + "_fused_bias");
@@ -264,7 +264,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             } else {
                 ov::OutputVector zp_nodes_as_output_vector;
                 for (size_t i = 0; i < zp_nodes.size(); ++i) {
-                    zp_nodes_as_output_vector.push_back(zp_nodes[i]);
+                    zp_nodes_as_output_vector.push_back(zp_nodes[i]->output(0));
                 }
                 fused_zps = std::make_shared<ov::op::v0::Concat>(zp_nodes_as_output_vector, 0);
                 fused_zps->set_friendly_name(zp_nodes[0]->get_friendly_name() + "_fused_zps");

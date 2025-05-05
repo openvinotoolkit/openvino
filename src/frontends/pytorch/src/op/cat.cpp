@@ -127,27 +127,26 @@ OutputVector translate_quantized_cat(const NodeContext& context) {
 
 OutputVector translate_stack_fx(const NodeContext& context) {
     num_inputs_check(context, 1, context.get_input_size());
-    auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     int64_t axis = 0;
-
     std::deque<Output<Node>> list_elems;
     auto num_elements = context.get_input_size();
 
     if (!context.get_input_type(num_elements - 1).is<type::List>()) {
         axis = context.const_input<int64_t>(num_elements - 1);
-        dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {axis}));
-        num_elements -= 1;
     }
 
-    OutputVector stack_inputs;
-    for (size_t i = 0; i < num_elements; i++) {
-        stack_inputs.push_back(context.get_input(static_cast<int>(i)));
-    }
+    auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {axis}));
+
+    list_elems = get_list_as_outputs(context.get_input(0));
+
+    OutputVector stack_inputs(list_elems.begin(), list_elems.end());
 
     // returns the u4 constant if the stack operation is a part of the decompression pattern
     if (const auto& u4_const = u4_compression_stack(stack_inputs, axis))
         return {u4_const};
 
+    num_elements = list_elems.size();
+    list_elems.clear();
     for (size_t i = 0; i < num_elements; i++) {
         auto stack_input = context.mark_node(std::make_shared<v0::Unsqueeze>(stack_inputs[i], dim));
         list_elems.push_back(stack_input);

@@ -123,7 +123,7 @@ Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolki
 
 -   [🤗Optimum Intel](https://github.com/huggingface/optimum-intel) - grab and use models leveraging OpenVINO within the Hugging Face API.
 -   [Torch.compile](https://docs.openvino.ai/2025/openvino-workflow/torch-compile.html) - use OpenVINO for Python-native applications by JIT-compiling code into optimized kernels.
--   [OpenVINO LLMs inference and serving with vLLM​](https://docs.vllm.ai/en/stable/getting_started/openvino-installation.html) - enhance vLLM's fast and easy model serving with the OpenVINO backend.
+-   [OpenVINO LLMs inference and serving with vLLM​](https://github.com/vllm-project/vllm-openvino) - enhance vLLM's fast and easy model serving with the OpenVINO backend.
 -   [OpenVINO Execution Provider for ONNX Runtime](https://onnxruntime.ai/docs/execution-providers/OpenVINO-ExecutionProvider.html) - use OpenVINO as a backend with your existing ONNX Runtime code.
 -   [LlamaIndex](https://docs.llamaindex.ai/en/stable/examples/llm/openvino/) - build context-augmented GenAI applications with the LlamaIndex framework and enhance runtime performance with OpenVINO.
 -   [LangChain](https://python.langchain.com/docs/integrations/llms/openvino/) - integrate OpenVINO with the LangChain framework to enhance runtime performance for GenAI applications.

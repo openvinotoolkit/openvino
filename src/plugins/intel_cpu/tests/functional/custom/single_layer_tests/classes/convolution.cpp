@@ -112,7 +112,7 @@ std::shared_ptr<ov::Node> ConvolutionLayerCPUTest::modifyGraph(const ov::element
                     ov::OutputVector inputsForShapeInfer;
                     for (size_t j = 0; j < lastNode->get_input_size(); j++) {
                         if (ov::is_type<ov::op::v0::Constant>(lastNode->get_input_node_ptr(j))) {
-                            inputsForShapeInfer.push_back(lastNode->get_input_node_shared_ptr(j));
+                            inputsForShapeInfer.push_back(lastNode->input_value(j));
                         } else {
                             inputsForShapeInfer.push_back(
                                 std::make_shared<ov::op::v0::Parameter>(lastNode->get_input_element_type(j),
