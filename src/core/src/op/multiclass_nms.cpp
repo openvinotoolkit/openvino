@@ -46,9 +46,9 @@ void MulticlassNms::validate_and_infer_types() {
 namespace v9 {
 MulticlassNms::~MulticlassNms() = default;
 MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)
-        : MulticlassNmsBase({boxes, scores}, attrs) {
+    : MulticlassNmsBase({boxes, scores}, attrs) {
     constructor_validate_and_infer_types();
-    }
+}
 
 MulticlassNms::MulticlassNms(const Output<Node>& boxes,
                              const Output<Node>& scores,
