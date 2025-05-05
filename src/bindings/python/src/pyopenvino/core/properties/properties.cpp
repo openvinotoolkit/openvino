@@ -340,4 +340,5 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_npu, ov::intel_npu::defer_weights_load, "defer_weights_load");
     wrap_property_RW(m_intel_npu, ov::intel_npu::compiler_dynamic_quantization, "compiler_dynamic_quantization");
     wrap_property_RW(m_intel_npu, ov::intel_npu::qdq_optimization, "qdq_optimization");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::run_inferences_sequentially, "run_inferences_sequentially");
 }

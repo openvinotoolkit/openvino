@@ -414,5 +414,6 @@ jobs:
             ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+          branch_name: ${{ inputs.target-branch }}
         env:
           STORE_WHEELS: ${{ inputs.build-type != 'Debug' }}
