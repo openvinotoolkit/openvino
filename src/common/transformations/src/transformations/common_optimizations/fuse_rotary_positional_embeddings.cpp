@@ -52,7 +52,6 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     RUN_ON_MODEL_SCOPE(RoPEFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
 
-    std::cout << "SETTING UP RoPEFusion" << std::endl;
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
@@ -75,10 +74,7 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
 
-    std::cout << "About to run the transformations" << std::endl;
-    bool a = symbolic_optimizations.get_manager()->run_passes(model);
-    std::cout << "Run the transformations" << std::endl;
-    return a;
+    return symbolic_optimizations.get_manager()->run_passes(model);
 }
 
 // This is a utility function used in the work around in ChatGLM pattern.
