@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <variant>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -40,8 +41,6 @@
 #include "transformations/utils/utils.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
-#include "openvino/pass/visualize_tree.hpp"
-
 using namespace ov::gen_pattern;
 using namespace ov::pass;
 
@@ -52,12 +51,10 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     RUN_ON_MODEL_SCOPE(RoPEFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
 
-    std::cout << "SETTING UP RoPEFusion" << std::endl;
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>();
-    symbolic_ctx_manager->register_pass<ov::pass::VisualizeTree>("before_RoPEFusionGPTJ.svg");
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
     // optional heads & tails are fused in separate matcher pass,
     // after RoPENode has been created.
@@ -76,10 +73,7 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
 
-    std::cout << "About to run the transformations" << std::endl;
-    bool a = symbolic_optimizations.get_manager()->run_passes(model);
-    std::cout << "Run the transformations" << std::endl;
-    return a;
+    return symbolic_optimizations.get_manager()->run_passes(model);
 }
 
 // This is a utility function used in the work around in ChatGLM pattern.
@@ -148,7 +142,6 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     auto result = y;
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        std::cout << "START OF RoPEFusionFlux" << std::endl;
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -185,8 +178,6 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
 
         // this new node may match following additional matchers
         register_new_node(new_node);
-        std::cout << "END OF RoPEFusionFlux" << std::endl;
-
         return true;
     };
 
