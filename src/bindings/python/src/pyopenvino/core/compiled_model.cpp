@@ -158,17 +158,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "get_property",
         [](ov::CompiledModel& self, const std::string& property) -> py::object {
-            auto model = self.get_property(property);
-            std::cout << "convert to python" << std::endl;
-            auto py_obj = Common::utils::from_ov_any(model);
-            std::cout << "after to python" << std::endl;
-            if (py::isinstance<std::shared_ptr<const ov::Model>>(py_obj)) {
-                std::cout << "model is recognised and converted" << std::endl;
-            }
-            if (py::isinstance<std::shared_ptr<ov::Model>>(py_obj)) {
-                std::cout << "model is recognised and converted 2" << std::endl;
-            }
-            return py_obj;
+            return Common::utils::from_ov_any(self.get_property(property));
         },
         py::arg("property"),
         R"(

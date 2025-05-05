@@ -93,7 +93,10 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "get_property",
-        [](ov::Core& self, const std::string& device_name, const std::string& name, const std::pair<std::string, py::object>& arguments) -> py::object {
+        [](ov::Core& self,
+           const std::string& device_name,
+           const std::string& name,
+           const std::pair<std::string, py::object>& arguments) -> py::object {
             ov::AnyMap _properties{{arguments.first, Common::utils::py_object_to_any(arguments.second)}};
             return Common::utils::from_ov_any(self.get_property(device_name, name, _properties));
         },

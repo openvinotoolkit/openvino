@@ -238,14 +238,8 @@ py::object from_ov_any(const ov::Any& any) {
     } else if (any.is<std::set<ov::hint::ModelDistributionPolicy>>()) {
         return py::cast(any.as<std::set<ov::hint::ModelDistributionPolicy>>());
     } else if (any.is<std::shared_ptr<const ov::Model>>()) {
-        auto const_model_ptr = any.as<std::shared_ptr<const ov::Model>>();
-        if (!const_model_ptr) {
-            std::cerr << "Warning: Input pointer is null!" << std::endl;
-            return py::none();
-        }
-
-        auto non_const_ptr = std::const_pointer_cast<ov::Model>(const_model_ptr);
-        return py::cast(non_const_ptr);
+        auto model = std::const_pointer_cast<ov::Model>(any.as<std::shared_ptr<const ov::Model>>());
+        return py::cast(model);
     } else if (any.is<ov::hint::ExecutionMode>()) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
@@ -327,7 +321,7 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             properties_to_cpp[property.first] = encryption_callbacks;
         } else if (property.first == ov::hint::model) {
             auto model = Common::utils::convert_to_model(property.second);
-            properties_to_cpp[property.first] = std::shared_ptr<const ov::Model>(model);
+            properties_to_cpp[property.first] = std::shared_ptr<ov::Model>(model);
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }
