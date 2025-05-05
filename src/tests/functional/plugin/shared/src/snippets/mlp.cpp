@@ -45,7 +45,7 @@ void MLPBase::SetUp() {
     init_params(input_shapes, prc, additional_config);
     init_input_shapes(input_shapes);
 
-    const auto subgraph_model = get_subgraph();
+    const auto subgraph_model = get_subgraph(m_num_input_shapes, m_num_hidden_layers);
     function = subgraph_model->getOriginal();
 
     configuration.insert(additional_config.begin(), additional_config.end());
@@ -69,6 +69,7 @@ std::string MLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPP
     std::string target_device;
     size_t num_nodes, num_subgraphs;
     ov::AnyMap additional_config;
+    size_t num_input_shapes, num_hidden_layers;
     std::tie(input_shapes,
              elem_types,
              prc,
@@ -76,7 +77,9 @@ std::string MLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPP
              num_nodes,
              num_subgraphs,
              target_device,
-             additional_config) = obj.param;
+             additional_config,
+             num_input_shapes,
+             num_hidden_layers) = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
@@ -95,16 +98,21 @@ std::string MLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPP
             result << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
+    result << "#num_input_shapes=" << num_input_shapes << "_";
+    result << "#num_hidden_layers=" << num_hidden_layers << "_";
     return result.str();
 }
 
 void MLP::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) {
     std::tie(input_shapes, m_input_types, prc, m_thread_count, ref_num_nodes, ref_num_subgraphs,
-             targetDevice, additional_config) = this->GetParam();
+             targetDevice, additional_config, m_num_input_shapes, m_num_hidden_layers) = this->GetParam();
 }
 
-std::shared_ptr<SnippetsFunctionBase> MLP::get_subgraph() const {
-    return std::make_shared<ov::test::snippets::MLPSeqFunction>(inputDynamicShapes, m_input_types, 2, 2);
+std::shared_ptr<SnippetsFunctionBase> MLP::get_subgraph(size_t num_input_nodes, size_t num_hidden_layers) const {
+    return std::make_shared<ov::test::snippets::MLPSeqFunction>(inputDynamicShapes,
+                                                                m_input_types,
+                                                                num_input_nodes,
+                                                                num_hidden_layers);
 }
 
 TEST_P(MLP, CompareWithRefImpl) {

@@ -18,6 +18,10 @@ std::vector<std::vector<InputShape>> inputShape_2D() {
     return shapes;
 }
 
+std::vector <size_t> numHiddenLayers() {
+    return {2, 3, 5, 7, 9};
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32,
                          MLP,
                          ::testing::Combine(::testing::ValuesIn(inputShape_2D()),
@@ -27,7 +31,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32,
                                             ::testing::Values(1),  // Subgraph
                                             ::testing::Values(1),  // MLP
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config),
+                                            ::testing::Values(2),
+                                            ::testing::ValuesIn(numHiddenLayers())),
                          MLP::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_i8,
@@ -39,7 +45,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_i8,
                                             ::testing::Values(2),  // Subgraph
                                             ::testing::Values(2),  // MLP
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config),
+                                            ::testing::Values(2),
+                                            ::testing::ValuesIn(numHiddenLayers())),
                          MLP::getTestCaseName);
 }  // namespace
 }  // namespace snippets

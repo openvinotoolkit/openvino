@@ -26,7 +26,7 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
                                                       std::vector<float>{0.1122});
     std::shared_ptr<Node> current = A;
 
-    for (size_t mm_count = 0; mm_count < num_input_layers; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
         auto B = std::make_shared<ov::op::v0::Constant>(ov::element::f32, input_shapes[0].to_shape(), std::vector<float>{0.1122f + mm_count});
         current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
         current = std::make_shared<ov::op::v1::Multiply>(current, add);
@@ -50,13 +50,13 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initReference() const {
     }
 
     std::vector<std::shared_ptr<ov::Node>> constants;
-    for (size_t mm_count = 0; mm_count < num_input_layers; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
         constants.push_back(std::make_shared<ov::op::v0::Constant>(
             ov::element::f32, input_shapes[0].to_shape(), std::vector<float>{0.1122f + mm_count}));
     }
 
     std::vector<std::shared_ptr<ov::Node>> transposes;
-    for (size_t mm_count = 0; mm_count < num_input_layers; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
         transposes.push_back(
             std::make_shared<ov::op::v1::Transpose>(
                 constants[mm_count],
@@ -69,7 +69,7 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initReference() const {
         std::vector<float>{0.1122});
 
     std::vector<std::shared_ptr<ov::Node>> zero_vectors;
-    for (size_t mm_count = 0; mm_count < num_input_layers; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
         zero_vectors.push_back(std::make_shared<ov::op::v0::Constant>(
             ov::element::f32,
             ov::Shape{input_shapes[0].to_shape()[0]},
@@ -100,7 +100,7 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initReference() const {
 
     std::shared_ptr<ov::Node> current = sub_A;
     current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::f32);
-    for (size_t mm_count = 0; mm_count < num_input_layers; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
         current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::u8);
         current = std::make_shared<ov::op::v0::MatMul>(current, sub_trans_zeros0, false, true);
         current = std::make_shared<ov::op::v1::Multiply>(current, sub_zeros2);
@@ -134,7 +134,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() co
         {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8};
     std::shared_ptr<Node> current = A;
 
-    for (size_t mm_count = 0; mm_count < num_input_layers; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
         current = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(current, ov::element::f32, onData);
         auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, input_shapes[0].to_shape(), std::vector<float>{0.1122f + mm_count});
 
@@ -270,7 +270,7 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
 
     std::shared_ptr<ov::Node> current = sub_A;
     current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::f32);
-    for (size_t mm_count = 0; mm_count < num_input_layers; ++mm_count) {
+    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
         current = decomposed_fq(current, ov::element::u8, onData.inputLowValues[0], onData.inputHighValues[0], 0.00346764503f);
         current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, ov::element::u8);
 
