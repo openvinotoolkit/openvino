@@ -107,7 +107,8 @@ jobs:
           GIT_CURL_VERBOSE: 1
         timeout-minutes: 15
         run: |
-          git clone --recurse-submodules --single-branch --branch ${{ github.ref }} ${{ github.repositoryUrl }} ${{ env.OPENVINO_REPO }}
+          git clone --shallow-submodules --single-branch ${{ github.repositoryUrl }} ${{ env.OPENVINO_REPO }}
+          # git clone --shallow-submodules --single-branch --branch ${{ github.ref }} ${{ github.repositoryUrl }} ${{ env.OPENVINO_REPO }}
           cd ${{ env.OPENVINO_REPO }} && git log -1 --format=%H
 
       - name: Clone OpenVINO
