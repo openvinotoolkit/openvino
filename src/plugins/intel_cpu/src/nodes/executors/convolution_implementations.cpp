@@ -4,8 +4,10 @@
 
 #include <vector>
 
+#include "debug_messages.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_format_filter.hpp"
+#include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/executor.hpp"
@@ -18,6 +20,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/acl/acl_conv.hpp"
+#endif
+
 namespace ov::intel_cpu {
 
 using namespace ov::element;
@@ -27,6 +33,7 @@ using namespace executor;
 using LayoutConfig = std::vector<LayoutType>;
 
 static const MappingNotation dnnlConvolutionMappingNotation{ARG_SRC, ARG_WEI, ARG_BIAS, ARG_DST};
+static const LayoutConfig aclConvLayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
 
 // clang-format off
 static const TypeMapping dnnlConvTypeMapping {
@@ -44,6 +51,14 @@ static const TypeMapping dnnlConvTypeMapping {
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
+};
+
+static const TypeMapping aclLowpConvTypeMapping {
+    // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
+    //{{_i8, _i8, _i32, _i8},                 pt(bypass(), bypass(), bypass(), bypass())}
+    {{_u8 | _i8, _any, _i32, _any},                 pt(bypass(), use<0>(), bypass(), use<0>())}
+    //{{_u8 | _i8, _i8, _hw_float, _hw_float},                 pt(bypass(), bypass(), bypass(), bypass())} - it's working
+    //{{_u8 | _i8, _i8, _quant | _hw_float | _i32 | _dynamic, _quant | _hw_float | _i32 | _dynamic}, pt(bypass(), bypass(), bypass(),  bypass())},
 };
 // clang-format on
 struct RequiresFallbackDefault {
@@ -232,12 +247,38 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                                                memoryFormatFilter)) {
                     return false;
                 }
-
-                return true;
+                return one_of(srcType(config), ov::element::f32, ov::element::f16);
+                //return true;
             },
             RequiresFallbackDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
+            )
+        OV_CPU_INSTANCE_ACL(
+            "convolution_acl_lowp", ExecutorType::Acl, OperationType::Convolution, ShapeTolerance::Agnostic,
+            // supports
+            [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                //VERIFY(everyone_is(i8, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                //VERIFY(everyone_is(i32, biaType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                std::cout << "convolution_acl_lowp: src: " << srcType(config).to_string() << " wei: " << weiType(config).to_string() <<
+                " bia: " << biaType(config).to_string() << " dst: " << dstType(config).to_string() << std::endl;
+                return ACLConvolutionExecutor::supports(config);
+            },
+            [](const ConvConfig& config) -> std::optional<executor::Config<ConvAttrs>> {
+                return requiresFallbackCommon(config,
+                                              aclLowpConvTypeMapping,
+                                              aclConvLayoutConfig,
+                                              dnnlConvolutionMappingNotation);
+            },
+            // acceptsShapes
+            [](const ConvAttrs& attrs,
+               const MemoryArgs& memory) -> bool {
+                const auto dequantizationScales = getDeQuantizedScales(memory);
+                bool isPerChannelQuantization = dequantizationScales.size() > 1;
+                //TODO: per-channel quantization is not unsupported by ACL?
+                return !isPerChannelQuantization;
+            },
+            CreateDefault<ACLConvolutionExecutor, ConvAttrs>{}
             )
     };
 
