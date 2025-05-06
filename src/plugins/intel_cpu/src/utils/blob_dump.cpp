@@ -253,7 +253,7 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
     case ov::element::boolean: {
         auto* blob_ptr = reinterpret_cast<const bool*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
-            stream << (blob_ptr[desc.getElementOffset(i)] ? "true" : "false") << '\n';
+            stream << (blob_ptr[desc.getElementOffset(i)] ? 1 : 0) << '\n';
         }
         break;
     }
