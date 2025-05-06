@@ -319,9 +319,9 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
-        } else if (property.first == ov::hint::model) {
+        } else if (property.first == ov::hint::model.name()) {
             auto model = Common::utils::convert_to_model(property.second);
-            properties_to_cpp[property.first] = std::shared_ptr<ov::Model>(model);
+            properties_to_cpp[property.first] = std::static_pointer_cast<const ov::Model>(model);
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }
