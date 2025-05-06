@@ -327,4 +327,26 @@ INSTANTIATE_TEST_SUITE_P(
                                                                                  ov::Any("THISCONFIGVALUENOTEXIST"))})),
     ClassPluginPropertiesTestSuite4NPU::getTestCaseName);
 
+std::vector<std::pair<std::string, ov::Any>> invalid_device_ids = {
+    {ov::device::id.name(), "NPU.1"},
+    {ov::device::id.name(), "NPU.-1"},
+    {ov::device::id.name(), "NPU.3990"},
+    {ov::device::id.name(), "NPU.DUMMY"},
+};
+
+using ClassExecutableNetworkInvalidDeviceIDTestSuite = ClassExecutableNetworkGetPropertiesTestNPU;
+
+TEST_P(ClassExecutableNetworkInvalidDeviceIDTestSuite, InvalidNPUdeviceIDTest) {
+    deviceName = configValue.as<std::string>();
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::CompiledModel compiled_model = ie.compile_model(model, deviceName),
+                                  ov::Exception,
+                                  "Could not find available NPU device");
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_ClassExecutableNetworkInvalidDeviceIDTestNPU,
+                         ClassExecutableNetworkInvalidDeviceIDTestSuite,
+                         ::testing::Combine(::testing::Values(ov::test::utils::getDeviceName()),
+                                            ::testing::ValuesIn(invalid_device_ids)),
+                         ClassExecutableNetworkInvalidDeviceIDTestSuite::getTestCaseName);
+
 }  // namespace
