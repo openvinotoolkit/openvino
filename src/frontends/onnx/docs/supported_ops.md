@@ -140,7 +140,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |RandomUniformLike                                       |1                       |22, 1                           |                                |
 |                        |Range                                                   |11                      |11                              |                                |
 |                        |Reciprocal                                              |1                       |13, 6, 1                        |                                |
-|                        |ReduceL1                                                |18, 1                   |18, 13, 11, 1                   |                                |
+|                        |ReduceL1                                                |18, 18, 13, 1           |18, 13, 11, 1                   |                                |
 |                        |ReduceL2                                                |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceLogSum                                            |18, 1                   |18, 13, 11, 1                   |                                |
 |                        |ReduceLogSumExp                                         |18, 13, 1               |18, 13, 11, 1                   |                                |
@@ -280,7 +280,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |QLinearMul                                              |1                       |1                               |                                |
 |com.microsoft           |QLinearReduceMean                                       |                        |1                               |                                |
 |com.microsoft           |QLinearSigmoid                                          |1                       |1                               |                                |
-|com.microsoft           |QLinearSoftmax                                          |                        |1                               |                                |
+|com.microsoft           |QLinearSoftmax                                          |1                       |1                               |                                |
 |com.microsoft           |QLinearWhere                                            |                        |1                               |                                |
 |com.microsoft           |QMoE                                                    |                        |1                               |                                |
 |com.microsoft           |QOrderedAttention                                       |                        |1                               |                                |
