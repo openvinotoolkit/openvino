@@ -10,6 +10,9 @@
 
 namespace {
 
+using namespace ov;
+using namespace ov::element;
+
 // Validates input rank and type for a node input.
 // We consider that dynamic rank/type are always valid case.
 // Empty {} means any rank/type
@@ -17,63 +20,76 @@ inline void input_check(ov::Node* node,
                         size_t idx,
                         const std::string& input_name,
                         const std::set<int64_t>& allowed_ranks,
-                        const std::set<ov::element::Type>& allowed_types) {
+                        std::set<Type> allowed_types) {
+    using namespace ov;
+    using namespace ov::element;
+
     const auto& pshape = node->get_input_partial_shape(idx);
     const auto& etype = node->get_input_element_type(idx);
 
-    // Check rank
-    if (!pshape.rank().is_dynamic()) {
-        int64_t rank = pshape.rank().get_length();
-        NODE_VALIDATION_CHECK(
-            node,
-            allowed_ranks.empty() || allowed_ranks.count(rank),
-            "Rank of `",
-            input_name,
-            "` input should be one of [",
-            [&allowed_ranks]() {
-                std::ostringstream oss;
-                bool first = true;
-                for (auto r : allowed_ranks) {
-                    if (r == -1)
-                        continue;
-                    if (!first)
-                        oss << ", ";
-                    oss << r;
-                    first = false;
-                }
-                return oss.str();
-            }(),
-            "], but it is ",
-            rank,
-            ".");
-    }
+    auto rank_check = [&](const PartialShape& ps) {
+        return ps.rank().is_dynamic() || allowed_ranks.empty() || allowed_ranks.count(ps.rank().get_length());
+    };
 
-    // Check type
-    if (!etype.is_dynamic()) {
-        NODE_VALIDATION_CHECK(
-            node,
-            allowed_types.empty() || allowed_types.count(etype),
-            "Element type of `",
-            input_name,
-            "` input should be one of [",
-            [&allowed_types]() {
-                std::ostringstream oss;
-                bool first = true;
-                for (const auto& t : allowed_types) {
-                    if (!first)
-                        oss << ", ";
-                    oss << t;
-                    first = false;
-                }
-                return oss.str();
-            }(),
-            "], but it is ",
-            etype,
-            ".");
+    auto type_check = [&](const Type& type) {
+        return type.is_dynamic() || allowed_types.empty() || allowed_types.count(type);
+    };
+
+    NODE_VALIDATION_CHECK(
+        node,
+        rank_check(pshape),
+        "Rank of `",
+        input_name,
+        "` input should be in [dynamic, ",
+        [=]() {
+            std::ostringstream oss;
+            bool first = true;
+            for (auto r : allowed_ranks) {
+                if (!first)
+                    oss << ", ";
+                oss << r;
+                first = false;
+            }
+            return oss.str();
+        }(),
+        "] list, but it is ",
+        pshape.rank(),
+        ".");
+
+    NODE_VALIDATION_CHECK(
+        node,
+        type_check(etype),
+        "Element type of `",
+        input_name,
+        "` input should be in [dynamic, ",
+        [=]() {
+            std::ostringstream oss;
+            bool first = true;
+            for (auto t : allowed_types) {
+                if (!first)
+                    oss << ", ";
+                oss << t;
+                first = false;
+            }
+            return oss.str();
+        }(),
+        "] list, but it is ",
+        etype,
+        ".");
+}
+
+std::set<Type> get_real_types() {
+    std::set<Type> real_types;
+    for (const auto& type : element::Type::get_known_types()) {
+        if (type->is_real()) {
+            real_types.insert(*type);
+        }
     }
+    return real_types;
 }
 
 }  // namespace
+
 namespace ov {
 namespace op {
 
@@ -99,9 +115,9 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 6, "subsequence_begins", {1}, {element::i32});
     input_check(this, 7, "block_indices", {1}, {element::i32});
     input_check(this, 8, "block_indices_begins", {1}, {element::i32});
-    input_check(this, 9, "scale", {0}, {element::f16, element::f32});
+    input_check(this, 9, "scale", {0}, get_real_types());
     input_check(this, 10, "sliding_window", {0}, {element::i32});
-    input_check(this, 11, "alibi_slopes", {1}, {element::f16, element::f32});
+    input_check(this, 11, "alibi_slopes", {1}, get_real_types());
     input_check(this, 12, "max_context_len", {0}, {element::i32});
 
     if (get_input_size() == 16) {
