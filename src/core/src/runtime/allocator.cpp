@@ -71,7 +71,6 @@ Allocator::Allocator(const Allocator& other, const std::shared_ptr<void>& so) : 
     try {                                    \
         OPENVINO_ASSERT(_impl != nullptr);   \
         __VA_ARGS__;                         \
-    } catch (const std::exception& ex) {     \
     } catch (...) {                          \
     }
 
