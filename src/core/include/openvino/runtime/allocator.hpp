@@ -44,7 +44,7 @@ class OPENVINO_API Allocator {
         }
         virtual const std::type_info& type_info() const = 0;
         virtual void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) = 0;
-        virtual void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) = 0;
+        virtual void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) noexcept = 0;
         virtual bool is_equal(const Base& other) const = 0;
 
     protected:
@@ -64,7 +64,7 @@ class OPENVINO_API Allocator {
         void* allocate(const size_t bytes, const size_t alignment = alignof(max_align_t)) override {
             return a.allocate(bytes, alignment);
         }
-        void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) override {
+        void deallocate(void* handle, const size_t bytes, size_t alignment = alignof(max_align_t)) noexcept override {
             a.deallocate(handle, bytes, alignment);
         }
         bool is_equal(const Base& other) const override {
@@ -75,6 +75,17 @@ class OPENVINO_API Allocator {
         }
         A a;
     };
+
+    template <typename, typename = std::void_t<>>
+    struct has_noexcept_deallocate : std::false_type {};
+
+    template <typename T>
+    struct has_noexcept_deallocate<
+        T,
+        std::enable_if<noexcept(std::declval<std::decay_t<T>>().deallocate(std::declval<void*>(),
+                                                                           std::declval<const size_t>(),
+                                                                           std::declval<const size_t>()))>>
+        : std::true_type {};
 
     std::shared_ptr<Base> _impl;
     std::shared_ptr<void> _so;
@@ -115,7 +126,8 @@ public:
         typename A,
         typename std::enable_if<!std::is_same<typename std::decay<A>::type, Allocator>::value &&
                                     !std::is_abstract<typename std::decay<A>::type>::value &&
-                                    !std::is_convertible<typename std::decay<A>::type, std::shared_ptr<Base>>::value,
+                                    !std::is_convertible<typename std::decay<A>::type, std::shared_ptr<Base>>::value &&
+                                    has_noexcept_deallocate<A>::value,
                                 bool>::type = true>
     Allocator(A&& a) : _impl{std::make_shared<Impl<typename std::decay<A>::type>>(std::forward<A>(a))} {}
 
@@ -135,7 +147,7 @@ public:
      * @param bytes The size in bytes that was passed into allocate() method
      * @param alignment The alignment of storage that was passed into allocate() method
      */
-    void deallocate(void* ptr, const size_t bytes = 0, const size_t alignment = alignof(max_align_t));
+    void deallocate(void* ptr, const size_t bytes = 0, const size_t alignment = alignof(max_align_t)) noexcept;
 
     /**
      * @brief Compares with other Allocator
