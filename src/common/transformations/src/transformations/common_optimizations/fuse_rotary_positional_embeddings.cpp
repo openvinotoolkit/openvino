@@ -32,20 +32,18 @@
 #include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/utils/gen_pattern.hpp"
-#include "transformations/utils/utils.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
 
-ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {
-}
+ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
 
 bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(RoPEFusion);
@@ -112,7 +110,8 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     auto t_cos = pattern::any_input(pattern::rank_equals(4));
     auto t_sin = pattern::any_input(pattern::rank_equals(4));
 
-    auto x1 = pattern::wrap_type<opset1::Reshape>({x, pattern::any_input()}, pattern::shape_matches("[PRESERVED_DIMS..., ?, 2]"));
+    auto x1 = pattern::wrap_type<opset1::Reshape>({x, pattern::any_input()},
+                                                  pattern::shape_matches("[PRESERVED_DIMS..., ?, 2]"));
     auto split = pattern::wrap_type<opset1::Split>({x1, -1}, {{"num_splits", 2}});
     split->set_output_size(2);
 
@@ -123,7 +122,8 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     auto opt_unsqueeze = pattern::optional<opset1::Unsqueeze>({opt_squeeze_1, -1});
 
     auto x2 = pattern::wrap_type<opset1::Concat>({opt_unsqueeze, split->output(0)}, {{"axis", -1}});
-    auto x3 = pattern::wrap_type<opset1::Reshape>({x2, pattern::any_input()}, pattern::shape_matches("[PRESERVED_DIMS..., head_size]"));
+    auto x3 = pattern::wrap_type<opset1::Reshape>({x2, pattern::any_input()},
+                                                  pattern::shape_matches("[PRESERVED_DIMS..., head_size]"));
 
     auto y1 = pattern::wrap_type<opset1::Multiply>({x, t_cos}, {{"auto_broadcast", "numpy"}});
     auto y2 = pattern::wrap_type<opset1::Multiply>({x3, t_sin}, {{"auto_broadcast", "numpy"}});
