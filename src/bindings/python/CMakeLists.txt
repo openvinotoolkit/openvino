@@ -280,7 +280,7 @@ macro(ov_define_setup_py_dependencies)
         "${OpenVINO_SOURCE_DIR}/pyproject.toml"
         "${OpenVINO_SOURCE_DIR}/setup.py"
         "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
-        "${OpenVINOPython_SOURCE_DIR}/readme.txt"
+        "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
         "${OpenVINO_SOURCE_DIR}/LICENSE"
         "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
         "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
