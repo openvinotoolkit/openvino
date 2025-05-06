@@ -196,6 +196,7 @@ KERNEL(fused_ops)(OPTIONAL_SHAPE_INFO_ARG
     const uint y = get_global_id(2) / OUTPUT_SIZE_X;
     const uint x = get_global_id(2) % OUTPUT_SIZE_X;
     const uint output_idx = OUTPUT_GET_INDEX(b, f, y, x);
+
 #if HAS_FUSED_OPS
     FUSED_OPS;
     output[output_idx] = FUSED_OPS_RESULT;

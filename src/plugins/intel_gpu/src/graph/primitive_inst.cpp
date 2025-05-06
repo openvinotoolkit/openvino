@@ -1799,7 +1799,7 @@ void primitive_inst::do_runtime_in_place_crop() {
 
 void primitive_inst::do_runtime_skip_lora() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_lora: " + id()));
-    if (!get_node().is_type<lora>())
+    if (!get_node().is_type<lora>() || !get_node().is_runtime_skippable())
         return;
 
     bool is_empty_lora = true;

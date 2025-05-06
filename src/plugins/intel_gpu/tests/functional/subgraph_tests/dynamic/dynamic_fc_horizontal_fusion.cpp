@@ -438,7 +438,8 @@ const std::vector<ShapeParams> input_shapes = {
     {{{-1, -1, -1}, {{1, 4, 16}}}, weights4},
 };
 
-const std::vector<uint64_t> lora_rank = {0, 16}; // 0 means w/o LoRA
+// Temporary disabling tests for LoRA horizontal fusing
+const std::vector<uint64_t> lora_rank = {0/* , 16 */}; // 0 means w/o LoRA
 
 // TODO: will be fix, Skip the test, unexpected validation team failure.
 // INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_no_bias,

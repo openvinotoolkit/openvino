@@ -47,7 +47,7 @@ static void CreateLoraSubgraphOp(ProgramBuilder& p, const std::shared_ptr<Lora>&
 
 static void CreateLoraSubgraphFusedOp(ProgramBuilder& p, const std::shared_ptr<op::LoraSubgraphFused>& op) {
     validate_inputs_count(op, {8, 11});
-    // TODO
+    // TODO: Detect transposing in LoRASubgraphHorizontalFusion and forward to primitive
     LoraSubgraphImpl(p, op, true);
 }
 

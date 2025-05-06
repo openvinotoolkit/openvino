@@ -151,7 +151,12 @@ struct lora_impl : multi_stage_primitive<lora> {
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
-        params.lora_count = (params.inputs.size() - 2ul) / 3ul;
+
+        size_t fused_dep_size = 0;
+        for (const auto& fused_op : params.fused_ops) {
+            fused_dep_size += fused_op.dep_size;
+        }
+        params.lora_count = (params.inputs.size() - fused_dep_size - 2ul) / 3ul;
         params.is_ref_kernel = is_ref_kernel;
         params.set_dynamic_shape_offsets();
 
