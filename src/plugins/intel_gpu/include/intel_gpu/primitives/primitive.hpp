@@ -306,6 +306,9 @@ protected:
 /// @brief base class for all primitives implementations.
 template <class PType>
 class primitive_base : public primitive {
+public:
+    std::shared_ptr<PType> clone() const { return std::make_shared<PType>(static_cast<const PType &>(*this)); }
+
 protected:
     explicit primitive_base(const primitive_id& id,
                             const std::vector<input_info>& input,
