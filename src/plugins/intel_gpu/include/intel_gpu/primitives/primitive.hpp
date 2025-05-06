@@ -86,7 +86,7 @@ struct input_info {
     }
 };
 
-static inline std::ostream& operator<< (std::ostream& os, input_info& info) {
+static inline std::ostream& operator<< (std::ostream& os, const input_info& info) {
     os << info.to_string();
     return os;
 }
@@ -143,8 +143,11 @@ public:
     /// @brief Returns copy of all input info on which this primitive depends - inputs, weights, biases, etc.
     std::vector<input_info> dependencies() const {
         auto result = input;
-        auto deps = get_dependencies();
-        for (auto& dep : deps) result.push_back(dep);
+
+        auto dependencies_map = get_dependencies_map();
+        for (const auto& dep : dependencies_map)
+            result.push_back(*dep.second);
+
         return result;
     }
 
@@ -297,8 +300,46 @@ public:
         }
     }
 
+    input_info& get_dependency(size_t idx) {
+        if (idx < input.size())
+            return input[idx];
+
+        auto dependencies_map = get_dependencies_map();
+        OPENVINO_ASSERT(dependencies_map.count(idx) > 0,
+                        "[GPU] Requested index ",
+                        std::to_string(idx),
+                        " exceeds total dependencies count (",
+                        std::to_string(input.size() + dependencies_map.size()),
+                        ") for",
+                        id,
+                        " primitive");
+
+        // get_dependencies_map() returns `const input_info*` for general read-only access.
+        // However since the current function is non-const and the object itself is not actually const,
+        // we can safely cast away constness to return a mutable reference.
+        // This avoids duplicating the dependencies logic while preserving const correctness.
+        return *const_cast<input_info*>(dependencies_map[idx]);
+    }
+
+    const input_info& get_dependency(size_t idx) const {
+        if (idx < input.size())
+            return input[idx];
+
+        auto dependencies_map = get_dependencies_map();
+        OPENVINO_ASSERT(dependencies_map.count(idx) > 0,
+                        "[GPU] Requested index ",
+                        std::to_string(idx),
+                        " exceeds total dependencies count (",
+                        std::to_string(input.size() + dependencies_map.size()),
+                        ") for",
+                        id,
+                        " primitive");
+
+        return *dependencies_map[idx];
+    }
+
 protected:
-    virtual std::vector<input_info> get_dependencies() const { return {}; }
+    virtual std::map<size_t, const input_info*> get_dependencies_map() const { return {}; }
     class condition;
     friend struct primitive_info;
 };

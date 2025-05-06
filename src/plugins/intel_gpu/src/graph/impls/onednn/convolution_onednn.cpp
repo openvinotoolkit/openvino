@@ -82,7 +82,7 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
         pad_r.insert(pad_r.end(), insert_count, 0);
     }
 
-    if (!prim->bias.empty()) {
+    if (prim->bias.is_valid()) {
         auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
         return std::make_shared<dnnl::convolution_forward::primitive_desc>(
             engine.get_onednn_engine(),
@@ -273,7 +273,7 @@ public:
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<convolution>();
-        bool has_wzp = !prim->weights_zero_points.empty();
+        bool has_wzp = prim->weights_zero_points.is_valid();
         if (has_wzp) {
             ob << make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
         }
@@ -312,7 +312,7 @@ public:
         ib >> zero_bias;
 
         auto prim = impl_params->typed_desc<convolution>();
-        bool has_wzp = !prim->weights_zero_points.empty();
+        bool has_wzp = prim->weights_zero_points.is_valid();
         if (has_wzp) {
             ib >> make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
             _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, _wzp_data_type);
