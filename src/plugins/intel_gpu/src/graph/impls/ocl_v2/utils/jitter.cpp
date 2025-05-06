@@ -115,10 +115,7 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
                 m_strides[i] = JitTerm{to_code_string(strides[channel_index])};
             } else if (format::is_simple_data_format(fmt)) {
                 auto channel_it = std::find(actual_channels_order.begin(), actual_channels_order.end(), target_channel);
-                if (channel_it == actual_channels_order.end()) {
-                    // Skip stride calculation if the target channel is not found in the actual channel order
-                    continue;
-                }
+                OPENVINO_ASSERT(channel_it != actual_channels_order.end());
 
                 m_strides[i] = JitTerm{"1"};
                 for (auto it = std::next(channel_it); it != actual_channels_order.end(); ++it) {
