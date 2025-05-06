@@ -140,7 +140,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |RandomUniformLike                                       |1                       |22, 1                           |                                |
 |                        |Range                                                   |11                      |11                              |                                |
 |                        |Reciprocal                                              |1                       |13, 6, 1                        |                                |
-|                        |ReduceL1                                                |18, 18, 13, 1           |18, 13, 11, 1                   |                                |
+|                        |ReduceL1                                                |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceL2                                                |18, 13, 1               |18, 13, 11, 1                   |                                |
 |                        |ReduceLogSum                                            |18, 1                   |18, 13, 11, 1                   |                                |
 |                        |ReduceLogSumExp                                         |18, 13, 1               |18, 13, 11, 1                   |                                |
