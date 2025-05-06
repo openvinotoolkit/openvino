@@ -37,15 +37,14 @@
 #include "openvino/util/common_util.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace ov::gen_pattern;
 using namespace ov::pass;
 
-ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {
-}
+ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
 
 bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(RoPEFusion);
@@ -73,7 +72,7 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
 
-    return symbolic_optimizations.get_manager()->run_passes(model);
+    return symbolic_optimizations.run_on_model(model);
 }
 
 // This is a utility function used in the work around in ChatGLM pattern.
@@ -185,16 +184,20 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     this->register_matcher(m, callback);
 }
 
-using symbol_variant = std::variant<float, int64_t, std::string>;
+using symbol_variant = std::variant<float, int32_t, int64_t, std::string>;
 
 static std::string ParseSymbolVariant(std::vector<symbol_variant> values) {
     std::vector<std::string> symbol_strings;
     symbol_strings.reserve(values.size());
-    for (auto &value : values) {
-        if (std::holds_alternative<int64_t>(value)) {
-            symbol_strings.push_back(std::to_string(std::get<int64_t>(value)));
-        } else if (std::holds_alternative<float>(value)) {
+    for (auto& value : values) {
+        if (std::holds_alternative<float>(value)) {
             symbol_strings.push_back(std::to_string(std::get<float>(value)));
+        } else if (std::holds_alternative<int>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<int>(value)));
+        } else if (std::holds_alternative<int32_t>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<int32_t>(value)));
+        } else if (std::holds_alternative<int64_t>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<int64_t>(value)));
         } else {
             symbol_strings.push_back(std::get<std::string>(value));
         }
@@ -204,11 +207,10 @@ static std::string ParseSymbolVariant(std::vector<symbol_variant> values) {
 }
 
 static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
-                                             symbol_variant start, 
+                                             symbol_variant start,
                                              symbol_variant stop,
                                              symbol_variant step,
                                              size_t axis) {
-
     auto slice_start = ParseSymbolVariant({start});
     auto slice_stop = ParseSymbolVariant({stop});
     auto slice_step = ParseSymbolVariant({step});
@@ -529,7 +531,8 @@ static std::shared_ptr<ov::Node> repeat_interleave_pattern(const ov::Output<ov::
     auto unsqueeze = pattern::wrap_type<ov::opset1::Reshape>({var_split_output, {"dim0", "dim1", "1", "32"}}) |
                      pattern::wrap_type<ov::opset1::Unsqueeze>({var_split_output, 2});
     // repeate cos/sin table
-    auto const_idx = pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
+    auto const_idx =
+        pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
     return pattern::wrap_type<ov::opset8::Gather>({unsqueeze, const_idx, 3}, {{"batch_dims", 0}});
 }
 
@@ -545,24 +548,24 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto view_Reshape = pattern::any_input(pattern::rank_equals(4));
     auto slice_Slice_965 = NewGenSlice(view_Reshape, 0, "ndims", 1, 3);
     // view_Reshape : B,L,H,S
-    auto varsplit_view_Reshape =
-        pattern::wrap_type<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
+    auto varsplit_view_Reshape = pattern::wrap_type<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
     varsplit_view_Reshape->set_output_size(2);
     auto int32_max = std::numeric_limits<std::int32_t>::max();
     // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
     auto slice_Slice_1174 = NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 1, int32_max, 2, 3);
 
-    auto neg_Multiply_1177 = pattern::wrap_type<opset1::Multiply>({slice_Slice_1174, -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto neg_Multiply_1177 =
+        pattern::wrap_type<opset1::Multiply>({slice_Slice_1174, -1.0f}, {{"auto_broadcast", "numpy"}});
     auto Unsqueeze_65524 = pattern::wrap_type<opset1::Unsqueeze>({neg_Multiply_1177, -1});
-    auto Unsqueeze_28998 =
-        pattern::wrap_type<opset1::Reshape>({neg_Multiply_1177, {"-1", "1", "head_num", "32", "1"}}, {{"special_zero", false}});
+    auto Unsqueeze_28998 = pattern::wrap_type<opset1::Reshape>({neg_Multiply_1177, {"-1", "1", "head_num", "32", "1"}},
+                                                               {{"special_zero", false}});
 
     auto slice_Slice_1168 = NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 0, int32_max, 2, 3);
     auto Unsqueeze_65525 = pattern::wrap_type<opset1::Unsqueeze>({slice_Slice_1168, -1});
-    auto Unsqueeze_28999 =
-        pattern::wrap_type<opset1::Reshape>({slice_Slice_1168, {"-1", "1", "head_num", "32", "1"}}, {{"special_zero", false}});
+    auto Unsqueeze_28999 = pattern::wrap_type<opset1::Reshape>({slice_Slice_1168, {"-1", "1", "head_num", "32", "1"}},
+                                                               {{"special_zero", false}});
     auto stack_1182 =
-        pattern::wrap_type<opset1::Concat>({Unsqueeze_65524 | Unsqueeze_28998 , Unsqueeze_65525 | Unsqueeze_28999},
+        pattern::wrap_type<opset1::Concat>({Unsqueeze_65524 | Unsqueeze_28998, Unsqueeze_65525 | Unsqueeze_28999},
                                            {{"axis", -1}});
 
     auto ShapeOf_169068 = pattern::wrap_type<opset1::ShapeOf>({stack_1182});
@@ -574,18 +577,19 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         pattern::wrap_type<opset1::Reshape>({stack_1182, ov::pass::pattern::any_input()}, {{"special_zero", true}});
 
     // x*cos [B,L,H,ndims]
-    auto mul_cos =
-        pattern::wrap_type<opset1::Multiply>({slice_Slice_965 | varsplit_view_Reshape->output(0), repeat_interleave_cos},
+    auto mul_cos = pattern::wrap_type<opset1::Multiply>(
+        {slice_Slice_965 | varsplit_view_Reshape->output(0), repeat_interleave_cos},
+        {{"auto_broadcast", "numpy"}});
+    auto mul_sin =
+        pattern::wrap_type<opset1::Multiply>({flatten_Reshape_1198 | flatten_Reshape_Zero, repeat_interleave_sin},
                                              {{"auto_broadcast", "numpy"}});
-    auto mul_sin = pattern::wrap_type<opset1::Multiply>({flatten_Reshape_1198 | flatten_Reshape_Zero, repeat_interleave_sin},
-                                                        {{"auto_broadcast", "numpy"}});
 
     // *cos + *sin
     auto rotary_emb = pattern::wrap_type<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     auto slice_Slice_971 = NewGenSlice(view_Reshape, "ndims", int32_max, 1, 3);
-    auto result =
-        pattern::wrap_type<opset1::Concat>({rotary_emb, slice_Slice_971 | varsplit_view_Reshape->output(1)}, {{"axis", -1}});
+    auto result = pattern::wrap_type<opset1::Concat>({rotary_emb, slice_Slice_971 | varsplit_view_Reshape->output(1)},
+                                                     {{"axis", -1}});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -594,9 +598,8 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 
         auto ndims = symbols["ndims"];
         auto ndims_over_2 = symbols["ndims/2"];
-        if (!ndims.is_integer() || !ndims_over_2.is_integer() ||
-             ndims_over_2.i() * 2 != ndims.i()) {
-                return false;
+        if (!ndims.is_integer() || !ndims_over_2.is_integer() || ndims_over_2.i() * 2 != ndims.i()) {
+            return false;
         }
 
         op::internal::RoPE::Config config;

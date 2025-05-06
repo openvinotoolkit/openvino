@@ -1193,8 +1193,6 @@ inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
     return opt2;
 }
 
-using namespace ov::pass;
-
 inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
                                       Symbol start,
                                       Symbol stop,
@@ -1202,6 +1200,7 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
                                       size_t axis,
                                       int line_no = CURRENT_LINE_NO,
                                       const char* file = CURRENT_FILE) {
+    using namespace ov::pass;
     auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}},
                                            {},
                                            nullptr,
