@@ -6,6 +6,8 @@
 
 #include "openvino/util/file_util.hpp"
 
+ov::Exception::Exception(const Exception&) = default;
+
 ov::Exception::Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
 
 void ov::Exception::create(const char* file, int line, const std::string& explanation) {

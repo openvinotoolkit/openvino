@@ -9,12 +9,12 @@
 #    if defined _WIN32 && !defined NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <xbyak/xbyak_util.h>
 
+#    include "jit_generator.hpp"
 #    include "openvino/core/except.hpp"
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
-#    include "openvino/reference/utils/jit_generator.hpp"
+#    include "xbyak/xbyak_util.h"
 
 namespace ov {
 namespace reference {

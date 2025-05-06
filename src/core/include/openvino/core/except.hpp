@@ -16,6 +16,7 @@ namespace ov {
 /// Base error for ov runtime errors.
 class OPENVINO_API Exception : public std::runtime_error {
 public:
+    Exception(const Exception&);
     [[noreturn]] static void create(const char* file, int line, const std::string& explanation);
     virtual ~Exception();
 

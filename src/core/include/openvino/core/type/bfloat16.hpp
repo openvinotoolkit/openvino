@@ -14,24 +14,11 @@
 
 #include "openvino/core/core_visibility.hpp"
 
-#define ROUND_MODE_TO_NEAREST_EVEN
-
 namespace ov {
 class OPENVINO_API bfloat16 {
 public:
     bfloat16() = default;
-    bfloat16(float value) : m_value {
-#if defined ROUND_MODE_TO_NEAREST
-        round_to_nearest(value)
-#elif defined ROUND_MODE_TO_NEAREST_EVEN
-        round_to_nearest_even(value)
-#elif defined ROUND_MODE_TRUNCATE
-        truncate(value)
-#else
-#    error "ROUNDING_MODE must be one of ROUND_MODE_TO_NEAREST, ROUND_MODE_TO_NEAREST_EVEN, or ROUND_MODE_TRUNCATE"
-#endif
-    }
-    {}
+    bfloat16(float value);
 
     template <typename I>
     explicit bfloat16(I value) : m_value{bfloat16{static_cast<float>(value)}.m_value} {}
@@ -72,7 +59,7 @@ public:
 
     static std::vector<float> to_float_vector(const std::vector<bfloat16>&);
     static std::vector<bfloat16> from_float_vector(const std::vector<float>&);
-    static constexpr bfloat16 from_bits(uint16_t bits) {
+    static inline constexpr bfloat16 from_bits(uint16_t bits) {
         return bfloat16(bits, true);
     }
     uint16_t to_bits() const;

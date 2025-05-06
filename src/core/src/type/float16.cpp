@@ -29,6 +29,9 @@ using namespace ov;
 
 static_assert(sizeof(float16) == 2, "class float16 must be exactly 2 bytes");
 
+float16::float16(uint32_t sign, uint32_t biased_exponent, uint32_t fraction)
+    : m_value((sign & 0x01) << 15 | (biased_exponent & 0x1F) << 10 | (fraction & 0x03FF)) {}
+
 float16::float16(float value) {
     // Work in 32-bit and shift right 16 in the end
     union {

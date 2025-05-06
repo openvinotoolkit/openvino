@@ -14,8 +14,6 @@
 
 #include "openvino/core/core_visibility.hpp"
 
-#define ROUND_MODE_TO_NEAREST_EVEN
-
 namespace ov {
 class OPENVINO_API float16 {
 public:
@@ -25,8 +23,7 @@ public:
     static uint32_t constexpr exp_size = 5;
     static uint32_t constexpr exp_bias = 15;
 
-    float16(uint32_t sign, uint32_t biased_exponent, uint32_t fraction)
-        : m_value((sign & 0x01) << 15 | (biased_exponent & 0x1F) << 10 | (fraction & 0x03FF)) {}
+    float16(uint32_t sign, uint32_t biased_exponent, uint32_t fraction);
 
     float16(float value);
 
@@ -67,7 +64,7 @@ public:
     float16 operator/=(const T& other);
     operator float() const;
 
-    static constexpr float16 from_bits(uint16_t bits) {
+    static inline constexpr float16 from_bits(uint16_t bits) {
         return float16(bits, true);
     }
     uint16_t to_bits() const;

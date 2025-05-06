@@ -33,6 +33,21 @@ inline bool float_isnan(const float& x) {
     return std::isnan(x);
 }
 
+#define ROUND_MODE_TO_NEAREST_EVEN
+
+bfloat16::bfloat16(float value) : m_value {
+#if defined ROUND_MODE_TO_NEAREST
+    round_to_nearest(value)
+#elif defined ROUND_MODE_TO_NEAREST_EVEN
+    round_to_nearest_even(value)
+#elif defined ROUND_MODE_TRUNCATE
+    truncate(value)
+#else
+#    error "ROUNDING_MODE must be one of ROUND_MODE_TO_NEAREST, ROUND_MODE_TO_NEAREST_EVEN, or ROUND_MODE_TRUNCATE"
+#endif
+}
+{}
+
 std::vector<float> bfloat16::to_float_vector(const std::vector<bfloat16>& v_bf16) {
     std::vector<float> v_f32(v_bf16.begin(), v_bf16.end());
     return v_f32;

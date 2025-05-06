@@ -5,7 +5,7 @@
 #include "openvino/core/visibility.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include "openvino/reference/utils/registers_pool.hpp"
+#    include "registers_pool.hpp"
 
 namespace ov {
 namespace reference {

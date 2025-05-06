@@ -7,7 +7,7 @@
 #include "openvino/reference/utils/convert_util.hpp"
 
 #ifdef OV_CORE_USE_XBYAK_JIT
-#    include "openvino/reference/utils/jit_generator.hpp"
+#    include "jit_generator.hpp"
 #    include "openvino/util/common_util.hpp"
 #endif
 

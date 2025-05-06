@@ -41,6 +41,10 @@ set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_pl
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
 set(LINK_LIBRARIES funcSharedTests cpuUtils openvino::snippets ov_snippets_models)
 
+if(X86 OR X86_64)
+    list(APPEND LINK_LIBRARIES xbyak::xbyak)
+endif()
+
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")
 else()
@@ -89,7 +93,7 @@ else()
     set(TMP_EXPLICITLY_ENABLED_TESTS "${TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS}")
 endif()
 
-if(NOT X86_64)
+if(NOT (X86_64 OR X86))
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64

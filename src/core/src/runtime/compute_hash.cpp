@@ -20,8 +20,8 @@
 
 #ifdef OV_CORE_USE_XBYAK_JIT
 #    include "openvino/core/parallel.hpp"
-#    include "openvino/reference/utils/registers_pool.hpp"
 #    include "openvino/util/common_util.hpp"
+#    include "registers_pool.hpp"
 #endif  // OV_CORE_USE_XBYAK_JIT
 
 namespace ov {

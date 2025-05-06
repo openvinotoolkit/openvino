@@ -8,8 +8,9 @@
 #include <utility>
 #include <vector>
 
+#include "jit_generator.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/reference/utils/jit_generator.hpp"
+
 namespace ov {
 namespace reference {
 namespace jit {
