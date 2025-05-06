@@ -35,7 +35,8 @@ size_t Graph::export_blob(std::ostream& stream) const {
     std::vector<uint8_t> blob;
 
     if (_blobIsReleased) {
-        OPENVINO_THROW("Model was imported (not compiled) by the plugin. Model export is forbidden in this case!");
+        OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
+                       "its lifetime.");
     }
 
     if (_blobPtr == nullptr) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
