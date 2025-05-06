@@ -115,11 +115,16 @@ void LayoutJitter::make_definitions(const layout& l, size_t shape_info_offset) {
                 m_strides[i] = JitTerm{to_code_string(strides[channel_index])};
             } else if (format::is_simple_data_format(fmt)) {
                 auto channel_it = std::find(actual_channels_order.begin(), actual_channels_order.end(), target_channel);
+                if (channel_it == actual_channels_order.end()) {
+                    // Skip stride calculation if the target channel is not found in the actual channel order
+                    continue;
+                }
+
                 m_strides[i] = JitTerm{"1"};
-                for (channel_it++; channel_it != actual_channels_order.end(); channel_it++) {
+                for (auto it = std::next(channel_it); it != actual_channels_order.end(); ++it) {
                     auto idx =
-                        std::distance(default_channels_order.begin(), std::find(default_channels_order.begin(), default_channels_order.end(), *channel_it));
-                    auto idx_ext = channels_map[*channel_it];
+                        std::distance(default_channels_order.begin(), std::find(default_channels_order.begin(), default_channels_order.end(), *it));
+                    auto idx_ext = channels_map[*it];
                     if (pad._lower_size.at(idx) > 0 || pad._upper_size.at(idx) > 0 || pad._dynamic_dims_mask[idx]) {
                         m_strides[i] = m_strides[i] * (m_dims[idx_ext] + m_pad_lower[idx_ext] + m_pad_upper[idx_ext]);
                     } else {
