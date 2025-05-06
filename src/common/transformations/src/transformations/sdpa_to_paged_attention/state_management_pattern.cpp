@@ -548,8 +548,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         if (allow_score_aggregation) {
-            OPENVINO_ASSERT(optional_model_wide_params.find("score_aggregation_window") !=
-                            optional_model_wide_params.end());
+            OPENVINO_ASSERT(
+                optional_model_wide_params.find("score_aggregation_window") != optional_model_wide_params.end(),
+                "No score_aggregation_window input found. For using score aggregation mode, the model have to contain "
+                "an additional input (Parameter) called score_aggregation_window.");
             pa_arguments.insert(pa_arguments.end(), optional_model_wide_params.at("score_aggregation_window"));
         } else {
             pa_arguments.insert(pa_arguments.end(), v0::Constant::create(element::i32, Shape{0}, {}));
