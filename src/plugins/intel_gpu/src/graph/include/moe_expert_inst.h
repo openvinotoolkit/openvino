@@ -99,7 +99,7 @@ class typed_primitive_inst<moe_expert> : public typed_primitive_inst_base<moe_ex
     using primitive_inst::update_output_memory;
 
 public:
-    template<typename ShapeType>
+    template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(moe_expert_node const& /*node*/, kernel_impl_params const& impl_param);
     static layout calc_output_layout(moe_expert_node const& /* node */, kernel_impl_params const& impl_param);
     static std::string to_string(moe_expert_node const& node);
@@ -107,16 +107,19 @@ public:
     static bool get_pred_from_memory(memory::ptr mem, stream& stream, size_t expert_no);
     typed_primitive_inst(network& network, moe_expert_node const& node);
 
-    memory::ptr pred_memory_ptr() const { return dep_memory_ptr(1); }
-    const primitive_inst* pred_inst() const { return dependencies().at(1).first; }
-    const std::vector<moe_expert::mlp_params>& get_mlp_params() const { return node->get_mlp_params(); }
-    const MOEExpert::Config& get_config() const {
-        return node->get_primitive()->_config;
+    memory::ptr pred_memory_ptr() const {
+        return dep_memory_ptr(1);
     }
-    void copy_expert_mask_to_gpu(stream& stream,
-                                 const expert_mask_scratch& expert_mask,
-                                 size_t expert_no,
-                                 expert_mask_mem_scratch& expert_mask_mem);
+    const primitive_inst* pred_inst() const {
+        return dependencies().at(1).first;
+    }
+    const std::vector<moe_expert::mlp_params>& get_mlp_params() const {
+        return static_cast<const moe_expert_node*>(this->_node)->get_mlp_params();
+    }
+    const MOEExpert::Config& get_config() const {
+        return static_cast<const moe_expert_node*>(this->_node)->get_primitive()->_config;
+    }
+    void copy_expert_mask_to_gpu(stream& stream, const expert_mask_scratch& expert_mask, size_t expert_no, expert_mask_mem_scratch& expert_mask_mem);
 
     void update_output_layout();
     void update_output_memory(bool need_reset);

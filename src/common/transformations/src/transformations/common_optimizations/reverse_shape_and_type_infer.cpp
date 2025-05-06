@@ -50,9 +50,10 @@ bool ov::pass::ReverseShapeAndTypeInfer::inherit_output_shape(const std::shared_
     for (auto idx : input_idxs) {
         if (idx < node->get_input_size() && node->get_input_partial_shape(idx).compatible(output_shape)) {
             auto new_shape = node->get_input_partial_shape(idx);
-            PartialShape::merge_into(new_shape, output_shape);
-            set_source_output_shape(*node, new_shape, idx);
-            is_changed = true;
+            if (PartialShape::merge_into(new_shape, output_shape)) {
+                set_source_output_shape(*node, new_shape, idx);
+                is_changed = true;
+            }
         }
     }
     return is_changed;
@@ -99,9 +100,10 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
         if (const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
             if (param->get_partial_shape().compatible(output_shape)) {
                 auto shape = param->get_partial_shape();
-                PartialShape::merge_into(shape, output_shape);
-                param->set_partial_shape(shape);
-                is_changed = true;
+                if (PartialShape::merge_into(shape, output_shape)) {
+                    param->set_partial_shape(shape);
+                    is_changed = true;
+                }
             }
             if (param->get_element_type().is_dynamic()) {
                 param->set_element_type(output_type);
@@ -204,9 +206,10 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                 for (auto idx : input_idxs) {
                     if (idx < op->get_input_size() && op->get_input_partial_shape(idx).compatible(input_pshape)) {
                         auto new_shape = op->get_input_partial_shape(idx);
-                        PartialShape::merge_into(new_shape, input_pshape);
-                        set_source_output_shape(*op, new_shape, idx);
-                        is_changed = true;
+                        if (PartialShape::merge_into(new_shape, input_pshape)) {
+                            set_source_output_shape(*op, new_shape, idx);
+                            is_changed = true;
+                        }
                     }
                 }
             }
@@ -334,17 +337,18 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
                     // if transpose order is known
                     int64_t rank_length = output_shape.rank().get_length();
                     auto new_shape = op->get_input_partial_shape(0);
-                    PartialShape::merge_into(new_shape, PartialShape::dynamic(output_shape.rank()));
-                    auto order_value = transpose_order->cast_vector<int64_t>();
-                    OPENVINO_ASSERT(order_value.size() == static_cast<size_t>(rank_length),
-                                    "The length of Transpose order and the input rank mismatch");
-                    for (int64_t dim_idx = 0; dim_idx < rank_length; ++dim_idx) {
-                        OPENVINO_ASSERT(0 <= order_value[dim_idx] && order_value[dim_idx] < rank_length,
-                                        "Transpose order is out-of-range");
-                        new_shape[order_value[dim_idx]] = output_shape[dim_idx];
+                    if (PartialShape::merge_into(new_shape, PartialShape::dynamic(output_shape.rank()))) {
+                        auto order_value = transpose_order->cast_vector<int64_t>();
+                        OPENVINO_ASSERT(order_value.size() == static_cast<size_t>(rank_length),
+                                        "The length of Transpose order and the input rank mismatch");
+                        for (int64_t dim_idx = 0; dim_idx < rank_length; ++dim_idx) {
+                            OPENVINO_ASSERT(0 <= order_value[dim_idx] && order_value[dim_idx] < rank_length,
+                                            "Transpose order is out-of-range");
+                            new_shape[order_value[dim_idx]] = output_shape[dim_idx];
+                        }
+                        set_source_output_shape(*op, new_shape, 0);
+                        is_changed = true;
                     }
-                    set_source_output_shape(*op, new_shape, 0);
-                    is_changed = true;
                 } else {
                     is_changed |= inherit_output_rank(op, {0});
                 }

@@ -9,8 +9,18 @@
 #include <queue>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset9_decl.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 

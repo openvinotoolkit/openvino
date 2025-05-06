@@ -366,7 +366,8 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_unaligned_dyn) {
 TEST(rms_gpu_test, rms_test_bfyx_opt_padding) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx, cldnn::padding({0,0,2}, {0,0,4}, 0x4)});
+    auto input_layout_dynamic = layout{ov::PartialShape{-1, 2, 16}, data_types::f32, format::bfyx, cldnn::padding({0,0,2}, {0,0,4}, 0x4)};
+    auto input = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx, cldnn::padding({0,0,2}, {0,0,4})});
     auto input_ref = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx});
     auto gamma = engine.allocate_memory({ov::PartialShape{1, 16}, data_types::f32, format::bfyx});
     auto output_ref = engine.allocate_memory({ov::PartialShape{1, 2, 16}, data_types::f32, format::bfyx});
@@ -392,11 +393,15 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_padding) {
     rms_ref<float>(input_ref, gamma, output_ref, 1e-5f);
 
     topology topology;
-    topology.add(input_layout("input", input->get_layout()));
+
+    topology.add(input_layout("input", input_layout_dynamic));
     topology.add(input_layout("gamma", gamma->get_layout()));
     topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-5f));
 
-    network network(engine, topology, get_test_default_config(engine));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
 
     network.set_input_data("input", input);
     network.set_input_data("gamma", gamma);
@@ -410,6 +415,7 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_padding) {
     cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3);
+        ASSERT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-3) << " index=" << i;
+
     }
 }

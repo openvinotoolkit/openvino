@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -66,14 +67,18 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
                                                 int shared_input_idx) {
     if (lhs->get_input_size() != rhs->get_input_size())
         return false;
+
     size_t input_size = lhs->get_input_size();
+    if (input_size != rhs->get_input_size())
+        return false;
     for (size_t i = 0; i < input_size; ++i) {
         if (i == static_cast<size_t>(shared_input_idx))
             continue;
         if (lhs->input_value(i) == rhs->input_value(i))
+
             continue;
-        auto lhs_constant = as_type_ptr<v0::Constant>(lhs->get_input_node_shared_ptr(i));
-        auto rhs_constant = as_type_ptr<v0::Constant>(rhs->get_input_node_shared_ptr(i));
+        auto lhs_constant = as_type<v0::Constant>(lhs->get_input_node_ptr(i));
+        auto rhs_constant = as_type<v0::Constant>(rhs->get_input_node_ptr(i));
         if (!lhs_constant || !rhs_constant)
             return false;
         if (lhs_constant->get_element_type() != rhs_constant->get_element_type())
@@ -156,7 +161,6 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
     int64_t total_compares = 0;
     int64_t total_visits = 0;
     int64_t total_output = 0;
-    // int64_t total_hit = 0;
 
     for (const auto& op : order) {
         // Recursively apply transformation for sub-graph based operations
@@ -168,7 +172,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                 is_subgraph = false;
             }
         }
-        for (auto& output : op->outputs()) {
+        for (const auto& output : op->outputs()) {
             const auto& target_inputs = output.get_target_inputs();
             if (target_inputs.size() <= 1)
                 continue;  // nothing to optimize
@@ -216,6 +220,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                         const auto& child_op = shared_nodes[j].node;
 
                         if (shared_nodes[i] == shared_nodes[j]) {
+
                             rewritten =
                                 replace_output_update_name(child_op->output(0), root_op->output(0)) || rewritten;
                             visited_nodes[j] = true;

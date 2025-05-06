@@ -2,7 +2,7 @@
 
 #ifndef WIN32
 /* echo 0 | sudo tee /proc/sys/kernel/perf_event_paranoid */
-#define ENABLE_LINUX_PERF
+// #define ENABLE_LINUX_PERF
 #endif
 
 #ifdef ENABLE_LINUX_PERF

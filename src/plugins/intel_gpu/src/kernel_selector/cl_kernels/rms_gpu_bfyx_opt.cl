@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
+#include "include/fetch_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
 
@@ -41,15 +41,31 @@ KERNEL(rms_gpu_bfyx_opt)(
     const uint items_num = data_size / workers_per_data;
     const uint leftovers = data_size % workers_per_data;
 
-#if DYNAMIC_PADDING
-    #define DATA_ELEM_SIZE (DATA_SIZE / SLICE_ELEM_SIZE)
-    const uint input_data_offset = SLICE_START * SLICE_ELEM_SIZE
-                                  +  (data_idx * DATA_ELEM_SIZE) / (SLICE_STOP - SLICE_START)  * SLICE_STRIDE
-                                  + ((data_idx * DATA_ELEM_SIZE) % (SLICE_STOP - SLICE_START)) * SLICE_ELEM_SIZE;
-#else
-    const uint input_data_offset = data_idx * data_size;
-#endif
+    #if HAS_DYNAMIC_PADDING
+        uint b_idx = 0;
+        uint f_idx = 0;
+        uint z_idx = 0;
+        uint y_idx = 0;
+        uint x_idx = 0;
+        #if INPUT_RANK == 2
+            b_idx = (data_idx);
+        #elif INPUT_RANK == 3
+            f_idx = (data_idx % (INPUT0_FEATURE_NUM));
+            b_idx = (data_idx / (INPUT0_FEATURE_NUM));
+        #else
+            y_idx = (data_idx % (INPUT0_SIZE_Y));
+            z_idx = (data_idx / (INPUT0_SIZE_Y)) % INPUT0_SIZE_Z;
+            f_idx = (data_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_Z)) % INPUT0_FEATURE_NUM;
+            b_idx = (data_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_Z * INPUT0_FEATURE_NUM)) % INPUT0_BATCH_NUM;
+        #endif
+
+        const uint input_data_offset = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+    #else
+        const uint input_data_offset = data_idx * data_size;
+    #endif
+
     const uint output_data_offset = data_idx * data_size;
+
     const uint subgroup_offset = get_sub_group_id() * get_sub_group_size() * items_num;
 
     ACCUMULATOR_TYPE data[STACK_SIZE];

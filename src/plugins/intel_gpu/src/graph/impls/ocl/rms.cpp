@@ -32,37 +32,6 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
         }
     }
 
-    static void set_padding(const kernel_impl_params& impl_param, kernel_selector::rms_params* rms_params) {
-        rms_params->dynamic_padding = impl_param.get_input_layout().data_padding.is_dynamic();
-        if (rms_params->dynamic_padding && rms_params->slice_stride == 0) {
-            const auto& input_layout = impl_param.get_input_layout();
-            const auto& dynamic_pad_mask = input_layout.data_padding._dynamic_dims_mask;
-
-            // To find out which item is in `dynamic_pad_mask`, you can iterate over it
-            size_t mask_idx = -1;
-            for (size_t i = 0; i < dynamic_pad_mask.size(); i++) {
-                if (dynamic_pad_mask[i]) {
-                    mask_idx = i;
-                    break;
-                }
-            }
-            OPENVINO_ASSERT(mask_idx != static_cast<size_t>(-1), "Dynamic pad mask is empty");
-            const auto& pshape = input_layout.get_partial_shape().to_shape();
-            size_t x_dim = 1;
-            for (size_t i = mask_idx + 1; i < pshape.size(); i++) {
-                x_dim *= pshape[i];
-            }
-
-            const auto& data_padding = input_layout.data_padding;
-            const auto& lower_pads = data_padding._lower_size;
-            const auto& upper_pads = data_padding._upper_size;
-            rms_params->slice_start = lower_pads[mask_idx];
-            rms_params->slice_stop = lower_pads[mask_idx] + pshape[mask_idx];
-            rms_params->slice_elem_size = x_dim;
-            rms_params->slice_stride = (lower_pads[mask_idx] + pshape[mask_idx] + upper_pads[mask_idx]) * x_dim;
-        }
-    }
-
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<rms>();
         auto params = get_default_params<kernel_selector::rms_params>(impl_param, is_shape_agnostic);
@@ -70,8 +39,6 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.epsilon = primitive->epsilon;
         params.ov_input_rank = static_cast<int32_t>(impl_param.get_input_layout().get_partial_shape().size());
-        params.dynamic_padding = impl_param.get_input_layout().data_padding.is_dynamic();
-        set_padding(impl_param, &params);
         return params;
     }
 
@@ -80,9 +47,6 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
         if (_kernel_data.params == nullptr) {
             _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
         }
-
-        auto rms_params = static_cast<kernel_selector::rms_params*>(_kernel_data.params.get());
-        set_padding(impl_param, rms_params);
 
         update_shapes(*_kernel_data.params, impl_param);
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);

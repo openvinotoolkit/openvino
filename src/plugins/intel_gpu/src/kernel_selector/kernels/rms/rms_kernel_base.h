@@ -14,11 +14,6 @@ struct rms_params : public base_params {
     rms_params() : base_params(KernelType::RMS) {}
     float epsilon = 0.0f;
     int32_t ov_input_rank = -1;
-    bool dynamic_padding = false;
-    size_t slice_start = 0;
-    size_t slice_stop = 0;
-    size_t slice_stride = 0;
-    size_t slice_elem_size = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
