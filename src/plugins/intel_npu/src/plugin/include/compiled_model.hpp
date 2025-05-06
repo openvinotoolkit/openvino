@@ -33,7 +33,7 @@ public:
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
                   const Config& config,
-                  const std::shared_ptr<IGraph>& initGraph = nullptr,
+                  const std::vector<std::shared_ptr<IGraph>>& initGraphs = {},
                   const std::shared_ptr<ov::Model>& initModel = nullptr);
 
     CompiledModel(const CompiledModel&) = delete;
@@ -63,6 +63,9 @@ private:
 
     void configure_stream_executors();
 
+    void add_weights_inputs(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) const;
+    void add_init_out_tensor(ov::SoPtr<ov::ITensor> tensor) const;
+
     Config _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
@@ -73,14 +76,14 @@ private:
      *
      */
     mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _weightsInputs;
-    mutable ov::SoPtr<ov::ITensor> _initOutputsTensor;
+    mutable std::vector<ov::SoPtr<ov::ITensor>> _initOutputsTensors;
 
     // properties map: {name -> [supported, mutable, eval function]}
     std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
     std::vector<ov::PropertyName> _supportedProperties;
 
     std::shared_ptr<IGraph> _graph;
-    std::shared_ptr<IGraph> _initGraph;
+    std::vector<std::shared_ptr<IGraph>> _initGraphs;
     std::shared_ptr<ov::Model> _initModel;
 };
 

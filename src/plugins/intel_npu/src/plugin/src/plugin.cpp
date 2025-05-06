@@ -246,6 +246,57 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
     }
 }
 
+struct ImportDataWs {
+    std::vector<uint8_t> mainBlob;
+    std::vector<std::vector<uint8_t>> initBlobs;
+};
+
+ImportDataWs readBlobsWs_v1(std::istream& stream) {
+    ImportDataWs data;
+
+    uint32_t blobSize;
+    stream >> blobSize;
+    data.mainBlob.resize(blobSize);
+    stream.read(reinterpret_cast<char*>(data.mainBlob.data()), blobSize);
+
+    uint32_t initCount;
+    stream >> initCount;
+    char delimiter;
+    stream >> delimiter;
+    if (delimiter != ':') {
+        OPENVINO_THROW("Invalid init blob delimiter found, expecting ':', got: ", delimiter);
+    }
+
+    data.initBlobs.resize(initCount);
+    for (uint32_t i = 0; i < initCount; ++i) {
+        auto& initBlob = data.initBlobs[i];
+        uint32_t initBlobSize;
+        stream >> initBlobSize;
+        initBlob.resize(initBlobSize);
+        stream.read(reinterpret_cast<char*>(initBlob.data()), initBlobSize);
+    }
+
+    return data;
+}
+
+ImportDataWs readBlobsWs_general(std::istream& stream) {
+    ImportDataWs data;
+
+    uint32_t blobSize;
+    stream >> blobSize;
+    data.mainBlob.resize(blobSize);
+    stream.read(reinterpret_cast<char*>(data.mainBlob.data()), blobSize);
+
+    data.initBlobs.resize(1);
+    auto& initBlob = data.initBlobs[0];
+    uint32_t initBlobSize;
+    stream >> initBlobSize;
+    initBlob.resize(initBlobSize);
+    stream.read(reinterpret_cast<char*>(initBlob.data()), initBlobSize);
+
+    return data;
+}
+
 void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
@@ -988,7 +1039,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
     std::shared_ptr<intel_npu::IGraph> graph;
-    std::shared_ptr<intel_npu::IGraph> initGraph;
+    std::vector<std::shared_ptr<intel_npu::IGraph>> initGraphs;
     std::shared_ptr<ov::Model> initModel;
 
     try {
@@ -1000,15 +1051,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             initModel = model->clone();
 
             auto begin = std::chrono::steady_clock::now();
-            const std::vector<std::shared_ptr<intel_npu::IGraph>> initMainGraph =
+            std::vector<std::shared_ptr<intel_npu::IGraph>> initMainGraphs =
                 compiler->compileWS(initModel, localConfig);
             auto end = std::chrono::steady_clock::now();
             std::cout << "compiler->compileWS() call "
                       << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
                       << std::endl;
 
-            initGraph = initMainGraph.at(0);
-            graph = initMainGraph.at(1);
+            graph = initMainGraphs.back();
+            initMainGraphs.pop_back();
+            initGraphs = std::move(initMainGraphs);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -1024,7 +1076,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                         device,
                                                         graph,
                                                         localConfig,
-                                                        initGraph,
+                                                        initGraphs,
                                                         initModel);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -1223,9 +1275,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
                                                                 device,
                                                                 graph,
                                                                 localConfig,
-                                                                initGraphs.at(0),
+                                                                initGraphs,
                                                                 originalModel);
             } else {
+                // TODO: BENCHMARK_INIT must become an integer?
+                if (initGraphs.empty()) {
+                    OPENVINO_THROW("Can't BENCHMARK_INIT: single init function not found");
+                }
+
                 const std::shared_ptr<ov::Model> modelDummy =
                     create_dummy_model(initGraphs.at(0)->get_metadata().inputs,
                                        initGraphs.at(0)->get_metadata().outputs,

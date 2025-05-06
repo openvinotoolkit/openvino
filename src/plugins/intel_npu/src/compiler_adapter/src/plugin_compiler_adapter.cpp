@@ -133,8 +133,47 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
         const std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
             _compiler->compileWS_v1(model, config);
 
-        initNetworkDescription = initMainNetworkDescriptions[0];
-        mainNetworkDescription = initMainNetworkDescriptions[1];
+#if 0  // TODO: it is not clear whether we should change the name
+            OPENVINO_ASSERT(isMain(initMainNetworkDescriptions.back()->metadata.name),
+                            "Unexpected network name for main:",
+                            initMainNetworkDescriptions.back()->metadata.name);
+#endif
+
+        // Note: excluding plugin graph construction
+        auto compileNetEnd = std::chrono::steady_clock::now();
+        std::cout << "Compile net time: "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(compileNetEnd - compileNetBegin).count()
+                  << " ms" << std::endl;
+
+        std::vector<std::shared_ptr<IGraph>> results;
+        results.reserve(initMainNetworkDescriptions.size());
+        for (auto& networkDesc : initMainNetworkDescriptions) {
+            auto blobContainer = std::make_unique<BlobContainerVector>(std::move(networkDesc->compiledNetwork));
+            ze_graph_handle_t graphHandle = nullptr;
+            if (_zeGraphExt) {
+                // Depending on the config, we may get an error when trying to
+                // get the graph handle from the compiled network
+                try {
+                    graphHandle =
+                        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobContainer->get_ptr()),
+                                                    blobContainer->size());
+                } catch (...) {
+                    _logger.info(
+                        "Failed to obtain the level zero graph handle. Inference requests for this model are not "
+                        "allowed. Only exports are available");
+                }
+            }
+
+            results.push_back(std::make_shared<PluginGraph>(_zeGraphExt,
+                                                            _compiler,
+                                                            _zeroInitStruct,
+                                                            graphHandle,
+                                                            std::move(networkDesc->metadata),
+                                                            std::move(blobContainer),
+                                                            config));
+        }
+
+        return results;
     } break;
     case 2: {
         std::vector<std::shared_ptr<NetworkDescription>> initDscrs;
