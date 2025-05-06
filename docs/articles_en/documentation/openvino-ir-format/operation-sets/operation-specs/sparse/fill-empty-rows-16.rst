@@ -34,7 +34,7 @@ This operator also returns a boolean vector indicating which rows were filled wi
 
 * **1**: ``values`` 1D tensor containing the values of type *T* to be inserted at the specified indices. **Required.**
 * **2**: ``dense_shape`` 1D tensor of type *T_IDX* indicating the shape of the 2D dense tensor. **Required.**
-* **3**: ``indices`` 2D tensor of type *T_IDX* indicating the positions at which ``values`` are placed in the sparse tensor. **Required.**
+* **3**: ``indices`` 2D tensor of type *T_IDX* and non-negative values indicating the positions at which ``values`` are placed in the sparse tensor. **Required.**
     It is of shape ``[M, 2]``, where:
 
     * ``M`` is the same as the length of the ``values`` input.
