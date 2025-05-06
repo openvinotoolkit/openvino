@@ -57,11 +57,13 @@ void reshape_2D(const char* in,
             }
         }
     } else {
-        ov::parallel_for2d_dynamic(out_shape_d0, out_shape_d1, [in, out, out_shape_d0, out_shape_d1, elem_size](size_t i, size_t j) {
-            size_t in_off = j * out_shape_d0 + i;
-            size_t out_off = i * out_shape_d1 + j;
-            copy_element(out + out_off * elem_size, in + in_off * elem_size, elem_size);
-        });
+        ov::parallel_for2d_dynamic(out_shape_d0,
+                                   out_shape_d1,
+                                   [in, out, out_shape_d0, out_shape_d1, elem_size](size_t i, size_t j) {
+                                       size_t in_off = j * out_shape_d0 + i;
+                                       size_t out_off = i * out_shape_d1 + j;
+                                       copy_element(out + out_off * elem_size, in + in_off * elem_size, elem_size);
+                                   });
     }
 }
 
@@ -110,19 +112,21 @@ void reshape_3D(const char* in,
             off_0 += strides[0];
         }
     } else {
-        ov::parallel_for3d(out_shape_d0,
-                           out_shape_d1,
-                           out_shape_d2,
-                           [in, out, axes_order, in_shape_d1, in_shape_d2, out_shape_d1, out_shape_d2, elem_size](size_t i, size_t j, size_t k) {
-                               size_t in_indexes[3];
-                               in_indexes[axes_order[0]] = i;
-                               in_indexes[axes_order[1]] = j;
-                               in_indexes[axes_order[2]] = k;
-                               size_t in_off =
-                                   (in_indexes[0] * in_shape_d1 + in_indexes[1]) * in_shape_d2 + in_indexes[2];
-                               size_t out_off = (i * out_shape_d1 + j) * out_shape_d2 + k;
-                               copy_element(out + out_off * elem_size, in + in_off * elem_size, elem_size);
-                           });
+        ov::parallel_for3d(
+            out_shape_d0,
+            out_shape_d1,
+            out_shape_d2,
+            [in, out, axes_order, in_shape_d1, in_shape_d2, out_shape_d1, out_shape_d2, elem_size](size_t i,
+                                                                                                   size_t j,
+                                                                                                   size_t k) {
+                size_t in_indexes[3];
+                in_indexes[axes_order[0]] = i;
+                in_indexes[axes_order[1]] = j;
+                in_indexes[axes_order[2]] = k;
+                size_t in_off = (in_indexes[0] * in_shape_d1 + in_indexes[1]) * in_shape_d2 + in_indexes[2];
+                size_t out_off = (i * out_shape_d1 + j) * out_shape_d2 + k;
+                copy_element(out + out_off * elem_size, in + in_off * elem_size, elem_size);
+            });
     }
 }
 
@@ -162,23 +166,32 @@ void reshape_4D(const char* in,
             off_0 += strides[0];
         }
     } else {
-        ov::parallel_for4d(
-            out_shape_d0,
-            out_shape_d1,
-            out_shape_d2,
-            out_shape_d3,
-            [in, out, axes_order, in_shape_d1, in_shape_d2, in_shape_d3, out_shape_d1, out_shape_d2, out_shape_d3, elem_size](size_t i, size_t j, size_t k, size_t l) {
-                size_t in_indexes[4];
-                in_indexes[axes_order[0]] = i;
-                in_indexes[axes_order[1]] = j;
-                in_indexes[axes_order[2]] = k;
-                in_indexes[axes_order[3]] = l;
-                size_t in_off =
-                    ((in_indexes[0] * in_shape_d1 + in_indexes[1]) * in_shape_d2 + in_indexes[2]) * in_shape_d3 +
-                    in_indexes[3];
-                size_t out_off = ((i * out_shape_d1 + j) * out_shape_d2 + k) * out_shape_d3 + l;
-                copy_element(out + out_off * elem_size, in + in_off * elem_size, elem_size);
-            });
+        ov::parallel_for4d(out_shape_d0,
+                           out_shape_d1,
+                           out_shape_d2,
+                           out_shape_d3,
+                           [in,
+                            out,
+                            axes_order,
+                            in_shape_d1,
+                            in_shape_d2,
+                            in_shape_d3,
+                            out_shape_d1,
+                            out_shape_d2,
+                            out_shape_d3,
+                            elem_size](size_t i, size_t j, size_t k, size_t l) {
+                               size_t in_indexes[4];
+                               in_indexes[axes_order[0]] = i;
+                               in_indexes[axes_order[1]] = j;
+                               in_indexes[axes_order[2]] = k;
+                               in_indexes[axes_order[3]] = l;
+                               size_t in_off =
+                                   ((in_indexes[0] * in_shape_d1 + in_indexes[1]) * in_shape_d2 + in_indexes[2]) *
+                                       in_shape_d3 +
+                                   in_indexes[3];
+                               size_t out_off = ((i * out_shape_d1 + j) * out_shape_d2 + k) * out_shape_d3 + l;
+                               copy_element(out + out_off * elem_size, in + in_off * elem_size, elem_size);
+                           });
     }
 }
 
@@ -230,7 +243,18 @@ void reshape_5D(const char* in,
             out_shape_d2,
             out_shape_d3,
             out_shape_d4,
-            [in, out, axes_order, in_shape_d1, in_shape_d2, in_shape_d3, in_shape_d4, out_shape_d1, out_shape_d2, out_shape_d3, out_shape_d4, elem_size](size_t i, size_t j, size_t k, size_t l, size_t m) {
+            [in,
+             out,
+             axes_order,
+             in_shape_d1,
+             in_shape_d2,
+             in_shape_d3,
+             in_shape_d4,
+             out_shape_d1,
+             out_shape_d2,
+             out_shape_d3,
+             out_shape_d4,
+             elem_size](size_t i, size_t j, size_t k, size_t l, size_t m) {
                 size_t in_indexes[5];
                 in_indexes[axes_order[0]] = i;
                 in_indexes[axes_order[1]] = j;
@@ -303,7 +327,18 @@ void reshape_6D(const char* in,
             out_shape_d3,
             out_shape_d4,
             out_shape_d5,
-            [=, &axes_order, &in_shape_d1, &in_shape_d2, &in_shape_d3, &in_shape_d4, &in_shape_d5, &out_shape_d1, &out_shape_d2, &out_shape_d3, &out_shape_d4, &out_shape_d5](size_t i, size_t j, size_t k, size_t l, size_t m, size_t n) {
+            [=,
+             &axes_order,
+             &in_shape_d1,
+             &in_shape_d2,
+             &in_shape_d3,
+             &in_shape_d4,
+             &in_shape_d5,
+             &out_shape_d1,
+             &out_shape_d2,
+             &out_shape_d3,
+             &out_shape_d4,
+             &out_shape_d5](size_t i, size_t j, size_t k, size_t l, size_t m, size_t n) {
                 size_t in_indexes[6];
                 in_indexes[axes_order[0]] = i;
                 in_indexes[axes_order[1]] = j;
@@ -314,12 +349,12 @@ void reshape_6D(const char* in,
                 size_t in_off =
                     ((((in_indexes[0] * in_shape_d1 + in_indexes[1]) * in_shape_d2 + in_indexes[2]) * in_shape_d3 +
                       in_indexes[3]) *
-                        in_shape_d4 +
+                         in_shape_d4 +
                      in_indexes[4]) *
                         in_shape_d5 +
                     in_indexes[5];
                 size_t out_off = ((((i * out_shape_d1 + j) * out_shape_d2 + k) * out_shape_d3 + l) * out_shape_d4 + m) *
-                                 out_shape_d5 +
+                                     out_shape_d5 +
                                  n;
                 copy_element(out + out_off * elem_size, in + in_off * elem_size, elem_size);
             });
