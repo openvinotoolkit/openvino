@@ -350,7 +350,7 @@ std::pair<std::vector<std::pair<int64_t, std::string>>, int64_t> parse_notation(
             idx_to_name.emplace_back(i, dimension);
             continue;
         }
-        auto to_implace = (ellipsis_visited ? i - static_cast<int64_t>(parsed.size()) : i);
+        auto to_implace = ellipsis_visited ? i - static_cast<int64_t>(parsed.size()) : i;
         idx_to_name.emplace_back(to_implace, dimension);
     }
     return {idx_to_name, (ellipsis_visited ? -2 : idx_to_name.size())};
