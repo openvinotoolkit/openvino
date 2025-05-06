@@ -2,7 +2,7 @@
 _*
 [Bb]uild*/
 cmake-build*
-.cache
+
 # but ensure we don't skip Python files
 !__init__.py
 !__main__.py
@@ -15,7 +15,6 @@ cmake-build*
 *.idea
 .vscode
 .vs/
-out/
 .vsconan/
 .DS_Store
 **/tags

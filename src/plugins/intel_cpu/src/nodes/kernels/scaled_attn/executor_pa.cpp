@@ -31,7 +31,6 @@
 #    include "arm_sve.h"
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
 #endif
-#include "openvino/util/linux_perf.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 
@@ -2208,7 +2207,6 @@ struct MHA {
                                      div_up(_workitems.get_reorder_max_kv_len(), _helper._block_size));
 
         // packed k, v
-        {LINUX_PERF_LOG("trans");
         parallel_for2d_dynamic(reorder_work_count, Hk, [&](size_t w, size_t hk) {
             const auto& item = _workitems.get_reorder_work_item(w);
             const auto batch_in_seq = item.batch_in_seq;
@@ -2264,9 +2262,6 @@ struct MHA {
                 }
             }
         });
-        }
-
-        LINUX_PERF_LOG("fma");
 
         // loop along HK dimension: if mixed first/second token and elements count is enough, loop HK to reuse KV in the
         // CPU cache
@@ -2691,7 +2686,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         PlainTensor output_emb;
         PlainTensor output_score;
 
-        {LINUX_PERF_LOG("init");
         init(inputs,
              outputs,
              q,
@@ -2711,7 +2705,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              rotation_deltas,
              rotation_trig_lut,
              output_emb,
-             output_score);}
+             output_score);
 
         if (rotated_block_indices) {
             rotate_kv_cache<KEY_CACHE_TYPE>(k_cache,
@@ -2721,10 +2715,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                                             _helper._block_rotation_coefficient_scratch);
         }
 
-        {LINUX_PERF_LOG("concat");
-        concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);}
+        concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
 
-        LINUX_PERF_LOG("kernel");
         _kernel(q,
                 k_cache,
                 v_cache,

@@ -58,7 +58,6 @@
 #include "nodes/matrix_nms.h"
 #include "nodes/memory.hpp"
 #include "nodes/mha.h"
-#include "nodes/moe_expert.h"
 #include "nodes/multiclass_nms.hpp"
 #include "nodes/multinomial.hpp"
 #include "nodes/mvn.h"
@@ -227,7 +226,6 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
     INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
     INTEL_CPU_NODE(LoRA, Type::LoRA);
-    INTEL_CPU_NODE(MOEExpert, Type::MOEExpert);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
