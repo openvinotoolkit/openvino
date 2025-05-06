@@ -6,6 +6,7 @@
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
 
@@ -13,12 +14,14 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
              ze_graph_handle_t graphHandle,
              NetworkMetadata metadata,
-             std::unique_ptr<BlobContainer> blobPtr,
+             const std::optional<ov::Tensor>& blob,
+             bool blobAllocatedByPlugin,
              const Config& config,
              const ov::SoPtr<ICompiler>& compiler)
-    : IGraph(graphHandle, std::move(metadata), config, std::move(blobPtr)),
+    : IGraph(graphHandle, std::move(metadata), config, blob),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
+      _blobAllocatedByPlugin(blobAllocatedByPlugin),
       _compiler(compiler),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -39,11 +42,12 @@ size_t Graph::export_blob(std::ostream& stream) const {
                        "its lifetime.");
     }
 
-    if (_blobPtr == nullptr) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
+    if (_blob ==
+        std::nullopt) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
         _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
     } else {  // in all other cases, the blob is handled by the plugin
-        blobPtr = static_cast<const uint8_t*>(_blobPtr->get_ptr());
-        blobSize = _blobPtr->size();
+        blobPtr = static_cast<const uint8_t*>(_blob->data());
+        blobSize = _blob->get_byte_size();
     }
 
     stream.write(reinterpret_cast<const char*>(blobPtr), blobSize);
@@ -73,9 +77,9 @@ std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector
         OPENVINO_THROW("Profiling post-processing is not supported.");
     }
 
-    std::vector<uint8_t> blob(_blobPtr->size());
-    blob.assign(reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()),
-                reinterpret_cast<const uint8_t*>(_blobPtr->get_ptr()) + _blobPtr->size());
+    std::vector<uint8_t> blob(_blob->get_byte_size());
+    blob.assign(reinterpret_cast<const uint8_t*>(_blob->data()),
+                reinterpret_cast<const uint8_t*>(_blob->data()) + _blob->get_byte_size());
     return _compiler->process_profiling_output(profData, blob, config);
 }
 
@@ -163,7 +167,7 @@ void Graph::initialize(const Config& config) {
 }
 
 bool Graph::release_blob(const Config& config) {
-    if (_blobPtr == nullptr || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
+    if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
         config.get<PERF_COUNT>()) {
         return false;
     }
@@ -176,13 +180,14 @@ bool Graph::release_blob(const Config& config) {
         return false;
     }
 
-    if (!_blobPtr->release_from_memory()) {
-        return false;
+    auto impl = ov::get_tensor_impl(*_blob);
+    if (_blobAllocatedByPlugin) {
+        _blob = std::nullopt;
+        _logger.debug("Blob is released");
+        return true;
     }
 
-    _logger.debug("Blob is released");
-
-    return true;
+    return false;
 };
 
 Graph::~Graph() {

@@ -16,10 +16,10 @@ namespace intel_npu {
 IGraph::IGraph(ze_graph_handle_t handle,
                NetworkMetadata metadata,
                const Config& config,
-               std::unique_ptr<BlobContainer> blobPtr)
+               const std::optional<ov::Tensor>& blob)
     : _handle(handle),
       _metadata(std::move(metadata)),
-      _blobPtr(std::move(blobPtr)),
+      _blob(blob),
       _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
 const NetworkMetadata& IGraph::get_metadata() const {

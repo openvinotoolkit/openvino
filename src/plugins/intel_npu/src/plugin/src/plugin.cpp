@@ -528,14 +528,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     std::shared_ptr<ov::AlignedBuffer> modelBuffer;
     ov::SharedStreamBuffer buffer = {nullptr, 0};
     std::istream stream{origStream.rdbuf()};
+    ov::Tensor tensor;
     // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
         blob_it != npu_plugin_properties.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        modelBuffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                     compiled_blob.get_byte_size(),
-                                                                     compiled_blob);
+        tensor = blob_it->second.as<ov::Tensor>();
         buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size());
         stream.rdbuf(&buffer);
         if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
@@ -589,6 +587,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
 
     try {
         uint64_t graphSize;
+        bool blobAllocatedByPlugin = false;
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
         if (!skipCompatibility) {
             auto storedMeta = read_metadata_from(stream);
@@ -601,22 +600,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             graphSize = MetadataBase::getFileSize(stream);
         }
 
-        std::unique_ptr<BlobContainer> blobPtr;
-
-        if (modelBuffer == nullptr) {
-            std::vector<uint8_t> blob(graphSize);
-            stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
+        if (tensor.get_byte_size() == 0) {
+            auto blobPtr = std::make_shared<std::vector<uint8_t>>(graphSize);
+            blobAllocatedByPlugin = true;
+            stream.read(reinterpret_cast<char*>(blobPtr->data()), blobPtr->size());
             if (!stream) {
                 OPENVINO_THROW("Failed to read data from stream!");
             }
-            _logger.debug("Successfully read %zu bytes into blob.", graphSize);
+            _logger.debug("Successfully read %zu bytes into blob.", blobPtr->size());
 
-            blobPtr = std::make_unique<BlobContainerVector>(std::move(blob));
-        } else {
-            blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, stream.tellg(), graphSize);
+            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobPtr->size()}, blobPtr->data());
+            auto impl = ov::get_tensor_impl(tensor);
+            impl._so = blobPtr;
+            tensor = ov::make_tensor(impl);
         }
 
-        auto graph = compiler->parse(std::move(blobPtr), localConfig);
+        auto graph = compiler->parse(tensor, blobAllocatedByPlugin, localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =

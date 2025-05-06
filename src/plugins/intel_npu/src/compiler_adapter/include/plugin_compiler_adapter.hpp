@@ -21,7 +21,9 @@ public:
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    std::shared_ptr<IGraph> parse(std::unique_ptr<BlobContainer> blobPtr, const Config& config) const override;
+    std::shared_ptr<IGraph> parse(const ov::Tensor& blob,
+                                  bool blobAllocatedByPlugin,
+                                  const Config& config) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
