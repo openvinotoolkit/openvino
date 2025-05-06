@@ -82,10 +82,12 @@ class OPENVINO_API Allocator {
     template <typename T>
     struct has_noexcept_deallocate<
         T,
-        std::enable_if_t<noexcept(std::declval<std::decay_t<T>>().deallocate(std::declval<void*>(),
-                                                                             std::declval<const size_t>(),
-                                                                             std::declval<const size_t>()))>>
-        : std::true_type {};
+        std::void_t<decltype(std::declval<std::decay_t<T>>().deallocate(std::declval<void*>(),
+                                                                        std::declval<const size_t>(),
+                                                                        std::declval<const size_t>()))>>
+        : std::bool_constant<noexcept(std::declval<std::decay_t<T>>().deallocate(std::declval<void*>(),
+                                                                                 std::declval<const size_t>(),
+                                                                                 std::declval<const size_t>()))> {};
 
     std::shared_ptr<Base> _impl;
     std::shared_ptr<void> _so;
@@ -138,7 +140,7 @@ public:
                                     !std::is_convertible<typename std::decay<A>::type, std::shared_ptr<Base>>::value &&
                                     !has_noexcept_deallocate<A>::value,
                                 bool>::type = true>
-    OPENVINO_DEPRECATED("Please, add to your allocator deallocate method noexcept annotation. This method will be "
+    OPENVINO_DEPRECATED("Please annotate your allocator's deallocate method with noexcept. This method will be "
                         "removed in 2026.0.0 release")
     Allocator(A&& a)
         : _impl{std::make_shared<Impl<typename std::decay<A>::type>>(std::forward<A>(a))} {}
