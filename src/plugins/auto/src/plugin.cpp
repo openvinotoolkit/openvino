@@ -414,6 +414,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto auto_s_context = std::make_shared<ScheduleContext>();
     ov::AnyMap filter_property;
     auto str_devices = get_device_list(full_property, model, model_path);
+    // in case startup or runtime fallback is set caused by cache blob checking, we need to set the property
+    if (full_property.count(ov::intel_auto::enable_startup_fallback.name())) {
+        load_config.set_property(ov::intel_auto::enable_startup_fallback(
+            full_property.at(ov::intel_auto::enable_startup_fallback.name()).as<bool>()));
+    }
+    if (full_property.count(ov::intel_auto::enable_runtime_fallback.name())) {
+        load_config.set_property(ov::intel_auto::enable_runtime_fallback(
+            full_property.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()));
+    }
     // fill in the context for auto
     if (load_config.get_property(ov::enable_profiling)) {
         filter_property.insert({ov::enable_profiling(true)});
@@ -459,14 +468,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         }
         LOG_INFO_TAG("device:%s, priority:%ld", iter->device_name.c_str(), iter->device_priority);
     }
-    auto_s_context->m_startup_fallback =
-        full_property.count(ov::intel_auto::enable_startup_fallback.name())
-            ? full_property.at(ov::intel_auto::enable_startup_fallback.name()).as<bool>()
-            : load_config.get_property(ov::intel_auto::enable_startup_fallback);
-    auto_s_context->m_runtime_fallback =
-        full_property.count(ov::intel_auto::enable_runtime_fallback.name())
-            ? full_property.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
-            : load_config.get_property(ov::intel_auto::enable_runtime_fallback);
+    auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
+    auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
     auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
     auto_s_context->m_model_path = model_path;
@@ -726,9 +729,6 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
     bool enable_runtime_cpu = properties.count(ov::intel_auto::enable_runtime_fallback.name())
                                   ? properties.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
                                   : true;
-    properties.erase(ov::intel_auto::enable_startup_fallback.name());
-    properties.erase(ov::intel_auto::enable_runtime_fallback.name());
-
     bool is_cumulative_tput =
         get_device_name() != "AUTO" ||
         (properties.count(ov::hint::performance_mode.name()) &&
