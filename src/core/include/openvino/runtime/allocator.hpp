@@ -76,15 +76,15 @@ class OPENVINO_API Allocator {
         A a;
     };
 
-    template <typename, typename = std::void_t<>>
+    template <typename T, typename = void>
     struct has_noexcept_deallocate : std::false_type {};
 
     template <typename T>
     struct has_noexcept_deallocate<
         T,
-        std::enable_if<noexcept(std::declval<std::decay_t<T>>().deallocate(std::declval<void*>(),
-                                                                           std::declval<const size_t>(),
-                                                                           std::declval<const size_t>()))>>
+        std::enable_if_t<noexcept(std::declval<std::decay_t<T>>().deallocate(std::declval<void*>(),
+                                                                             std::declval<const size_t>(),
+                                                                             std::declval<const size_t>()))>>
         : std::true_type {};
 
     std::shared_ptr<Base> _impl;
@@ -130,6 +130,18 @@ public:
                                     has_noexcept_deallocate<A>::value,
                                 bool>::type = true>
     Allocator(A&& a) : _impl{std::make_shared<Impl<typename std::decay<A>::type>>(std::forward<A>(a))} {}
+
+    template <
+        typename A,
+        typename std::enable_if<!std::is_same<typename std::decay<A>::type, Allocator>::value &&
+                                    !std::is_abstract<typename std::decay<A>::type>::value &&
+                                    !std::is_convertible<typename std::decay<A>::type, std::shared_ptr<Base>>::value &&
+                                    !has_noexcept_deallocate<A>::value,
+                                bool>::type = true>
+    OPENVINO_DEPRECATED("Please, add to your allocator deallocate method noexcept annotation. This method will be "
+                        "removed in 2026.0.0 release")
+    Allocator(A&& a)
+        : _impl{std::make_shared<Impl<typename std::decay<A>::type>>(std::forward<A>(a))} {}
 
     /**
      * @brief Allocates memory
