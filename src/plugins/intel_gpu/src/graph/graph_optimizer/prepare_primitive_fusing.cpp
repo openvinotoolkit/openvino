@@ -297,12 +297,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 const_dep.get_output_layout().count() != static_cast<size_t>(out_features)) {
                 continue;
             }
-            auto parent_out_pshape = node->get_dependency(non_const_dep_idx).get_output_layout().get_partial_shape();
-            auto eltw_out_pshape = eltw_node.get_output_layout(0).get_partial_shape();
-            auto merged_shape = parent_out_pshape;
-            bool can_broadcast = ov::PartialShape::broadcast_merge_into(merged_shape, eltw_out_pshape, broadcast_type);
             // Handle eltw as a bias only when eltw's shape is to be broadcasted to parent node
-            if (!can_broadcast || merged_shape != parent_out_pshape)
+            if (const_dep.get_output_layout().count() > node->get_dependency(non_const_dep_idx).get_output_layout().count())
                 continue;
         }
         auto& bias_node = eltw_node.get_dependency(const_dep_idx);
