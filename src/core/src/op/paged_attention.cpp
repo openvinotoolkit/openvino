@@ -8,6 +8,72 @@
 #include "itt.hpp"
 #include "openvino/op/op.hpp"
 
+namespace {
+
+// Validates input rank and type for a node input.
+// We consider that dynamic rank/type are always valid case.
+// Empty {} means any rank/type
+inline void input_check(ov::Node* node,
+                        size_t idx,
+                        const std::string& input_name,
+                        const std::set<int64_t>& allowed_ranks,
+                        const std::set<ov::element::Type>& allowed_types) {
+    const auto& pshape = node->get_input_partial_shape(idx);
+    const auto& etype = node->get_input_element_type(idx);
+
+    // Check rank
+    if (!pshape.rank().is_dynamic()) {
+        int64_t rank = pshape.rank().get_length();
+        NODE_VALIDATION_CHECK(
+            node,
+            allowed_ranks.empty() || allowed_ranks.count(rank),
+            "Rank of `",
+            input_name,
+            "` input should be one of [",
+            [&allowed_ranks]() {
+                std::ostringstream oss;
+                bool first = true;
+                for (auto r : allowed_ranks) {
+                    if (r == -1)
+                        continue;
+                    if (!first)
+                        oss << ", ";
+                    oss << r;
+                    first = false;
+                }
+                return oss.str();
+            }(),
+            "], but it is ",
+            rank,
+            ".");
+    }
+
+    // Check type
+    if (!etype.is_dynamic()) {
+        NODE_VALIDATION_CHECK(
+            node,
+            allowed_types.empty() || allowed_types.count(etype),
+            "Element type of `",
+            input_name,
+            "` input should be one of [",
+            [&allowed_types]() {
+                std::ostringstream oss;
+                bool first = true;
+                for (const auto& t : allowed_types) {
+                    if (!first)
+                        oss << ", ";
+                    oss << t;
+                    first = false;
+                }
+                return oss.str();
+            }(),
+            "], but it is ",
+            etype,
+            ".");
+    }
+}
+
+}  // namespace
 namespace ov {
 namespace op {
 
@@ -23,165 +89,25 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           "PagedAttensionExtension expects 13 or 16 inputs, but it has ",
                           get_input_size());
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(0).rank().is_dynamic() || get_input_partial_shape(0).rank().get_length() == 2,
-        "Rank of `query` input should be 2, but it is ",
-        get_input_partial_shape(0).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(1).rank().is_dynamic() || get_input_partial_shape(1).rank().get_length() == 2,
-        "Rank of `key` input should be 2, but it is ",
-        get_input_partial_shape(1).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(2).rank().is_dynamic() || get_input_partial_shape(2).rank().get_length() == 2,
-        "Rank of `value` input should be 2, but it is ",
-        get_input_partial_shape(2).rank().get_length(),
-        ".");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(3).rank().is_dynamic() || get_input_partial_shape(3).rank().get_length() >= 2,
-        "Rank of `key_cache` input should be at least 2, but it is ",
-        get_input_partial_shape(3).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(4).rank().is_dynamic() || get_input_partial_shape(4).rank().get_length() >= 2,
-        "Rank of `value_cache` input should be at least 2, but it is ",
-        get_input_partial_shape(4).rank().get_length(),
-        ".");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(5).rank().is_dynamic() || get_input_partial_shape(5).rank().get_length() == 1,
-        "Rank of `past_lens` input should be 1, but it is ",
-        get_input_partial_shape(5).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(5).is_dynamic() || get_input_element_type(5) == element::i32,
-                          "Element type of `past_lens` input should be i32, but it is ",
-                          get_input_element_type(5),
-                          ".");
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(6).rank().is_dynamic() || get_input_partial_shape(6).rank().get_length() == 1,
-        "Rank of `subsequence_begins` input should be 1, but it is ",
-        get_input_partial_shape(6).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(6).is_dynamic() || get_input_element_type(6) == element::i32,
-                          "Element type of `subsequence_begins` input should be i32, but it is ",
-                          get_input_element_type(6),
-                          ".");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(7).rank().is_dynamic() || get_input_partial_shape(7).rank().get_length() == 1,
-        "Rank of `block_indices` input should be 1, but it is ",
-        get_input_partial_shape(7).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(7).is_dynamic() || get_input_element_type(7) == element::i32,
-                          "Element type of `block_indices` input should be i32, but it is ",
-                          get_input_element_type(7),
-                          ".");
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(8).rank().is_dynamic() || get_input_partial_shape(8).rank().get_length() == 1,
-        "Rank of `block_indices_begins` input should be 1, but it is ",
-        get_input_partial_shape(8).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(8).is_dynamic() || get_input_element_type(8) == element::i32,
-                          "Element type of `block_indices_begins` input should be i32, but it is ",
-                          get_input_element_type(8),
-                          ".");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(9).rank().is_dynamic() || get_input_partial_shape(9).rank().get_length() == 0,
-        "Input `scale` should be a scalar but it has rank ",
-        get_input_partial_shape(9).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(9).is_dynamic() || get_input_element_type(9).is_real(),
-                          "Element type of `scale` input should be a floating type, but it is ",
-                          get_input_element_type(9),
-                          ".");
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(10).rank().is_dynamic() || get_input_partial_shape(10).rank().get_length() == 0,
-        "Input `sliding_window` should be a scalar but it has rank ",
-        get_input_partial_shape(10).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(10).is_dynamic() || get_input_element_type(10) == element::i32,
-                          "Element type of `sliding_window` input should be i32, but it is ",
-                          get_input_element_type(10),
-                          ".");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(11).rank().is_dynamic() || get_input_partial_shape(11).rank().get_length() == 1,
-        "Rank of `alibi_slopes` input should be 1, but it is ",
-        get_input_partial_shape(11).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(11).is_dynamic() || get_input_element_type(11).is_real(),
-                          "Element type of `alibi_slopes` input should be a floating type, but it is ",
-                          get_input_element_type(11),
-                          ".");
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(12).rank().is_dynamic() || get_input_partial_shape(12).rank().get_length() == 0,
-        "Input `max_context_len` should be a scalar but it has rank ",
-        get_input_partial_shape(12).rank().get_length(),
-        ".");
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(12).is_dynamic() || get_input_element_type(12) == element::i32,
-                          "Element type of `max_context_len` input should be i32, but it is ",
-                          get_input_element_type(12),
-                          ".");
+    // format: Node*, input_idx, name, {rank_list}, {type_list}
+    input_check(this, 0, "query", {2}, {});
+    input_check(this, 1, "key", {2}, {});
+    input_check(this, 2, "value", {2}, {});
+    input_check(this, 3, "key_cache", {2, 3, 4, 5}, {});
+    input_check(this, 4, "value_cache", {2, 3, 4, 5}, {});
+    input_check(this, 5, "past_lens", {1}, {element::i32});
+    input_check(this, 6, "subsequence_begins", {1}, {element::i32});
+    input_check(this, 7, "block_indices", {1}, {element::i32});
+    input_check(this, 8, "block_indices_begins", {1}, {element::i32});
+    input_check(this, 9, "scale", {0}, {element::f16, element::f32});
+    input_check(this, 10, "sliding_window", {0}, {element::i32});
+    input_check(this, 11, "alibi_slopes", {1}, {element::f16, element::f32});
+    input_check(this, 12, "max_context_len", {0}, {element::i32});
 
     if (get_input_size() == 16) {
-        NODE_VALIDATION_CHECK(
-            this,
-            get_input_partial_shape(13).rank().is_dynamic() || get_input_partial_shape(13).rank().get_length() == 1,
-            "Input `rotated_block_indices` should either have rank 1 or be omitted, but it has rank ",
-            get_input_partial_shape(13).rank().get_length(),
-            ".");
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(13).is_dynamic() || get_input_element_type(13) == element::i32,
-                              "Element type of `rotated_block_indices` input should be i32, but it is ",
-                              get_input_element_type(13),
-                              ".");
-        NODE_VALIDATION_CHECK(
-            this,
-            get_input_partial_shape(14).rank().is_dynamic() || get_input_partial_shape(14).rank().get_length() == 2,
-            "Input `rotation_deltas` should either have rank 2 or be omitted, but it has rank ",
-            get_input_partial_shape(14).rank().get_length(),
-            ".");
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(14).is_dynamic() || get_input_element_type(14) == element::i32,
-                              "Element type of `rotation_deltas` input should be i32, but it is ",
-                              get_input_element_type(14),
-                              ".");
-        NODE_VALIDATION_CHECK(
-            this,
-            get_input_partial_shape(15).rank().is_dynamic() || get_input_partial_shape(15).rank().get_length() == 2,
-            "Input `rotation_trig_lut` should either have rank 2 or be omitted, but it has rank ",
-            get_input_partial_shape(15).rank().get_length(),
-            ".");
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(15).is_dynamic() || get_input_element_type(15) == element::f32 ||
-                                  get_input_element_type(15) == element::f16,
-                              "Element type of `rotation_trig_lut` input should be f32 or f16, but it is ",
-                              get_input_element_type(15),
-                              ".");
+        input_check(this, 13, "rotated_block_indices", {1}, {element::i32});
+        input_check(this, 14, "rotation_deltas", {2}, {element::i32});
+        input_check(this, 15, "rotation_trig_lut", {2}, {element::f16, element::f32});
     }
 
     // value head_size may be not same with key
