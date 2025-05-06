@@ -73,7 +73,7 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
 
-    return symbolic_optimizations.get_manager()->run_passes(model);
+    return symbolic_optimizations.run_on_model(model);
 }
 
 // This is a utility function used in the work around in ChatGLM pattern.
