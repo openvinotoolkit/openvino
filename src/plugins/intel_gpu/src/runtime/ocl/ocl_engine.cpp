@@ -100,6 +100,7 @@ void ocl_engine::create_onednn_engine(const ExecutionConfig& config) {
 }
 
 dnnl::engine& ocl_engine::get_onednn_engine() const {
+    const std::lock_guard<std::mutex> lock(onednn_mutex);
     OPENVINO_ASSERT(_onednn_engine, "[GPU] Can't get onednn engine handle as it was not initialized. Please check that create_onednn_engine() was called");
     return *_onednn_engine;
 }
