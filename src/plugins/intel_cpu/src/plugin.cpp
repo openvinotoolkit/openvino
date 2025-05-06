@@ -31,6 +31,8 @@
 #endif
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 
 using namespace ov::threading;
 
@@ -150,7 +152,7 @@ Plugin::~Plugin() {
 }
 
 static bool streamsSet(const ov::AnyMap& config) {
-    return config.count(ov::num_streams.name());
+    return config.find(ov::num_streams.name()) != config.end();
 }
 
 void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
@@ -222,15 +224,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
         static const std::set<ov::element::Type_t> supported_precisions = {
-            ov::element::Type_t::u4,   ov::element::Type_t::i4,      ov::element::Type_t::u8,
-            ov::element::Type_t::i8,   ov::element::Type_t::f8e4m3,  ov::element::Type_t::f8e5m2,
-            ov::element::Type_t::u16,  ov::element::Type_t::i16,     ov::element::Type_t::u32,
-            ov::element::Type_t::i32,  ov::element::Type_t::u64,     ov::element::Type_t::i64,
-            ov::element::Type_t::bf16, ov::element::Type_t::f16,     ov::element::Type_t::f32,
-            ov::element::Type_t::f64,  ov::element::Type_t::boolean, ov::element::Type_t::string,
-            ov::element::Type_t::nf4,  ov::element::Type_t::dynamic};
+            ov::element::Type_t::u4,     ov::element::Type_t::i4,      ov::element::Type_t::u8,
+            ov::element::Type_t::i8,     ov::element::Type_t::f8e4m3,  ov::element::Type_t::f8e5m2,
+            ov::element::Type_t::u16,    ov::element::Type_t::i16,     ov::element::Type_t::u32,
+            ov::element::Type_t::i32,    ov::element::Type_t::u64,     ov::element::Type_t::i64,
+            ov::element::Type_t::bf16,   ov::element::Type_t::f16,     ov::element::Type_t::f32,
+            ov::element::Type_t::f64,    ov::element::Type_t::boolean, ov::element::Type_t::string,
+            ov::element::Type_t::nf4,    ov::element::Type_t::f4e2m1,  ov::element::Type_t::f8e8m0,
+            ov::element::Type_t::dynamic};
 
-        if (!supported_precisions.count(input_precision)) {
+        if (supported_precisions.find(input_precision) == supported_precisions.end()) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
                                            input_precision,
                                            " is not supported yet...");
@@ -578,8 +581,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     CacheDecrypt decrypt{codec_xor};
     bool decript_from_string = false;
-    if (config.count(ov::cache_encryption_callbacks.name())) {
-        const auto& encryption_callbacks = config.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>();
+    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
+        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
         decrypt.m_decrypt_str = encryption_callbacks.decrypt;
         decript_from_string = true;
     }

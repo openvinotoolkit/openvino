@@ -8,15 +8,22 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset5.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include <transformations/cpu_opset/common/pass/rnn_sequences_optimization.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ov_ops/type_relaxed.hpp>
 #include <openvino/pass/manager.hpp>
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;

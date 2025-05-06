@@ -153,6 +153,10 @@ std::shared_ptr<SnippetsFunctionBase> MHA::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes, m_input_types, m_with_mul, is_with_reshape);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHA2D::get_subgraph() const {
+    return std::make_shared<ov::test::snippets::MHA2DFunction>(inputDynamicShapes, m_input_types);
+}
+
 void MHA::init_thresholds() {
     MHABase::init_thresholds();
     auto precision_hint = configuration.count(ov::hint::inference_precision.name())
@@ -245,11 +249,21 @@ std::shared_ptr<SnippetsFunctionBase> MHAWithExtractedReshape::get_subgraph() co
     return std::make_shared<ov::test::snippets::MHAWithExtractedReshapeFunction>(inputDynamicShapes, false);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MHARankUpgradeToReductionReshape::get_subgraph() const {
+    return std::make_shared<ov::test::snippets::MHARankUpgradeToReductionFunction>(inputDynamicShapes);
+}
+
 std::shared_ptr<SnippetsFunctionBase> MHAWithDynamicMul::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAWithDynamicMulFunction>(inputDynamicShapes, m_input_types);
 }
 
 TEST_P(MHA, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHA2D, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
@@ -311,6 +325,12 @@ TEST_P(MHAFQ, CompareWithRefImpl) {
 }
 
 TEST_P(MHAWithExtractedReshape, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MHARankUpgradeToReductionReshape, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

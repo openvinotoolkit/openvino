@@ -95,7 +95,7 @@ ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
             return false;
         const auto& high_precision_type = fq->get_element_type();
 
-        auto weights = ov::util::constantfold_subgraph(fq->get_input_node_shared_ptr(0));
+        auto weights = ov::util::constantfold_subgraph(fq->input_value(0));
         if (!weights)
             return false;
         auto input_low = ov::as_type_ptr<op::v0::Constant>(fq->get_input_node_shared_ptr(1));

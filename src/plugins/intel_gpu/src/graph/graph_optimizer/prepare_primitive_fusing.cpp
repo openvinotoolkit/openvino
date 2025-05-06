@@ -186,7 +186,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
             if (!node->get_dependency(0).is_type<fully_connected>())
                 continue;
             auto swiglu_prim = node->get_kernel_impl_params()->typed_desc<swiglu>();
-            auto& fc_node = node->get_dependency(0).as<fully_connected>();
+            auto& fc_node = node->get_dependency(0);
             if (node->get_dependencies().size() > 1)
                 continue;
             if (!fc_node.get_fused_primitives().empty())
@@ -196,14 +196,6 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
                 continue;
             auto wt_dt = fc_node.get_input_layout(1).data_type;
             if (!data_type_traits::is_i4_u4(wt_dt))
-                continue;
-            // TODO: For per-channel quantized models(# of decompression scale groups = 1), 2FCs+SwiGLU fusion is disabled due to accuracy issue
-            bool has_scale = !fc_node.get_primitive()->decompression_scale.empty();
-            size_t scale_idx = fc_node.get_primitive()->bias.empty() ? 2 : 3;
-            if (has_scale &&
-                fc_node.get_input_layout(1).is_static() &&
-                fc_node.get_input_layout(scale_idx).is_static() &&
-                fc_node.get_input_layout(1).batch() == static_cast<int>(fc_node.get_input_layout(scale_idx).get_linear_size()))
                 continue;
             if (swiglu_prim->glu_type != ov::op::internal::GLU::GluType::Swish ||
                !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1))
@@ -448,6 +440,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          deconv.get_output_layout().get_tensor(),
                                                                          desc->grouped_weights_shape);
 
+            deconv_with_bias_prim->pads_begin = desc->pads_begin;
+            deconv_with_bias_prim->pads_end = desc->pads_end;
+            deconv_with_bias_prim->out_padding = desc->out_padding;
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
             fuse_bias_f(deconv, new_deconv_node, bias_node, eltw_node);
         } else if (replace_candidate.is_type<fully_connected>()) {
@@ -472,7 +467,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->weights,
                                                                        bias_name,
                                                                        fc.get_output_layout().data_type,
-                                                                       desc->input_size);
+                                                                       desc->input_size,
+                                                                       desc->weights_rank);
 
             if (desc->compressed_weights) {
                 fc_with_bias_prim->compressed_weights = true;
@@ -755,14 +751,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     return;
                 }
 
-                // Fusing prelu to multi batch onednn conv caused an accuracy issue. Blocked fusing of the case.
-                auto input_layout = input.get_output_layout();
-                if (input.is_type<convolution>() && (lo.get_preferred_impl_type(input, format::any /*dummy*/) == impl_types::onednn) &&
-                    activation_func == cldnn::activation_func::relu_negative_slope &&
-                    input_layout.is_static() && input_layout.batch() > 1) {
-                    return;
-                }
-
                 // Activation should not be fused if oneDNN does NOT support it
                 if (lo.is_primitive_implemented_for_onednn(input))  {
                     #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -905,7 +893,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
+            if (input_data.is_type<fully_connected>()) {
+                // Do not allow quantization fusion
+                auto& fc = input_data.as<fully_connected>();
+                auto desc = fc.get_primitive();
+                // WA: OneDNN weight-compressed dyn-quan matmul does not support fusion with quantization
+                auto fc_in_dt = fc.get_input_layout(0).data_type;
+                bool is_onednn_compressed_weights_dyn_quan = supports_immad && desc->compressed_weights && data_type_traits::is_i8_u8(fc_in_dt);
+                should_fuse |= !is_onednn_compressed_weights_dyn_quan && quantize_node.get_scale_shift_opt();
+            }
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 

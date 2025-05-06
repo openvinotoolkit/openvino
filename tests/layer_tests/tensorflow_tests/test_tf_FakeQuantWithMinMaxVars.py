@@ -52,11 +52,10 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_fake_quant_with_min_max_vars_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_fake_quant_with_min_max_vars_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir):
         params = dict(inputs_shape=inputs_shape, min_value=min_value, max_value=max_value, num_bits=num_bits, narrow_range=narrow_range)
         self._test(*self.create_fake_quant_with_min_max_vars_net(**params, fake_quant_op=OPS[fake_quant_op]),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_per_channel_basic = [
         [[2, 6, 4], [-4, -3, -5, -8], [4, 7, 9, 5], None, None, 'tf.raw_ops.FakeQuantWithMinMaxVarsPerChannel'],
@@ -66,8 +65,7 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail("104822")
-    def test_fake_quant_with_min_max_vars_per_channel_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_fake_quant_with_min_max_vars_per_channel_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir):
         params=dict(inputs_shape=inputs_shape, min_value=min_value, max_value=max_value, num_bits=num_bits, narrow_range=narrow_range, fake_quant_op=OPS[fake_quant_op])
         self._test(*self.create_fake_quant_with_min_max_vars_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
