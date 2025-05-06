@@ -24,7 +24,16 @@ RUN dnf update -y && dnf install -y \
     gcc-c++ \
     # parallel gzip
     pigz \
-    xz
+    # To build git from source
+    xz \
+    dh-autoreconf \
+    curl-devel \
+    expat-devel \
+    gettext-devel \
+    openssl-devel \
+    perl-devel \
+    zlib-devel \
+    libpsl-devel
 
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
@@ -32,58 +41,18 @@ RUN chmod +x /install_build_dependencies.sh && \
     bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
-# Build Pythons
-# Python 3.9
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz && \
-    tar xvf Python-3.9.21.tar.xz
-RUN cd /usr/src/Python-3.9.21 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
+# Build and install newer curl
+RUN wget https://github.com/curl/curl/releases/download/curl-8_13_0/curl-8.13.0.tar.gz && \
+    tar -zxf curl-8.13.0.tar.gz
+RUN cd curl-8.13.0 && \
+    ./configure --prefix=/usr --with-openssl && \
+    make install
 
-# Python 3.10
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz && \
-    tar xvf Python-3.10.16.tar.xz
-RUN cd /usr/src/Python-3.10.16 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
-
-# Python 3.11
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz && \
-    tar xvf Python-3.11.9.tar.xz
-RUN cd /usr/src/Python-3.11.9 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
-
-# Python 3.12
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz && \
-    tar xvf Python-3.12.9.tar.xz
-RUN cd /usr/src/Python-3.12.9 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
-
-# Python 3.13
-RUN cd /usr/src && \
-    wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz && \
-    tar xvf Python-3.13.2.tar.xz
-RUN cd /usr/src/Python-3.13.2 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
-    make altinstall
-
-# Install sscache
-ARG SCCACHE_VERSION="v0.7.5"
-ENV SCCACHE_HOME="/opt/sccache" \
-    SCCACHE_PATH="/opt/sccache/sccache"
-
-RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
-    SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" && \
-    curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
-    tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
-
-ENV PATH="$SCCACHE_HOME:$PATH"
+# Build and install newer git
+RUN wget -O git-2.49.0.tar.gz https://github.com/git/git/archive/refs/tags/v2.49.0.tar.gz && \
+    tar -zxf git-2.49.0.tar.gz
+RUN cd git-2.49.0 && \
+    make configure && ./configure --prefix=/usr && make install
 
 # Use Python 3.9 as default
 RUN python3.9 -m venv venv
