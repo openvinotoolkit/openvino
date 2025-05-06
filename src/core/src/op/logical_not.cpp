@@ -70,6 +70,7 @@ bool LogicalNot::has_evaluate() const {
     case element::u8:
     case element::f16:
     case element::f32:
+    case element::f64:
     case element::i32:
     case element::i64:
     case element::u32:
