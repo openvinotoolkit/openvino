@@ -105,11 +105,10 @@ jobs:
           GIT_TRACE: 1
           GIT_TRACE_PERFORMANCE: 1
           GIT_CURL_VERBOSE: 1
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
-        with:
-          path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
+        run: |
+          git clone --recurse-submodules --single-branch --branch ${{ github.ref }} ${{ github.repository }} ${{ env.OPENVINO_REPO }}
+          cd ${{ env.OPENVINO_REPO }} && git log -1 --format=%H
 
       - name: Clone OpenVINO
         if: ${{ inputs.os != 'fedora_29' }}
