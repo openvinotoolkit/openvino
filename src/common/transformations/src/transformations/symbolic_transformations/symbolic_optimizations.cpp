@@ -171,7 +171,8 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run, std::shared_ptr<ov::pass::PassConfig> pass_config) {
+ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run,
+                                                       std::shared_ptr<ov::pass::PassConfig> pass_config) {
     if (pass_config)
         m_manager = std::make_shared<pass::Manager>(pass_config, "Symbolic");
     else
