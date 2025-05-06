@@ -58,9 +58,6 @@ void MLPBase::SetUp() {
     init_thresholds();
 }
 
-void MLPBase::init_thresholds() {
-}
-
 std::string MLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPParams> obj) {
     std::vector<InputShape> input_shapes;
     std::vector<ov::element::Type> elem_types;
@@ -115,7 +112,20 @@ std::shared_ptr<SnippetsFunctionBase> MLP::get_subgraph(size_t num_input_nodes, 
                                                                 num_hidden_layers);
 }
 
+std::shared_ptr<SnippetsFunctionBase> MLPQuantized::get_subgraph(size_t num_input_nodes, size_t num_hidden_layers) const {
+    return std::make_shared<ov::test::snippets::MLPSeqQuantizedFunction>(inputDynamicShapes,
+                                                                         m_input_types,
+                                                                         num_input_nodes,
+                                                                         num_hidden_layers);
+}
+
 TEST_P(MLP, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MLPQuantized, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

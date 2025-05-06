@@ -7,7 +7,6 @@
 #include <pass/mlp_tokenization.hpp>
 #include <subgraph_mlp.hpp>
 
-#include "openvino/pass/serialize.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"

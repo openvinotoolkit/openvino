@@ -1368,13 +1368,9 @@ void Transformations::MainSnippets() {
 
                 // TODO: release these conditions
                 const auto& input_shape = n->get_input_partial_shape(0);
-                if (input_shape.rank().get_length() != 2)
+                if (input_shape.rank().is_dynamic() || input_shape.size() != 2)
                     return true;
-                if (input_shape[0].is_dynamic() || input_shape[1].is_dynamic())
-                    return true;
-                if (input_shape[0].get_length() > 8)
-                    return true;
-                if (input_shape[1].get_length() > 256)
+                if (input_shape.is_dynamic() || input_shape[0].get_length() > 8 || input_shape[1].get_length() > 256)
                     return true;
                 const auto& output_shape = n->get_output_partial_shape(0);
                 if (output_shape.rank().get_length() != 2)

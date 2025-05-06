@@ -21,26 +21,6 @@
 
 namespace ov::test::snippets {
 
-/* Graph:
- *       Input
- *         |
- *        FQ
- *         |
- *      MatMul
- *         |
- *      Eltwise
- *         |
- *        ...
- *         |
- *      Eltwise
- *         |
- *        FQ
- *         |
- *      MatMul
- *         |
- *      Output
- */
-
 class MLPSeqFunction : public SnippetsFunctionBase {
 public:
     explicit MLPSeqFunction(const std::vector<PartialShape>& inputShapes,
@@ -61,6 +41,47 @@ protected:
     const std::vector<ov::element::Type> precisions;
     const size_t num_input_nodes, num_hidden_layers;
 };
+
+class MLPSeqQuantizedFunction : public SnippetsFunctionBase {
+public:
+    explicit MLPSeqQuantizedFunction(const std::vector<PartialShape>& inputShapes,
+                                                const std::vector<ov::element::Type>& precisions,
+                                                size_t num_input_nodes,
+                                                size_t num_hidden_layers)
+        : SnippetsFunctionBase(inputShapes),
+          precisions(precisions),
+          num_input_nodes(num_input_nodes),
+          num_hidden_layers(num_hidden_layers) {
+        OPENVINO_ASSERT(!precisions.empty(), "Precisions vector is empty");
+    }
+
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initReference() const override;
+
+    const std::vector<ov::element::Type> precisions;
+    const size_t num_input_nodes, num_hidden_layers;
+};
+
+/* Graph:
+ *       Input
+ *         |
+ *        FQ
+ *         |
+ *      MatMul
+ *         |
+ *      Eltwise
+ *         |
+ *        ...
+ *         |
+ *      Eltwise
+ *         |
+ *        FQ
+ *         |
+ *      MatMul
+ *         |
+ *      Output
+ */
 
 class MLPSeqQuantizedTypeRelaxedFunction : public SnippetsFunctionBase {
 public:

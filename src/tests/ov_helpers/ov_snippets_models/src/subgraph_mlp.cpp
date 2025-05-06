@@ -120,6 +120,48 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initReference() const {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{A_param});
 }
 
+std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
+    auto A_param = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
+    std::shared_ptr<Node> A = A_param;
+    if (precisions[0] != ov::element::u8) {
+        A = std::make_shared<ov::op::v0::Convert>(A, ov::element::u8);
+    }
+    auto add = std::make_shared<ov::op::v0::Constant>(ov::element::u8,
+                                                      input_shapes[0].to_shape(),
+                                                      std::vector<float>{0.1122});
+
+    ov::builder::subgraph::FakeQuantizeOnData onData =
+        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8};
+    std::shared_ptr<Node> current = A;
+
+    for (size_t mm_count = 0; mm_count < num_input_nodes; ++mm_count) {
+        current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::u8, onData);
+        auto B = std::make_shared<ov::op::v0::Constant>(ov::element::i8, input_shapes[0].to_shape(), std::vector<float>{0.1122f + mm_count});
+        current = std::make_shared<ov::op::v0::MatMul>(current, B, false, true);
+        current = std::make_shared<ov::op::v1::Multiply>(current, add);
+        for (size_t i = 0; i < num_hidden_layers; ++i) {
+            auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::u8,
+                                                                   ov::Shape{input_shapes[0].to_shape()[0]},
+                                                                   std::vector<float>{0.1122f + i});
+            current = std::make_shared<ov::op::v1::Add>(current, constant);
+        }
+    }
+    ov::builder::subgraph::FakeQuantizeOnData onData2 =
+        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
+    current = ov::builder::subgraph::makeFakeQuantize(current, ov::element::f32, onData2);
+    auto softmax = std::make_shared<ov::op::v8::Softmax>(current, 1);
+    ov::builder::subgraph::FakeQuantizeOnData onData1 =
+        {256, {1, 1}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::f32};
+    auto dq_A = ov::builder::subgraph::makeFakeQuantize(softmax, ov::element::f32, onData1);
+
+    auto result = std::make_shared<ov::op::v0::Result>(dq_A);
+    return std::make_shared<Model>(ResultVector{result}, ParameterVector{A_param});
+}
+
+std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initReference() const {
+    return std::make_shared<ov::Model>(ov::ResultVector{}, ov::ParameterVector{});
+}
+
 std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() const {
     auto A_param = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
     std::shared_ptr<Node> A = A_param;
