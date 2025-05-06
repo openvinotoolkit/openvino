@@ -11,25 +11,27 @@ KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
 {
     int gid = get_group_id(0);
     int sgid = get_sub_group_id();
+
     // For 2nd token, rank is small. sg in one wg would be divided by 2 dimensions to increase threads number in wg.
     int sgN = LORA_RANK / SUBGROUP_SIZE;
     int sgid_k = sgid / sgN;
     int n_idx = sgid % sgN * SUBGROUP_SIZE;
     int lid = get_sub_group_local_id();
-    //How many K is accumulated in the WG.
+    // How many K is accumulated in the WG.
     int bk_wg = GEMMA_SGK * GEMMA_SG_BK;
     int k_start_wg = gid * bk_wg;
     int wg_k_len = (k_start_wg + bk_wg) > K ? (K - k_start_wg) : bk_wg;
     int sgK = (wg_k_len + GEMMA_SG_BK - 1) / GEMMA_SG_BK;
 
-    // store each sg accumulation result into SLM. Will reduce sg result into wg result.
+    // Store each sg accumulation result into SLM. Will reduce sg result into wg result.
     __local ACCUMULATOR_TYPE fma_buff[MAX_GEMMA_SGK * MAX_LORA_RANK];
     __local ACCUMULATOR_TYPE *sg_fma_buff = fma_buff + sgid_k * MAX_LORA_RANK;
 
-    //put all need input activation into SLM. 'sgN' sgs would share same input.
+    // Put all need input activation into SLM. 'sgN' sgs would share same input.
     __local ACCUMULATOR_TYPE local_input[MAX_GEMMA_SGK * MAX_GEMMA_SG_BK];
+
+    // sg could diverge here. Not all the sgs can satisfy 'offset < k_len'.
     int local_sz = get_num_sub_groups() * SUBGROUP_SIZE;
-    //sg could diverge here. not all the sgs can satisfy 'offset < k_len'.
     for (int offset = sgid * SUBGROUP_SIZE; offset < wg_k_len; offset += local_sz) {
         __global INPUT1_TYPE *input_ptr = lora_input + k_start_wg + offset;
 #if INPUT1_TYPE_SIZE == 4
@@ -43,13 +45,14 @@ KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
     int k_offset = sgid_k * GEMMA_SG_BK;
     int k_idx = k_start_wg + k_offset;
 
-    //The sg is needs to accumulate. Otherwise, sg not needed. sg_k diverge here.
-    if (sgid_k * GEMMA_SG_BK  <  wg_k_len) {
+    // The sg is needs to accumulate. Otherwise, sg not needed. sg_k diverge here.
+    if (sgid_k * GEMMA_SG_BK < wg_k_len) {
         int klen_sg = (k_offset + GEMMA_SG_BK) > wg_k_len ? (wg_k_len - k_offset) : GEMMA_SG_BK;
         __global STATE_TYPE *B_ptr = state_a + k_idx * LORA_RANK + n_idx;
         __local ACCUMULATOR_TYPE *A_ptr = local_input + k_offset;
         ACCUMULATOR_TYPE sum = 0.f;
-        for (int kk = 0;  kk < klen_sg; kk += SUBGROUP_SIZE) {
+
+        for (int kk = 0; kk < klen_sg; kk += SUBGROUP_SIZE) {
 #if ACCUMULATOR_TYPE_SIZE == 4
             uint input = intel_sub_group_block_read((const __local uint*)(A_ptr + kk));
 #else
@@ -70,17 +73,18 @@ KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
         *(sg_fma_buff + n_idx + lid) = sum;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+
     __global ACCUMULATOR_TYPE *C_ptr = output_a + LORA_RANK * gid;
-    //only need sg on N dimenion to update data.
+
+    // Only need sg on N dimenion to update data.
     if (sgid_k != 0) {
         return;
     }
 
     ACCUMULATOR_TYPE sum = 0.f;
     if (sgK == GEMMA_SGK) {
-        //unroll
         __attribute__((opencl_unroll_hint))
-        for (int i = 0;  i < GEMMA_SGK; i++) {
+        for (int i = 0; i < GEMMA_SGK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
             sum += AS_ACCUMULATOR_TYPE(intel_sub_group_block_read((const __local uint*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
 #else
@@ -88,8 +92,8 @@ KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
 #endif
         }
     } else {
-        //can't unroll, tail handling
-        for (int i = 0;  i < sgK; i++) {
+        // Can't unroll, tail handling.
+        for (int i = 0; i < sgK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
             sum += AS_ACCUMULATOR_TYPE(intel_sub_group_block_read((const __local uint*)(fma_buff + i * MAX_LORA_RANK + n_idx)));
 #else
@@ -117,18 +121,20 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
     int wg_id = get_group_id(0);
     int sg_id = get_sub_group_id();
     int sg_num = get_num_sub_groups();
-    int n_idx = (wg_id * sg_num  +  sg_id) * SUBGROUP_SIZE;
+    int n_idx = (wg_id * sg_num + sg_id) * SUBGROUP_SIZE;
     int id_sg_local = get_sub_group_local_id();
+
     __local ACCUMULATOR_TYPE reduce[MAX_LORA_RANK];
 
     __global STATE_TYPE *B_ptr = state_b + n_idx;
 
-    //1. Reduce
-    //EACH WG would reduce input activation and save into local memory `reduce[LORA_RANK]`.
+    // 1. Reduce
+    // EACH WG would reduce input activation and save into local memory `reduce[MAX_LORA_RANK]`.
     int local_sz = get_local_size(0);
     for (int offset = sg_id * SUBGROUP_SIZE; offset < LORA_RANK; offset += local_sz) {
         __global ACCUMULATOR_TYPE *A_ptr = output_a + offset;
         ACCUMULATOR_TYPE sum = 0.f;
+
         __attribute__((opencl_unroll_hint))
         for (int part_idx = 0; part_idx < GEMMB_PART_NUM; part_idx++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
@@ -143,9 +149,11 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    if (n_idx >= N)
+    if (n_idx >= N) {
         return;
-    //2.  GEMMB
+    }
+
+    //2. GEMMB
     __global OUTPUT_TYPE *C_ptr = output + n_idx;
 
     ACCUMULATOR_TYPE sum = 0;
@@ -159,6 +167,7 @@ KERNEL(second_token_b)(OPTIONAL_SHAPE_INFO_ARG
         ACCUMULATOR_TYPE input = AS_ACCUMULATOR_TYPE(intel_sub_group_block_read_us((const __local ushort*)(reduce + kk)));
 #endif
         input *= scale;
+
         __attribute__((opencl_unroll_hint))
         for (int j = 0; j < SUBGROUP_SIZE; j++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
@@ -198,17 +207,20 @@ KERNEL(first_token_a)(OPTIONAL_SHAPE_INFO_ARG
     int sgid_M = sgid / sgN;
     int BM = REG_M * sgM;
     int BN = get_local_size(1) * REG_N;
-    int m_idx = get_group_id(0) * BM  + sgid_M * REG_M;
-    int n_idx = get_group_id(1) * BN  + sgid_N * SUBGROUP_SIZE * REG_N;
+    int m_idx = get_group_id(0) * BM + sgid_M * REG_M;
+    int n_idx = get_group_id(1) * BN + sgid_N * SUBGROUP_SIZE * REG_N;
 
-    if (m_idx >= M || n_idx >= LORA_RANK)
+    if (m_idx >= M || n_idx >= LORA_RANK) {
         return;
+    }
 
-    if (m_idx + REG_M > M)
+    if (m_idx + REG_M > M) {
         m_idx = M - REG_M;
+    }
 
-    if (n_idx + REG_N * SUBGROUP_SIZE > LORA_RANK)
+    if (n_idx + REG_N * SUBGROUP_SIZE > LORA_RANK) {
         n_idx = LORA_RANK - REG_N * SUBGROUP_SIZE;
+    }
 
     __global INPUT1_TYPE* ptrA = lora_input + m_idx * K;
     __global STATE_TYPE* ptrB = state_a + n_idx;
@@ -238,17 +250,20 @@ KERNEL(first_token_b)(OPTIONAL_SHAPE_INFO_ARG
     int sgid_M = sgid / sgN;
     int BM = REG_M * sgM;
     int BN = get_local_size(1) * REG_N;
-    int m_idx = get_group_id(0) * BM  + sgid_M * REG_M;
-    int n_idx = get_group_id(1) * BN  + sgid_N * SUBGROUP_SIZE * REG_N;
+    int m_idx = get_group_id(0) * BM + sgid_M * REG_M;
+    int n_idx = get_group_id(1) * BN + sgid_N * SUBGROUP_SIZE * REG_N;
 
-    if (m_idx >= M || n_idx >= N)
+    if (m_idx >= M || n_idx >= N) {
         return;
+    }
 
-    if (m_idx + REG_M > M)
+    if (m_idx + REG_M > M) {
         m_idx = M - REG_M;
+    }
 
-    if (n_idx + REG_N * SUBGROUP_SIZE > N)
+    if (n_idx + REG_N * SUBGROUP_SIZE > N) {
         n_idx = N - REG_N * SUBGROUP_SIZE;
+    }
 
     __global ACCUMULATOR_TYPE* ptrA = output_a + m_idx * LORA_RANK;
     __global STATE_TYPE* ptrB = state_b + n_idx;
@@ -275,6 +290,7 @@ KERNEL(fused_ops)(OPTIONAL_SHAPE_INFO_ARG
     const uint y = get_global_id(2) / OUTPUT_SIZE_X;
     const uint x = get_global_id(2) % OUTPUT_SIZE_X;
     const uint output_idx = OUTPUT_GET_INDEX(b, f, y, x);
+
 #if HAS_FUSED_OPS
     FUSED_OPS;
     output[output_idx] = FUSED_OPS_RESULT;
