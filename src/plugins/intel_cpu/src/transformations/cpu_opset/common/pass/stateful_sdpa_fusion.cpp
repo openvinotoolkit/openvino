@@ -36,6 +36,7 @@
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 using namespace ov::gen_pattern;
+using namespace ov::pass;
 
 namespace ov::intel_cpu {
 

@@ -37,16 +37,14 @@
 #include "openvino/util/common_util.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-
 
 using namespace ov::gen_pattern;
 using namespace ov::pass;
 
-ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {
-}
+ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
 
 bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(RoPEFusion);
@@ -74,7 +72,7 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
 
-    return symbolic_optimizations.get_manager()->run_passes(model);
+    return symbolic_optimizations.run_on_model(model);
 }
 
 // This is a utility function used in the work around in ChatGLM pattern.
@@ -192,7 +190,7 @@ using symbol_variant = std::variant<float, int64_t, std::string>;
 static std::string ParseSymbolVariant(std::vector<symbol_variant> values) {
     std::vector<std::string> symbol_strings;
     symbol_strings.reserve(values.size());
-    for (auto &value : values) {
+    for (auto& value : values) {
         if (std::holds_alternative<int64_t>(value)) {
             symbol_strings.push_back(std::to_string(std::get<int64_t>(value)));
         } else if (std::holds_alternative<float>(value)) {
@@ -206,11 +204,10 @@ static std::string ParseSymbolVariant(std::vector<symbol_variant> values) {
 }
 
 static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
-                                             symbol_variant start, 
+                                             symbol_variant start,
                                              symbol_variant stop,
                                              symbol_variant step,
                                              size_t axis) {
-
     auto slice_start = ParseSymbolVariant({start});
     auto slice_stop = ParseSymbolVariant({stop});
     auto slice_step = ParseSymbolVariant({step});
@@ -326,7 +323,6 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
         // this new node may match following additional matchers
         register_new_node(new_node);
-
         return true;
     };
 
