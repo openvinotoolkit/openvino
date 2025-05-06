@@ -185,16 +185,20 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     this->register_matcher(m, callback);
 }
 
-using symbol_variant = std::variant<float, int64_t, std::string>;
+using symbol_variant = std::variant<float, int32_t, int64_t, std::string>;
 
 static std::string ParseSymbolVariant(std::vector<symbol_variant> values) {
     std::vector<std::string> symbol_strings;
     symbol_strings.reserve(values.size());
     for (auto& value : values) {
-        if (std::holds_alternative<int64_t>(value)) {
-            symbol_strings.push_back(std::to_string(std::get<int64_t>(value)));
-        } else if (std::holds_alternative<float>(value)) {
+        if (std::holds_alternative<float>(value)) {
             symbol_strings.push_back(std::to_string(std::get<float>(value)));
+        } else if (std::holds_alternative<int>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<int>(value)));
+        } else if (std::holds_alternative<int32_t>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<int32_t>(value)));
+        } else if (std::holds_alternative<int64_t>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<int64_t>(value)));
         } else {
             symbol_strings.push_back(std::get<std::string>(value));
         }
@@ -215,9 +219,9 @@ static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
 
     auto opt1 = pattern::wrap_type<ov::opset8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
 
-    std::vector<symbol_variant> vbegin(axis + 1, 0l);
-    std::vector<symbol_variant> vend(axis + 1, 0l);
-    std::vector<symbol_variant> vstride(axis + 1, 1l);
+    std::vector<symbol_variant> vbegin(axis + 1, 0);
+    std::vector<symbol_variant> vend(axis + 1, 0);
+    std::vector<symbol_variant> vstride(axis + 1, 1);
 
     vbegin[axis] = start;
     vend[axis] = stop;
