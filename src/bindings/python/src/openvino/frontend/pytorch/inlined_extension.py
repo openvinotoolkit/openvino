@@ -151,6 +151,7 @@ def make_input_signature(args: Any) -> tuple[tuple[Any, Any], ...]:
 
 
 def make_output_signature(args: Any) -> tuple[tuple[Any, Any], ...]:
+    """Generates an output signature for the provided arguments."""
     if args is None:
         args = ()
     if not isinstance(args, tuple):
