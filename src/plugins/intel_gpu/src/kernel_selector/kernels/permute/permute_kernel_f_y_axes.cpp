@@ -24,7 +24,7 @@ size_t GetDivisor(const size_t input_size) {
             return d;
     }
 
-    return 1; // Fallback: Any number divides evenly by 1
+    return 1; // Fallback: Any integer divides evenly by 1
 }
 
 bool IsSimpleMemCopyOperation(const permute_params& params) {
