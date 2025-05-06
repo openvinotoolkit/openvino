@@ -227,7 +227,14 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         ov::intel_cpu::CausalMaskPreprocessNode::Config config;
         config.type = "CausalMaskPreprocess";
 
-        auto triu = ov::as_type_ptr<ov::opset1::Constant>(pattern_map.find(const_triu)->second.get_node_shared_ptr());
+        auto const_triu_it = pattern_map.find(const_triu);
+        if (const_triu_it == pattern_map.end()) {
+            return false;
+        }
+        auto triu = ov::as_type_ptr<ov::opset1::Constant>(const_triu_it->second.get_node_shared_ptr());
+        if (!triu) {
+            return false;
+        }
 
         auto triu_shape = triu->get_output_shape(0);
         if (triu_shape.size() != 4) {
