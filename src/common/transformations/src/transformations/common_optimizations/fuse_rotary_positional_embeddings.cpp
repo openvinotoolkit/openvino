@@ -215,9 +215,9 @@ static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
 
     auto opt1 = pattern::wrap_type<ov::opset8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
 
-    std::vector<symbol_variant> vbegin(axis + 1, 0);
-    std::vector<symbol_variant> vend(axis + 1, 0);
-    std::vector<symbol_variant> vstride(axis + 1, 1);
+    std::vector<symbol_variant> vbegin(axis + 1, 0l);
+    std::vector<symbol_variant> vend(axis + 1, 0l);
+    std::vector<symbol_variant> vstride(axis + 1, 1l);
 
     vbegin[axis] = start;
     vend[axis] = stop;
