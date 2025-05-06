@@ -54,6 +54,59 @@ RUN wget -O git-2.49.0.tar.gz https://github.com/git/git/archive/refs/tags/v2.49
 RUN cd git-2.49.0 && \
     make configure && ./configure --prefix=/usr && make install
 
+# Build Pythons
+# Python 3.9
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz && \
+    tar xvf Python-3.9.21.tar.xz
+RUN cd /usr/src/Python-3.9.21 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Python 3.10
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz && \
+    tar xvf Python-3.10.16.tar.xz
+RUN cd /usr/src/Python-3.10.16 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Python 3.11
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz && \
+    tar xvf Python-3.11.9.tar.xz
+RUN cd /usr/src/Python-3.11.9 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Python 3.12
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz && \
+    tar xvf Python-3.12.9.tar.xz
+RUN cd /usr/src/Python-3.12.9 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Python 3.13
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz && \
+    tar xvf Python-3.13.2.tar.xz
+RUN cd /usr/src/Python-3.13.2 && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --prefix=/usr && \
+    make altinstall
+
+# Install sscache
+ARG SCCACHE_VERSION="v0.7.5"
+ENV SCCACHE_HOME="/opt/sccache" \
+    SCCACHE_PATH="/opt/sccache/sccache"
+
+RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
+    SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" && \
+    curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
+    tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
+
+ENV PATH="$SCCACHE_HOME:$PATH"
+
 # Use Python 3.9 as default
 RUN python3.9 -m venv venv
 ENV PATH="/venv/bin:$PATH"
