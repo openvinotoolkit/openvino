@@ -1045,8 +1045,7 @@ DQLiftGatherSymCW::DQLiftGatherSymCW() {
     register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherSymCW"), std::move(callback));
 }
 
-// Identify a Gather+DQ CW MatMul pattern, lift Gather up
-// Note: this pattern is applied on the full model before any partitioning
+// FIXME: this is mostly a workaround pattern for the partitioning
 DQLiftGatherCW::DQLiftGatherCW() {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
@@ -1063,13 +1062,13 @@ DQLiftGatherCW::DQLiftGatherCW() {
         auto matched_out_ids = uat::_(node_to_output).at_or_at(cvtids, pids);
         const auto& matched_out_gather = node_to_output.at(gather);
 
-        // Create new gathers on W and S, connect respectively
+        // Create new gathers on W, connect respectively
         auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(matched_out_w, ov::element::f16);
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
         auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
 
         auto new_out = std::make_shared<ov::op::v0::Convert>(new_g_w, ov::element::f32);
-        // Reconnect old gather readers to the new Multiply
+        // Reconnect old gather readers to the new Convert
         for (auto&& r : matched_out_gather.get_target_inputs()) {
             r.replace_source_output(new_out);
         }
