@@ -140,9 +140,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     }
     ON_CALL(*plugin, parse_meta_devices(_, _)).WillByDefault(Return(metaDevices));
     ON_CALL(*plugin, get_valid_device)
-        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices,
-                          const std::string& netPrecision,
-                          const std::map<std::string, double>& utilization_thresholds) {
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });

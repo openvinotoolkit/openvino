@@ -22,7 +22,7 @@ public:
     MOCK_METHOD((bool), is_meta_device, ((const std::string&)), (const, override));
     MOCK_METHOD((std::list<DeviceInformation>),
                 get_valid_device,
-                ((const std::vector<DeviceInformation>&), const std::string&, (const std::map<std::string, double>&)),
+                ((const std::vector<DeviceInformation>&), const std::string&),
                 (const, override));
     MOCK_METHOD(DeviceInformation,
                 select_device,

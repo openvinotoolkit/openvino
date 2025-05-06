@@ -52,10 +52,8 @@ public:
         ON_CALL(*core, get_property(HasSubstr("OTHER"), StrEq(ov::device::capabilities.name()), _))
             .WillByDefault(RETURN_MOCK_VALUE(otherCability));
         ON_CALL(*plugin, get_valid_device)
-            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
-                                  const std::string& netPrecision,
-                                  const std::map<std::string, double>& utilization_thresholds) {
-                return plugin->Plugin::get_valid_device(metaDevices, netPrecision, utilization_thresholds);
+            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+                return plugin->Plugin::get_valid_device(metaDevices, netPrecision);
             });
     }
 

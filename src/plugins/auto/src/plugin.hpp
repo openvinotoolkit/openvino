@@ -48,8 +48,7 @@ public:
     MOCKTESTMACRO std::string get_device_list(const ov::AnyMap& properties) const;
 
     MOCKTESTMACRO std::list<DeviceInformation> get_valid_device(const std::vector<DeviceInformation>& meta_devices,
-                                                                const std::string& model_precision = "FP32",
-                                                                const std::map<std::string, double>& utilization_thresholds = {}) const;
+                                                                const std::string& model_precision = "FP32") const;
 
     MOCKTESTMACRO DeviceInformation select_device(const std::vector<DeviceInformation>& meta_devices,
                                                   const std::string& model_precision = "FP32",

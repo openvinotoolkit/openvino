@@ -123,9 +123,7 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
         });
 
     ON_CALL(*plugin, get_valid_device)
-        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices,
-                          const std::string& netPrecision,
-                          const std::map<std::string, double>& utilization_thresholds) {
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });

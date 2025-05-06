@@ -550,10 +550,8 @@ std::map<std::string, double> Plugin::get_device_utilization(const std::string& 
     return devices_monitor.get_utilization(device_luid);
 }
 
-std::list<DeviceInformation> Plugin::get_valid_device(
-    const std::vector<DeviceInformation>& meta_devices,
-    const std::string& model_precision,
-    const std::map<std::string, double>& utilization_thresholds) const {
+std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,
+                                                      const std::string& model_precision) const {
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to select in ", get_device_name());
     }
@@ -577,75 +575,35 @@ std::list<DeviceInformation> Plugin::get_valid_device(
             model_precision == "FP32" && std::find(capability.begin(), capability.end(), ("FP16")) != capability.end();
         return support_model != capability.end() || is_support_fp16;
     };
-    for (const auto& item : utilization_thresholds)
-        LOG_DEBUG_TAG("Device: %s. Utilization threshold: %s", item.first.c_str(), std::to_string(item.second).c_str());
     for (auto&& device_info : meta_devices) {
-        bool is_excluded = false;
         if (device_info.device_priority > 0)
             is_default_list = false;
         // check if device support this model precision
         if (!is_supported_model(device_info.device_name) && meta_devices.size() > 1)
             continue;
         ov::DeviceIDParser parsed{device_info.device_name};
-        if (!utilization_thresholds.empty() && utilization_thresholds.count(parsed.get_device_name())) {
-            std::string device_luid;
-            std::map<std::string, double> device_utilization;
-            try {
-                device_luid = device_info.device_name.find("CPU") == std::string::npos
-                                  ? get_core()
-                                        ->get_property(device_info.device_name, ov::device::luid.name(), {})
-                                        .as<std::string>()
-                                  : "";
-                device_utilization = get_device_utilization(device_luid);
-                for (const auto& item : device_utilization)
-                    LOG_DEBUG_TAG("Device: %s\tID: %s\tutilization: %s",
-                                  device_info.device_name.c_str(),
-                                  item.first.c_str(),
-                                  std::to_string(item.second).c_str());
-                if (device_utilization.empty() || (device_luid.empty() && device_utilization.count("Total") == 0) ||
-                    (!device_luid.empty() && device_utilization.count(device_luid) == 0)) {
-                    LOG_DEBUG_TAG("Cannot get utilization for %s", device_info.device_name.c_str());
-                    continue;
-                }
-                if (device_luid.empty()) {
-                    device_luid = "Total";
-                }
-                if (device_utilization[device_luid] >= utilization_thresholds.at(parsed.get_device_name())) {
-                    is_excluded = true;
-                    LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
-                                  device_info.device_name.c_str(),
-                                  std::to_string(device_utilization[device_luid]).c_str(),
-                                  std::to_string(utilization_thresholds.at(parsed.get_device_name())).c_str());
-                }
-            } catch (const ov::Exception&) {
-                LOG_DEBUG_TAG("Failed to get luid for %s", device_info.device_name.c_str());
-            }
-        }
 
-        if (!is_excluded) {
-            valid_filtered_devices.push_back(device_info);
-            if (device_info.device_name.find("CPU") == 0) {
-                CPU.push_back(device_info);
-            } else if (device_info.device_name.find("GPU") == 0) {
-                std::string device_type;
-                try {
-                    // can optimize to typed function when gpu swith to 2.0 api
-                    device_type = get_core()
-                                      ->get_property(device_info.device_name, ov::device::type.name(), {})
-                                      .as<std::string>();
-                } catch (const ov::Exception&) {
-                    LOG_DEBUG_TAG("get property :%s for %s failed ", "DEVICE_TYPE", device_info.device_name.c_str());
-                }
-                if (device_type == "integrated") {
-                    iGPU.push_back(device_info);
-                } else if (device_type == "discrete") {
-                    dGPU.push_back(device_info);
-                } else {
-                    LOG_DEBUG_TAG("Unknown device type for %s", device_info.device_name.c_str());
-                }
-            } else {
-                Others.push_back(device_info);
+        valid_filtered_devices.push_back(device_info);
+        if (device_info.device_name.find("CPU") == 0) {
+            CPU.push_back(device_info);
+        } else if (device_info.device_name.find("GPU") == 0) {
+            std::string device_type;
+            try {
+                // can optimize to typed function when gpu swith to 2.0 api
+                device_type =
+                    get_core()->get_property(device_info.device_name, ov::device::type.name(), {}).as<std::string>();
+            } catch (const ov::Exception&) {
+                LOG_DEBUG_TAG("get property :%s for %s failed ", "DEVICE_TYPE", device_info.device_name.c_str());
             }
+            if (device_type == "integrated") {
+                iGPU.push_back(device_info);
+            } else if (device_type == "discrete") {
+                dGPU.push_back(device_info);
+            } else {
+                LOG_DEBUG_TAG("Unknown device type for %s", device_info.device_name.c_str());
+            }
+        } else {
+            Others.push_back(device_info);
         }
         valid_devices.push_back(device_info);
     }
@@ -719,6 +677,16 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     }
 
     DeviceInformation* ptr_select_device = NULL;
+    if (valid_devices.empty()) {
+        // after remove higher priority device,but the available devices is null,
+        // so select the last device of all available Devices.
+        ptr_select_device = &last_device;
+    } else {
+        // select the higher priority device in case all of device utilization is exceeded the threshold.
+        last_device = valid_devices.front();
+    }
+    for (const auto& item : utilization_thresholds)
+        LOG_DEBUG_TAG("Device: %s. Utilization threshold: %s", item.first.c_str(), std::to_string(item.second).c_str());
     while (!ptr_select_device) {
         // select the first device in the rest of available devices.
         if (valid_devices.empty()) {
@@ -764,7 +732,6 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                     LOG_DEBUG_TAG("Failed to get luid for %s", device->device_name.c_str());
                 }
             }
-
             if (is_excluded) {
                 // remove the device from valid devices
                 auto iter =
