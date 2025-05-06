@@ -19,7 +19,7 @@ constexpr size_t cSimpleMemCopyOpDivider = 4UL;
 constexpr size_t c3DTransposeBufHeight = 4UL;
 
 size_t GetDivisor(const size_t input_size) {
-    for (size_t d: {16, 8, 4, 2}) {
+    for (size_t d : {16, 8, 4, 2}) {
         if (input_size % d == 0)
             return d;
     }
