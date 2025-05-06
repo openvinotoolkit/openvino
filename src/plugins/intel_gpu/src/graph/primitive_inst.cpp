@@ -1391,9 +1391,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 
         if (desc->compressed) {
             auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
-            if (!compressed_cache_variable) {
-                OPENVINO_THROW("compressed_cache_variable is null");
-            }
+           OPENVINO_ASSERT(compressed_cache_variable != nullptr, "[GPU] compressed_cache_variable is null");
             auto& present_scales_layout = _impl_params->output_layouts[2];
             const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
             kv_cache_inst::update_pad(present_scales_layout, max_pad - new_seq_len, sequence_axis);
