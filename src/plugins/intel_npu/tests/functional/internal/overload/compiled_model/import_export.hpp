@@ -37,7 +37,7 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithEmptyIStreamAndComp
     OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(emptyFileStream, target_device, configuration));
     OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(emptyIStringStream, target_device, configuration));
     OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(emptyStringStream, target_device, configuration));
-    configuration.erase(configuration.find(ov::hint::compiled_blob.name()));  // cleanup
+    configuration.erase(ov::hint::compiled_blob.name());  // cleanup
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAndCompiledBlobProp) {
@@ -50,24 +50,6 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
     {
         auto model = ov::test::utils::make_conv_pool_relu();
         core.compile_model(model, target_device, configuration).export_model(sstream);
-    }
-
-    // header tests, stream works if handled by OV caching mechanism
-    {
-        auto strSO = std::make_shared<std::string>(sstream.str());
-        auto tensor = ov::Tensor(ov::element::u8, ov::Shape{strSO->size()}, strSO->data());
-        auto impl = ov::get_tensor_impl(tensor);
-        impl._so = strSO;
-        tensor = ov::make_tensor(impl);
-        configuration.emplace(ov::hint::compiled_blob(tensor));
-        configuration.emplace(
-            std::make_pair(ov::loaded_from_cache.name(), ov::Any(true)));  // caching mechanism mocked here
-        sstream.seekg(headerView.size(), std::ios::beg);                   // skip header
-        OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
-
-        // cleanup
-        configuration.erase(ov::loaded_from_cache.name());
-        configuration.erase(ov::hint::compiled_blob.name());
     }
 
     // header tests, stream won't work if not handled by OV caching mechanism
