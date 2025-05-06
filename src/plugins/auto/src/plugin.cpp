@@ -768,8 +768,9 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                               cached_model_path.c_str());
             }
 
-            if (enable_startup_cpu && num_blob_files == devices_to_be_merged.size() - 1) {
-                LOG_DEBUG_TAG("Will disable CPU for acclerator when all blob files found");
+            if (enable_startup_cpu && num_blob_files) {
+                LOG_DEBUG_TAG("Disabling CPU fallback as a cached blob file was found for a device in the candidate "
+                              "list. AUTO will work as pass-through mode.");
             }
         }
         std::vector<std::string> devices_to_be_deleted(devices_to_be_merged.size());
