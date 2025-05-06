@@ -89,7 +89,9 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
     params.resize(bodys.size());
 
     cldnn::layout ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num)}, cldnn::data_types::u64, cldnn::format::byfx);
-    cldnn::layout gate_up_ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num * 64 / sizeof(uint64_t))}, cldnn::data_types::u64, cldnn::format::byfx);
+    cldnn::layout gate_up_ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num * 64 / sizeof(uint64_t))},
+                                     cldnn::data_types::u64,
+                                     cldnn::format::byfx);
     int cm_mask = 1;
     auto env = std::getenv("CM_MASK");
     if (env) {
@@ -194,12 +196,7 @@ static void CreateMOEExpert2Op(ProgramBuilder& p, const std::shared_ptr<ov::op::
     cldnn::moe_expert::scale_zp_mems scale_zps;
     prepare_weights(p, op, params, scale_zps);
 
-    const cldnn::moe_expert moe(layerName,
-                                inputs,
-                                op->get_config(),
-                                params,
-                                scale_zps
-                                );
+    const cldnn::moe_expert moe(layerName, inputs, op->get_config(), params, scale_zps);
 
     p.add_primitive(*op, moe);
 }

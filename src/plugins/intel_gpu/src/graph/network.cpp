@@ -22,7 +22,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
-#include "intel_gpu/runtime/linux_perf.hpp"
+#include "openvino/util/linux_perf.hpp"
 
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
@@ -727,7 +727,7 @@ void network::add_to_exec_order(const primitive_id& id) {
 std::map<primitive_id, network_output> network::execute(const std::vector<event::ptr>& dependencies) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
     NETWORK_DEBUG(*this);
-    auto perf1 = LinuxPerf::Profile("NetworkImpl::Execute");
+    LINUX_PERF_LOG("NetworkImpl::Execute");
 
     // Wait for previous execution completion
     reset_execution(false);
@@ -817,7 +817,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
 
-        auto perf1 = LinuxPerf::Profile("execute_impl: " + inst->id());
+        LINUX_PERF_LOG("execute_impl: " + inst->id());
         if (inst->is_input() && inst->get_user_insts()[0]->get_node().is_type<paged_attention>()) {
             inst->update_shape();
             continue;

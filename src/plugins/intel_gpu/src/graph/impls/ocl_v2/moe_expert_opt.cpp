@@ -881,7 +881,7 @@ public:
             // int* indexs,            // shape: u64[8] ??? i32
             // int* gate_addrs,        // shape: u64[128]
             // int* up_addrs,          // shape: u64[128]
-            // int* gate_scales_addrs, // shape: f16[768, 2048/32=64] 
+            // int* gate_scales_addrs, // shape: f16[768, 2048/32=64]
             // int* up_scales_addrs,   // shape: f16[768, 2048/32=64]
             // int* output,            // shape: f16[8, 1, 768]
             // const int num_experts,
@@ -1091,7 +1091,7 @@ public:
     //        expert_mask.topk[i][j] : topk-output offset for j'th token for i'th expert, used to get weights
     //        expert_mask.pred_flag[i]: bool, if expert i can be skipped
     //
-    //     
+    //
     //     scratch.x, scratch.routing_weights = gather(hidden_states, scratch.full_router_weights, expert_mask.batch, expert_mask.topk)
     //     scratch.y = MLP(scratch.x, .gate/up/down) * scratch.routing_weights
     //     scatter(final_hidden, scratch.y, expert_mask.batch)

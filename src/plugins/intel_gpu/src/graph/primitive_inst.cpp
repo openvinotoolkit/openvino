@@ -55,7 +55,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 
-#include "intel_gpu/runtime/linux_perf.hpp"
+#include "openvino/util/linux_perf.hpp"
 
 #include "json_object.h"
 #include <string>
@@ -573,7 +573,7 @@ void primitive_inst::clear_output_memory() {
 
 void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
-    auto perf1 = LinuxPerf::Profile("realloc_if_needed:" + id());
+    LINUX_PERF_LOG("realloc_if_needed:" + id());
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
     const auto& users = get_user_insts();
@@ -1851,7 +1851,7 @@ void primitive_inst::reset_flags() {
 
 void primitive_inst::prepare_primitive() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
-    auto perf1 = LinuxPerf::Profile("prepare_primitive");
+    LINUX_PERF_LOG("prepare_primitive");
     const auto& primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
@@ -2012,7 +2012,7 @@ void primitive_inst::execute() {
         set_out_event(get_network().get_stream().aggregate_events(_impl_params->dep_events));
         return;
     }
-    auto perf1 = LinuxPerf::Profile("execute: " + id());
+    LINUX_PERF_LOG("execute: " + id());
 
     if (_unfused_subgraph != nullptr) {
         for (auto& d : _deps) {

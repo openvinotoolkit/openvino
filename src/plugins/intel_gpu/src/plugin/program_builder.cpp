@@ -163,49 +163,29 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     prepare_build();
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
-        if (is_inner_program == false) {
-            std::cout << "ProgramBuilder::build() ops size: " << ops.size() << std::endl;
-        }
-        auto start_time = std::chrono::high_resolution_clock::now();
         std::vector<ov::threading::Task> tasks;
         for (const auto& op : ops) {
-            // if(is_inner_program == false)
-            //     std::cout << "hit op: " << op->get_type_name() << std::endl;
             if (ov::is_type<ov::op::v8::If>(op) || ov::is_type<ov::op::internal::MOEExpert>(op)) {
-                // std::cout << "hit op: " << op->get_type_name() << std::endl;
                 CreateSingleLayerPrimitive(op);
             #if 1
                 tasks.push_back([this, &op] {
                     try {
                         CreateSingleLayerPrimitive(op);
                     } catch (...) {
-                        std::cout << "CreateSingleLayerPrimitive task failed: " << op->get_type_name() << std::endl;
                     }
                 });
             #else
                 CreateSingleLayerPrimitive(op);
             #endif
             } else {
-                // std::cout << " miss op: " << op->get_type_name() << std::endl;
                 CreateSingleLayerPrimitive(op);
             }
         }
 
         if (!tasks.empty()) {
             auto task_executor = get_moe_task_executor();
-            std::cout << "ProgramBuilder::build() run tasks: " << tasks.size() << std::endl;
-            auto start_time = std::chrono::high_resolution_clock::now();
             task_executor->run_and_wait(tasks);
-            auto end_time = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-            std::cout << "ProgramBuilder::build() run tasks done, cost " << duration << " ms" << std::endl;
             tasks.clear();
-        }
-
-        if (is_inner_program == false) {
-            auto end_time = std::chrono::high_resolution_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-            std::cout << "ProgramBuilder::build() ops size: " << ops.size() << " time: " << duration << " ms" << std::endl;
         }
     }
 

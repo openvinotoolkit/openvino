@@ -124,7 +124,6 @@ public:
 
     memory::ptr alloc_buf(memory* curr_memory, layout& alloc_layout, allocation_type alloc_type = cldnn::allocation_type::usm_device);
     memory::ptr reinterpret_buf(const memory& curr_memory, const layout& new_layout);
-private:
 };
 
 using moe_expert_inst = typed_primitive_inst<moe_expert>;

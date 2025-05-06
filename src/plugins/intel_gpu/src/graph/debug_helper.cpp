@@ -334,7 +334,7 @@ void dump_memory(memory::ptr actual_mem, stream& stream, std::string filename, i
     else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4)
         dump_i4u4(mem_dt, actual_mem, stream, file_stream, dump_raw);
     else
-        std::cout << "Dump for this data type is not supported: " << dt_to_str(mem_dt) << std::endl;    
+        std::cout << "Dump for this data type is not supported: " << dt_to_str(mem_dt) << std::endl;
 }
 
 NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)

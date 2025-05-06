@@ -15,10 +15,6 @@ void build_implementations::run(program& p) {
         return;
     }
 
-    // bool enable_cache_shared = p.is_internal_program() == false && p.is_body_program() == true;
-    // if (enable_cache_shared) {
-    //     std::cout << "build_implementations: " << p.get_processing_order().size() << ", enable_cache_shared = " << enable_cache_shared << std::endl;
-    // }
     auto& cache = p.get_kernels_cache();
     for (auto& n : p.get_processing_order()) {
         if (auto impl = n->get_selected_impl()) {

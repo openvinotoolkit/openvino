@@ -31,7 +31,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "linux_perf.hpp"
+#include "openvino/util/linux_perf.hpp"
 
 #include "kernels/scaled_attn/attn_memcpy.hpp"
 #include "kernels/scaled_attn/attn_quant.hpp"
@@ -372,7 +372,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
         bool is_xf16 = precision_of<T>::value == ov::element::bf16 || precision_of<T>::value == ov::element::f16;
         // packed k, v
-        {auto perf1 = LinuxPerf::Profile("trans");
+        {LINUX_PERF_LOG("trans");
         parallel_for2d(B, Hk, [&](size_t b, size_t h) {
             T* k_ptr = &present_key.at<T>({b, h, 0, 0});
             T* v_ptr = &present_value.at<T>({b, h, 0, 0});
@@ -383,7 +383,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         });}
 
         // attention
-        auto perf1 = LinuxPerf::Profile("fma");
+        LINUX_PERF_LOG("fma");
         auto bhb_loop = [&](size_t ithr, size_t b, size_t h, size_t m_blk) {
             auto m_start = m_blk * m_block_size;
             auto m_end = std::min(m_start + m_block_size, q_len);
@@ -1326,7 +1326,7 @@ void ScaledDotProductAttention::execute(const dnnl::stream& strm) {
     if (m_config.config.fuse_concat) {
         CPU_NODE_ASSERT(m_k_state && m_v_state, "has null input states");
         // initialization will be also completed in this func
-        auto perf1 = LinuxPerf::Profile("concat");
+        LINUX_PERF_LOG("concat");
         gatherConcatPastkv(inputs[1], inputs[2], getSrcMemoryAtPort(orginSDPInputNumber));
 
         presentk_input = m_k_state->internal_state_mem();
@@ -1338,7 +1338,7 @@ void ScaledDotProductAttention::execute(const dnnl::stream& strm) {
         presentk_input = inputs[1];
         presentv_input = inputs[2];
     }
-    auto perf2 = LinuxPerf::Profile("exec");
+    LINUX_PERF_LOG("exec");
     m_executor
         ->execute(strm, m_config, inputs, output, presentk_input, presentv_input, beam_input, k_scale_zp, v_scale_zp);
 }

@@ -1,16 +1,18 @@
 #pragma once
 
 #ifndef WIN32
-//#define ENABLE_LINUX_PERF
+/* echo 0 | sudo tee /proc/sys/kernel/perf_event_paranoid */
+#define ENABLE_LINUX_PERF
 #endif
 
 #ifdef ENABLE_LINUX_PERF
 #include <linux/perf_event.h>
 #include <time.h>
-//#include <linux/time.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
+#include <iostream>
+#include <string>
 
 #if __GLIBC__ == 2 && __GLIBC_MINOR__ < 30
 #include <sys/syscall.h>
@@ -1188,9 +1190,7 @@ struct PerfEventGroup : public IPerfEventDumper {
 };
 
 using ProfileScope = PerfEventGroup::ProfileScope;
-#endif
 
-#ifdef ENABLE_LINUX_PERF
 // pwe-thread event group with default events pre-selected
 template <typename ... Args>
 ProfileScope Profile(const std::string& title, int id = 0, Args&&... args) {
@@ -1226,26 +1226,13 @@ inline int Init() {
     auto dummy = Profile("start");
     return 0;
 }
+} // namespace LinuxPerf
+
+#define LINUX_PERF_LOG(...)  \
+    auto _perf_ = LinuxPerf::Profile(__VA_ARGS__);
 
 #else
 
-namespace LinuxPerf {
-
-template <typename ... Args>
-int Profile(const std::string& title, int id = 0, Args&&... args) {
-    return 0;
-}
-
-// overload accept sampling_probability, which can be used to disable profile in scope 
-template <typename ... Args>
-int Profile(float sampling_probability, const std::string& title, int id = 0, Args&&... args) {
-    return 0;
-}
-
-inline int Init() {
-    return 0;
-}
+#define LINUX_PERF_LOG(...)
 
 #endif
-
-} // namespace LinuxPerf
