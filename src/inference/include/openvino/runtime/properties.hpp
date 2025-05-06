@@ -597,13 +597,13 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
     "DYNAMIC_QUANTIZATION_GROUP_SIZE"};
 
 /**
- * @brief This property defines unsupported group size for dynamic quantization optimization
+ * @brief This property defines maximum group size for dynamic quantization optimization
  * @ingroup ov_runtime_cpp_prop_api
  *
- * If dynamic_quantization_group_size is larger than this unsupported value, dynamic quantization will be disabled.
+ * If dynamic_quantization_group_size is larger than this max value, dynamic quantization will be disabled.
  */
-static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_unsupported{
-    "DYNAMIC_QUANTIZATION_GROUP_SIZE_UNSUPPORTED"};
+static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{
+    "DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
 /**
  * @brief Hint for device to use specified precision for kv cache compression
  * @ingroup ov_runtime_cpp_prop_api
