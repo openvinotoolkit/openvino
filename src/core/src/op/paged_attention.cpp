@@ -83,7 +83,6 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           "PagedAttensionExtension expects 14 or 17 inputs, but it has ",
                           get_input_size());
 
-<<<<<<< HEAD
     // format: Node*, input_idx, name, {rank_list}, {type_list}
     input_check(this, 0, "query", {2}, {});
     input_check(this, 1, "key", {2}, {});
