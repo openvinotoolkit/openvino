@@ -57,7 +57,7 @@ CommonDispatchData LoRAKernelRef::SetDefault(const lora_params& params, size_t k
             size_t lora_rank = lora_rank_dim.is_dynamic ? 1 : lora_rank_dim.v;
 
             dispatchData.gws = { output.Batch().v * output.Feature().v,
-                                 Align(output.Y().v * output.X().v, lora_rank),
+                                 Align(output.Y().v * output.X().v, std::max(lora_rank, static_cast<size_t>(1))),
                                  1};
 
             dispatchData.lws = { 1, lora_rank, 1 };
