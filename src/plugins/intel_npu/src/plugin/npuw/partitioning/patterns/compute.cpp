@@ -404,8 +404,6 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, co
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
 
-        std::cout << "ALEX RMSNORM 1" << std::endl;
-
         auto matched_hadd = node_to_output.at(hadd).get_node_shared_ptr();
         auto matched_power = node_to_output.at(power).get_node_shared_ptr();
         auto matched_reduce = node_to_output.at(reduce).get_node_shared_ptr();

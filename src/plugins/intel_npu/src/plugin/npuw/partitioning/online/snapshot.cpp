@@ -386,7 +386,7 @@ void Snapshot::markInternalCompute() {
             prod_cons_tags.insert(group_cons->specialTags());
         }
         if (prod_cons_tags.size() == 1 && !(*prod_cons_tags.begin()).empty()) {
-            Group::GPtr group_with_tag;
+            Group::GPtr group_with_tag = nullptr;
             if (group->srcNodes().empty()) {
                 NPUW_ASSERT(!group->dstNodes().empty());
                 auto cons_nh = group->dstNodes().at(0);  // all tags are the same, pick either group
@@ -396,6 +396,7 @@ void Snapshot::markInternalCompute() {
                 group_with_tag = m_graph->meta(prod_nh).get<Group::GPtr>();
             }
 
+            NPUW_ASSERT(group_with_tag);
             NPUW_ASSERT(!group_with_tag->isolatedTag().empty());
             if (group_with_tag->isolatedTag() !=
                 "compute") {  // this pass only operates with "compute" tag set by COMPUTE pipeline
