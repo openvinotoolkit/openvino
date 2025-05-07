@@ -6,8 +6,8 @@
 
 #include "dimension_util.hpp"
 #include "itt.hpp"
-#include "openvino/op/op.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/op.hpp"
 
 namespace {
 
@@ -35,27 +35,25 @@ inline void input_check(const ov::Node* node,
         return type.is_dynamic() || allowed_types.empty() || it != allowed_types.end();
     };
 
-    NODE_VALIDATION_CHECK(
-        node,
-        rank_check(rank),
-        "Rank of `",
-        input_name,
-        "` input should be in [dynamic, ",
-        join(allowed_ranks),
-        "] list, but it is ",
-        rank,
-        ".");
+    NODE_VALIDATION_CHECK(node,
+                          rank_check(rank),
+                          "Rank of `",
+                          input_name,
+                          "` input should be in [dynamic, ",
+                          join(allowed_ranks),
+                          "] list, but it is ",
+                          rank,
+                          ".");
 
-    NODE_VALIDATION_CHECK(
-        node,
-        type_check(tp),
-        "Element type of `",
-        input_name,
-        "` input should be in [dynamic, ",
-        join(allowed_types),
-        "] list, but it is ",
-        tp,
-        ".");
+    NODE_VALIDATION_CHECK(node,
+                          type_check(tp),
+                          "Element type of `",
+                          input_name,
+                          "` input should be in [dynamic, ",
+                          join(allowed_types),
+                          "] list, but it is ",
+                          tp,
+                          ".");
 }
 
 std::vector<ov::element::Type> get_real_types() {
