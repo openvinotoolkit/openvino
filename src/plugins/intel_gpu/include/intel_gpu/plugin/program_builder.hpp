@@ -145,9 +145,6 @@ public:
     std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return m_task_executor; }
     std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const { return m_compilation_context; }
 
-    std::shared_ptr<ov::threading::IStreamsExecutor> get_moe_task_executor();
-    std::shared_ptr<cldnn::ICompilationContext> get_moe_compilation_context() const { return m_moe_compilation_context; }
-
 private:
     static factories_map_t factories_map;
     std::shared_ptr<cldnn::program> m_program;
@@ -163,9 +160,6 @@ private:
 
     std::shared_ptr<ov::threading::IStreamsExecutor> m_task_executor;
     std::shared_ptr<cldnn::ICompilationContext> m_compilation_context;
-
-    std::shared_ptr<ov::threading::IStreamsExecutor> m_moe_task_executor;
-    std::shared_ptr<cldnn::ICompilationContext> m_moe_compilation_context;
 
     bool m_is_inner_program = false;
 

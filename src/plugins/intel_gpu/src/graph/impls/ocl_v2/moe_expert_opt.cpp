@@ -1229,14 +1229,6 @@ public:
             onednn_kernel& kernel = get_kernel(batch == 1 ? 1 : n_token, static_cast<int>(expert_no), instance);
             memory::ptr& x = batch == 1 ? hidden_states_mem_ptr : scratch.x;
 
-            /*
-            if (layer_id == 1 && expert_no < 3) {
-                cldnn::dump_memory(routing_mem_ptr, stream, "routing_mem_ptr", layer_id*1000 + expert_no);
-                cldnn::dump_memory(expert_mask_mem->topk, stream, "topk", layer_id*1000 + expert_no);
-                cldnn::dump_memory(expert_mask_mem->batch, stream, "batch", layer_id*1000 + expert_no);
-            }
-            */
-
             // gather
             if (batch != 1) {
                 execute_stage(events,

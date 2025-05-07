@@ -303,40 +303,6 @@ std::vector<std::string> get_filenames_for_matched_layer_loading_binaries(const 
 
 }  // namespace
 
-void dump_memory(memory::ptr actual_mem, stream& stream, std::string filename, int dump_id) {
-    stream.finish();
-    std::string prefix = std::getenv("DUMP_PRE")? std::getenv("DUMP_PRE") : "dump_";
-    filename = prefix + filename + std::to_string(dump_id) + ".txt";
-    bool dump_raw = false;
-    //log_memory_to_file(mem, data_layout, stream, filename, dump_raw);
-
-    std::ofstream file_stream(filename);
-    if (!actual_mem) {
-        file_stream << "Empty" << std::endl;
-        return;
-    }
-
-    auto mem_dt = actual_mem->get_layout().data_type;
-    if (mem_dt == cldnn::data_types::f32)
-        dump<float>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::f16)
-        dump<ov::float16>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::i64)
-        dump<int64_t>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::i32)
-        dump<int32_t>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::i8)
-        dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::u8)
-        dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::u8)
-        dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
-    else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4)
-        dump_i4u4(mem_dt, actual_mem, stream, file_stream, dump_raw);
-    else
-        std::cout << "Dump for this data type is not supported: " << dt_to_str(mem_dt) << std::endl;
-}
-
 NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
     : m_inst(inst)
     , m_stream(inst.get_network().get_stream())

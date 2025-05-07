@@ -2708,7 +2708,7 @@ bool primitive_inst::is_valid_fusion() const {
         }
     }
 
-    const auto& out_pshape = (_unfused_subgraph != nullptr && !get_flag(ExecutionFlags::SHAPE_CHANGED)) ?
+    const auto out_pshape = (_unfused_subgraph != nullptr && !get_flag(ExecutionFlags::SHAPE_CHANGED)) ?
                             _unfused_subgraph->get_primitive(get_node().id())->get_output_layout().get_partial_shape() :
                             _impl_params->get_output_layout().get_partial_shape();
     for (auto& fd : fused_eltwise_prims) {

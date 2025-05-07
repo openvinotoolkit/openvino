@@ -36,7 +36,6 @@ KERNEL(softmax_topk)(
             sort_position++;
         }
     }
-    //if (sort_position >= TOP_K) return;
     
     __attribute__((opencl_unroll_hint(8)))
     for(uint i = sort_index; i < sort_cnt; i++) {

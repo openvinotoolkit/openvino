@@ -211,9 +211,6 @@ KERNEL (mlp_gate_up)(
     __local float xg_sum[HIDDEN_SIZE/32];
     gemv_n2x(up_weight, up_scale, up_zp, x, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
     gemv_n2x(gate_weight, gate_scale, gate_zp, x, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
-
-    //gemv_n2(up_weight, up_scale, up_zp, x, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, false);
-    //gemv_n2(gate_weight, gate_scale, gate_zp, x, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, true);
 }
 
 #elif DOWN_ENABLE
@@ -286,9 +283,6 @@ KERNEL (mlp_down)(
     __global uchar* weight = (__global uchar*)info_ptr->weight[2];
     __global half* scales = (__global half*)info_ptr->scale[2];
     __global uchar* zps = (__global uchar*)info_ptr->zp[2];
-    
-    //gemv_n(down_weight, down_scale, down_zp, x, y, HIDDEN_SIZE, INTERMEDIATE_SIZE, routing_weights[expert_no]);
-
 
     int N = HIDDEN_SIZE;
     int K = INTERMEDIATE_SIZE;
@@ -298,7 +292,7 @@ KERNEL (mlp_down)(
 
     __local half x2[INTERMEDIATE_SIZE];
     __local float xg_sum[INTERMEDIATE_SIZE/32];
-#if 1
+
     //# interleaving x into x2
     __global half * px = x + id_sg*GROUP_SIZE;
     __local half * px2 = x2 + id_sg*GROUP_SIZE;
@@ -317,7 +311,6 @@ KERNEL (mlp_down)(
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
     }
-#endif
     barrier(CLK_LOCAL_MEM_FENCE);
 
     //# global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]

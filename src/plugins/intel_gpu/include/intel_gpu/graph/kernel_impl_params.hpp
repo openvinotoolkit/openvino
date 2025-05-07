@@ -51,7 +51,6 @@ struct kernel_impl_params final {
     std::vector<layout> output_layouts;
     std::vector<tensor> input_offsets;
     std::vector<cldnn::fused_primitive_desc> fused_desc;
-    bool _input_has_padding = false;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
     std::shared_ptr<dnnl::primitive_attr> attrs_onednn;

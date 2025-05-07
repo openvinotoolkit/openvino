@@ -141,22 +141,6 @@ void ProgramBuilder::cleanup_build() {
 #endif
 }
 
-std::shared_ptr<ov::threading::IStreamsExecutor> ProgramBuilder::get_moe_task_executor() {
-    if (m_moe_task_executor == nullptr) {
-        auto config = get_config().clone();
-        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>({})));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(use_new_shape_infer()));
-        config.finalize(get_engine());
-
-        m_moe_task_executor = cldnn::program::make_task_executor(m_config);
-
-        if (m_moe_compilation_context == nullptr) {
-            m_moe_compilation_context = cldnn::program::make_compilation_context(m_config);
-        }
-    }
-    return m_moe_task_executor;
-}
-
 std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool is_inner_program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::build");
 
@@ -165,27 +149,7 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
         std::vector<ov::threading::Task> tasks;
         for (const auto& op : ops) {
-            if (ov::is_type<ov::op::v8::If>(op) || ov::is_type<ov::op::internal::MOEExpert>(op)) {
-                CreateSingleLayerPrimitive(op);
-            #if 1
-                tasks.push_back([this, &op] {
-                    try {
-                        CreateSingleLayerPrimitive(op);
-                    } catch (...) {
-                    }
-                });
-            #else
-                CreateSingleLayerPrimitive(op);
-            #endif
-            } else {
-                CreateSingleLayerPrimitive(op);
-            }
-        }
-
-        if (!tasks.empty()) {
-            auto task_executor = get_moe_task_executor();
-            task_executor->run_and_wait(tasks);
-            tasks.clear();
+            CreateSingleLayerPrimitive(op);
         }
     }
 
