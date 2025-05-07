@@ -64,13 +64,13 @@ bool SparseFillEmptyRows::needPrepareParams() const {
 }
 
 void SparseFillEmptyRows::executeDynamicImpl(const dnnl::stream& strm) {
+    std::cout<<"\n\n\nEXECUTING DYNAMIC SPARSE_FILL_EMPTY_ROWS\n\n\n"<<std::endl;
     // Get input shapes and data
     const auto& valuesMemory = getSrcMemoryAtPort(0);
     const auto& denseShapeMemory = getSrcMemoryAtPort(1);
     const auto& indicesMemory = getSrcMemoryAtPort(2);
     
     const auto& valuesShape = valuesMemory->getShape();
-    const auto& denseShapeShape = denseShapeMemory->getShape();
     const auto& indicesShape = indicesMemory->getShape();
     
     // Get number of rows from dense_shape
