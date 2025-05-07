@@ -80,29 +80,25 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& n
         }
     } else {
         // parameter is a number, but can be index or arch
-        // arch numbers are at least 4 digit, so we assume numbers smaller than 4 digits are indexes,
-        // while numbers bigger than 3 digis are arch names
-        if (param < 1000) {
-            // we asume it is an index, so return the device at that index (if exists)
-            if (_devices.size() < (size_t)(param + 1)) {
-                // index does not exist
-                OPENVINO_THROW("Could not find available NPU device with the specified index: NPU.", name);
-            } else {
-                // returning the n-th element (param)
-                auto it = _devices.begin();
-                std::advance(it, param);
-                return it->second;
-            }
+        // index is priority so we first check if there is a device with this index
+        // if there is no device with this index, we try it as an arch number
+        if (_devices.size() >= (size_t)(param + 1)) {
+            // returning the n-th element (param)
+            auto it = _devices.begin();
+            std::advance(it, param);
+            return it->second;
         } else {
+            // index does not exist
             // we asume this is an arch number, so we search for the first one
             for (auto it = _devices.begin(); it != _devices.end(); ++it) {
                 if (it->second->getName() == name) {
                     return it->second;
                 }
             }
-            // if we got here, it means there is no device with that arch number
-            OPENVINO_THROW("Could not find available NPU device with specified arch: NPU.", name);
-        };
+        }
+
+        // if we got here, it means there is no device with that arch number
+        OPENVINO_THROW("Could not find available NPU device with specified arch or index: NPU.", name);
     }
     // if we got here without returning already, it means we did not find a device with requested name/index/arch
     OPENVINO_THROW("Could not find requested NPU device: NPU.", name);
