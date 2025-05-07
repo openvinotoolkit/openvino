@@ -196,26 +196,12 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
 
 void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-
-    // Versione precedente con controlli manuali
-    // if (info.Length() != 1 || !info[0].IsObject()) {
-    //    Napi::TypeError::New(env, "The copyTo method requires one argument of type Tensor.")
-    //        .ThrowAsJavaScriptException();
-    //    return;
-    // }
-    // if (!info[0].InstanceOf(TensorWrap::get_class(env))) {
-    //    Napi::TypeError::New(env, "Argument must be an instance of Tensor.").ThrowAsJavaScriptException();
-    //    return;
-    // }
-
-
-    if (info.Length() != 1) {
-        reportError(env, "The copyTo method requires one argument of type Tensor.");
-        return;
-    }
     
-    if (!info[0].IsObject() || !info[0].InstanceOf(TensorWrap::get_class(env))) {
-        reportError(env, "Argument must be an instance of Tensor.");
+    std::vector<std::string> allowed_signatures;
+    
+    if (!ov::js::validate<TensorWrap>(info, allowed_signatures)) {
+        const auto error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
+        reportError(env, error_message);
         return;
     }
 
