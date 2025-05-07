@@ -31,7 +31,8 @@ ConsoleDumper::~ConsoleDumper() {
     for (; iterator_iter != m_iteration.end(); ++iterator_iter, ++iterator_acc) {
         const auto iter = *iterator_iter;
         const auto acc = *iterator_acc;
-        uint64_t avg = iter == 0 ? 0 : acc / iter;
+        // uint64_t avg = iter == 0 ? 0 : acc / iter;
+        uint64_t avg = iter == 0 ? 0 : acc / 101;
         if (avg > avg_max)
             avg_max = avg;
     }
@@ -92,7 +93,8 @@ void CSVDumper::update(const op::PerfCountEnd* node) {
     for (; iterator_iter != iteration.end(); ++iterator_iter, ++iterator_acc) {
         const auto iter = *iterator_iter;
         const auto acc = *iterator_acc;
-        uint64_t avg = iter == 0 ? 0 : acc / iter;
+        // uint64_t avg = iter == 0 ? 0 : acc / iter;
+        uint64_t avg = iter == 0 ? 0 : acc / 101;
         if (avg > avg_max)
             avg_max = avg;
     }

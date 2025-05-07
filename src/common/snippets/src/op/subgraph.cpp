@@ -550,10 +550,10 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
 #ifdef SNIPPETS_DEBUG_CAPS
     // insert before generate() to get rid of coped perf counters and output
     if (m_linear_ir->get_config().debug_config->perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
-        // const std::map<std::string, std::string> bound_names = {};
-        // lowered::pass::InsertPerfCount perf_count_pass(bound_names);
-        lowered::pass::InsertPerfCountVerbose perf_count_pass("MatMul_benchmark");
-        perf_count_pass.run(*linear_ir, linear_ir->cbegin(), linear_ir->cend());
+        ov::snippets::lowered::pass::PassPipeline debug_pipeline;
+        const std::map<std::string, std::string> bound_names = {{}};
+        debug_pipeline.register_pass<ov::snippets::lowered::pass::InsertPerfCount>(bound_names);
+        debug_pipeline.run(*linear_ir);
     }
 #endif
 
