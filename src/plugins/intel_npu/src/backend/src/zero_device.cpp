@@ -207,23 +207,13 @@ std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, ov::SoP
 
     // Create zero-pipeline and run it (infer init schedule)
     begin = std::chrono::steady_clock::now();
-    auto progilingPool = zeroProfiling::ProfilingPool(_initStructs, initGraph, zeroProfiling::POOL_SIZE);
-    auto profilingQuery = zeroProfiling::ProfilingQuery(_initStructs, 0);
-    auto npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_initStructs, config.get<LOG_LEVEL>());
 
     ze_device_properties_t properties = {};
     properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
     THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties", zeDeviceGetProperties(_initStructs->getDevice(), &properties));
 
     begin = std::chrono::steady_clock::now();
-    Pipeline pipeline(config,
-                      _initStructs,
-                      initGraph,
-                      progilingPool,
-                      profilingQuery,
-                      npuProfiling,
-                      inputTensors,
-                      outputTensors);
+    Pipeline pipeline(config, _initStructs, initGraph, inputTensors, outputTensors);
     end = std::chrono::steady_clock::now();
     std::cout << "Creating the pipeline " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
               << "[microseconds]" << std::endl;
@@ -273,24 +263,12 @@ ZeroDevice::runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>& ini
 
             // Create zero-pipeline and run it (infer init schedule)
             begin = std::chrono::steady_clock::now();
-            auto progilingPool = zeroProfiling::ProfilingPool(_initStructs, initGraph, zeroProfiling::POOL_SIZE);
-            auto profilingQuery = zeroProfiling::ProfilingQuery(_initStructs, 0);
-            auto npuProfiling =
-                std::make_shared<zeroProfiling::NpuInferProfiling>(_initStructs, config.get<LOG_LEVEL>());
-
             ze_device_properties_t properties = {};
             properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
             THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                         zeDeviceGetProperties(_initStructs->getDevice(), &properties));
 
-            Pipeline pipeline(config,
-                              _initStructs,
-                              initGraph,
-                              progilingPool,
-                              profilingQuery,
-                              npuProfiling,
-                              data.inputs.tensors,
-                              data.outputs.tensors);
+            Pipeline pipeline(config, _initStructs, initGraph, data.inputs.tensors, data.outputs.tensors);
             end = std::chrono::steady_clock::now();
             std::cout << "Creating the pipeline "
                       << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
