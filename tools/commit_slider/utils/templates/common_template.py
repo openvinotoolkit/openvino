@@ -15,8 +15,29 @@ class Template(ABC):
     def getTemplateByCfg(cfg):
         return Template
 
-    def printResult(commitPath, outLogger, getCommitInfo):
+    def printResult1(commitPath, outLogger, getCommitInfo):
         print("*****************************\n* Broken compilation found: *\n*   <Template for output>   *\n*****************************\n")
+        if not commitPath.metaInfo["preValidationPassed"]:
+            msg = "Preliminary check failed, reason: {}".format(
+                commitPath.metaInfo["reason"]
+            )
+            print(msg)
+            outLogger.info(msg)
+        elif not commitPath.metaInfo["postValidationPassed"]:
+            msg = "Output results invalid, reason: {}".format(
+                commitPath.metaInfo["reason"]
+            )
+            print(msg)
+            outLogger.info(msg)
+        else:
+            for pathcommit in commitPath.getList():
+                from utils.common_mode import Mode
+                if pathcommit.state is not Mode.CommitPath.CommitState.DEFAULT:
+                    commitInfo = getCommitInfo(pathcommit)
+                    print(commitInfo)
+                    outLogger.info(commitInfo)
+
+    def printResult(commitPath, outLogger, getCommitInfo):
         if not commitPath.metaInfo["preValidationPassed"]:
             msg = "Preliminary check failed, reason: {}".format(
                 commitPath.metaInfo["reason"]
