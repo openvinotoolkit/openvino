@@ -54,8 +54,10 @@ OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_bernoulli);
 OP_CONVERTER(translate_bitwise_and);
+OP_CONVERTER(translate_bitwise_left_shift);
 OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_bitwise_or);
+OP_CONVERTER(translate_bitwise_right_shift);
 OP_CONVERTER(translate_bitwise_xor);
 OP_CONVERTER(translate_bucketize);
 OP_CONVERTER(translate_cat);
@@ -149,6 +151,7 @@ OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_linspace);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_list_unpack);
+OP_CONVERTER(translate_logaddexp);
 OP_CONVERTER(translate_log1p);
 OP_CONVERTER(translate_log_sigmoid);
 OP_CONVERTER(translate_log_softmax);
@@ -362,6 +365,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
         {"aten::__and__", op::translate_bitwise_and},
         {"aten::__iand__", op::inplace_op<op::translate_bitwise_and>},
+        {"aten::__lshift__", op::translate_bitwise_left_shift},
+        {"aten::__rshift__", op::translate_bitwise_right_shift},
         {"aten::__derive_index", op::translate_derive_index},
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
@@ -431,8 +436,10 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bernoulli", op::translate_bernoulli},
         {"aten::bitwise_and", op::translate_bitwise_and},
+        {"aten::bitwise_left_shift", op::translate_bitwise_left_shift},
         {"aten::bitwise_not", op::translate_bitwise_not},
         {"aten::bitwise_or", op::translate_bitwise_or},
+        // {"aten::bitwise_right_shift", op::translate_bitwise_right_shift}, - temporarily disable
         {"aten::bitwise_xor", op::translate_bitwise_xor},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
@@ -541,6 +548,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::imag", common_translators::translate_imag},
         // aten::index - Supported in limited set of patterns
         {"aten::index_copy_", op::inplace_op<op::translate_index_copy_>},
+        {"aten::index_copy", op::translate_index_copy_},
         {"aten::index_fill_", op::inplace_op<op::translate_index_fill_>},
         {"aten::index_put", op::translate_index_put},
         {"aten::index_add", op::translate_index_add},
@@ -574,6 +582,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::linspace", op::translate_linspace},
         {"aten::log", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Log>, 1>},
         {"aten::log_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Log>>},
+        {"aten::logaddexp", op::translate_logaddexp},
         {"aten::logical_and", op::translate_and},
         {"aten::logical_or", op::translate_or},
         {"aten::logical_not", op::translate_not},
@@ -698,6 +707,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::softmax", op::translate_softmax},
         {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
         {"aten::sort", op::translate_sort},
+        {"aten::special_expit",
+         op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>, 1>},
         // aten::split - Supported in limited set of patterns
         // aten::split_with_sizes - Supported in limited set of patterns
         {"aten::sqrt", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sqrt>, 1>},
@@ -796,6 +807,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"<built-in function floordiv>", op::translate_floor_divide},
         {"<built-in function getitem>", op::translate_getitem},  // TODO: Check if there is any other way to handle this
         {"<built-in function mul>", op::translate_mul},
+        {"<built-in function neg>", op::translate_neg},
         {"<built-in function sub>", op::translate_sub},
         {"aten._adaptive_avg_pool1d.default", op::translate_adaptive_avg_pool1d},
         {"aten._adaptive_avg_pool2d.default", op::translate_adaptive_avg_pool2d},
@@ -808,6 +820,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
          op::translate_fake_quantize_per_tensor_affine_fx},
         {"aten._local_scalar_dense.default", op::skip_node},
         {"aten._log_softmax.default", op::translate_log_softmax_fx},
+        {"aten.__lshift__.Tensor", op::translate_bitwise_left_shift},
+        {"aten.__rshift__.Tensor", op::translate_bitwise_right_shift},
         {"aten._native_batch_norm_legit.default", op::translate_batch_norm_legit_fx},
         {"aten._native_batch_norm_legit.no_stats", op::translate_batch_norm_legit_no_stats_fx},
         {"aten._native_batch_norm_legit_functional.default", op::translate_batch_norm_legit_fx},
@@ -855,8 +869,10 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.baddbmm.default", op::translate_addmm_fx},
         {"aten.bitwise_and.Scalar", op::translate_bitwise_and},
         {"aten.bitwise_and.Tensor", op::translate_bitwise_and},
+        {"aten.bitwise_left_shift.Tensor", op::translate_bitwise_left_shift},
         {"aten.bitwise_not.default", op::translate_bitwise_not},
         {"aten.bitwise_or.Tensor", op::translate_bitwise_or},
+        // {"aten.bitwise_right_shift.Tensor", op::translate_bitwise_right_shift}, - temporarily disable
         {"aten.bitwise_xor.Tensor", op::translate_bitwise_xor},
         {"aten.bmm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
         {"aten.bucketize.Tensor", op::translate_bucketize},
@@ -927,6 +943,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.index.Tensor", op::translate_index_fx},
         {"aten._unsafe_index.Tensor", op::translate_index_fx},
         {"aten.index_select.default", op::translate_index_select},
+        {"aten.index_copy.default", op::translate_index_copy_},
         {"aten.isfinite.default", op::translate_1to1_match_1_inputs<opset10::IsFinite>},
         {"aten.isinf.default", op::translate_1to1_match_1_inputs<opset10::IsInf>},
         {"aten.isnan.default", op::translate_1to1_match_1_inputs<opset10::IsNaN>},
@@ -1060,6 +1077,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.view_as_complex.default", op::translate_view_as_complex},
         {"aten.view_as_real.default", op::translate_view_as_real},
         {"aten.where.self", op::translate_where},
+        {"aten.zero.default", op::translate_zeros_like_fx},
         {"aten.zeros.default", op::translate_zeros_fx},
         {"aten.zeros.names", op::translate_zeros_fx},
         {"aten.zeros_like.default", op::translate_zeros_like_fx},

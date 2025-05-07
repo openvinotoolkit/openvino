@@ -14,7 +14,7 @@ namespace intel_npu {
 ZeroEngineBackend::ZeroEngineBackend() : _logger("ZeroEngineBackend", Logger::global().level()) {
     _logger.debug("ZeroEngineBackend - initialize started");
 
-    _initStruct = std::make_shared<ZeroInitStructsHolder>();
+    _initStruct = ZeroInitStructsHolder::getInstance();
 
     auto device = std::make_shared<ZeroDevice>(_initStruct);
     _devices.emplace(std::make_pair(device->getName(), device));
@@ -27,10 +27,6 @@ uint32_t ZeroEngineBackend::getDriverVersion() const {
 
 uint32_t ZeroEngineBackend::getGraphExtVersion() const {
     return _initStruct->getGraphDdiTable().version();
-}
-
-bool ZeroEngineBackend::isBatchingSupported() const {
-    return _initStruct->isExtensionSupported("ZE_extension_graph_1_6", ZE_MAKE_VERSION(1, 6));
 }
 
 bool ZeroEngineBackend::isCommandQueueExtSupported() const {

@@ -13,20 +13,23 @@ class TestIndexCopy(PytorchLayerTest):
     def _prepare_input(self):
         return (self.input_tensor, self.values)
 
-    def create_model(self, dim, index):
+    def create_model(self, dim, index, inplace):
         class aten_index_copy_(torch.nn.Module):
-            def __init__(self, dim, index):
+            def __init__(self, dim, index, inplace):
                 super().__init__()
                 self.dim = dim
                 self.index = index
+                self.inplace = inplace
 
             def forward(self, input_tensor, values):
+                if not self.inplace:
+                    return input_tensor.index_copy(self.dim, self.index, values)
                 input_tensor.index_copy_(self.dim, self.index, values)
                 return input_tensor
 
         ref_net = None
-
-        return aten_index_copy_(dim, index), ref_net, "aten::index_copy_"
+        op_name = "aten::index_copy_" if inplace else "aten::index_copy"
+        return aten_index_copy_(dim, index, inplace), ref_net, op_name
 
     @pytest.mark.parametrize(
         "input_data",
@@ -77,9 +80,12 @@ class TestIndexCopy(PytorchLayerTest):
     )
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_index_copy_single_index(self, ie_device, precision, ir_version, input_data):
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    @pytest.mark.parametrize('inplace', [True, False])
+    def test_index_copy_single_index(self, inplace, ie_device, precision, ir_version, input_data):
         self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
         self.values = np.random.randn(*input_data["values_shape"]).astype(np.float32)
         index = input_data["index"]
         dim = input_data["dim"]
-        self._test(*self.create_model(dim, index), ie_device, precision, ir_version)
+        self._test(*self.create_model(dim, index, inplace), ie_device, precision, ir_version)

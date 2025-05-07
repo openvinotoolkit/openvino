@@ -15,7 +15,7 @@ import sys
 import pytest
 
 from openvino.frontend import FrontEndManager
-from openvino.runtime import shutdown
+from openvino import shutdown
 
 PADDLE_FRONTEND_NAME = "paddle"
 paddle_relu6_model_basename = "relu6"
@@ -69,7 +69,7 @@ def test_paddle_conversion_extension():
     # use specific (openvino.frontend.onnx) import here
     from openvino.frontend.paddle import ConversionExtension
     from openvino.frontend import NodeContext
-    import openvino.runtime.opset8 as ops
+    import openvino.opset8 as ops
 
     fe = fem.load_by_model(paddle_relu6_model_filename)
     assert fe
@@ -99,7 +99,7 @@ def test_op_extension_via_paddle_extension_set_attrs_values():
 
     # use specific (openvino.frontend.paddle) import here
     from openvino.frontend.paddle import OpExtension
-    from openvino.runtime import Core
+    from openvino import Core
 
     ie = Core()
 
@@ -120,7 +120,7 @@ def test_op_extension_via_frontend_extension_set_attrs_values():
 
     # use common (openvino.frontend) import here
     from openvino.frontend import OpExtension
-    from openvino.runtime import Core
+    from openvino import Core
 
     ie = Core()
     # check the model is valid

@@ -7,9 +7,9 @@
 #include <memory>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 namespace {
 

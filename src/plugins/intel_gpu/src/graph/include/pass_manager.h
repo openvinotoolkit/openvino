@@ -211,6 +211,8 @@ private:
     void select_implementation(program& p, program_node& node);
     void add_lstm_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
                                   cldnn::program_node&, size_t);
+    void add_gru_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
+        cldnn::program_node&, size_t);
     void add_lstm_bias_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
                                cldnn::program_node&);
     reorder_factory& _rf;
@@ -322,10 +324,10 @@ public:
 
         if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) && ((node->can_be_optimized() && !node->is_runtime_skippable())
             || !dep->can_be_optimized())) {
-            node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+            node->add_memory_dependency(*dep);
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
-                node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
+                node->add_memory_dependency(*dep);
             }
 
             for (const auto& subdep : dep->get_dependencies()) {
