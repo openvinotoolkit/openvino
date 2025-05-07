@@ -287,7 +287,7 @@ public:
                     mark_as_precision_sensitive(out_inputs);
                 }
             }
-            return true;
+            return false;
         };
         auto m = make_shared<pattern::Matcher>(random_uniform_pattern, matcher_name);
         register_matcher(m, callback);
