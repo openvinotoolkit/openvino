@@ -208,7 +208,7 @@ public:
     const primitive_type_id type;
 
     /// @brief Primitive's id.
-    const primitive_id id;
+    primitive_id id;
 
     /// @brief Name of original ov operation.
     std::string origin_op_name;
@@ -259,7 +259,7 @@ public:
         std::string type_str;
         ib >> type_str;
         *const_cast<primitive_type_id*>(&type) = prim_map_storage::instance().get_type_id(type_str);
-        ib >> *const_cast<primitive_id*>(&id);
+        ib >> id;
         ib >> origin_op_name;
         ib >> origin_op_type_name;
         ib >> output_paddings;
@@ -306,6 +306,9 @@ protected:
 /// @brief base class for all primitives implementations.
 template <class PType>
 class primitive_base : public primitive {
+public:
+    std::shared_ptr<PType> clone() const { return std::make_shared<PType>(static_cast<const PType &>(*this)); }
+
 protected:
     explicit primitive_base(const primitive_id& id,
                             const std::vector<input_info>& input,

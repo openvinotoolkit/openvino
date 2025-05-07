@@ -56,7 +56,7 @@ ov_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR 
 
 ov_dependent_option (ENABLE_NEON_FP16 "Enable ARM FP16 optimizations" ON "AARCH64" OFF)
 
-ov_dependent_option (ENABLE_SVE "Enable SVE optimizations" ON "AARCH64" OFF)
+ov_dependent_option (ENABLE_SVE "Enable SVE optimizations" ON "AARCH64 AND NOT APPLE" OFF)
 
 # Type of build, we add this as an explicit option to default it to ON
 get_property(BUILD_SHARED_LIBS_DEFAULT GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS)
@@ -115,7 +115,7 @@ if(ENABLE_AVX512F)
 endif()
 
 if(ENABLE_SVE)
-    ov_check_compiler_supports_sve("-march=armv8-a+sve")
+    ov_check_compiler_supports_sve("-march=armv8-a+sve+fp16")
 
     if(NOT CXX_HAS_SVE)
         set(ENABLE_SVE OFF CACHE BOOL "Enables ARM64 SVE support" FORCE)

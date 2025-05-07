@@ -174,7 +174,7 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
         stream << d << " ";
     }
     stream << "(" << data_size << ")"
-           << " by address 0x" << std::hex << memory->getDataAs<const int64_t>() << std::dec << '\n';
+           << " by address" << std::hex << memory->getDataAs<const int64_t>() << std::dec << '\n';
 
     const void* ptr = memory->getData();
 
