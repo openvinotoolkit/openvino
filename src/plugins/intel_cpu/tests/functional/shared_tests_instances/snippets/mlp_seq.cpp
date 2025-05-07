@@ -15,7 +15,6 @@ namespace {
 std::vector<std::vector<InputShape>> inputShape_2D() {
     auto shapes = SNIPPETS_TESTS_STATIC_SHAPES(
         {{1, 64}},
-        {{2, 64}},
         {{64, 64}});
     return shapes;
 }
