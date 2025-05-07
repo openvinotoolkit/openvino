@@ -19,10 +19,6 @@
 namespace cldnn {
 namespace onednn {
 
-#define LOG_AND_RETURN() do {   \
-    GPU_DEBUG_COUT << "do not use onednn" << std::endl; \
-    return false;   \
-    } while (0)
 struct FullyConnectedImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::fc")
     FullyConnectedImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
@@ -79,6 +75,11 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         }
 
         return true;
+    }
+
+    in_out_fmts_t query_formats(const program_node& node) const override {
+        assert(node.is_type<fully_connected>());
+        std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
         size_t out_rank = node.get_output_layout().get_rank();

@@ -29,18 +29,18 @@ class typed_primitive_inst<input_layout> : public typed_primitive_inst_base<inpu
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(input_layout_node const& /* node */, const kernel_impl_params& impl_param) {
-        return impl_param.typed_desc<input_layout>()->layouts;
+        return { impl_param.typed_desc<input_layout>()->layout };
     }
 
     static layout calc_output_layout(input_layout_node const& node, kernel_impl_params const& impl_param) {
-        return impl_param.typed_desc<input_layout>()->layouts[0];
+        return impl_param.typed_desc<input_layout>()->layout;
     }
     static std::string to_string(input_layout_node const& node);
 
     void update_shape() override;
     typed_primitive_inst(network& network, input_layout_node const& node);
 
-    event::ptr set_data(memory::ptr mem, bool need_to_check_memory_to_set = true, size_t port = 0);
+    event::ptr set_data(memory::ptr mem, bool need_to_check_memory_to_set = true);
 };
 
 using input_layout_inst = typed_primitive_inst<input_layout>;

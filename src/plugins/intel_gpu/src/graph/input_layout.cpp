@@ -35,7 +35,7 @@ input_layout_inst::typed_primitive_inst(network& network, input_layout_node cons
     _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
-event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memory_to_set, size_t port) {
+event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memory_to_set) {
     auto ol = get_node_output_layout();
 
     bool empty_mem = mem->size() == 0 && (ol.is_dynamic() || ol.count() == 0);
@@ -50,18 +50,18 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
     // Allow to set dummy simple_attached_memory empty tensor as network input
     if (mem->is_allocated_by(engine) || mem->get_layout().count() == 0) {
         OPENVINO_ASSERT(!_outputs.empty(), "[GPU] Can't set data for empty input memory");
-        _outputs[port] = mem;
+        _outputs[0] = mem;
     } else {
-        if (_outputs.size() <= port || !_outputs[port]) {
-            _outputs.resize(port + 1);
-            _outputs[port] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
+        if (_outputs.empty() || !_outputs[0]) {
+            _outputs.resize(1);
+            _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
         }
 
         if (ol.is_dynamic() && _outputs[0]->size() < mem->size()) {
-            _outputs[port] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
+            _outputs[0] = engine.allocate_memory(mem->get_layout(), engine.get_preferred_memory_allocation_type(), false);
         }
         mem_lock<uint8_t> src(mem, stream);
-        ev = _outputs[port]->copy_from(stream, src.data(), false);
+        ev = _outputs[0]->copy_from(stream, src.data(), false);
     }
     _has_valid_input = true;
     return ev;
@@ -69,18 +69,13 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
 
 void input_layout_inst::update_shape() {
     OPENVINO_ASSERT(!_outputs.empty() && _outputs[0] != nullptr, "[GPU] input memory is not set");
-    for (size_t port = 0; port < _outputs.size(); port++) {
-        // second output can be nullptr when dyn_quan is unfused. It is OK for such case.
-        if (!_outputs[port])
-            continue;
-        auto mem_layout = _outputs[port]->get_layout();
-        // Set SHAPE_CHANGED flag if the actual data layout has changed, or if the node is included
-        // into shape_of subgraph to trigger proper shape_of subgraph shape recalculation
-        if (_impl_params->get_output_layout() != mem_layout || _node->is_in_shape_of_subgraph()) {
-            set_flag(ExecutionFlags::SHAPE_CHANGED);
-        }
-        _impl_params->output_layouts[port] = mem_layout;
+    auto mem_layout = _outputs[0]->get_layout();
+    // Set SHAPE_CHANGED flag if the actual data layout has changed, or if the node is included
+    // into shape_of subgraph to trigger proper shape_of subgraph shape recalculation
+    if (_impl_params->get_output_layout() != mem_layout || get_node().is_in_shape_of_subgraph()) {
+        set_flag(ExecutionFlags::SHAPE_CHANGED);
     }
+    _impl_params->output_layouts[0] = mem_layout;
 }
 
 std::string input_layout_inst::to_string(input_layout_node const& node) {

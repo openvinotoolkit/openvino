@@ -25,19 +25,13 @@ struct input_layout : public primitive_base<input_layout> {
     /// @param id This primitive id.
     /// @param layout Defines layout for the data will be passed to network.
     input_layout(const primitive_id& id, const layout& layout)
-        : primitive_base(id, {}, 1, {optional_data_type()}, {layout.data_padding}), layouts{layout} {}
-
-    input_layout(const primitive_id& id, const std::vector<layout>& layouts, const std::vector<padding> &paddings)
-        : primitive_base(id, {}, layouts.size(), {optional_data_type()}, {paddings}), layouts{layouts} {}
+        : primitive_base(id, {}, 1, {optional_data_type()}, {layout.data_padding}), layout(layout) {}
 
     /// @brief Defines layout for the data will be passed to network.
-    mutable std::vector<cldnn::layout> layouts;
+    mutable cldnn::layout layout;
 
     void change_layout(const cldnn::layout& new_layout) {
-        if (layouts.size() == 0)
-            layouts.push_back(new_layout);
-        else
-            layouts[0] = new_layout;
+        layout = new_layout;
     }
 
     size_t hash() const override {
@@ -48,12 +42,12 @@ struct input_layout : public primitive_base<input_layout> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<input_layout>::save(ob);
-        ob << layouts;
+        ob << layout;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<input_layout>::load(ib);
-        ib >> layouts;
+        ib >> layout;
     }
 };
 }  // namespace cldnn
