@@ -386,15 +386,22 @@ void Snapshot::markInternalCompute() {
             prod_cons_tags.insert(group_cons->specialTags());
         }
         if (prod_cons_tags.size() == 1 && !(*prod_cons_tags.begin()).empty()) {
-            NPUW_ASSERT(!group->srcNodes().empty());
-            auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
-            Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
-            NPUW_ASSERT(!group_prod->isolatedTag().empty());
-            if (group_prod->isolatedTag() !=
+            Group::GPtr group_with_tag;
+            if (group->srcNodes().empty()) {
+                NPUW_ASSERT(!group->dstNodes().empty());
+                auto cons_nh = group->dstNodes().at(0);  // all tags are the same, pick either group
+                group_with_tag = m_graph->meta(cons_nh).get<Group::GPtr>();
+            } else {
+                auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
+                group_with_tag = m_graph->meta(prod_nh).get<Group::GPtr>();
+            }
+
+            NPUW_ASSERT(!group_with_tag->isolatedTag().empty());
+            if (group_with_tag->isolatedTag() !=
                 "compute") {  // this pass only operates with "compute" tag set by COMPUTE pipeline
                 continue;
             }
-            group->isolate(group_prod->isolatedTag());
+            group->isolate(group_with_tag->isolatedTag());
         }
     }
 
@@ -488,6 +495,8 @@ void Snapshot::earlyRegroup() {
     }
             HNDL(RMSNorm);
             HNDL(RMSNorm2);
+            HNDL(RMSNorm3);
+            HNDL(RMSNorm4);
             HNDL(DQMatMulCWu4);
             HNDL(DQMatMulGQu4);
             HNDL(DQMatMulCWi4);
