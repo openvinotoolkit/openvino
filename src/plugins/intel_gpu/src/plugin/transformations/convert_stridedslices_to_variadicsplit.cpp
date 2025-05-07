@@ -86,7 +86,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                     }
                     return true;
                 };
-                auto begin_node = strided_slice_node->get_input_node_shared_ptr(1);
+                auto begin_node = strided_slice_node->input_value(1);
                 if (const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node)) {
                     auto values = begin_constant_node->cast_vector<int64_t>();
                     auto begin_mask = strided_slice_node->get_begin_mask();
@@ -100,9 +100,9 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                     return false;
                 }
 
-                auto end_node = strided_slice_node->get_input_node_shared_ptr(2);
+                auto end_node = strided_slice_node->input_value(2);
                 if (const auto& end_constant_node = ov::util::get_constant_from_source(end_node)) {
-                    int64_t max_value = end_node->get_element_type() == ov::element::i32 ? std::numeric_limits<int32_t>::max()
+                    int64_t max_value = end_node.get_node()->get_element_type() == ov::element::i32 ? std::numeric_limits<int32_t>::max()
                                                                                          : std::numeric_limits<int64_t>::max();
                     auto values = end_constant_node->cast_vector<int64_t>();
                     auto end_mask = strided_slice_node->get_end_mask();
