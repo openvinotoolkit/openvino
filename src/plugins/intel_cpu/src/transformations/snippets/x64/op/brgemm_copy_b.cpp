@@ -108,8 +108,8 @@ std::shared_ptr<ov::Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const Ou
 }
 
 size_t BrgemmCopyB::get_offset_compensations() const {
-    OPENVINO_ASSERT(with_compensations(m_type) && get_output_size() == 2,
-                    "The offset for compensations must be in BrgemmCopyB only with compensations and 2 outputs!");
+    assert(with_compensations(m_type) && get_output_size() == 2 &&
+           "The offset for compensations must be in BrgemmCopyB only with compensations and 2 outputs!");
     return get_output_offset(1);
 }
 
