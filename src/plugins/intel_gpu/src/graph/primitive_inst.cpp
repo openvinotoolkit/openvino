@@ -1833,7 +1833,11 @@ void primitive_inst::reset_flags() {
 void primitive_inst::prepare_primitive() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
     const auto& primitive_id = id();
-    OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
+    if (!_has_valid_input) {
+        // For unfused network with dynamic_quantization, we may have empty/unused input
+        GPU_DEBUG_COUT << primitive_id << " does not have proper input. do nothing" << std::endl;
+        return;
+    }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
     for (size_t i = 0; i < _deps.size(); ++i) {
@@ -2004,23 +2008,25 @@ void primitive_inst::execute() {
         GPU_DEBUG_TRACE << "Now execute unfused subgraph  " << _node->id() << std::endl;
         for (auto& d : _deps) {
             if (!d.first->get_node().is_type<data>()) {
-                auto allocated_mem = d.first->output_memory_ptr();
-                auto actual_input_layout = d.first->get_output_layout();
+                auto allocated_mem = d.first->output_memory_ptr(d.second);
+                auto actual_input_layout = d.first->get_output_layout(d.second);
                 auto& engine = get_network().get_engine();
                 cldnn::memory_ptr actual_mem = nullptr;
                 // Need to use actual layout, not the fake aligned memory layout
                 if (actual_input_layout.count() != 0) {
-                    actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                    if (allocated_mem)
+                        actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
                 } else {
                     actual_mem = engine.allocate_memory(actual_input_layout);
                 }
-                GPU_DEBUG_COUT << "set_input_data " << d.first->id() << std::endl;
-                _unfused_subgraph->set_input_data(d.first->id() + ".port" + std::to_string(d.second), std::move(actual_mem));
+                GPU_DEBUG_COUT << "set_input_data " << d.first->id() + ".port" + std::to_string(d.second) << "  " << actual_mem << std::endl;
+                if (actual_mem)
+                    _unfused_subgraph->set_input_data(d.first->id() + ".port" + std::to_string(d.second), std::move(actual_mem));
             }
         }
-        GPU_DEBUG_TRACE_DETAIL << "[Start] Executing unfused subgraph of " << id() << std::endl;
+        GPU_DEBUG_COUT << "[Start] Executing unfused subgraph of " << id() << std::endl;
         auto outputs = _unfused_subgraph->execute(_impl_params->dep_events);
-        GPU_DEBUG_TRACE_DETAIL << "[End] Finished executing unfused subgraph of " << id() << std::endl;
+        GPU_DEBUG_COUT << "[End] Finished executing unfused subgraph of " << id() << std::endl;
 
         auto last_fd = _impl_params->fused_desc.back();
         auto last_prim_id = last_fd.desc->id;
