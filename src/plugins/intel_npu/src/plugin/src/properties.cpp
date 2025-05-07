@@ -61,11 +61,11 @@ namespace intel_npu {
  * @brief Macro for registering simple get<> properties which have been previously set. For COMPILED_MODEL
  *
  * This macro is the same as TRY_REGISTER_SIMPLE_PROPERTY with the added functionality that it first verifies
- * whether the option was previously set. Basicly it will not register properties which are still on their
- * default values.
- * This is useful for Compiled_model properties to avoid reporting settings which were not set at model compilation.
- * Having properties in compiled_model which report default value can be misleading as those default values might
- * not even haven been used by compiler, or in extreme cornercases be out of sync with the compiler's default values.
+ * whether the option was previously set + forces the property to  be public (!!). Basicly it will not register
+ * properties which are still on their default values. This is useful for Compiled_model properties to avoid reporting
+ * settings which were not set at model compilation. Having properties in compiled_model which report default value can
+ * be misleading as those default values might not even haven been used by compiler, or in extreme cornercases be out of
+ * sync with the compiler's default values.
  *
  * @param OPT_NAME Class/type of the option (will fetch .name() from it)
  * @param OPT_TYPE Type (template) of the option
@@ -77,17 +77,17 @@ namespace intel_npu {
  *   are not supported in the current configuration and were previously filtered out on plugin level.
  * - The property visibility (public/private) and mutability (RO/RW) are read from the base option descriptor
  * (optionBase) the property will map to
- * - COMPILED_MODEL only: In case the property is registered for a compiled_model, mutability will be automatically
- * forced to READ-ONLY
- * - COMPILED_MODEL only: If the configuration has no entry for the option, it means it was not set, which means it will
+ * - mutability will be automatically forced to READ-ONLY
+ * - visibility will be automatically forced to PUBLIC
+ * - If the configuration has no entry for the option, it means it was not set, which means it will
  * skip registering it
  * - A simple config.get<OPT_TYPE> lambda function is defined as the property's callback function
  *
  * @note The macro ensures that compiled model properties are marked read-only unless the configuration lacks the
  * specified option type.
- * @note TO BE USED FOR COMPILED_MODEL
+ * @note ***** TO BE USED FOR COMPILED_MODEL ONLY ***** It forces the property public!
  */
-#define TRY_REGISTER_SIMPLE_PROPERTY_IFSET(OPT_NAME, OPT_TYPE)                                          \
+#define TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(OPT_NAME, OPT_TYPE)                                   \
     do {                                                                                                \
         std::string o_name = OPT_NAME.name();                                                           \
         if (!_config.has(o_name)) {                                                                     \
@@ -98,6 +98,7 @@ namespace intel_npu {
             ov::PropertyMutability isMutable = _config.getOpt(o_name).mutability();                     \
             if (_pType == PropertiesType::COMPILED_MODEL) {                                             \
                 isMutable = ov::PropertyMutability::RO;                                                 \
+                isPublic = true;                                                                        \
             }                                                                                           \
             _properties.emplace(o_name, std::make_tuple(isPublic, isMutable, [](const Config& config) { \
                                     return config.get<OPT_TYPE>();                                      \
@@ -499,7 +500,6 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::loaded_from_cache, LOADED_FROM_CACHE);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::turbo, TURBO);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::model_priority, MODEL_PRIORITY);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::execution_mode, EXECUTION_MODE_HINT);
@@ -507,28 +507,32 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
 
     // Properties we shall only enable if they were set prior-to-compilation
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::hint::model, MODEL_PTR);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::enable_profiling, PERF_COUNT);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::dma_engines, DMA_ENGINES);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::tiles, TILES);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::compilation_mode, COMPILATION_MODE);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::platform, PLATFORM);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::profiling_type, PROFILING_TYPE);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::backend_compilation_params, BACKEND_COMPILATION_PARAMS);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::batch_mode, BATCH_MODE);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::bypass_umd_caching, BYPASS_UMD_CACHING);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::defer_weights_load, DEFER_WEIGHTS_LOAD);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::compiler_dynamic_quantization, COMPILER_DYNAMIC_QUANTIZATION);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
-    TRY_REGISTER_SIMPLE_PROPERTY_IFSET(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::hint::model, MODEL_PTR);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_profiling, PERF_COUNT);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::profiling_type, PROFILING_TYPE);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::turbo, TURBO);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::dma_engines, DMA_ENGINES);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::tiles, TILES);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compilation_mode, COMPILATION_MODE);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_type, COMPILER_TYPE);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::platform, PLATFORM);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::dynamic_shape_to_static, DYNAMIC_SHAPE_TO_STATIC);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::backend_compilation_params, BACKEND_COMPILATION_PARAMS);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::bypass_umd_caching, BYPASS_UMD_CACHING);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::defer_weights_load, DEFER_WEIGHTS_LOAD);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_dynamic_quantization,
+                                              COMPILER_DYNAMIC_QUANTIZATION);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::batch_compiler_mode_settings,
+                                              BATCH_COMPILER_MODE_SETTINGS);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
+
+    TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);
 
     TRY_REGISTER_CUSTOM_PROPERTY(ov::workload_type,
                                  WORKLOAD_TYPE,
@@ -552,7 +556,7 @@ void Properties::registerCompiledModelProperties() {
     REGISTER_SIMPLE_METRIC(ov::optimal_number_of_infer_requests,
                            true,
                            static_cast<uint32_t>(getOptimalNumberOfInferRequestsInParallel(config)));
-    REGISTER_CUSTOM_METRIC(ov::internal::supported_properties, true, [&](const Config&) {
+    REGISTER_CUSTOM_METRIC(ov::internal::supported_properties, false, [&](const Config&) {
         static const std::vector<ov::PropertyName> supportedProperty{
             ov::PropertyName(ov::internal::caching_properties.name(), ov::PropertyMutability::RO)};
         return supportedProperty;
