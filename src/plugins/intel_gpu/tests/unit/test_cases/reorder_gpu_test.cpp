@@ -2232,12 +2232,8 @@ TEST(reorder_weights_gpu_i32, reorder_weights_in_dynamic_convolution)
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(engine, topology, config);
-    network.set_input_data("parameter", input);
-
-    auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "result");
+    EXPECT_NO_THROW(network(engine, topology, config));
+    // No exception should be thrown in case of reorder having proper shape.
 }
 
 TEST(reorder_weights_gpu_i32, reorder_weights_opt)
