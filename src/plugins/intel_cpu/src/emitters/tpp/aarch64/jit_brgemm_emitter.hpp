@@ -39,11 +39,9 @@ protected:
     const uintptr_t get_execute_function_ptr() const;
     const uintptr_t get_compiled_kernel_ptr() const;
 
-#ifdef KLEIDIAI_BACKEDN
-    std::shared_ptr<ov::intel_cpu::tpp::BrgemmKaiKernelExecutor> m_kernel_executor = nullptr;
-#else
-    std::shared_ptr<ov::intel_cpu::tpp::BrgemmKernelExecutor> m_kernel_executor = nullptr;
-#endif
+    bool use_kai = false;
+    std::shared_ptr<ov::intel_cpu::tpp::BrgemmKaiKernelExecutor> m_kernel_executor_kai = nullptr;
+    std::shared_ptr<ov::intel_cpu::tpp::BrgemmKernelExecutor> m_kernel_executor_tpp = nullptr;
 };
 
 }  // namespace ov::intel_cpu::aarch64

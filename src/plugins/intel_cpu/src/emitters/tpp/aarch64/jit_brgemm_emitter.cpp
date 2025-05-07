@@ -22,17 +22,19 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
                                        const snippets::KernelExecutorTablePtr& kernel_table,
                                        const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_emitter(h, isa) {
+    // get backend type
+    use_kai = std::getenv("MATMUL_KAI_BACKEND") == nullptr ? false : true;
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-#ifdef KLEIDIAI_BACKEDN
-    BrgemmKernelKaiConfig kernel_config;
-    m_kernel_executor = kernel_table->register_kernel<BrgemmKaiKernelExecutor>(expr, kernel_config);
-#else
-    const auto& brgemm_node = as_type_ptr<intel_cpu::tpp::op::BrgemmTPP>(expr->get_node());
-    const auto& brg0Prc = brgemm_node->get_input_element_type(0);
-    const auto& brg1Prc = brgemm_node->get_input_element_type(1);
-    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc);
-    m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
-#endif
+    if (use_kai) {
+        BrgemmKernelKaiConfig kernel_config;
+        m_kernel_executor_kai = kernel_table->register_kernel<BrgemmKaiKernelExecutor>(expr, kernel_config);
+    } else {
+        const auto& brgemm_node = as_type_ptr<intel_cpu::tpp::op::BrgemmTPP>(expr->get_node());
+        const auto& brg0Prc = brgemm_node->get_input_element_type(0);
+        const auto& brg1Prc = brgemm_node->get_input_element_type(1);
+        BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc);
+        m_kernel_executor_tpp = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
@@ -78,15 +80,19 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 }
 
 const uintptr_t jit_brgemm_emitter::get_compiled_kernel_ptr() const {
-    return reinterpret_cast<const uintptr_t>(m_kernel_executor.get());
+    if (use_kai) {
+        return reinterpret_cast<const uintptr_t>(m_kernel_executor_kai.get());
+    } else {
+        return reinterpret_cast<const uintptr_t>(m_kernel_executor_tpp.get());
+    }
 }
 
 const uintptr_t jit_brgemm_emitter::get_execute_function_ptr() const {
-#ifdef KLEIDIAI_BACKEDN
-    return reinterpret_cast<const uintptr_t>(BrgemmKaiKernelExecutor::execute);
-#else
-    return reinterpret_cast<const uintptr_t>(BrgemmKernelExecutor::execute);
-#endif
+    if (use_kai) {
+        return reinterpret_cast<const uintptr_t>(BrgemmKaiKernelExecutor::execute);
+    } else {
+        return reinterpret_cast<const uintptr_t>(BrgemmKernelExecutor::execute);
+    }
 }
 
 }  // namespace ov::intel_cpu::aarch64
