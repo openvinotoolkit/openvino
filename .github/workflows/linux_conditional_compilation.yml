@@ -54,20 +54,26 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    if: "!needs.smart_ci.outputs.skip_workflow"
     runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
         - /mount:/mount
     outputs:
-      images: "${{ steps.handle_docker.outputs.images }}"
+      images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
     steps:
+      - name: Set mock output images if pipeline should be skipped
+        if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
+        id: mock_image
+        run: echo "images={\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_x64_cc\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
 
       - uses: ./.github/actions/handle_docker
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
         id: handle_docker
         with:
           images: |
@@ -79,6 +85,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
+    if: ${{ github.event_name != 'merge_group' && needs.Smart_CI.outputs.skip_workflow != 'True' }}
     timeout-minutes: 150
     defaults:
       run:
@@ -108,7 +115,6 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release_faster_build
-    if: ${{ github.event_name != 'merge_group' }}
 
     steps:
       - name: Clone OpenVINO
