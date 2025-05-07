@@ -118,7 +118,7 @@ Once the inference request is created and input/output tensors are prepared for 
     inferRequest.wait(); // optional, in case user callback is not provided
 ```
 
-Multiple inferences can be executed in parallel, either from the same application thread through the use of asynchronous methods or from multiple threads with any of the available methods (synchronous or asynchronous). There is an optimal number of inference requests to be executed in parallel that would yield the best throughput without impacting the latency observed for each inference. This optimal number of requests is different for each model and depends on the ratio between the duration of the model execution on the DPU HW and the rest of the latency required to pass the request through the entire software stack. The NPU plugin returns the optimal number of inference requests through a dedicated property (`ov::optimal_number_of_infer_requests`).
+Multiple inferences can be executed in parallel, either from the same application thread through the use of asynchronous methods or from multiple threads with any of the available methods (synchronous or asynchronous). There is an optimal number of inference requests to be executed in parallel that would yield the best throughput without impacting the latency observed for each inference. This optimal number of requests is different for each model and depends on the ratio between the duration of the model execution on the DPU HW (Tiles) and the rest of the latency required to pass the request through the entire software stack. The NPU plugin returns the optimal number of inference requests through a dedicated property (`ov::optimal_number_of_infer_requests`).
 
 Note: the current implementation of this property does not estimate or check the duration of the model execution. A fixed number of recommended inference requests is currently returned based on the existing performance data gathered from a reduced set of models with different topologies.
 
@@ -153,7 +153,7 @@ The following properties are supported:
 | `ov::range_for_async_infer_requests`/</br>`RANGE_FOR_ASYNC_INFER_REQUESTS` | RO | Returns a tuple (bottom, top, step). </br> Not used by the NPU plugin. | `N/A` | `N/A` |
 | `ov::range_for_streams`/</br>`RANGE_FOR_STREAMS` | RO | Returns a tuple (bottom, top).</br> Not used by the NPU plugin. | `N/A`| `N/A` |
 | `ov::enable_profiling`/</br>`PERF_COUNT` | RW | Enables or disables performance counters. | `YES`/ `NO` | `NO` |
-| `ov::hint::performance_mode`/</br>`PERFORMANCE_HINT` | RW | Sets the performance profile used to determine default values of DPUs/DMAs/NIREQs.</br>Default values for each profile are documented below. | `THROUGHPUT`/</br>`LATENCY`/</br>`UNDEFINED` | `UNDEFINED` |
+| `ov::hint::performance_mode`/</br>`PERFORMANCE_HINT` | RW | Sets the performance profile used to determine default values of Tiles/DMAs/NIREQs.</br>Default values for each profile are documented below. | `THROUGHPUT`/</br>`LATENCY`/</br>`UNDEFINED` | `UNDEFINED` |
 | `ov::hint::num_requests`/</br>`PERFORMANCE_HINT_NUM_REQUESTS` | RW | Sets the number of outstanding inference requests. | `[0-]` | `1` |
 | `ov::hint::model_priority`/</br>`MODEL_PRIORITY` | RW | Assigns a priority for the model execution. | `LOW`/</br>`MEDIUM`/</br>`HIGH` | `MEDIUM` |
 | `ov::hint::enable_cpu_pinning`/</br>`ENABLE_CPU_PINNING` | RW | Allows CPU threads pinning during inference. | `YES`/ `NO` /</br>`NO` 
@@ -183,11 +183,11 @@ The following properties are supported:
 | `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started to optimize host scheduling. | `YES`/ `NO`| `NO` |
 
 &nbsp;
-### Performance Hint: Default Number of DPU Groups / DMA Engines
+### Performance Hint: Default Number of Tiles / DMA Engines
 
-The following table shows the default values for the number of DPU Groups (Tiles) and DMA Engines selected by the plugin based on the performance mode (THROUGHPUT/LATENCY) and based on the platform:
+The following table shows the default values for the number of Tiles and DMA Engines selected by the plugin based on the performance mode (THROUGHPUT/LATENCY) and based on the platform:
 
-| Performance hint | NPU Platform        | Number of DPU Groups | Number of DMA Engines           |
+| Performance hint | NPU Platform        | Number of Tiles      | Number of DMA Engines           |
 | :---             | :---                | :---                 | :---                            |
 | THROUGHPUT       | 3720                | 2 (all of them)      | 2 (all of them)                 |
 | THROUGHPUT       | 4000                | 2 (out of 5/6)       | 2 (all of them)                 |
