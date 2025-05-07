@@ -111,7 +111,7 @@ void regclass_Core(py::module m) {
             :param name: Property or name of Property.
             :type name: str
             :param arguments: Additional arguments to get a property.
-            :type arguments: tuple
+            :type arguments: dict
             :return: Extracted information from property.
             :rtype: typing.Any
         )");
