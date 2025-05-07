@@ -325,7 +325,8 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     // scale:
     auto scale_pattern = pattern::any_input();
     auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
-    auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, pattern::any_input()});
+    auto scale_reshape_pattern =
+        pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, pattern::any_input()});
     auto multiply_pattern = pattern::wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
     matcher_pass_callback callback = [=](Matcher& m) {
