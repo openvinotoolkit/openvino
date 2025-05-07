@@ -249,52 +249,6 @@ struct ImportDataWs {
     std::vector<std::vector<uint8_t>> initBlobs;
 };
 
-ImportDataWs readBlobsWs_v1(std::istream& stream) {
-    ImportDataWs data;
-
-    uint32_t blobSize;
-    stream >> blobSize;
-    data.mainBlob.resize(blobSize);
-    stream.read(reinterpret_cast<char*>(data.mainBlob.data()), blobSize);
-
-    uint32_t initCount;
-    stream >> initCount;
-    char delimiter;
-    stream >> delimiter;
-    if (delimiter != ':') {
-        OPENVINO_THROW("Invalid init blob delimiter found, expecting ':', got: ", delimiter);
-    }
-
-    data.initBlobs.resize(initCount);
-    for (uint32_t i = 0; i < initCount; ++i) {
-        auto& initBlob = data.initBlobs[i];
-        uint32_t initBlobSize;
-        stream >> initBlobSize;
-        initBlob.resize(initBlobSize);
-        stream.read(reinterpret_cast<char*>(initBlob.data()), initBlobSize);
-    }
-
-    return data;
-}
-
-ImportDataWs readBlobsWs_general(std::istream& stream) {
-    ImportDataWs data;
-
-    uint32_t blobSize;
-    stream >> blobSize;
-    data.mainBlob.resize(blobSize);
-    stream.read(reinterpret_cast<char*>(data.mainBlob.data()), blobSize);
-
-    data.initBlobs.resize(1);
-    auto& initBlob = data.initBlobs[0];
-    uint32_t initBlobSize;
-    stream >> initBlobSize;
-    initBlob.resize(initBlobSize);
-    stream.read(reinterpret_cast<char*>(initBlob.data()), initBlobSize);
-
-    return data;
-}
-
 void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
