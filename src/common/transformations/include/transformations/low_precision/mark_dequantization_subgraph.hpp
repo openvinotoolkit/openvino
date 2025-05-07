@@ -76,5 +76,19 @@ public:
                                 bool fold_multiply_const = true);
 };
 
+/**
+ * @ingroup ov_transformation_common_api
+ *
+ * @brief KeepDequantizationPrecision matches Dequantization subgraphs and, if precision matches with
+ * specified, Convert, Multiply (and Subtract) nodes might be marked with disable_fp16_compression attribute.
+ * This prevents precision loss when the original precision is lowered during ConstantFolding execution.
+ *
+ */
+class TRANSFORMATIONS_API KeepDequantizationPrecision : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("KeepDequantizationPrecision");
+    explicit KeepDequantizationPrecision(const element::TypeVector& precisions);
+};
+
 }  // namespace pass
 }  // namespace ov
