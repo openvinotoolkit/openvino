@@ -82,7 +82,7 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& n
         // parameter is a number, but can be index or arch
         // index is priority so we first check if there is a device with this index
         // if there is no device with this index, we try it as an arch number
-        if (_devices.size() >= (size_t)(param + 1)) {
+        if (_devices.size() > (size_t)(param)) {
             // returning the n-th element (param)
             auto it = _devices.begin();
             std::advance(it, param);
