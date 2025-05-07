@@ -541,7 +541,6 @@ class CompareBlobsMode(Mode):
          # option of automatic matching of comparing blobs i.e.
          # blob_for_node_1_commit_1.ieb <--> blob_for_node_1_commit_2.ieb
          # blob_for_node_2_commit_1.ieb <--> blob_for_node_2_commit_2.ieb
-        self.autoMatch = False
 
     def prepareRun(self, list, cfg):
         # we need to exclude initial prerun-cash handling, as it may
