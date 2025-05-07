@@ -5,9 +5,9 @@
 #include "shared_test_classes/single_op/fake_convert.hpp"
 
 #include <random>
-
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/op/fake_convert.hpp"
 
 namespace ov {
 namespace test {
@@ -75,7 +75,7 @@ void FakeConvertLayerTest::SetUp() {
 
     const auto fake_convert = default_shift ? std::make_shared<opset13::FakeConvert>(data, scale, dst_prec)
                                             : std::make_shared<opset13::FakeConvert>(data, scale, shift, dst_prec);
-    function = std::make_shared<ov::Model>(NodeVector{fake_convert}, ParameterVector{data});
+    function = std::make_shared<ov::Model>(OutputVector{fake_convert}, ParameterVector{data});
 }
 }  // namespace test
 }  // namespace ov

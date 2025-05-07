@@ -51,7 +51,7 @@ std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::BaseTest::create_dynamic
                                                                score_threshold);
     auto res = std::make_shared<ov::op::v0::Result>(nms);
     res->set_friendly_name("output_dynamic");
-    return std::make_shared<ov::Model>(ov::NodeVector{nms}, ov::ParameterVector{boxes, scores});
+    return std::make_shared<ov::Model>(ov::OutputVector{nms}, ov::ParameterVector{boxes, scores});
 }
 
 ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
