@@ -46,7 +46,7 @@ static bool is_affecting_op(const ExpressionPtr& expr) {
 size_t MarkInvariantShapePath::getInvariantPortShapePath(const ExpressionPort& port) {
     auto& rt = get_rt_info(port);
     const auto rinfo = rt.find("InvariantShapePath");
-    assert(rinfo != rt.end() && "Invariant path for this expression port has not been marked!");
+    OPENVINO_ASSERT(rinfo != rt.end(), "Invariant path for this expression port has not been marked!");
     return rinfo->second.as<size_t>();
 }
 
