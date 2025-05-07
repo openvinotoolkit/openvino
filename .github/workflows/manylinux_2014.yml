@@ -172,7 +172,7 @@ jobs:
                 -DENABLE_OV_JAX_FRONTEND=OFF \
                 -DENABLE_OV_ONNX_FRONTEND=ON \
                 -DENABLE_PYTHON=ON \
-                -DENABLE_WHEEL=ON \
+                -DENABLE_WHEEL=OFF \
                 -S /work/src \
                 -B /work/build &&
               cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
