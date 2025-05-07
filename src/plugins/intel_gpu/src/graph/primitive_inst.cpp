@@ -2573,44 +2573,40 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 return pid == target_pid;
             });
         };
-        const auto rename_input = [](std::shared_ptr<primitive> prim, const input_info &old_in, const input_info &new_in) {
-            for (size_t i = 0; i < prim->dependencies().size(); i++) { // XXX: unnecessary object creation
-                auto& in = prim->get_dependency(i);
-                if (in == old_in) {
-                    in = new_in;
-                    GPU_DEBUG_TRACE_DETAIL << "  input is renamed for : " << prim->id << " : " << old_in.pid << old_in.idx << " -> " << new_in.pid << "\n";
-                }
-            }
-        };
 
         topology t;
 
         std::vector<primitive_id> outer_dep_ids;
         // Add input primitives: constants are moved as is
-        // Any other primitive types are replaced with input_layout
-        // Name has postfix of port number for multi-port connection case (such as dynamic_quantization)
+        //   Any other primitive types are replaced with input_layout
+        //   Name has postfix of port number for multi-port connection case (such as dynamic_quantization)
         auto prim_of_fused_node = _impl_params->desc->clone();
         size_t dep_idx = 0;
         for (auto& dep : get_node().get_dependencies()) {
             cldnn::primitive_id dep_id = dep.first->id();
 
+            if (dep_idx >= prim_of_fused_node->input_size() && dep_idx < prim_of_fused_node->dependencies().size())
+                dep_id = prim_of_fused_node->dependencies()[dep_idx].pid;
+
+            // Update name to have port number as postfix
+            auto port_dep_id = tag_port_number(dep_id, dep.second);
+
+            // Update input primitive name of prim_of_fused_node
+            if (dep_idx < prim_of_fused_node->dependencies().size())
+                prim_of_fused_node->get_dependency(dep_idx) = {port_dep_id, 0};
+
+            GPU_DEBUG_TRACE_DETAIL << "  add primitive: " << port_dep_id << "\n";
+
             if (dep.first->is_type<data>()) {
                 auto& data_node = dep.first->as<data>();
                 // need to rename primitive ids of dependent data of the current fused nodes with those in the original primitive
-                if (dep_idx >= prim_of_fused_node->input_size() && dep_idx < prim_of_fused_node->dependencies().size())
-                    dep_id = prim_of_fused_node->dependencies()[dep_idx].pid;
                 // mem field of original primitive can be nullified during transfer_memory_to_device pass, thus use mem from program_node
-                auto port_dep_id = tag_port_number(dep_id, dep.second);
                 data data_prim(port_dep_id, data_node.get_attached_memory_ptr());
-                rename_input(prim_of_fused_node, {dep_id, dep.second}, {port_dep_id, 0});
-                GPU_DEBUG_TRACE_DETAIL << "  add constant: " << port_dep_id << "\n";
                 t.add(data_prim);
-            } else {                
+            } else {
                 auto port_dep_id = tag_port_number(dep_id, dep.second);
                 input_layout in_prim(port_dep_id, dep.first->get_output_layout());
                 t.add(in_prim);
-                rename_input(prim_of_fused_node, {dep_id, dep.second}, {port_dep_id, 0});
-                GPU_DEBUG_TRACE_DETAIL << "  add primitive: " << port_dep_id << " - " << prim_of_fused_node->dependencies()[dep_idx].pid << "\n";
             }
             outer_dep_ids.push_back(dep_id);
             dep_idx += 1;

@@ -313,7 +313,7 @@ public:
                         std::to_string(idx),
                         " exceeds total dependencies count (",
                         std::to_string(input.size() + dependencies_map.size()),
-                        ") for",
+                        ") for ",
                         id,
                         " primitive");
 
