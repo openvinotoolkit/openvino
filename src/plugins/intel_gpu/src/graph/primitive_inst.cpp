@@ -19,7 +19,6 @@
 #include "resample_inst.h"
 #include "reshape_inst.h"
 #include "reorder_inst.h"
-#include "rms_inst.h"
 #include "eltwise_inst.h"
 #include "loop_inst.h"
 #include "deconvolution_inst.h"

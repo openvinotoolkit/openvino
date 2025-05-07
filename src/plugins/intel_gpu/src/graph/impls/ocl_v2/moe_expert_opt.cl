@@ -120,7 +120,7 @@ KERNEL (index_add_)(const __global TYPE* src_tok,
         intel_sub_group_block_write_us((__global ushort *)(dst_tok + off), as_ushort(value));
     #elif TYPE_SIZE == 4
         float src_value = as_float(intel_sub_group_block_read((const __global uint *)(src_tok + off)));
-        float dst_value = as_float(intel_sub_group_block_read_us((const __global uint *)(dst_tok + off)));
+        float dst_value = as_float(intel_sub_group_block_read((const __global uint *)(dst_tok + off)));
         float value = dst_value + src_value;
         intel_sub_group_block_write_us((__global ushort *)(dst_tok + off), as_uint(value));
     #else
