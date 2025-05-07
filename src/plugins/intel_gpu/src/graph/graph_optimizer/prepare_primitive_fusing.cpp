@@ -253,10 +253,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             return node.as<fully_connected>().get_primitive()->input_size == 3;
         };
 
-
+        auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
         if (node->get_output_layout().is_dynamic()) {
             if (eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>()) {
-                auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
                 if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
                     continue;
 
@@ -298,6 +297,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 const_dep.get_output_layout().count() != static_cast<size_t>(out_features)) {
                 continue;
             }
+            // Handle eltw as a bias only when eltw's shape is to be broadcasted to parent node
+            if (const_dep.get_output_layout().count() > node->get_dependency(non_const_dep_idx).get_output_layout().count())
+                continue;
         }
         auto& bias_node = eltw_node.get_dependency(const_dep_idx);
         primitive_id bias_name = bias_node.id();
