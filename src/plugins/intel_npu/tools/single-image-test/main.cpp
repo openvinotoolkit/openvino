@@ -106,6 +106,7 @@ DEFINE_string(skip_output_layers,
               "",
               "Skip output layers from the network. Currently only applicable for"
               "RRMSE and NRMSE mode. Accept ';' separated list of output layers");
+DEFINE_bool(clamp_u8_outputs, false, "Apply clamping when converting FP to U8");
 
 // for using input image mean and scale
 static constexpr char mean_values_message[] =
@@ -279,6 +280,7 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Mean_values [channel1,channel2,channel3]  " << FLAGS_mean_values << std::endl;
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
     std::cout << "    Skip checking output layers:              " << FLAGS_skip_output_layers << std::endl;
+    std::cout << "    Clamp U8 outputs:                         " << FLAGS_clamp_u8_outputs << std::endl;
     if (FLAGS_run_test) {
         std::cout << "    Reference files directory:                "
                   << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
@@ -1526,8 +1528,9 @@ std::vector<float> softmax(std::vector<float>& tensor) {
         probabilities[i] /= sum_exp;
     }
 
-    std::transform(probabilities.begin(), probabilities.end(), results.begin(),
-                   [](double value) { return static_cast<float>(value); });
+    std::transform(probabilities.begin(), probabilities.end(), results.begin(), [](double value) {
+        return static_cast<float>(value);
+    });
 
     return results;
 }
@@ -1560,15 +1563,20 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
             std::vector<float> actOutput;
             std::vector<float> refOutput;
 
-            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actOutput));
-            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(), referencesIterator->second.get_size(),
-                std::back_insert_iterator(refOutput));
+            std::copy_n((npu::utils::toFP32(output)).data<const float>(),
+                        output.get_size(),
+                        std::back_insert_iterator(actOutput));
+            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(),
+                        referencesIterator->second.get_size(),
+                        std::back_insert_iterator(refOutput));
 
             auto actSoftMax = softmax(actOutput);
             auto refSoftMax = softmax(refOutput);
 
             std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
-            std::copy_n(refSoftMax.begin(), referencesIterator->second.get_size(), referencesIterator->second.data<float>());
+            std::copy_n(refSoftMax.begin(),
+                        referencesIterator->second.get_size(),
+                        referencesIterator->second.data<float>());
         }
 
         std::cout << "Compare " << tensorName << " with reference" << std::endl;
@@ -2295,6 +2303,9 @@ static int runSingleImageTest() {
 
                 for (size_t i = 0; i < outputInfo.size(); ++i) {
                     ppp.output(i).tensor().set_element_type(prc_out);
+                    if (prc_out == ov::element::u8 && FLAGS_clamp_u8_outputs) {
+                        ppp.output(i).postprocess().clamp(0.0, 255.0);
+                    }
                 }
             }
 

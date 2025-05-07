@@ -68,10 +68,9 @@
 #include <transformations/utils/utils.hpp>
 
 #include "driver_graph.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/config/common.hpp"
-#include "intel_npu/config/compiler.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -106,7 +105,7 @@ const std::vector<size_t> NCDHW_TO_NDHWC_LAYOUT_DIMENSIONS_ORDER = {0, 2, 3, 4, 
  * before copying.
  * @details This is meant as a replacement for the legacy "ie_memcpy" function coming from the OpenVINO API.
  */
-void checkedMemcpy(void* destination, size_t destinationSize, void const* source, size_t numberOfBytes) {
+void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes) {
     if (numberOfBytes == 0) {
         return;
     }
@@ -717,7 +716,16 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
                                                    ze_graph_compiler_version_info_t compilerVersion) const {
     Logger logger("serializeConfig", Logger::global().level());
 
-    std::string content = config.toString();
+    std::string content = {};
+
+    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (plgConfig != nullptr) {
+        content += plgConfig->toStringForCompiler();
+        content += plgConfig->toStringForCompilerInternal();
+    } else {
+        logger.warning("Failed to cast Config to FilteredConfig. Exporting all configs");
+        content += config.toString();
+    }
 
     logger.debug("Original content of config: %s", content.c_str());
 
@@ -788,164 +796,7 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content,
                                      getTargetRegex(ov::hint::Priority::HIGH),
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
-
-        // Removing cpu_pinning from the command string
-        std::ostringstream pinningstr;
-        pinningstr << ov::hint::enable_cpu_pinning.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                   << VALUE_DELIMITER;
-        logger.warning(
-            "ENABLE_CPU_PINNING property is not supported by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(pinningstr.str()), "");
     }
-
-    /// Stepping and max_tiles are not supported in versions < 5.3 - need to remove it
-    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 3)) {
-        std::ostringstream stepstr;
-        stepstr << ov::intel_npu::stepping.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\d+"
-                << VALUE_DELIMITER;
-        std::ostringstream maxtilestr;
-        maxtilestr << ov::intel_npu::max_tiles.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\d+"
-                   << VALUE_DELIMITER;
-        logger.warning("NPU_STEPPING property is not supported by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(stepstr.str()), "");
-        logger.warning("NPU_MAX_TILES property is not supported by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(maxtilestr.str()), "");
-    }
-
-    /// Removing INFERENCE_PRECISION_HINT for older compilers
-    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 4)) {
-        std::ostringstream precstr;
-        precstr << ov::hint::inference_precision.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                << VALUE_DELIMITER;
-        logger.warning(
-            "INFERENCE_PRECISION_HINT property is not supported by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(precstr.str()), "");
-    }
-
-    /// Replacing NPU_TILES (for all versions) with NPU_DPU_GROUPS for backwards compatibility
-    if (std::regex_search(content, std::regex(ov::intel_npu::tiles.name()))) {
-        logger.warning("NPU_TILES property is not supported by this compiler version. Swaping it to "
-                       "NPU_DPU_GROUPS (obsolete)");
-        content = std::regex_replace(content, std::regex(ov::intel_npu::tiles.name()), "NPU_DPU_GROUPS");
-    }
-
-    // Batch mode property is not supported in versions < 5.5 - need to remove it
-    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 5)) {
-        std::ostringstream batchstr;
-        batchstr << ov::intel_npu::batch_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                 << VALUE_DELIMITER;
-
-        logger.warning("NPU_BATCH_MODE property is not supported by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(batchstr.str()), "");
-    }
-
-    // EXECUTION_MODE_HINT is not supported in versions < 5.6 - need to remove it
-    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 6)) {
-        std::ostringstream batchstr;
-        batchstr << ov::hint::execution_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                 << VALUE_DELIMITER;
-        logger.warning(
-            "EXECUTION_MODE_HINT property is not supported by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(batchstr.str()), "");
-    }
-
-    // COMPILER_DYNAMIC_QUANTIZATION is not supported in versions < 7.1 - need to remove it
-    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 1)) {
-        std::ostringstream dqstr;
-        dqstr << ov::intel_npu::compiler_dynamic_quantization.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-              << VALUE_DELIMITER;
-        logger.warning(
-            "COMPILER_DYNAMIC_QUANTIZATION property is not supported by this compiler version. Removing from "
-            "parameters");
-        content = std::regex_replace(content, std::regex(dqstr.str()), "");
-    }
-
-    // QDQ_OPTIMIZATION is not supported in versions < 7.20 - need to remove it
-    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 20)) {
-        std::ostringstream qdqstr;
-        qdqstr << ov::intel_npu::qdq_optimization.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-               << VALUE_DELIMITER;
-        logger.warning("NPU_QDQ_OPTIMIZATION property is not supported by this compiler version. Removing from "
-                       "parameters");
-        content = std::regex_replace(content, std::regex(qdqstr.str()), "");
-    }
-
-    // BATCH_COMPILER_MODE_SETTINGS is not supported in versions < 7.4 - need to remove it
-    if ((compilerVersion.major < 7) || (compilerVersion.major == 7 && compilerVersion.minor < 4)) {
-        std::ostringstream dqstr;
-        dqstr << ov::intel_npu::batch_compiler_mode_settings.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-              << VALUE_DELIMITER;
-        logger.warning("BATCH_COMPILER_MODE_SETTINGS property is not supported by this compiler version. Removing from "
-                       "parameters");
-        content = std::regex_replace(content, std::regex(dqstr.str()), "");
-    }
-
-    // NPU_DEFER_WEIGHTS_LOAD is needed at runtime only
-    {
-        std::ostringstream batchstr;
-        batchstr << ov::intel_npu::defer_weights_load.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                 << VALUE_DELIMITER;
-        logger.info("NPU_DEFER_WEIGHTS_LOAD property is needed at runtime only. Removing from parameters");
-        content = std::regex_replace(content, std::regex(batchstr.str()), "");
-    }
-
-    // NPU_RUN_INFERENCES_SEQUENTIALLY is needed at runtime only
-    {
-        std::ostringstream batchstr;
-        batchstr << ov::intel_npu::run_inferences_sequentially.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
-                 << "\\S+" << VALUE_DELIMITER;
-        logger.info("NPU_RUN_INFERENCES_SEQUENTIALLY property is needed at runtime only. Removing from parameters");
-        content = std::regex_replace(content, std::regex(batchstr.str()), "");
-    }
-
-    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
-        std::ostringstream separateWeightsStream;
-        separateWeightsStream << ov::intel_npu::separate_weights_version.name() << KEY_VALUE_SEPARATOR
-                              << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-        content = std::regex_replace(content, std::regex(separateWeightsStream.str()), "");
-
-        std::ostringstream weightlessBlobStream;
-        weightlessBlobStream << ov::intel_npu::weightless_blob.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
-                             << "\\S+" << VALUE_DELIMITER;
-        content = std::regex_replace(content, std::regex(weightlessBlobStream.str()), "");
-
-        std::ostringstream wsCompileCallNumberStream;
-        wsCompileCallNumberStream << ov::intel_npu::ws_compile_call_number.name() << KEY_VALUE_SEPARATOR
-                                  << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-        content = std::regex_replace(content, std::regex(wsCompileCallNumberStream.str()), "");
-    }
-
-    // Remove the properties that are not used by the compiler WorkloadType is used only by compiled model
-    std::ostringstream workloadtypestr;
-    workloadtypestr << ov::workload_type.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(workloadtypestr.str()), "");
-    // Remove turbo property as it is not used by compiler
-    std::ostringstream turbostring;
-    turbostring << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(turbostring.str()), "");
-    // Remove weights path property as it is not used by compiler
-    std::ostringstream weightspathstream;
-    weightspathstream << ov::weights_path.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(weightspathstream.str()), "");
-    // Remove Bypass UMD Caching propery
-    std::ostringstream umdcachestring;
-    umdcachestring << ov::intel_npu::bypass_umd_caching.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                   << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(umdcachestring.str()), "");
-
-    std::ostringstream skipversioncheck;
-    skipversioncheck << ov::intel_npu::disable_version_check.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                     << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(skipversioncheck.str()), "");
-
-    std::ostringstream modelPtrStream;
-    modelPtrStream << ov::hint::model.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(modelPtrStream.str()), "");
-
-    std::ostringstream benchmarkInitStream;
-    benchmarkInitStream << ov::intel_npu::benchmark_init.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
-                        << VALUE_DELIMITER;
-    content = std::regex_replace(content, std::regex(benchmarkInitStream.str()), "");
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
@@ -961,6 +812,23 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
     }
 
     return "--config " + content;
+}
+
+std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
+    std::string compilerOptionsStr;
+    compilerOptionsStr = _zeGraphExt->getCompilerSupportedOptions();
+    // vectorize string
+    std::istringstream suppstream(compilerOptionsStr);
+    std::vector<std::string> compilerOpts;
+    std::string option;
+    while (suppstream >> option) {
+        compilerOpts.push_back(option);
+    }
+    return compilerOpts;
+}
+
+bool DriverCompilerAdapter::is_option_supported(std::string optname) const {
+    return _zeGraphExt->isOptionSupported(optname);
 }
 
 }  // namespace intel_npu

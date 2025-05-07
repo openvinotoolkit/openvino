@@ -10,6 +10,7 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "properties.hpp"
 
 namespace intel_npu {
 
@@ -32,7 +33,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
-                  const Config& config,
+                  const FilteredConfig& config,
                   const std::vector<std::shared_ptr<IGraph>>& initGraphs = {},
                   const std::shared_ptr<ov::Model>& initModel = nullptr);
 
@@ -56,17 +57,15 @@ public:
 
     const std::shared_ptr<IGraph>& get_graph() const override;
 
-    const Config& get_config() const override;
+    const FilteredConfig& get_config() const override;
 
 private:
-    void initialize_properties();
-
     void configure_stream_executors();
 
     void add_weights_inputs(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) const;
     void add_init_out_tensor(ov::SoPtr<ov::ITensor> tensor) const;
 
-    Config _config;
+    FilteredConfig _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
@@ -78,9 +77,7 @@ private:
     mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _weightsInputs;
     mutable std::vector<ov::SoPtr<ov::ITensor>> _initOutputsTensors;
 
-    // properties map: {name -> [supported, mutable, eval function]}
-    std::map<std::string, std::tuple<bool, ov::PropertyMutability, std::function<ov::Any(const Config&)>>> _properties;
-    std::vector<ov::PropertyName> _supportedProperties;
+    std::unique_ptr<Properties> _properties;
 
     std::shared_ptr<IGraph> _graph;
     std::vector<std::shared_ptr<IGraph>> _initGraphs;

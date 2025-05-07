@@ -4,8 +4,7 @@
 
 #include "plugin_graph.hpp"
 
-#include "intel_npu/config/common.hpp"
-#include "intel_npu/config/runtime.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"

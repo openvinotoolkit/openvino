@@ -9,7 +9,7 @@
 
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/config/compiler.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -300,7 +300,20 @@ ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov:
 }
 
 uint32_t PluginCompilerAdapter::get_version() const {
+    // returning max val as PluginCompiler supports all features and options the plugin is aware of
     return _compiler->get_version();
+}
+
+std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
+    // PluginCompiler has all the same options as plugin
+    // Returing empty string to let the plugin fallback to legacy registration
+    return {};
+}
+
+bool PluginCompilerAdapter::is_option_supported(std::string optname) const {
+    // This functions has no utility in PluginCompiler
+    // returning false for any request to avoid the option of spaming the plugin
+    return false;
 }
 
 }  // namespace intel_npu
