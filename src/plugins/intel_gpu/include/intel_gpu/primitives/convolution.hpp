@@ -187,15 +187,15 @@ struct convolution : public primitive_base<convolution> {
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
     bool grouped_weights_shape {false};
     /// @brief Primitive id containing weights data.
-    const input_info weights;
+    input_info weights;
     /// @brief Primitive id containing bias data.
-    const input_info bias;
+    input_info bias;
     /// @brief Primitive id containing weights zero points.
-    const input_info weights_zero_points;
+    input_info weights_zero_points;
     /// @brief Primitive id containing activations zero points.
-    const input_info activations_zero_points;
+    input_info activations_zero_points;
     /// @brief Primitive id containing compensation.
-    const input_info compensation;
+    input_info compensation;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -277,11 +277,11 @@ struct convolution : public primitive_base<convolution> {
         ib >> bilinear_interpolation_pad;
         ib >> transposed;
         ib >> grouped_weights_shape;
-        ib >> *const_cast<input_info*>(&weights);
-        ib >> *const_cast<input_info*>(&bias);
-        ib >> *const_cast<input_info*>(&weights_zero_points);
-        ib >> *const_cast<input_info*>(&activations_zero_points);
-        ib >> *const_cast<input_info*>(&compensation);
+        ib >> weights;
+        ib >> bias;
+        ib >> weights_zero_points;
+        ib >> activations_zero_points;
+        ib >> compensation;
     }
 
 protected:
@@ -289,6 +289,7 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
+        OPENVINO_ASSERT(weights.is_valid());
         ret[idx++] = &weights;
 
         if (bias.is_valid())

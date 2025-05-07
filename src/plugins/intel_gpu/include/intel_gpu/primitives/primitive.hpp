@@ -300,6 +300,7 @@ public:
         }
     }
 
+    /// @brief Returns mutable reference to input dependency at given index.
     input_info& get_dependency(size_t idx) {
         if (idx < input.size())
             return input[idx];
@@ -321,6 +322,7 @@ public:
         return *const_cast<input_info*>(dependencies_map[idx]);
     }
 
+    /// @brief Returns const reference to input dependency at given index.
     const input_info& get_dependency(size_t idx) const {
         if (idx < input.size())
             return input[idx];
@@ -339,6 +341,7 @@ public:
     }
 
 protected:
+    /// @brief This method returns additional dependencies those are not maintained from primitive::input.
     virtual std::map<size_t, const input_info*> get_dependencies_map() const { return {}; }
     class condition;
     friend struct primitive_info;

@@ -440,8 +440,8 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (weights.is_valid())
-            ret[idx++] = &weights;
+        OPENVINO_ASSERT(weights.is_valid());
+        ret[idx++] = &weights;
 
         if (bias.is_valid())
             ret[idx++] = &bias;
