@@ -818,25 +818,20 @@ public:
     }
 
     cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_expert>& instance, expert_mask_tmp_scratch& scratch) {
-        bool fused_router_logic = instance.get_config().fused_router_logic;
         int max_topk = static_cast<int>(instance.get_config().topk);
         auto moe = instance.get_typed_desc<moe_expert>();
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
-        auto batch_mem_ptr = instance.input_memory_ptr(1);
-        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 2);
-        auto routing_mem_ptr = instance.input_memory_ptr(3);
-
-        if (fused_router_logic) {
-            batch_mem_ptr = scratch.topk_id;
-            routing_mem_ptr = scratch.topk_weights;
-        }
+        auto batch_mem_ptr = scratch.topk_id;
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 0);
+        auto routing_mem_ptr = scratch.topk_weights;
 
         _hidden_size = static_cast<int>(moe->get_hidden_size());
         _intermediate_size = static_cast<int>(moe->get_intermediate_size());
         instance.get_tmp_memory(hidden_states_layout.data_type, max_topk, _hidden_size, _intermediate_size, max_topk, scratch);
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
+        const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
         event::ptr ret;
         if (cm_mlp_up) {
             const auto& scale_zps = moe->_scale_zp;
@@ -894,7 +889,7 @@ public:
                                     {scratch.y},
                                     {final_hidden_states_mem_ptr},
                                     {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
-                                    {1, 1024},
+                                    {1, std::min(max_work_group_size, size_t{1024})},
                                     instance.needs_completion_event());
             }
         } else {
@@ -921,7 +916,7 @@ public:
                                 {scratch.y},
                                 {final_hidden_states_mem_ptr},
                                 {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
-                                {1, 1024},
+                                {1, std::min(max_work_group_size, size_t{1024})},
                                 instance.needs_completion_event());
         }
         return ret;
@@ -952,7 +947,7 @@ public:
         const auto& moe_mlp_params = moe->_mlp_params;
         const auto& mlp_params = moe_mlp_params[expert_no];
         auto& dnn_stream = stream.get_onednn_stream();
-        auto hidden_states_layout_dt = convert_data_type(instance.input_memory_ptr(2)->get_layout().data_type);
+        auto hidden_states_layout_dt = convert_data_type(instance.input_memory_ptr(0)->get_layout().data_type);
         auto& dnnl_weights = _dnnl_weights[expert_no];
         onednn_kernel kernel;
         // up
@@ -1000,12 +995,7 @@ public:
         return _kernels[key];
     }
 
-    // 0:final_hidden
-    // 1:topk-id       [num_tokens, TOP_K=8]  topk-id[i, j] the expert index of token i'th top-j route
-    // 2:hidden_states
-    // 3:router_weights [num_tokens, TOP_K=8]
-    //
-    //  with fused_router_logic, inputs 1 & 3 becomes router_logits[num_tokens, NUM_EXPERTS=128]
+    //  inputs 0 is hidden_states, inputs 1 is router_logits[num_tokens, NUM_EXPERTS=128]
     //  extra step Softmax_TopK is fused to give topk-id & router_weights
     //
     //     scratch.topk_id, scratch.full_router_weights = Softmax_TopK(router_logits)
@@ -1023,13 +1013,12 @@ public:
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MoeExpertOptImpl::execute"));
         auto& instance = reinterpret_cast<typed_primitive_inst<moe_expert>&>(ins);
-        bool fused_router_logic = instance.get_config().fused_router_logic;
         int max_topk = static_cast<int>(instance.get_config().topk);
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
         auto moe = instance.get_typed_desc<moe_expert>();
 
-        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 2);
+        auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 0);
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
 
         instance.update_output_layout();
@@ -1039,7 +1028,7 @@ public:
         }
         expert_mask_tmp_scratch& scratch = cur_net.get_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key);
 
-        if (fused_router_logic) {
+        {
             layout layout_topk_id(ov::PartialShape{batch, max_topk}, data_types::u32, cldnn::format::bfyx);
             layout layout_topk_weights(ov::PartialShape{batch, max_topk}, data_types::f16, cldnn::format::bfyx);
             if (scratch.topk_size < batch * max_topk) {
@@ -1074,14 +1063,11 @@ public:
             // Wait for moe_expert statement event only, and pass all other events to sub-network directly
             // The UpdateShape() is bypassed and it's in-order queue
             stream.finish();
-            auto dep = instance.dependencies()[1];
+
             // [batch, max_topk]
-            auto layout = dep.first->get_impl_params()->get_output_layout(dep.second);
-            auto topk_id_mem = instance.pred_memory_ptr();
-            if (fused_router_logic) {
-                topk_id_mem = scratch.topk_id;
-                layout = scratch.topk_id_layout;
-            }
+            auto topk_id_mem = scratch.topk_id;
+            auto layout = scratch.topk_id_layout;
+
             instance.get_expert_mask_from_memory(topk_id_mem, layout, stream, expert_mask);
             {
                 const auto& shape = layout.get_shape();
@@ -1115,12 +1101,8 @@ public:
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto final_hidden_states_layout = instance.get_output_layout(0);
-        //auto [expert_mask_mem_ptr, expert_mask_layout] = get_input_info(instance, 1);
-        auto [routing_mem_ptr, routing_layout] = get_input_info(instance, 3);
-        if (fused_router_logic) {
-            routing_mem_ptr = scratch.topk_weights;
-            routing_layout = scratch.topk_weights_layout;
-        }
+        auto routing_mem_ptr = scratch.topk_weights;
+        auto routing_layout = scratch.topk_weights_layout;
         auto get_best_lws = [](size_t hidden_size) {
             const size_t candidate[] = {128, 64, 32, 16, 8};
             for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {

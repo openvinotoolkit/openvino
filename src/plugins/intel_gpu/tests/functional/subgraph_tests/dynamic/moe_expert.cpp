@@ -9,12 +9,12 @@ namespace {
 using namespace ov;
 using namespace ov::test;
 
-TEST_P(MOEExpertTest, Inference_then) {
-    auto actualOutputs = run_test(function, true);
+TEST_P(MOEExpertTest, Inference) {
+    auto actualOutputs = run_test(function);
     check_op("moe_expert", 1);
     check_op("OneHot", 0);
     configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
-    auto expectedOutputs = run_test(functionRefs, true);
+    auto expectedOutputs = run_test(functionRefs);
     check_op("moe_expert", 0);
     check_op("OneHot", 1);
 
@@ -23,24 +23,14 @@ TEST_P(MOEExpertTest, Inference_then) {
     }
 }
 
-TEST_P(MOEExpertTest, Inference_else) {
-    auto actualOutputs = run_test(function, false);
-    check_op("moe_expert", 1);
-    configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
-    auto expectedOutputs = run_test(functionRefs, false);
-    check_op("moe_expert", 0);
-    for (size_t i = 0; i < actualOutputs.size(); i++) {
-        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
-    }
-}
-
+// TODO: cache feature
 TEST_P(MOEExpertTest, Inference_cached) {
     core->set_property(ov::cache_dir(""));
     auto func_bak = function;
     std::vector<ov::Tensor> actualOutputs, expectedOutputs;
     ElementType inType;
     std::tie(inType) = this->GetParam();
-    expectedOutputs = run_test(functionRefs, false);
+    expectedOutputs = run_test(functionRefs);
     check_op("moe_expert", 0);
 
     function = func_bak;
@@ -60,7 +50,7 @@ TEST_P(MOEExpertTest, Inference_cached) {
         compile_model();
     }
     {
-        actualOutputs = run_test(function, false);
+        actualOutputs = run_test(function);
         check_op("moe_expert", 1);
         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
         ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");
@@ -72,11 +62,9 @@ TEST_P(MOEExpertTest, Inference_cached) {
     }
 }
 
-// TODO: add test for MOEExpert
-
-// INSTANTIATE_TEST_SUITE_P(smoke_MOEExpert_basic,
-//                          MOEExpertTest,
-//                          ::testing::Combine(::testing::Values(ov::element::f32, ov::element::f16)),
-//                          MOEExpertTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_MOEExpert_basic,
+                         MOEExpertTest,
+                         ::testing::Combine(::testing::Values(ov::element::f32, ov::element::f16)),
+                         MOEExpertTest::getTestCaseName);
 
 } // namespace

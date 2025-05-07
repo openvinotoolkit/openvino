@@ -57,9 +57,9 @@ static bool repack_zp_scale(std::vector<uint8_t>& dst, const uint8_t* src, const
     return true;
 }
 
-static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert2>& op, std::vector<cldnn::moe_expert::mlp_params>& params,
+static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert>& op, std::vector<cldnn::moe_expert::mlp_params>& params,
     cldnn::moe_expert::scale_zp_mems& scale_zp) {
-    const auto& bodys = op->get_body();
+    const auto& consts = op->get_consts();
     auto alloc = [&] (const std::shared_ptr<ov::Node>& node, bool try_repack = false) {
         auto op = ov::as_type_ptr<ov::op::v0::Constant>(node);
         ov::Shape const_shape = op->get_shape();
@@ -85,8 +85,8 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
         mem->copy_from(stream, data, 0, 0, layout.bytes_count(), true);
         return mem;
     };
-    OPENVINO_ASSERT(op->get_config().expert_num == bodys.size());
-    params.resize(bodys.size());
+    OPENVINO_ASSERT(op->get_config().expert_num == consts.size());
+    params.resize(consts.size());
 
     cldnn::layout ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num)}, cldnn::data_types::u64, cldnn::format::byfx);
     cldnn::layout gate_up_ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num * 64 / sizeof(uint64_t))},
@@ -115,69 +115,36 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
         uint64_t padding[2];
     };
     std::vector<addrs> buf_gate_up(op->get_config().expert_num);
-    for (size_t i = 0; i < bodys.size(); i++) {
-        auto internal_body = bodys[i];
-        for (auto& node : internal_body->get_ordered_ops()) {
-            auto& rt = node->get_rt_info();
-            if (rt.count("__weight_const__")) {
-                auto idx = rt["__weight_const__"].as<int>();
-                OPENVINO_ASSERT(idx >= 0 && idx < 3);
-                params[i].param[idx].weight = alloc(node);
-                auto p = reinterpret_cast<uint64_t>(params[i].param[idx].weight->buffer_ptr());
-                switch (idx) {
-                case 0:
-                    buf_gate_up[i].gate_addrs = p;
-                    break;
-                case 1:
-                    buf_gate_up[i].up_addrs = p;
-                    break;
-                default:
-                    buf_down[0].push_back(p);
-                    break;
-                }
-            }
-            if (rt.count("__scale_const__")) {
-                auto idx = rt["__scale_const__"].as<int>();
-                OPENVINO_ASSERT(idx >= 0 && idx < 3);
-                params[i].param[idx].scale = alloc(node, true);
-                if (cm_mask) {
-                    params[i].param[idx].scale_ba = alloc(node, false);
-                    auto p = reinterpret_cast<uint64_t>(params[i].param[idx].scale_ba->buffer_ptr());
-                    switch (idx) {
-                    case 0:
-                        buf_gate_up[i].gate_scales_addrs = p;
-                        break;
-                    case 1:
-                        buf_gate_up[i].up_scales_addrs = p;
-                        break;
-                    default:
-                        buf_down[1].push_back(p);
-                        break;
-                    }
-                }
-            }
-            if (rt.count("__zp_const__")) {
-                auto idx = rt["__zp_const__"].as<int>();
-                OPENVINO_ASSERT(idx >= 0 && idx < 3);
-                params[i].param[idx].zp = alloc(node, true);
-                if (cm_mask) {
-                    params[i].param[idx].zp_ba = alloc(node, false);
-                    auto p = reinterpret_cast<uint64_t>(params[i].param[idx].zp_ba->buffer_ptr());
-                    switch (idx) {
-                    case 0:
-                        buf_gate_up[i].gate_zp_addrs = p;
-                        break;
-                    case 1:
-                        buf_gate_up[i].up_zp_addrs = p;
-                        break;
-                    default:
-                        buf_down[2].push_back(p);
-                        break;
-                    }
-                }
-            }
+    for (size_t i = 0; i < consts.size(); i++) {
+        auto current_consts = consts[i];
+#define SET_BUF(src_name, dst_idx) \
+        params[i].param[dst_idx].weight = alloc(current_consts.src_name[0]);  \
+        buf_gate_up[i].gate_addrs = reinterpret_cast<uint64_t>(params[i].param[dst_idx].weight->buffer_ptr());    \
+        params[i].param[dst_idx].scale = alloc(current_consts.src_name[1], true);    \
+        params[i].param[dst_idx].zp = alloc(current_consts.src_name[2], true);   \
+        if (cm_mask) {  \
+            params[i].param[dst_idx].scale_ba = alloc(current_consts.src_name[1], false);    \
+            buf_gate_up[i].src_name##_scales_addrs = reinterpret_cast<uint64_t>(params[i].param[dst_idx].scale_ba->buffer_ptr());   \
+            params[i].param[dst_idx].zp_ba = alloc(current_consts.src_name[2], false);   \
+            buf_gate_up[i].src_name##_zp_addrs = reinterpret_cast<uint64_t>(params[i].param[dst_idx].zp_ba->buffer_ptr());  \
+        }
+
+        SET_BUF(gate, 0)
+        SET_BUF(up, 1)
+#undef SET_BUF
+
+        params[i].param[2].weight = alloc(current_consts.down[0]);
+        buf_down[0].push_back(reinterpret_cast<uint64_t>(params[i].param[2].weight->buffer_ptr()));
+        params[i].param[2].scale = alloc(current_consts.down[1], true);
+        params[i].param[2].zp = alloc(current_consts.down[2], true);
+        if (cm_mask) {
+            params[i].param[2].scale_ba = alloc(current_consts.down[1], false);
+            buf_down[1].push_back(reinterpret_cast<uint64_t>(params[i].param[2].scale_ba->buffer_ptr()));
+            params[i].param[2].zp_ba = alloc(current_consts.down[2], false);
+            buf_down[2].push_back(reinterpret_cast<uint64_t>(params[i].param[2].zp_ba->buffer_ptr()));
         }
     }
+
     if (cm_mask) {
         auto& stream = p.get_engine().get_service_stream();
         scale_zp.gate_up_addrs->copy_from(stream, buf_gate_up.data(), 0, 0, gate_up_ptr_layout.bytes_count(), true);
@@ -187,20 +154,22 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
     }
 }
 
-static void CreateMOEExpert2Op(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert2>& op) {
+static void CreateMOEExpertOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert>& op) {
     auto inputs = p.GetInputInfo(op);
-    OPENVINO_ASSERT(inputs.size() == 4, "Inputs count should be 4");
+    const auto& config = op->get_config();
+    OPENVINO_ASSERT(config.fused_router_logic, "MOEExpert must fuse router logic");
+    OPENVINO_ASSERT(inputs.size() == 2, "Inputs count of MOEExpert should be 2");
 
     const std::string layerName = layer_type_name_ID(op);
     std::vector<cldnn::moe_expert::mlp_params> params;
     cldnn::moe_expert::scale_zp_mems scale_zps;
     prepare_weights(p, op, params, scale_zps);
 
-    const cldnn::moe_expert moe(layerName, inputs, op->get_config(), params, scale_zps);
+    const cldnn::moe_expert moe(layerName, inputs, config, params, scale_zps);
 
     p.add_primitive(*op, moe);
 }
 
-REGISTER_FACTORY_IMPL(internal, MOEExpert2);
+REGISTER_FACTORY_IMPL(internal, MOEExpert);
 
 }  // namespace ov::intel_gpu

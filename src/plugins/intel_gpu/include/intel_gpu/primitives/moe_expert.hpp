@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace cldnn {
-using MOEExpert = ov::op::internal::MOEExpert2;
+using MOEExpert = ov::op::internal::MOEExpert;
 
 /// @brief moe_expert primitive
 /// @details Performs moe expert
@@ -99,7 +99,6 @@ struct moe_expert : public primitive_base<moe_expert> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<moe_expert>::save(ob);
-        ob << _config.expert_no;
         ob << _config.expert_num;
         ob << _config.hidden_size;
         ob << _config.topk;
@@ -107,7 +106,6 @@ struct moe_expert : public primitive_base<moe_expert> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<moe_expert>::load(ib);
-        ib >> _config.expert_no;
         ib >> _config.expert_num;
         ib >> _config.hidden_size;
         ib >> _config.topk;

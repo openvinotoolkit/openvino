@@ -217,8 +217,7 @@ void moe_expert_inst::update_output_layout() {
 
 void moe_expert_inst::update_output_memory(bool need_reset) {
     _outputs.resize(outputs_memory_count());
-
-    _outputs[0] = input_memory_ptr(0);
+    realloc_if_needed();
     if (need_reset) {
         add_dep_event(_outputs[0]->fill(_network.get_stream(), false));
     }

@@ -58,8 +58,8 @@ protected:
                                               int expert_num = 1,
                                               int topk = 8);
 
-    void generate(float idx, bool is_then, size_t seq_length);
-    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model, bool is_then);
+    void generate(float idx, size_t seq_length);
+    std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model);
     void check_op(const std::string& type_name, int expected_count);
     void prepare();
 
