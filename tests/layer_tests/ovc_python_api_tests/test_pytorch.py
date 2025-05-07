@@ -11,8 +11,8 @@ import pytest
 import torch
 from common.mo_convert_test_class import CommonMOConvertTest
 
-import openvino.runtime as ov
-from openvino.runtime import PartialShape, Dimension, Model, Type
+import openvino as ov
+from openvino import PartialShape, Dimension, Model, Type
 
 
 class MyTorchOp(torch.autograd.Function):
@@ -1167,7 +1167,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_import_from_memory(self, create_model, ie_device, precision, ir_version,
-                                   temp_dir, use_legacy_frontend):
+                                   temp_dir):
         fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
 
         test_params = {'input_model': fw_model}
@@ -1183,7 +1183,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_mo_import_from_memory_negative(self, create_model, exception,
                                             ie_device, precision, ir_version,
-                                            temp_dir, use_legacy_frontend):
+                                            temp_dir):
         fw_model, graph_ref, mo_params = eval(create_model)(temp_dir)
 
         test_params = {'input_model': fw_model}
@@ -1341,7 +1341,7 @@ class TestPytorchConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_conversion_params(self, params, ie_device, precision, ir_version,
-                               temp_dir, use_legacy_frontend):
+                               temp_dir):
         fw_model = params['fw_model']
         test_params = params['params_test']
         ref_model = params['ref_model']
@@ -1413,7 +1413,7 @@ class TestConvertModelForPyTorchModelOnDisk(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_convert_model_for_pytorch_model_on_disk(self, create_model, model_format,
                                                      ie_device, precision, ir_version,
-                                                     temp_dir, use_legacy_frontend):
+                                                     temp_dir):
         fw_model, graph_ref, ovc_params = eval(create_model)(temp_dir)
 
         with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
@@ -1494,7 +1494,7 @@ class TestOVCForExportedProgramOnDisk(CommonMOConvertTest):
     @pytest.mark.precommit
     def test_ovc_for_exported_program_on_disk(self, create_model,
                                               ie_device, precision, ir_version,
-                                              temp_dir, use_legacy_frontend):
+                                              temp_dir):
         fw_model, graph_ref, ovc_params = eval(create_model)(temp_dir)
         example_input = ovc_params['example_input']
         del ovc_params['example_input']

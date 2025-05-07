@@ -8,6 +8,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
+#include "openvino/op/topk.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test;
@@ -102,7 +103,11 @@ protected:
             inPrc = outPrc = netPrecision;
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-        selectedType = getPrimitiveType() + "_" + ov::element::Type(netPrecision).get_type_name();
+        if (!ov::with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
+            selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::f32);
+        } else {
+            selectedType = makeSelectedTypeStr(getPrimitiveType(), netPrecision);
+        }
 
         staticShape = inputShape.first.rank() == 0;
         if (staticShape) {

@@ -67,16 +67,17 @@ struct CacheRotationDescriptor {
 
 struct PagedAttentionManager {
     int num_heads;
-    int head_size;
+    int k_head_size;
+    int v_head_size;
     int block_size;
     bool kv_cache_compression;
     CacheRotationDescriptor rotation_config;
     std::vector<SubsequenceDescriptor> subsequence_descs;
 
     // per-subsequence QKV inputs
-    std::vector<std::vector<ov::float16>> query_data; // {[1, num_tokens, num_heads, head_size], ..}
-    std::vector<std::vector<ov::float16>> key_data;   // {[1, past_len + num_tokens, num_heads, head_size], ..}
-    std::vector<std::vector<ov::float16>> value_data; // {[1, past_len + num_tokens, num_heads, head_size], ..}
+    std::vector<std::vector<ov::float16>> query_data; // {[1, num_tokens, num_heads, k_head_size], ..}
+    std::vector<std::vector<ov::float16>> key_data;   // {[1, past_len + num_tokens, num_heads, k_head_size], ..}
+    std::vector<std::vector<ov::float16>> value_data; // {[1, past_len + num_tokens, num_heads, v_head_size], ..}
 
     // common PA inputs
     std::vector<int> past_lens;
@@ -99,12 +100,14 @@ struct PagedAttentionManager {
                           cldnn::stream& stream,
                           const std::vector<SubsequenceDescriptor>& subsequence_descs,
                           int num_heads,
-                          int head_size,
+                          int k_head_size,
+                          int v_head_size,
                           int block_size,
                           bool kv_cache_compression,
                           CacheRotationDescriptor rotation_config)
         : num_heads(num_heads)
-        , head_size(head_size)
+        , k_head_size(k_head_size)
+        , v_head_size(v_head_size)
         , block_size(block_size)
         , kv_cache_compression(kv_cache_compression)
         , rotation_config(rotation_config)
@@ -121,9 +124,9 @@ struct PagedAttentionManager {
             const auto& subsequence_desc = subsequence_descs[i];
             max_len = std::max(max_len, subsequence_desc.num_tokens + subsequence_desc.past_len);
 
-            query_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens, head_size));
-            key_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, head_size));
-            value_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, head_size));
+            query_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens, k_head_size));
+            key_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, k_head_size));
+            value_data.push_back(generate_input_data(rg, num_heads, subsequence_desc.num_tokens + subsequence_desc.past_len, v_head_size));
 
             past_lens.push_back(subsequence_desc.past_len);
             int subsequence_start_pos = subsequence_begins[i];
@@ -164,26 +167,26 @@ struct PagedAttentionManager {
                                                                 rotated_block_indices.size(),
                                                                 block_size,
                                                                 rotation_config.per_block);
-                rotation_trig_lut = generate_rotation_trig_lut_data(rg, max_context_len[0], head_size);
+                rotation_trig_lut = generate_rotation_trig_lut_data(rg, max_context_len[0], k_head_size);
             }
         }
     }
 
     memory::ptr get_query_memory() {
-        return get_QKV_memory(query_data, false);
+        return get_QKV_memory(query_data, k_head_size, false);
     }
 
     memory::ptr get_key_memory() {
-        return get_QKV_memory(key_data, true);
+        return get_QKV_memory(key_data, k_head_size, true);
     }
 
     memory::ptr get_value_memory() {
-        return get_QKV_memory(value_data, true);
+        return get_QKV_memory(value_data, v_head_size, true);
     }
 
     memory::ptr get_key_cache_memory() {
         auto key_cache_dt = data_types::f16;
-        auto adjusted_head_size = head_size;
+        auto adjusted_head_size = k_head_size;
         if (kv_cache_compression) {
             key_cache_dt = data_types::i8;
             adjusted_head_size += 4;
@@ -207,38 +210,38 @@ struct PagedAttentionManager {
                             if (kv_cache_compression) {
                                 size_t input_token_offset = block_idx * block_size + token_idx;
                                 ov::float16* data_ptr = key_data[i].data() +
-                                                        input_token_offset * num_heads * head_size +
-                                                        head_idx * head_size;
+                                                        input_token_offset * num_heads * k_head_size +
+                                                        head_idx * k_head_size;
 
                                 // shape: [num_blocks, num_heads, adjusted_head_size, block_size]
                                 size_t output_block_offset = (start_block_idx + block_idx) * num_heads * adjusted_head_size * block_size +
                                                              head_idx * adjusted_head_size * block_size;
 
-                                auto [quantized_data, scale, zp] = quantize_data(data_ptr, head_size);
-                                for (int head_size_idx = 0; head_size_idx < head_size; head_size_idx++) {
-                                    auto quantized_data_ptr = quantized_data.data() + head_size_idx;
+                                auto [quantized_data, scale, zp] = quantize_data(data_ptr, k_head_size);
+                                for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
+                                    auto quantized_data_ptr = quantized_data.data() + k_head_size_idx;
 
                                     size_t output_offset = output_block_offset +
-                                                           head_size_idx * block_size +
+                                                           k_head_size_idx * block_size +
                                                            token_idx;
 
                                     set_values(test_stream, memory, quantized_data_ptr, 1, output_offset);
                                 }
 
-                                size_t comp_offset = (output_block_offset + head_size * block_size) / 2;
+                                size_t comp_offset = (output_block_offset + k_head_size * block_size) / 2;
                                 set_values(test_stream, memory, &scale, 1, comp_offset + token_idx);
                                 set_values(test_stream, memory, &zp, 1, comp_offset + block_size + token_idx);
                             } else {
-                                for (int head_size_idx = 0; head_size_idx < head_size; head_size_idx++) {
+                                for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
                                     size_t input_token_offset = block_idx * block_size + token_idx;
                                     ov::float16* data_ptr = key_data[i].data() +
-                                                            input_token_offset * num_heads * head_size +
-                                                            head_idx * head_size + head_size_idx;
+                                                            input_token_offset * num_heads * k_head_size +
+                                                            head_idx * k_head_size + k_head_size_idx;
 
-                                    // shape: [num_blocks, num_heads, head_size, block_size]
-                                    size_t output_offset = (start_block_idx + block_idx) * num_heads * head_size * block_size +
-                                                           head_idx * head_size * block_size +
-                                                           head_size_idx * block_size +
+                                    // shape: [num_blocks, num_heads, k_head_size, block_size]
+                                    size_t output_offset = (start_block_idx + block_idx) * num_heads * k_head_size * block_size +
+                                                           head_idx * k_head_size * block_size +
+                                                           k_head_size_idx * block_size +
                                                            token_idx;
 
                                     set_values(test_stream, memory, data_ptr, 1, output_offset);
@@ -255,7 +258,7 @@ struct PagedAttentionManager {
 
     memory::ptr get_value_cache_memory() {
         auto value_cache_dt = data_types::f16;
-        auto adjusted_head_size = head_size;
+        auto adjusted_head_size = v_head_size;
         if (kv_cache_compression) {
             value_cache_dt = data_types::i8;
             adjusted_head_size += 4;
@@ -278,29 +281,29 @@ struct PagedAttentionManager {
                         for (int head_idx = 0; head_idx < num_heads; head_idx++) {
                             size_t input_token_offset = block_idx * block_size + token_idx;
                             ov::float16* data_ptr = value_data[i].data() +
-                                                    input_token_offset * num_heads * head_size +
-                                                    head_idx * head_size;
+                                                    input_token_offset * num_heads * v_head_size +
+                                                    head_idx * v_head_size;
                             if (kv_cache_compression) {
-                                auto [quantized_data, scale, zp] = quantize_data(data_ptr, head_size);
+                                auto [quantized_data, scale, zp] = quantize_data(data_ptr, v_head_size);
                                 auto quantized_data_ptr = quantized_data.data();
 
                                 // shape: [num_blocks, num_heads, block_size, adjusted_head_size]
                                 size_t output_block_offset = (start_block_idx + block_idx) * num_heads * block_size * adjusted_head_size +
                                                              head_idx * block_size * adjusted_head_size;
                                 size_t output_offset = output_block_offset +
-                                                       token_idx * head_size;
-                                set_values(test_stream, memory, quantized_data_ptr, head_size, output_offset);
+                                                       token_idx * v_head_size;
+                                set_values(test_stream, memory, quantized_data_ptr, v_head_size, output_offset);
 
-                                size_t comp_offset = (output_block_offset + head_size * block_size) / 2;
+                                size_t comp_offset = (output_block_offset + v_head_size * block_size) / 2;
                                 set_values(test_stream, memory, &scale, 1, comp_offset + token_idx);
                                 set_values(test_stream, memory, &zp, 1, comp_offset + block_size + token_idx);
                             } else {
-                                // shape: [num_blocks, num_heads, block_size, head_size]
-                                size_t output_offset = (start_block_idx + block_idx) * num_heads * block_size * head_size +
-                                                       head_idx * block_size * head_size +
-                                                       token_idx * head_size;
+                                // shape: [num_blocks, num_heads, block_size, v_head_size]
+                                size_t output_offset = (start_block_idx + block_idx) * num_heads * block_size * v_head_size +
+                                                       head_idx * block_size * v_head_size +
+                                                       token_idx * v_head_size;
 
-                                set_values(test_stream, memory, data_ptr, head_size, output_offset);
+                                set_values(test_stream, memory, data_ptr, v_head_size, output_offset);
                             }
                         }
                     }
@@ -362,11 +365,11 @@ struct PagedAttentionManager {
     memory::ptr get_rotation_trig_lut_memory() {
         auto mem = get_memory_from_vec(rotation_trig_lut);
         auto layout = mem->get_layout();
-        layout.set_partial_shape(ov::PartialShape{ max_context_len[0], head_size });
+        layout.set_partial_shape(ov::PartialShape{ max_context_len[0], k_head_size });
 
         if (rotated_block_indices.empty()) {
             auto empty_layout = mem->get_layout();
-            empty_layout.set_partial_shape(ov::PartialShape{ 0, head_size });
+            empty_layout.set_partial_shape(ov::PartialShape{ 0, k_head_size });
             return test_engine.reinterpret_buffer(*mem, empty_layout);
         }
 
@@ -374,7 +377,7 @@ struct PagedAttentionManager {
     }
 
     float get_default_scale() {
-        return static_cast<float>(1.f / std::sqrt(head_size));
+        return static_cast<float>(1.f / std::sqrt(k_head_size));
     }
 
 private:
@@ -396,12 +399,12 @@ private:
         return memory;
     }
 
-    memory::ptr get_QKV_memory(std::vector<std::vector<ov::float16>>& input_data, bool skip_past_len) {
+    memory::ptr get_QKV_memory(std::vector<std::vector<ov::float16>>& input_data, int k_head_size, bool skip_past_len) {
         int total_tokens = 0;
         for (const auto& subsequence_desc : subsequence_descs)
             total_tokens += subsequence_desc.num_tokens;
 
-        auto query_shape = ov::PartialShape{ total_tokens, num_heads * head_size };
+        auto query_shape = ov::PartialShape{ total_tokens, num_heads * k_head_size };
         auto query_layout = layout{ query_shape, data_types::f16, format::bfyx };
         auto memory = test_engine.allocate_memory(query_layout);
 
@@ -414,14 +417,14 @@ private:
                         input_token_offset += subsequence_descs[subsequence_idx].past_len;
 
                     ov::float16* data_ptr = input_data[subsequence_idx].data() +
-                                            input_token_offset * num_heads * head_size +
-                                            head_idx * head_size;
+                                            input_token_offset * num_heads * k_head_size +
+                                            head_idx * k_head_size;
 
                     size_t output_token_offset = subsequence_begins[subsequence_idx] + token_idx;
-                    size_t output_offset = output_token_offset * num_heads * head_size +
-                                           head_idx * head_size;
+                    size_t output_offset = output_token_offset * num_heads * k_head_size +
+                                           head_idx * k_head_size;
 
-                    set_values(test_stream, memory, data_ptr, head_size, output_offset);
+                    set_values(test_stream, memory, data_ptr, k_head_size, output_offset);
                 }
             }
         }
@@ -437,8 +440,8 @@ private:
         }
     }
 
-    static std::vector<ov::float16> generate_input_data(tests::random_generator& rg, size_t num_heads, size_t tokens_num, size_t head_size) {
-        const size_t total_elements_num = tokens_num * num_heads * head_size;
+    static std::vector<ov::float16> generate_input_data(tests::random_generator& rg, size_t num_heads, size_t tokens_num, size_t k_head_size) {
+        const size_t total_elements_num = tokens_num * num_heads * k_head_size;
         auto data = rg.generate_random_1d<ov::float16>(total_elements_num, -1, 1);
 
         return data;
@@ -452,8 +455,8 @@ private:
         return data;
     }
 
-    static std::vector<ov::float16> generate_rotation_trig_lut_data(tests::random_generator& rg, size_t max_tokens_num, size_t head_size) {
-        const size_t total_elements_num = max_tokens_num * head_size;
+    static std::vector<ov::float16> generate_rotation_trig_lut_data(tests::random_generator& rg, size_t max_tokens_num, size_t k_head_size) {
+        const size_t total_elements_num = max_tokens_num * k_head_size;
         auto data = rg.generate_random_1d<ov::float16>(total_elements_num, -1, 1);
 
         return data;
@@ -543,7 +546,7 @@ struct PagedAttentionReference {
                                      index,
                                      subsequence_rotated_block_idx,
                                      pam.num_heads,
-                                     pam.head_size,
+                                     pam.k_head_size,
                                      pam.block_size,
                                      pam.rotation_config.per_block);
                     }
@@ -556,7 +559,8 @@ struct PagedAttentionReference {
                                                          subsequence_desc.num_tokens,
                                                          kv_seq_len,
                                                          pam.num_heads,
-                                                         pam.head_size,
+                                                         pam.k_head_size,
+                                                         pam.v_head_size,
                                                          pam.get_default_scale());
 
             // concatenate all subsequences into one vector
@@ -579,11 +583,12 @@ private:
                       int num_queries,
                       int num_keys,
                       int num_heads,
-                      int head_size,
+                      int k_head_size,
+                      int v_head_size,
                       float scale) {
-        auto query_shape = ov::PartialShape{1, num_queries, num_heads, head_size};
-        auto key_shape = ov::PartialShape{1, num_keys, num_heads, head_size};
-        auto value_shape = ov::PartialShape{1, num_keys, num_heads, head_size};
+        auto query_shape = ov::PartialShape{1, num_queries, num_heads, k_head_size};
+        auto key_shape = ov::PartialShape{1, num_keys, num_heads, k_head_size};
+        auto value_shape = ov::PartialShape{1, num_keys, num_heads, v_head_size};
 
         auto query_layout = layout{query_shape, data_types::f16, format::bfyx};
         auto key_layout = layout{key_shape, data_types::f16, format::bfyx};
@@ -633,7 +638,7 @@ private:
         auto output_data_mem = outputs.at("output_data").get_memory();
         auto output_scores_mem = outputs.at("scores_data").get_memory();
 
-        return { get_output_data_vec(output_data_mem, num_queries, head_size, num_heads),
+        return { get_output_data_vec(output_data_mem, num_queries, v_head_size, num_heads),
                  get_output_scores_vec(output_scores_mem, num_queries, num_keys, num_heads) };
     }
 
@@ -644,7 +649,7 @@ private:
         OPENVINO_ASSERT(scores_output->count() == static_cast<size_t>(num_heads * num_queries * num_keys));
 
         std::vector<ov::float16> output_scores(num_keys, 0);
-        mem_lock<ov::float16> mem_ptr(scores_output, test_stream);
+        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output, test_stream);
         for (int head_idx = 0; head_idx < num_heads; head_idx++) {
             for (int score_idx = 0; score_idx < num_keys; score_idx++) {
                 output_scores[score_idx] += mem_ptr[head_idx * num_queries * num_keys +
@@ -658,12 +663,12 @@ private:
 
     std::vector<ov::float16> get_output_data_vec(memory::ptr data_output,
                                                  int num_queries,
-                                                 int head_size,
+                                                 int k_head_size,
                                                  int num_heads) {
-        OPENVINO_ASSERT(data_output->count() == static_cast<size_t>(num_queries * num_heads * head_size));
+        OPENVINO_ASSERT(data_output->count() == static_cast<size_t>(num_queries * num_heads * k_head_size));
 
         std::vector<ov::float16> output_data(data_output->count());
-        mem_lock<ov::float16> mem_ptr(data_output, test_stream);
+        mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output, test_stream);
         for (size_t i = 0; i < data_output->count(); i++)
             output_data[i] = mem_ptr[i];
 
@@ -677,7 +682,7 @@ private:
         * Case 1 (N == K):
         * num_queries = N
         * num_keys = K = N
-        * head_size = H
+        * k_head_size = H
         * Q  [N, H] * K[H, N]
         * QK [N, N]
         *       0    1        N
@@ -689,7 +694,7 @@ private:
         * Case 2 (N != K):
         * num_queries = N
         * num_keys = K
-        * head_size = H
+        * k_head_size = H
         * past_len = P = K - N + 1
         * Q  [N, H] * K[H, K]
         * QK [N, K]
@@ -700,8 +705,8 @@ private:
         * N [  0,   0,   0,   0,  ..,   0 ]
         *
         * Shapes:
-        * Q   [1, num_heads, num_queries, head_size]
-        * K   [1, num_heads, head_size, num_keys]
+        * Q   [1, num_heads, num_queries, k_head_size]
+        * K   [1, num_heads, k_head_size, num_keys]
         * Q*K [1, num_heads, num_queries, num_keys]
         */
 
@@ -727,29 +732,29 @@ private:
                       int rotated_block_idx,
                       int subsequence_rotated_block_idx,
                       int num_heads,
-                      int head_size,
+                      int k_head_size,
                       int block_size,
                       bool per_block) {
-        // cache_data shape: [1, num_tokens, num_heads, head_size]
+        // cache_data shape: [1, num_tokens, num_heads, k_head_size]
         int start_token_idx = subsequence_rotated_block_idx * block_size;
 
         for (int token_idx = 0; token_idx < block_size; token_idx++) {
             auto rotation_deltas_offset = per_block ? rotated_block_idx : rotated_block_idx * block_size + token_idx;
             auto rotation_trig_lut_idx = rotation_deltas[rotation_deltas_offset];
             for (int head_idx = 0; head_idx < num_heads; head_idx++) {
-                for (int head_size_idx = 0; head_size_idx < head_size / 2; head_size_idx++) {
-                    auto input_offset = (start_token_idx + token_idx) * num_heads * head_size +
-                                        head_idx * head_size +
-                                        head_size_idx;
+                for (int k_head_size_idx = 0; k_head_size_idx < k_head_size / 2; k_head_size_idx++) {
+                    auto input_offset = (start_token_idx + token_idx) * num_heads * k_head_size +
+                                        head_idx * k_head_size +
+                                        k_head_size_idx;
 
                     auto cache_value_0 = cache_data[input_offset];
-                    auto cache_value_1 = cache_data[input_offset + head_size / 2];
+                    auto cache_value_1 = cache_data[input_offset + k_head_size / 2];
 
-                    ov::float16 rotation_value_cos = rotation_trig_lut_mem[rotation_trig_lut_idx * head_size + head_size_idx];
-                    ov::float16 rotation_value_sin = rotation_trig_lut_mem[rotation_trig_lut_idx * head_size + head_size_idx + head_size / 2];
+                    ov::float16 rotation_value_cos = rotation_trig_lut_mem[rotation_trig_lut_idx * k_head_size + k_head_size_idx];
+                    ov::float16 rotation_value_sin = rotation_trig_lut_mem[rotation_trig_lut_idx * k_head_size + k_head_size_idx + k_head_size / 2];
 
                     cache_data[input_offset]                 = cache_value_0 * rotation_value_cos - cache_value_1 * rotation_value_sin;
-                    cache_data[input_offset + head_size / 2] = cache_value_0 * rotation_value_sin + cache_value_1 * rotation_value_cos;
+                    cache_data[input_offset + k_head_size / 2] = cache_value_0 * rotation_value_sin + cache_value_1 * rotation_value_cos;
                 }
             }
         }
@@ -777,7 +782,8 @@ public:
                                   get_test_stream(),
                                   p.subsequences,
                                   p.num_heads,
-                                  p.head_size,
+                                  p.k_head_size,
+                                  p.v_head_size,
                                   p.block_size,
                                   p.kv_cache_compression,
                                   p.rotation_config);
@@ -790,7 +796,7 @@ public:
         auto value_mem = pam.get_value_memory();
 
         auto key_cache_mem = pam.get_key_cache_memory();
-        auto value_cache_mem = pam.get_value_cache_memory();
+       auto value_cache_mem = pam.get_value_cache_memory();
 
         auto past_lens_mem = pam.get_past_lens_memory();
         auto subsequence_begins_mem = pam.get_subsequence_begins_memory();
@@ -825,23 +831,23 @@ public:
         auto rotation_trig_lut_layout = rotation_trig_lut_mem->get_layout();
 
         // make layouts dynamic
-        query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.head_size });
-        key_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.head_size });
-        value_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.head_size });
-        key_cache_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads, p.head_size, p.block_size });
-        value_cache_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads, p.block_size, p.head_size });
+        query_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
+        key_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.k_head_size });
+        value_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads * p.v_head_size });
+        key_cache_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads, p.k_head_size, p.block_size });
+        value_cache_layout.set_partial_shape(ov::PartialShape{ -1, p.num_heads, p.block_size, p.v_head_size });
         past_lens_layout.set_partial_shape(ov::PartialShape{ -1 });
         subsequence_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
         block_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
         block_indices_begins_layout.set_partial_shape(ov::PartialShape{ -1 });
         rotated_block_indices_layout.set_partial_shape(ov::PartialShape{ -1 });
         rotation_deltas_layout.set_partial_shape(ov::PartialShape{ -1, -1 });
-        rotation_trig_lut_layout.set_partial_shape(ov::PartialShape{ -1, p.head_size });
+        rotation_trig_lut_layout.set_partial_shape(ov::PartialShape{ -1, p.k_head_size });
 
         if (p.dynamic_paddings) {
             const auto padding_axis = 1;
-            const auto pad_before = p.head_size;
-            const auto pad_after = p.head_size * 2;
+            const auto pad_before = p.k_head_size;
+            const auto pad_after = p.k_head_size * 2;
 
             query_layout.data_padding._dynamic_dims_mask[padding_axis] = 1;
 
@@ -892,7 +898,8 @@ public:
 
         auto pa_prim = paged_attention("paged_attention", pa_inputs);
 
-        pa_prim.head_size = p.head_size;
+        pa_prim.k_head_size = p.k_head_size;
+        pa_prim.v_head_size = p.v_head_size;
         pa_prim.kv_heads_num = p.num_heads;
         pa_prim.heads_num = p.num_heads;
         pa_prim.scale_val = pam.get_default_scale();
@@ -929,13 +936,15 @@ public:
             topology.add(input_layout("rotation_deltas", rotation_deltas_layout));
             topology.add(input_layout("rotation_trig_lut", rotation_trig_lut_layout));
 
-            // add dummy activation operation to simulate an empty PA `rotation_trig_lut` buffer for shapes like [0, head_size]
+            // add dummy activation operation to simulate an empty PA `rotation_trig_lut` buffer for shapes like [0, k_head_size]
             topology.add(activation("rotation_trig_lut_modified", input_info("rotation_trig_lut"), activation_func::none));
         }
 
         ExecutionConfig config = get_test_default_config(get_test_engine());
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        // FlashAttn v1 or v2?
+        config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.disable_flashattn_v2));
 
         network::ptr network = get_network(get_test_engine(), topology, config, get_test_stream_ptr(), false);
         network->set_input_data("query", query_mem);
@@ -975,7 +984,7 @@ public:
     void compare(memory::ptr data_output_mem, memory::ptr scores_output_mem, std::pair<std::vector<ov::float16>, std::vector<ov::float16>> ref_data) {
         if (data_output_mem) {
             ASSERT_EQ(data_output_mem->count(), ref_data.first.size());
-            mem_lock<ov::float16> mem_ptr(data_output_mem, get_test_stream());
+            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(data_output_mem, get_test_stream());
             for (size_t i = 0; i < data_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], ref_data.first[i], tolerance);
             }
@@ -983,7 +992,7 @@ public:
 
         if (scores_output_mem) {
             ASSERT_EQ(scores_output_mem->count(), ref_data.second.size());
-            mem_lock<ov::float16> mem_ptr(scores_output_mem, get_test_stream());
+            mem_lock<ov::float16, mem_lock_type::read> mem_ptr(scores_output_mem, get_test_stream());
             for (size_t i = 0; i < scores_output_mem->count(); i++) {
                 ASSERT_NEAR(mem_ptr[i], ref_data.second[i], tolerance);
             }
@@ -994,12 +1003,14 @@ public:
 struct paged_attention_test_params {
     std::vector<SubsequenceDescriptor> subsequences;
     int num_heads;
-    int head_size;
+    int k_head_size;
+    int v_head_size;
     int block_size;
     bool kv_cache_compression;
     bool dynamic_paddings;
     bool scores_output;
     CacheRotationDescriptor rotation_config;
+    bool disable_flashattn_v2;
 };
 
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -1018,44 +1029,84 @@ const auto PER_TOKEN_ROTATION = CacheRotationDescriptor{ true, false };
 const auto DISABLE_ROTATION = CacheRotationDescriptor{ false, false };
 const auto STATIC_INPUT_PAD = false;
 const auto DYNAMIC_INPUT_PAD = true;
+const auto ENABLE_FA_V2 = false;
+const auto DISABLE_FA_V2 = true;
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output */
-    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 10}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 16, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 128, 96, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 64, 48, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 96, 128, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 32, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    // check this.  if using 128, 256 will have issue
+    paged_attention_test_params{ {{96, 0}, {128, 0}}, 2, 48, 96, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 10}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 10}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 48, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
     /* without scores output, dynamic input query paddings */
-    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores, per_block rotation */
-    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token
-    paged_attention_test_params{ {{36, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token + 1st token
-    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 10}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 2nd token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{36, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 64, 48, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 48, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 10}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 10}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores, per_token rotation */
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 64, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 32, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 128, 192, 16, DISABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
     /* without scores output, dynamic input query paddings, KV-cache compression */
-    paged_attention_test_params{ {{10, 0}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 1st token
-    paged_attention_test_params{ {{1024, 0}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 1st token long
-    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 1st token + 1st token
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{10, 0}}, 2, 64, 32, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 1st token
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 64,  16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
+    paged_attention_test_params{ {{1024, 0}}, 2, 64, 32,  16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token long
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 64, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{10, 0}, {81, 0}, {129, 0}}, 2, 64, 32, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2 }, // 1st token + 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 32, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 64, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 32, 16, ENABLE_CACHE_COMPRESSION, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
     /* with scores, per_block rotation, KV-cache compression */
-    paged_attention_test_params{ {{1, 34}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION }, // 2nd token
+    paged_attention_test_params{ {{1, 34}}, 2, 64, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token
+    paged_attention_test_params{ {{1, 34}}, 2, 64, 32, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 }, // 2nd token
     /* with scores, per_token rotation, KV-cache compression */
-    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION }, // 2nd token + 2nd token
-    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 64, 32, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // 2nd token + 2nd token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 64, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 64, 32, 16, ENABLE_CACHE_COMPRESSION, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 }, // mixed: 2nd token + 1st token + part of 1st token
 }));

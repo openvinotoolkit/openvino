@@ -18,6 +18,7 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/topk.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/ngraph_utils.hpp"
 
 using namespace dnnl;
@@ -1985,11 +1986,9 @@ void TopK::initSupportedPrimitiveDescriptors() {
                                                            ov::element::u8};
 
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
-    if (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core)) {
-        THROW_CPU_NODE_ERR("gets incorrect isa for BF16! AVX512 must be supported!");
-    }
     bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision) !=
                               std::end(supportedPrecision);
+    precisionSupported = (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core)) ? false : precisionSupported;
     if (!precisionSupported) {
         if (dataPrecision.is_real()) {
             dataPrecision = ov::element::f32;
@@ -2219,7 +2218,7 @@ void TopK::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void TopK::execute(const dnnl::stream& strm) {
+void TopK::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
     auto dstMemPtr = getDstMemoryAtPort(TOPK_DATA);
     auto dstIndexesMemPtr = getDstMemoryAtPort(TOPK_INDEX);
@@ -2460,11 +2459,11 @@ void TopK::calc_dims_size(const VectorDims& layout_dims) {
 
 void TopK::topk_ref(const float* in_ptr, float* out_ptr, int32_t* dst_idx) {
     if (mode_max) {
-        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> float {
+        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> bool {
             return x > y;
         });
     } else {
-        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> float {
+        topk_ref_process(in_ptr, out_ptr, dst_idx, src_dims, [](float x, float y) -> bool {
             return x < y;
         });
     }
@@ -2474,7 +2473,7 @@ void TopK::topk_ref_process(const float* src_data,
                             float* dst_data,
                             int32_t* dst_idx,
                             const VectorDims& in_dims,
-                            std::function<float(float, float)> compare) const {
+                            std::function<bool(float, float)> compare) const {
     int after_num = count(in_dims, axis + 1, in_dims.size());
 
     parallel_for2d(before_num, after_num, [&](int i0, int i1) {

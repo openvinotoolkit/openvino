@@ -150,6 +150,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::max_tiles
          ov::intel_npu::bypass_umd_caching
          ov::intel_npu::defer_weights_load
+         ov::intel_npu::run_inferences_sequentially
 
    .. tab-item:: Read-only properties
 
@@ -282,5 +283,5 @@ guaranteed.
 Additional Resources
 #############################
 
-* `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/hello-npu/hello-npu.ipynb>`__
-* `Vision colorization Notebook <./../../../notebooks/vision-image-colorization-with-output.html>`__
+* `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-npu>`__
+* `Vision colorization Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/ddcolor-image-colorization>`__

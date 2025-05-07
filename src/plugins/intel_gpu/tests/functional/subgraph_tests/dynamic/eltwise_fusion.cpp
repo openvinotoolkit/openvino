@@ -62,7 +62,7 @@ protected:
         mul->set_friendly_name("Mul1");
         mul2->set_friendly_name("Mul2");
 
-        return std::make_shared<ov::Model>(ov::NodeVector{mul2}, ov::ParameterVector{input0, input1}, "StaticEltwiseDynamicFusions");
+        return std::make_shared<ov::Model>(ov::OutputVector{mul2}, ov::ParameterVector{input0, input1}, "StaticEltwiseDynamicFusions");
     }
 
     void SetUp() override {

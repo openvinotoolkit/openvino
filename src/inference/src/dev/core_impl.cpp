@@ -5,6 +5,7 @@
 #include "core_impl.hpp"
 
 #include <memory>
+#include <variant>
 
 #include "check_network_batchable.hpp"
 #include "itt.hpp"
@@ -29,6 +30,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "openvino/util/variant_visitor.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "ov_plugins.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
@@ -207,6 +209,64 @@ static const auto core_properties_names =
 
 static const auto auto_batch_properties_names =
     ov::util::make_array(ov::auto_batch_timeout.name(), ov::hint::allow_auto_batching.name());
+
+ov::util::Path extract_weight_path(const std::string& compiled_properties) {
+    if (auto start = compiled_properties.find(ov::weights_path.name()); start != std::string::npos) {
+        start += std::string_view{ov::weights_path.name()}.size() + 1;
+        auto length = compiled_properties.find(",", start);
+        if (length != std::string::npos) {
+            length -= start;
+        }
+        return {compiled_properties.substr(start, length)};
+    } else {
+        return {};
+    }
+}
+
+using model_hint_t = std::variant<std::shared_ptr<const ov::Model>, std::string>;
+
+ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
+                                                    const ov::SoPtr<ov::IRemoteContext>& context,
+                                                    const ov::AnyMap& config) {
+    ov::SoPtr<ov::ICompiledModel> compiled_model;
+    if (auto blob_hint = config.find(ov::hint::compiled_blob.name()); blob_hint != config.end()) {
+        try {
+            auto compiled_blob = blob_hint->second.as<ov::Tensor>();
+            ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
+            std::istream stream{&buffer};
+            compiled_model =
+                context ? plugin.import_model(stream, context, config) : plugin.import_model(stream, config);
+        } catch (...) {
+        }
+    }
+    return compiled_model;
+}
+
+ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
+                                                    const ov::SoPtr<ov::IRemoteContext>& context,
+                                                    const ov::AnyMap& config,
+                                                    const model_hint_t& model_hint) {
+    auto cfg = config;
+    const auto apply_model_hint = ov::util::VariantVisitor{
+        [&cfg, &plugin](const std::shared_ptr<const ov::Model>& model_ptr) {
+            if (model_ptr != nullptr &&
+                ov::util::contains(plugin.get_property(ov::supported_properties), ov::hint::model)) {
+                cfg[ov::hint::model.name()] = model_ptr;
+            }
+        },
+        [&cfg, &plugin](const std::string& model_path) {
+            if (cfg.count(ov::weights_path.name()) == 0 &&
+                ov::util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
+                ov::util::Path weights_path{model_path};
+                weights_path.replace_extension(".bin");
+                if (ov::util::file_exists(weights_path)) {
+                    cfg[ov::weights_path.name()] = weights_path.string();
+                }
+            }
+        }};
+    std::visit(apply_model_hint, model_hint);
+    return import_compiled_model(plugin, context, cfg);
+}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -517,8 +577,6 @@ void ov::CoreImpl::register_compile_time_plugins() {
 }
 
 void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
-    std::lock_guard<std::mutex> lock(get_mutex());
-
     using namespace ov::util;
     auto parse_result = pugixml::parse_xml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
@@ -529,6 +587,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
+
+    std::lock_guard<std::mutex> lock(get_mutex());
 
     FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
         std::string deviceName = pugixml::get_str_attr(pluginNode, "name");
@@ -770,14 +830,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, coreConfig, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<ov::ICompiledModel> res;
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    auto res = import_compiled_model(plugin, {}, parsed._config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+    if (res) {
+        // hint::compiled_blob is set and imported skip compilation
+    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
+        cacheContent.model = model;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
             return compile_model_and_cache(plugin,
@@ -805,15 +867,17 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, coreConfig, config_with_batch, is_proxy_device(deviceName));
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<ov::ICompiledModel> res;
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    auto res = import_compiled_model(plugin, context, parsed._config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+    if (res) {
+        // hint::compiled_blob is set and imported skip compilation
+    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        cacheContent.model = std::const_pointer_cast<ov::Model>(model);
+        cacheContent.model = model;
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
         });
@@ -830,11 +894,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     auto parsed = parse_device_config(device_name, coreConfig, config, false);
     // in case of compile_model(file_name), we need to clear-up core-level properties
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<ov::ICompiledModel> compiled_model;
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    auto compiled_model = import_compiled_model(plugin, {}, parsed._config, model_path);
 
-    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+    if (compiled_model) {
+        // hint::compiled_blob is set and imported skip compilation
+    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CoreConfig::remove_core_skip_cache_dir(parsed._config);
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap(), model_path};
@@ -842,7 +908,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-                const auto model = util::read_model(model_path, "", extensions, parsed._core_config.get_enable_mmap());
+                const auto model =
+                    util::read_model(model_path, "", get_extensions_copy(), parsed._core_config.get_enable_mmap());
                 return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
             });
     } else {
@@ -858,11 +925,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::compile_model::from_memory");
     auto parsed = parseDeviceNameIntoConfig(device_name, coreConfig, config);
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<ov::ICompiledModel> compiled_model;
     // will consume ov::cache_dir if plugin not support it
     auto cacheManager = parsed._core_config.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
+    auto compiled_model = import_compiled_model(plugin, {}, parsed._config);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
-    if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
+    if (compiled_model) {
+        // hint::compiled_blob is set and imported skip compilation
+    } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
@@ -1362,6 +1431,12 @@ void ov::CoreImpl::add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& 
     }
 }
 
+std::vector<ov::Extension::Ptr> ov::CoreImpl::get_extensions_copy() const {
+    std::lock_guard<std::mutex> lock(get_mutex());
+    std::vector<ov::Extension::Ptr> extensions_copy(extensions.begin(), extensions.end());
+    return extensions_copy;
+};
+
 void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
     std::lock_guard<std::mutex> lock(get_mutex());
     add_extensions_unsafe(extensions);
@@ -1443,12 +1518,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             cacheContent.blobId,
             cacheContent.mmap_enabled && ov::util::contains(plugin.get_property(ov::internal::supported_properties),
                                                             ov::internal::caching_with_mmap),
-            [&](std::istream& networkStream, std::shared_ptr<ov::AlignedBuffer> model_buffer) {
+            [&](std::istream& networkStream, ov::Tensor& compiled_blob) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,
                              "Core::load_model_from_cache::ReadStreamAndImport");
+                ov::CompiledBlobHeader header;
                 try {
-                    ov::CompiledBlobHeader header;
                     networkStream >> header;
                     if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                         // Original file is changed, don't use cache
@@ -1477,21 +1552,34 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
                 ov::AnyMap update_config = config;
                 update_config[ov::loaded_from_cache.name()] = true;
+                if (cacheContent.model &&
+                    util::contains(plugin.get_property(ov::supported_properties), ov::hint::model)) {
+                    update_config[ov::hint::model.name()] = cacheContent.model;
+                }
 
+                if (util::contains(plugin.get_property(ov::supported_properties), ov::hint::model) &&
+                    cacheContent.model) {
+                    update_config[ov::hint::model.name()] = cacheContent.model;
+                }
                 if (util::contains(plugin.get_property(ov::supported_properties), ov::weights_path)) {
-                    if (cacheContent.model) {
-                        update_config[ov::hint::model.name()] = cacheContent.model;
-                    } else {
-                        std::filesystem::path weights_path = cacheContent.modelPath;
-                        weights_path.replace_extension(".bin");
+                    util::Path weights_path;
 
-                        if (ov::util::file_exists(weights_path)) {
-                            update_config[ov::weights_path.name()] = weights_path.string();
-                        }
+                    if (auto&& path_hint = update_config.find(ov::weights_path.name());
+                        path_hint != update_config.end()) {
+                        weights_path = path_hint->second.as<std::string>();
+                    } else if (weights_path = extract_weight_path(header.get_runtime_info()); weights_path.empty()) {
+                        weights_path = cacheContent.modelPath;
+                        weights_path.replace_extension(".bin");
+                    }
+                    weights_path.replace_extension(".bin");
+
+                    if (ov::util::file_exists(weights_path)) {
+                        update_config[ov::weights_path.name()] = weights_path.string();
                     }
                 }
-                if (model_buffer) {
-                    update_config[ov::internal::cached_model_buffer.name()] = model_buffer;
+
+                if (compiled_blob) {
+                    update_config[ov::hint::compiled_blob.name()] = compiled_blob;
                 }
                 compiled_model = context ? plugin.import_model(networkStream, context, update_config)
                                          : plugin.import_model(networkStream, update_config);
@@ -1672,20 +1760,20 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
     auto local_core_config = coreConfig;
     local_core_config.set(properties);
-    return ov::util::read_model(modelPath, binPath, extensions, local_core_config.get_enable_mmap());
+    return ov::util::read_model(modelPath, binPath, get_extensions_copy(), local_core_config.get_enable_mmap());
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     const ov::Tensor& weights,
                                                     bool frontendMode) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
-    return ov::util::read_model(model, weights, extensions, frontendMode);
+    return ov::util::read_model(model, weights, get_extensions_copy(), frontendMode);
 }
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::shared_ptr<AlignedBuffer>& model,
                                                     const std::shared_ptr<AlignedBuffer>& weights) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
-    return ov::util::read_model(model, weights, extensions);
+    return ov::util::read_model(model, weights, get_extensions_copy());
 }
 
 std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string& deviceName) const {

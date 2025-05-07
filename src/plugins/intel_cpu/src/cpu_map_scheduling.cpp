@@ -19,8 +19,9 @@ std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCor
         switch (input_type) {
         case ov::hint::SchedulingCoreType::PCORE_ONLY:
             for (auto& i : result_table) {
-                i[ALL_PROC] -= i[EFFICIENT_CORE_PROC];
+                i[ALL_PROC] -= i[EFFICIENT_CORE_PROC] + i[LP_EFFICIENT_CORE_PROC];
                 i[EFFICIENT_CORE_PROC] = 0;
+                i[LP_EFFICIENT_CORE_PROC] = 0;
             }
             break;
         case ov::hint::SchedulingCoreType::ECORE_ONLY:
@@ -36,7 +37,8 @@ std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCor
     };
 
     if (((input_type == ov::hint::SchedulingCoreType::PCORE_ONLY) && (proc_type_table[0][MAIN_CORE_PROC] == 0)) ||
-        ((input_type == ov::hint::SchedulingCoreType::ECORE_ONLY) && (proc_type_table[0][EFFICIENT_CORE_PROC] == 0))) {
+        ((input_type == ov::hint::SchedulingCoreType::ECORE_ONLY) && (proc_type_table[0][EFFICIENT_CORE_PROC] == 0) &&
+         (proc_type_table[0][LP_EFFICIENT_CORE_PROC] == 0))) {
         input_type = ov::hint::SchedulingCoreType::ANY_CORE;
     }
 
@@ -78,12 +80,7 @@ bool check_cpu_pinning(const bool cpu_pinning,
 #if defined(__APPLE__)
     result_value = false;
 #elif defined(_WIN32)
-    auto proc_type_table = get_proc_type_table();
-    if (proc_type_table.size() == 1) {
-        result_value = cpu_pinning_changed ? cpu_pinning : cpu_reservation;
-    } else {
-        result_value = false;
-    }
+    result_value = cpu_pinning_changed ? cpu_pinning : cpu_reservation;
 #else
     // The following code disables pinning in case stream contains both Pcore and Ecore
     auto hyper_cores_in_stream = [&]() {

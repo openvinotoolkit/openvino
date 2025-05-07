@@ -45,13 +45,9 @@ class TestSelect(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_select_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
-        if use_legacy_frontend:
-            pytest.skip("Select tests are not passing for the legacy frontend.")
+    def test_select_basic(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_select_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 class TestComplexSelect(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -96,10 +92,6 @@ class TestComplexSelect(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
 
-    def test_complex_select(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_legacy_frontend):
-        if use_legacy_frontend:
-            pytest.skip("Select tests are not passing for the legacy frontend.")
+    def test_complex_select(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_complex_select_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

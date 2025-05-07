@@ -288,10 +288,10 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     p.add_connection(in_shift_node, new_quantize_node);
     p.add_connection(out_scale_node, new_quantize_node);
     p.add_connection(out_shift_node, new_quantize_node);
-    new_quantize_node.add_memory_dependency(in_scale_node.get_unique_id());
-    new_quantize_node.add_memory_dependency(in_shift_node.get_unique_id());
-    new_quantize_node.add_memory_dependency(out_scale_node.get_unique_id());
-    new_quantize_node.add_memory_dependency(out_shift_node.get_unique_id());
+    new_quantize_node.add_memory_dependency(in_scale_node);
+    new_quantize_node.add_memory_dependency(in_shift_node);
+    new_quantize_node.add_memory_dependency(out_scale_node);
+    new_quantize_node.add_memory_dependency(out_shift_node);
     p.get_processing_order().insert(&new_quantize_node, &in_shift_node);
     p.get_processing_order().insert(&new_quantize_node, &in_scale_node);
     p.get_processing_order().insert(&new_quantize_node, &out_shift_node);
@@ -511,6 +511,11 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     auto need_reorder = [&](size_t dep_id) {
         auto dep_layout = fc_node.get_input_layout(dep_id);
         auto dep_pshape = dep_layout.get_partial_shape();
+        if (dep_pshape.size() == 0) {
+            // ConvertU4WeightsZeroPointToScalar pass generates scalar const layer
+            return false;
+        }
+
         // Group for scale_idx is always 1, whereas zero_point_idx is 0.
         auto groups_idx = (dep_pshape.size() > 1) ? 1 : 0;
         auto groups_count = dep_pshape[groups_idx].get_length();

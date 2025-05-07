@@ -457,6 +457,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_COMPILER_DYNAMIC_QUANTIZATION",
             ((True, True),),
         ),
+        (
+            intel_npu.run_inferences_sequentially,
+            "NPU_RUN_INFERENCES_SEQUENTIALLY",
+            ((True, True),),
+        ),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):
@@ -474,6 +479,15 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 ###
 # Special cases
 ###
+def test_compiled_blob_property():
+    assert hints.compiled_blob == "COMPILED_BLOB"
+    compiled_blob = hints.compiled_blob(ov.Tensor(Type.u8, [2, 5]))
+
+    assert compiled_blob[0] == "COMPILED_BLOB"
+    assert compiled_blob[1].value.element_type == Type.u8
+    assert compiled_blob[1].value.shape == [2, 5]
+
+
 def test_properties_device_priorities():
     assert device.priorities == "MULTI_DEVICE_PRIORITIES"
     assert device.priorities("CPU,GPU") == ("MULTI_DEVICE_PRIORITIES", OVAny("CPU,GPU,"))
@@ -543,6 +557,7 @@ def test_properties_memory_type_gpu():
 
 def test_properties_capability_gpu():
     assert intel_gpu.CapabilityGPU.HW_MATMUL == "GPU_HW_MATMUL"
+    assert intel_gpu.CapabilityGPU.USM_MEMORY == "GPU_USM_MEMORY"
 
 
 def test_properties_hint_model():

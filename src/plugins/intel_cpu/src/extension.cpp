@@ -28,7 +28,6 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
-#include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -68,16 +67,16 @@ private:
 #    define OP_EXTENSION_X64(x)
 #endif
 
-#if defined(CPU_DEBUG_CAPS)
-#    define OP_EXTENSION_DEBUG_CAPS(x) x,
+#if defined(SNIPPETS_DEBUG_CAPS)
+#    define OP_EXTENSION_SNIPPETS_DEBUG_CAPS(x) x,
 #else
-#    define OP_EXTENSION_DEBUG_CAPS(x)
+#    define OP_EXTENSION_SNIPPETS_DEBUG_CAPS(x)
 #endif
 
-#if defined(CPU_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
-#    define OP_EXTENSION_DEBUG_CAPS_X64(x) x,
+#if defined(SNIPPETS_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
+#    define OP_EXTENSION_SNIPPETS_DEBUG_CAPS_X64(x) x,
 #else
-#    define OP_EXTENSION_DEBUG_CAPS_X64(x)
+#    define OP_EXTENSION_SNIPPETS_DEBUG_CAPS_X64(x)
 #endif
 
 OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
@@ -102,7 +101,6 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantizedLegacy>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantized>>(),
     // clang-format off
-    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::MHANode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::QKVProjectionNode>>())
@@ -184,9 +182,9 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::snippets::op::ReduceSum>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::Reshape>>(),
     // clang-format off
-    OP_EXTENSION_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountBegin>>())
-    OP_EXTENSION_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountEnd>>())
-    OP_EXTENSION_DEBUG_CAPS_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::PerfCountRdtscBegin>>())
-    OP_EXTENSION_DEBUG_CAPS_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::PerfCountRdtscEnd>>())
+    OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountBegin>>())
+    OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountEnd>>())
+    OP_EXTENSION_SNIPPETS_DEBUG_CAPS_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::PerfCountRdtscBegin>>())
+    OP_EXTENSION_SNIPPETS_DEBUG_CAPS_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::PerfCountRdtscEnd>>())
     // clang-format on
 }));

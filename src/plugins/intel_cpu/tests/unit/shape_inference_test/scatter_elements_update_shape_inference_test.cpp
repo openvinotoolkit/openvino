@@ -5,8 +5,11 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 
 using namespace ov;
 using namespace ov::opset10;

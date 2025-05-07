@@ -23,6 +23,7 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "memory_format_filter.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/node_config.h"
 #include "onednn/dnnl.h"
@@ -183,7 +184,7 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        PerfCounters(std::string const& name)
+        PerfCounters(const std::string& name)
             : execute(openvino::itt::handle(name)),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
@@ -398,7 +399,7 @@ public:
         return mergedWith;
     }
 
-    const std::vector<NodePtr>& getFusedWith() {
+    const std::vector<NodePtr>& getFusedWith() const {
         return fusedWith;
     }
 
@@ -559,8 +560,7 @@ public:
      * The main use case are nodes with nested graphs.
      * Use this method to make nested graphs a part of global allocation procedure
      */
-    virtual int registerToAllocationContext(int offset, AllocationContext& context) {
-        (void)context;  // nothing to register by default
+    virtual int registerToAllocationContext(int offset, [[maybe_unused]] AllocationContext& context) {
         return offset;
     }
 
@@ -762,8 +762,7 @@ protected:
 
     std::string primitivesPriority;
     std::vector<impl_desc_type> customImplPriorities;
-    std::vector<dnnl::memory::format_tag> inputMemoryFormatsFilter;
-    std::vector<dnnl::memory::format_tag> outputMemoryFormatsFilter;
+    MemoryFormatFilter memoryFormatFilter;
     bool enforceBF16evenForGraphTail = false;
     bool keepOriginalPrecision = false;
 

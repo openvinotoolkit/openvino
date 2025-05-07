@@ -5,6 +5,7 @@
 #include "openvino/reference/gather_tree.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/op/gather_tree.hpp"
 
 bool evaluate(const std::shared_ptr<ov::op::v1::GatherTree>& op,
               ov::TensorVector& outputs,

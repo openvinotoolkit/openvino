@@ -4,6 +4,9 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace ov {
 namespace test {
@@ -51,7 +54,7 @@ public:
                                                                         std::vector<int64_t>{},
                                                                         std::vector<int64_t>{},
                                                                         std::vector<int64_t>{});
-        NodeVector results{strided_slice};
+        OutputVector results{strided_slice};
         function = std::make_shared<ov::Model>(results, inputParams, "StridedSliceStaticShape");
     }
 };

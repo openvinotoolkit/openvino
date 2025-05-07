@@ -9,6 +9,7 @@
 
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/op/reduce_mean.hpp"
 
 namespace ov {
 namespace pass {

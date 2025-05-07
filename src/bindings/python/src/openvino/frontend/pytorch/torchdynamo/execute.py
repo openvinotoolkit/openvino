@@ -79,7 +79,7 @@ def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition
         "use_python_fusion_cache",
         DEFAULT_OPENVINO_PYTHON_CONFIG["use_python_fusion_cache"],
     )
-    global compiled_cache
+    global compiled_cache  # noqa: F824
 
     model_hash_str = executor_parameters.get("model_hash_str", None)
     if model_hash_str is not None:
@@ -159,7 +159,7 @@ def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_s
 def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=None, options=None):
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 
-    global partitioned_modules
+    global partitioned_modules  # noqa: F824
 
     use_python_fusion_cache = executor_parameters.get(
         "use_python_fusion_cache",
@@ -182,8 +182,8 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 
 
 def clear_caches():
-    global partitioned_modules
-    global compiled_cache
+    global partitioned_modules  # noqa: F824
+    global compiled_cache  # noqa: F824
 
     compiled_cache.clear()
     partitioned_modules.clear()

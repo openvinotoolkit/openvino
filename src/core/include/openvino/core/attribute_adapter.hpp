@@ -171,6 +171,7 @@ public:
             OPENVINO_THROW("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
     }
+
     operator AT&() {
         return m_ref;
     }

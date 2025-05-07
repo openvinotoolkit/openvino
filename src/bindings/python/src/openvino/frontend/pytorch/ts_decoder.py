@@ -26,6 +26,8 @@ from openvino.frontend.pytorch.utils import (
 from openvino import opset11 as ops
 from openvino.frontend.pytorch import quantized, patch_model
 from openvino.frontend.pytorch.module_extension import ModuleExtension
+from openvino.frontend.pytorch.patch_functions import FunctionsPatcher
+
 
 log = logging.getLogger(__name__)
 
@@ -75,8 +77,8 @@ class TorchScriptPythonDecoder(Decoder):
                     help_msg = ("Tracing sometimes provide better results, "
                                 "please provide valid 'example_input' argument.\n")
                 raise RuntimeError(
-                    f"Couldn't get TorchScript module by {msg}.\n{help_msg} "
-                    "You can also provide TorchScript module that you obtained"
+                    f"Couldn't get TorchScript module by {msg}.\nException:\n{e}\n"
+                    f"{help_msg} You can also provide TorchScript module that you obtained"
                     " yourself, please refer to PyTorch documentation: "
                     "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html."
                 ) from e
@@ -167,8 +169,9 @@ class TorchScriptPythonDecoder(Decoder):
                 if trace_kwargs is None:
                     trace_kwargs = {}
                 try:
-                    scripted = torch.jit.trace(
-                        pt_module, **input_parameters, strict=False, **trace_kwargs)
+                    with FunctionsPatcher():
+                        scripted = torch.jit.trace(
+                            pt_module, **input_parameters, strict=False, **trace_kwargs)
                 finally:
                     if patched:
                         quantized.unpatch_quantized(pt_module)
@@ -199,9 +202,6 @@ class TorchScriptPythonDecoder(Decoder):
 
     def inputs(self) -> list:
         return [x.unique() for x in self.raw_inputs]
-
-    def get_input(self, index: int):
-        return self.inputs()[index]
 
     def get_input_debug_name(self, index: int) -> str:
         return self._raw_input(index).debugName()
