@@ -89,10 +89,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     if (input_ids_node->get_friendly_name() == "input_ids") {
         input_ids_node->set_partial_shape(PartialShape{-1});
-        input_ids_node->set_element_type(element::i32);
     } else if (input_ids_node->get_friendly_name() == "inputs_embeds") {
         input_ids_node->set_partial_shape(PartialShape{-1, -1});
-        input_ids_node->set_element_type(element::i32);
     }
 
     auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
@@ -113,12 +111,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     std::shared_ptr<v0::Parameter> position_ids;
     if (!get_parameter(model, "position_ids")) {
-        position_ids = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "position_ids");
+        position_ids = setName(std::make_shared<v0::Parameter>(element::i64, PartialShape{-1}), "position_ids");
         model->add_parameters({position_ids});
     } else {
         position_ids = ov::as_type_ptr<v0::Parameter>(model->input("position_ids").get_node_shared_ptr());
         position_ids->set_partial_shape(PartialShape{-1});
-        position_ids->set_element_type(element::i32);
         position_ids->validate_and_infer_types();
     }
     auto position_ids_target_inputs = position_ids->get_output_target_inputs(0);

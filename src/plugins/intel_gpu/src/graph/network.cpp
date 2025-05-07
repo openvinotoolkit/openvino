@@ -818,10 +818,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         NODE_DEBUG(*inst);
 
         LINUX_PERF_LOG("execute_impl: " + inst->id());
-        if (inst->is_input() && inst->get_user_insts()[0]->get_node().is_type<paged_attention>()) {
-            inst->update_shape();
-            continue;
-        }
         inst->reset_events();
 
         if (inst->is_input()) {
