@@ -182,7 +182,7 @@ CommonDispatchData LoRAKernelOpt::SetDefault(const lora_params& params, size_t k
 
         if (kernel_idx == KernelsTypes::SECOND_TOKEN_A) {
             size_t lora_rank = params.inputs[3].Feature().v;
-            size_t gemma_sgK = max_workgroup_size / lora_rank;
+            size_t gemma_sgK = max_workgroup_size / std::max(lora_rank, static_cast<size_t>(1));
             size_t K = params.inputs[2].Feature().v;
             size_t gemma_wgs = CeilDiv(K, gemm_a_sg_bk * gemma_sgK);
 
@@ -423,17 +423,14 @@ void LoRAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
             auto dispatch_data = SetDefault(prim_params, kernel_idx);
             kd.kernels[kernel_idx].params.workGroups.global = dispatch_data.gws;
             kd.kernels[kernel_idx].params.workGroups.local = dispatch_data.lws;
-
-            if (skip_execution) {
-                kd.kernels[kernel_idx].skip_execution = true;
-            } else {
-                kd.kernels[kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
-            }
+            kd.kernels[kernel_idx].skip_execution = skip_execution;
         };
 
         const auto& execute_kernels = GetSuitableKernels(prim_params);
         for (size_t kernel_idx = 0; kernel_idx < KernelsTypes::TOTAL_KERNELS_NUM; ++kernel_idx) {
-            bool skip_execution = kernel_idx != execute_kernels.first && kernel_idx != execute_kernels.second;
+            bool skip_execution = KernelData::SkipKernelExecution(prim_params);
+            skip_execution |= kernel_idx != execute_kernels.first && kernel_idx != execute_kernels.second;
+
             if (kernel_idx == KernelsTypes::FUSED_OPS) {
                 skip_execution = prim_params.fused_ops.empty();
             }
@@ -445,7 +442,7 @@ void LoRAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         size_t input_state = prim_params.inputs[2].Feature().v;
         size_t lora_rank = prim_params.inputs[3].Feature().v;
         size_t max_workgroup_size = params.engineInfo.maxWorkGroupSize;
-        size_t output_a_size = CeilDiv(input_state, gemm_a_sg_bk * (max_workgroup_size / lora_rank));
+        size_t output_a_size = CeilDiv(input_state, gemm_a_sg_bk * (max_workgroup_size / std::max(lora_rank, static_cast<size_t>(1))));
 
         kd.internalBuffers.push_back(output_a_size * prim_params.inputs[0].ElementSize());
         kd.internalBufferDataType = GetAccumulatorType(prim_params);

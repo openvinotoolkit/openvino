@@ -16,7 +16,11 @@ std::string lora_inst::to_string(const lora_node& node) {
     std::stringstream primitive_description;
 
     json_composite lora_info;
-    lora_info.add("input_id", node.input().id());
+    lora_info.add("main_input", node.input().id());
+    lora_info.add("lora_input", node.input(1).id());
+    lora_info.add("state_a", node.input(2).id());
+    lora_info.add("state_alpha", node.input(3).id());
+    lora_info.add("state_b", node.input(4).id());
     lora_info.add("lora_count", (node.get_inputs_count() - 2ul) / 3ul);
 
     node_info->add("lora_info", lora_info);
@@ -30,8 +34,18 @@ void lora_inst::on_execute() {
 }
 
 void lora_inst::update_output_memory() {
-    if (!can_be_optimized())
-        return;
+    size_t fused_dep_size = 0;
+    for (const auto& fused_desc : _impl_params->fused_desc) {
+        fused_dep_size += fused_desc.deps.size();
+    }
+
+    bool is_empty_lora = true;
+    for (size_t i = 2; i < _impl_params->input_layouts.size() - fused_dep_size; ++i) {
+        is_empty_lora &= _impl_params->get_input_layout(i).count() == 0;
+    }
+
+    if (!is_empty_lora)
+       return;
 
     if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;

@@ -104,13 +104,17 @@ struct lora_impl : multi_stage_primitive<lora> {
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
         size_t kernel_offset = 0;
+        bool skip_full_lora = true;
 
         for (size_t s = 0; s < stage; s++) {
             kernel_offset += _kernels_data[s].kernels.size();
         }
         for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); ++kd_idx) {
-            if (_kernels_data[stage].kernels[kd_idx].skip_execution)
+            if (_kernels_data[stage].kernels[kd_idx].skip_execution) {
                 continue;
+            } else {
+                skip_full_lora = false;
+            }
 
             size_t idx_final = kernel_offset + kd_idx;
             // If any user of the desc's users is CPU implementation or network's output, set desc as a output event (event won't be nullptr)
@@ -140,6 +144,12 @@ struct lora_impl : multi_stage_primitive<lora> {
                 tmp_events = {ev};
             }
             all_events.push_back(ev);
+        }
+
+        if (skip_full_lora) {
+            for (auto& ev : events) {
+                all_events.push_back(ev);
+            }
         }
 
         return stream.aggregate_events(all_events, all_events.size() > 1);
