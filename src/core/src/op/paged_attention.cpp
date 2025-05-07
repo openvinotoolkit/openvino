@@ -7,82 +7,62 @@
 #include "dimension_util.hpp"
 #include "itt.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace {
-
-using namespace ov;
-using namespace ov::element;
 
 // Validates input rank and type for a node input.
 // We consider that dynamic rank/type are always valid case.
 // Empty {} means any rank/type
-inline void input_check(ov::Node* node,
+inline void input_check(const ov::Node* node,
                         size_t idx,
-                        const std::string& input_name,
-                        const std::set<int64_t>& allowed_ranks,
-                        std::set<Type> allowed_types) {
+                        const std::string_view input_name,
+                        const std::initializer_list<ov::Rank>& allowed_ranks,
+                        const std::vector<ov::element::Type>& allowed_types) {
     using namespace ov;
+    using namespace ov::util;
     using namespace ov::element;
 
-    const auto& pshape = node->get_input_partial_shape(idx);
-    const auto& etype = node->get_input_element_type(idx);
+    const auto& rank = node->get_input_partial_shape(idx).rank();
+    const auto& tp = node->get_input_element_type(idx);
 
-    auto rank_check = [&](const PartialShape& ps) {
-        return ps.rank().is_dynamic() || allowed_ranks.empty() || allowed_ranks.count(ps.rank().get_length());
+    auto rank_check = [&](const Rank& rank) {
+        return rank.is_dynamic() || empty(allowed_ranks) || is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
     };
 
     auto type_check = [&](const Type& type) {
-        return type.is_dynamic() || allowed_types.empty() || allowed_types.count(type);
+        auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
+        return type.is_dynamic() || allowed_types.empty() || it != allowed_types.end();
     };
 
     NODE_VALIDATION_CHECK(
         node,
-        rank_check(pshape),
+        rank_check(rank),
         "Rank of `",
         input_name,
         "` input should be in [dynamic, ",
-        [=]() {
-            std::ostringstream oss;
-            bool first = true;
-            for (auto r : allowed_ranks) {
-                if (!first)
-                    oss << ", ";
-                oss << r;
-                first = false;
-            }
-            return oss.str();
-        }(),
+        join(allowed_ranks),
         "] list, but it is ",
-        pshape.rank(),
+        rank,
         ".");
 
     NODE_VALIDATION_CHECK(
         node,
-        type_check(etype),
+        type_check(tp),
         "Element type of `",
         input_name,
         "` input should be in [dynamic, ",
-        [=]() {
-            std::ostringstream oss;
-            bool first = true;
-            for (auto t : allowed_types) {
-                if (!first)
-                    oss << ", ";
-                oss << t;
-                first = false;
-            }
-            return oss.str();
-        }(),
+        join(allowed_types),
         "] list, but it is ",
-        etype,
+        tp,
         ".");
 }
 
-std::set<Type> get_real_types() {
-    std::set<Type> real_types;
-    for (const auto& type : element::Type::get_known_types()) {
+std::vector<ov::element::Type> get_real_types() {
+    std::vector<ov::element::Type> real_types;
+    for (const auto& type : ov::element::Type::get_known_types()) {
         if (type->is_real()) {
-            real_types.insert(*type);
+            real_types.push_back(*type);
         }
     }
     return real_types;

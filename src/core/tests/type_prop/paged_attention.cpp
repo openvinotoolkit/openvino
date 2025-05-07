@@ -158,7 +158,7 @@ TEST(type_prop, paged_attention_dynamic_ranks_and_types) {
                              alibi_slopes,
                              max_context_len};
 
-    EXPECT_NO_THROW(auto _ = std::make_shared<op::PagedAttentionExtension>(args));
+    EXPECT_NO_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args));
 }
 
 TEST(type_prop, paged_attention_invalid_rank_query) {
@@ -170,7 +170,7 @@ TEST(type_prop, paged_attention_invalid_rank_query) {
     ov::OutputVector args =
         {query, key, value, dummy, dummy, scalar, scalar, scalar, scalar, dummy, scalar, dummy, scalar};
 
-    EXPECT_THROW(auto _ = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
 
 TEST(type_prop, paged_attention_invalid_type_scale) {
@@ -193,7 +193,7 @@ TEST(type_prop, paged_attention_invalid_type_scale) {
                              dummy2D,
                              dummyScalar};
 
-    EXPECT_THROW(auto _ = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
 
 TEST(type_prop, paged_attention_invalid_rank_key_cache) {
@@ -216,7 +216,7 @@ TEST(type_prop, paged_attention_invalid_rank_key_cache) {
                              dummy,
                              dummyScalar};
 
-    EXPECT_THROW(auto _ = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
+    EXPECT_THROW(std::ignore = std::make_shared<op::PagedAttentionExtension>(args), ov::NodeValidationFailure);
 }
 
 }  // namespace testing
