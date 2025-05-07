@@ -56,12 +56,16 @@ on:
         type: boolean
         required: false
         default: false
+      target-branch:
+        description: 'Target branch for the build; taken from GitHub context by default'
+        type: string
+        required: false
 
 permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Build:
@@ -406,6 +410,7 @@ jobs:
             ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+          branch_name: ${{ inputs.target-branch }}
         env:
           STORE_WHEELS: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
           STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
