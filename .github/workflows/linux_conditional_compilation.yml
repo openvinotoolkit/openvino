@@ -90,7 +90,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ github.event_name != 'merge_group' && !needs.smart_ci.outputs.skip_workflow }}
     timeout-minutes: 150
     defaults:
       run:
@@ -120,7 +120,6 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release_faster_build
-    if: ${{ github.event_name != 'merge_group' }}
 
     steps:
       - name: Clone OpenVINO
