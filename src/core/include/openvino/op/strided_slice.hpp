@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "openvino/op/op.hpp"
@@ -115,6 +116,8 @@ public:
     bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
     bool can_constant_fold(const OutputVector& inputs_values) const override;
+
+    std::optional<std::vector<int64_t>> calculate_default_static_strides() const;
 
 private:
     AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) const;

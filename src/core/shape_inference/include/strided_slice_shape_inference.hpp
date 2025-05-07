@@ -61,14 +61,8 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
     // compute constant values of begin, end, and strides if possible
     const auto begin = get_input_bounds<TRShape, int64_t>(op, 1, ta);
     const auto end = get_input_bounds<TRShape, int64_t>(op, 2, ta);
-
-    std::optional<std::vector<int64_t>> strides;
-    if (input_shapes.size() > 3) {
-        strides = get_input_const_data_as<TRShape, int64_t>(op, 3, ta);
-    } else if (begin) {
-        // generate default strides
-        strides.emplace(begin->size(), 1);
-    }
+    const auto strides = input_shapes.size() > 3 ? get_input_const_data_as<TRShape, int64_t>(op, 3, ta)
+                                                 : op->calculate_default_static_strides();
 
     // compute and check a number of axes for which begin, end, and strides are defined
     auto number_axes = number_elements_in_1d(op, begin_shape);
@@ -158,7 +152,7 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
                 input_shape_idx++;
             }
             // calculating dimension (begin, end, begin_mask, end_mask, stride)
-            else if (begin && end && strides) {
+            else if (strides) {
                 // set default value for stride or use given value
                 const auto& input_dim = input_shape[input_shape_idx];
                 auto stride =
@@ -178,9 +172,19 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
                 const auto& default_start = is_reverse_stride ? norm_dim_bounds : default_fstart;
                 const auto& default_stop = is_reverse_stride ? default_rstop : norm_dim_bounds;
 
-                const auto& start = begin_mask.count(axis) ? default_start : (*begin)[axis];
-                const auto& stop = end_mask.count(axis) ? default_stop : (*end)[axis];
-                auto sliced_dim = slice::make_dim(input_dim, start, stop, stride);
+                const auto start = begin_mask.count(axis) ? &default_start : begin ? &(*begin)[axis] : nullptr;
+                const auto stop = end_mask.count(axis) ? &default_stop : end ? &(*end)[axis] : nullptr;
+                if (!start || !stop) {
+                    // non-constant begin/end produce dynamic output dimensions unless the axis is ignored by setting
+                    // the corresponding mask to 1; since the stride is constant it can still be applied on the bounds
+                    const auto dyn_dim = DimType(0, input_dim.get_max_length());
+                    const auto sliced_dyn_dim = slice::make_dim(dyn_dim, default_start, default_stop, stride);
+                    out.emplace_back(sliced_dyn_dim);
+                    input_shape_idx++;
+                    continue;
+                }
+
+                auto sliced_dim = slice::make_dim(input_dim, *start, *stop, stride);
 
                 if (std::is_same<DimType, ov::Dimension>::value &&
                     (sliced_dim == input_dim && sliced_dim != Dimension::dynamic())) {
