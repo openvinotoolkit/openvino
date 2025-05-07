@@ -239,6 +239,8 @@ public:
     size_t num_outputs;
 
     virtual const std::string& get_type_info() const = 0;
+    virtual std::shared_ptr<primitive> clone() const = 0;
+
     virtual void save(BinaryOutputBuffer& ob) const {
         ob << type_string();
         ob << id;
@@ -351,7 +353,8 @@ protected:
 template <class PType>
 class primitive_base : public primitive {
 public:
-    std::shared_ptr<PType> clone() const { return std::make_shared<PType>(static_cast<const PType &>(*this)); }
+    std::shared_ptr<PType> typed_clone() const { return std::make_shared<PType>(static_cast<const PType &>(*this)); }
+    std::shared_ptr<primitive> clone() const override { return typed_clone(); };
 
 protected:
     explicit primitive_base(const primitive_id& id,
