@@ -1155,14 +1155,14 @@ void Transformations::MainSnippets() {
                         ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model);
 
     // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM
-    const auto is_infer_prc_supported_by_MHA =
+    const auto is_infer_prc_supported_by_brgemm =
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
          one_of(config.inferencePrecision, ov::element::f32, element::dynamic)) ||
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
          one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::dynamic)) ||
         (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
          one_of(config.inferencePrecision, ov::element::f16));
-    const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_MHA;
+    const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #else
     const bool isMHASupported = false;
 #endif
@@ -1173,7 +1173,7 @@ void Transformations::MainSnippets() {
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
-    const bool isMlpSeqSupported = true;
+    const bool isMlpSeqSupported = is_infer_prc_supported_by_brgemm;
 #else
     const bool isMlpSeqSupported = false;
 #endif
