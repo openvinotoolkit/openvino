@@ -1235,7 +1235,7 @@ void Transformations::MainSnippets() {
 #if defined(OPENVINO_ARCH_ARM64)
         // Power on ARM64 only supports power and swish with scalar second inputs
         auto is_supported_with_scalar_inputs = [](const std::shared_ptr<const ov::Node>& n) {
-            return (ov::is_type_any_of<const ov::op::v1::Power, const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
+            return (ov::is_type_any_of<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
                     ov::snippets::utils::is_scalar_constant(n->get_input_node_shared_ptr(1)));
         };
         auto is_supported = [](const std::shared_ptr<const ov::Node>& n) {
@@ -1263,6 +1263,7 @@ void Transformations::MainSnippets() {
                                        ov::op::v1::Mod,
                                        ov::op::v1::Multiply,
                                        ov::op::v0::PRelu,
+                                       ov::op::v1::Power,
                                        ov::op::v0::Relu,
                                        ov::op::v5::Round,
                                        ov::op::v1::Select,
