@@ -525,21 +525,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     ov::AnyMap npu_plugin_properties = properties;
-    std::shared_ptr<ov::AlignedBuffer> modelBuffer;
     ov::SharedStreamBuffer buffer = {nullptr, 0};
     std::istream stream{origStream.rdbuf()};
-    ov::Tensor tensor;
+    ov::Tensor tensor{ov::element::u8, ov::Shape{0}};
     // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
         blob_it != npu_plugin_properties.end()) {
-        tensor = blob_it->second.as<ov::Tensor>();
-        buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size());
-        stream.rdbuf(&buffer);
+        auto compiledBlob = blob_it->second.as<ov::Tensor>();
         if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
             loadedFromCache != npu_plugin_properties.end() && loadedFromCache->second.as<bool>() != false) {
-            stream.seekg(origStream.tellg(), std::ios::cur);  // skip OV header in case of cached blob
+            tensor = ov::Tensor(
+                compiledBlob,
+                ov::Coordinate{static_cast<size_t>(origStream.tellg())},
+                ov::Coordinate{compiledBlob.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
+        } else {
+            tensor = compiledBlob;
         }
+
+        buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+        stream.rdbuf(&buffer);
         npu_plugin_properties.erase(blob_it);
     }
 
@@ -611,11 +616,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
 
             tensor = ov::Tensor(ov::element::u8, ov::Shape{blobPtr->size()}, blobPtr->data());
             auto impl = ov::get_tensor_impl(tensor);
-            impl._so = blobPtr;
+            impl._so = std::move(blobPtr);
             tensor = ov::make_tensor(impl);
         }
 
-        auto graph = compiler->parse(tensor, blobAllocatedByPlugin, localConfig);
+        auto graph = compiler->parse(std::move(tensor), blobAllocatedByPlugin, localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =

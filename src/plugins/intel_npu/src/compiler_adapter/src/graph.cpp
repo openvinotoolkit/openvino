@@ -14,11 +14,11 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
              ze_graph_handle_t graphHandle,
              NetworkMetadata metadata,
-             const std::optional<ov::Tensor>& blob,
+             std::optional<ov::Tensor> blob,
              bool blobAllocatedByPlugin,
              const Config& config,
              const ov::SoPtr<ICompiler>& compiler)
-    : IGraph(graphHandle, std::move(metadata), config, blob),
+    : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _blobAllocatedByPlugin(blobAllocatedByPlugin),
@@ -180,9 +180,13 @@ bool Graph::release_blob(const Config& config) {
         return false;
     }
 
-    auto impl = ov::get_tensor_impl(*_blob);
+    // using move semantics on ov::Tensor and std::optional<ov::Tensor> objects, shared object of blob allocated by
+    // plugin is ensured to have only 1 use count till here
+    // use count increment will happen below
+    auto impl = ov::get_tensor_impl(*_blob);  // cannot move as const ref is expected, will explicitly reset impl below
     if (_blobAllocatedByPlugin) {
         _blob = std::nullopt;
+        impl = {};
         _logger.debug("Blob is released");
         return true;
     }

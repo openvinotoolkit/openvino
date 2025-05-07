@@ -17,10 +17,7 @@ namespace intel_npu {
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
-    IGraph(ze_graph_handle_t handle,
-           NetworkMetadata metadata,
-           const Config& config,
-           const std::optional<ov::Tensor>& blob);
+    IGraph(ze_graph_handle_t handle, NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob);
 
     virtual size_t export_blob(std::ostream& stream) const = 0;
 

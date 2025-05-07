@@ -109,13 +109,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    _zeroInitStruct,
                                    graphHandle,
                                    std::move(networkDesc.metadata),
-                                   tensor,
+                                   std::move(tensor),
                                    /* blobAllocatedByPlugin = */ true,
                                    config,
                                    _compiler);
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const ov::Tensor& blob,
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
                                                      bool blobAllocatedByPlugin,
                                                      const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
@@ -139,7 +139,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(const ov::Tensor& blob,
                                    _zeroInitStruct,
                                    graphHandle,
                                    std::move(networkMeta),
-                                   blob,
+                                   std::move(blob),
                                    blobAllocatedByPlugin,
                                    config,
                                    _compiler);
