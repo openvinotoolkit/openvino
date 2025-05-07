@@ -305,6 +305,22 @@ endif()
 if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_INTEL_NPU_INTERNAL)
     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
     ov_developer_package_export_targets(TARGET gflags)
+
+    # Using install to install the processed headers, not the template files
+    install(
+        DIRECTORY "${CMAKE_BINARY_DIR}/thirdparty/gflags/gflags/include/gflags/"
+        DESTINATION "developer_package/include/gflags"
+        COMPONENT developer_package
+        FILES_MATCHING PATTERN "*.h"
+    )
+
+    # Install gflags library files
+    get_target_property(GFLAGS_ACTUAL_TARGET gflags ALIASED_TARGET)
+    message(STATUS "GFLAGS_ACTUAL_TARGET: ${GFLAGS_ACTUAL_TARGET}")
+    install(TARGETS ${GFLAGS_ACTUAL_TARGET}
+        DESTINATION "developer_package/lib"
+        COMPONENT developer_package
+    )
 endif()
 
 #
