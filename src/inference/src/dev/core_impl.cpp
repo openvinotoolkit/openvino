@@ -1728,7 +1728,14 @@ ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov
 ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::string& dir) {
     CacheConfig cache_config{dir, nullptr};
     if (!dir.empty()) {
-        ov::util::create_directory_recursive(dir);
+        if constexpr (std::is_same_v<std::filesystem::path::value_type, std::wstring::value_type>) {
+            // if path native type is same as wstring type (e.g. Windows) convert to wstring
+            // in case of string has unicode without conversion wrong created dir may have incorrect name
+            // should be removed if cache_dir will path instead of string
+            ov::util::create_directory_recursive(ov::util::string_to_wstring(dir));
+        } else {
+            ov::util::create_directory_recursive(dir);
+        }
         cache_config._cacheManager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
     return cache_config;
