@@ -250,7 +250,9 @@ void convert_vec<ov::float8_e4m3, ov::float16>(jit_generator_t& gen, const RegEx
 }
 
 template <>
-void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator_t& gen, const RegExp& src, const RegExp& dst) {
+void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator_t& gen,
+                                                             const RegExp& src,
+                                                             const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.zmm4;
 
@@ -263,7 +265,9 @@ void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator_t& ge
 }
 
 template <>
-void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator_t& gen, const RegExp& src, const RegExp& dst) {
+void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator_t& gen,
+                                                             const RegExp& src,
+                                                             const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.ymm4;
     const auto& f32vec = gen.zmm4;
@@ -326,7 +330,9 @@ void convert_vec<ov::float8_e5m2, ov::float16>(jit_generator_t& gen, const RegEx
 }
 
 template <>
-void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator_t& gen, const RegExp& src, const RegExp& dst) {
+void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator_t& gen,
+                                                             const RegExp& src,
+                                                             const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.zmm4;
 
@@ -339,7 +345,9 @@ void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator_t& ge
 }
 
 template <>
-void convert_vec<ov::float8_e5m2, ov::intel_cpu::bfloat16_t>(jit_generator_t& gen, const RegExp& src, const RegExp& dst) {
+void convert_vec<ov::float8_e5m2, ov::intel_cpu::bfloat16_t>(jit_generator_t& gen,
+                                                             const RegExp& src,
+                                                             const RegExp& dst) {
     const auto& f8vec = gen.xmm3;
     const auto& f16vec = gen.ymm4;
     const auto& f32vec = gen.zmm4;

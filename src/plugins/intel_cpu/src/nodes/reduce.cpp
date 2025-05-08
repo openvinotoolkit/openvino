@@ -142,11 +142,11 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     void generate() override {
         if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             exp_injector = std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
-                                                                           alg_kind::eltwise_exp,
-                                                                           0.f,
-                                                                           0.f,
-                                                                           1.f,
-                                                                           data_type::f32);
+                                                                             alg_kind::eltwise_exp,
+                                                                             0.f,
+                                                                             0.f,
+                                                                             1.f,
+                                                                             data_type::f32);
         }
 
         uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
@@ -1228,11 +1228,11 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
-                                                                                            post_op.eltwise.alg,
-                                                                                            post_op.eltwise.alpha,
-                                                                                            post_op.eltwise.beta,
-                                                                                            post_op.eltwise.scale,
-                                                                                            data_type::f32));
+                                                                                              post_op.eltwise.alg,
+                                                                                              post_op.eltwise.alpha,
+                                                                                              post_op.eltwise.beta,
+                                                                                              post_op.eltwise.scale,
+                                                                                              data_type::f32));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
             } else if (post_op.is_quantization()) {
@@ -1247,11 +1247,11 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 
         if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector = std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
-                                                                           alg_kind::eltwise_log,
-                                                                           0.f,
-                                                                           0.f,
-                                                                           1.f,
-                                                                           data_type::f32);
+                                                                             alg_kind::eltwise_log,
+                                                                             0.f,
+                                                                             0.f,
+                                                                             1.f,
+                                                                             data_type::f32);
         }
 
         uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);

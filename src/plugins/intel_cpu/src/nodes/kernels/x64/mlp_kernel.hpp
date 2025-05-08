@@ -520,7 +520,10 @@ public:
 
     const bool m_do_reduce2;
     const bool m_to_f16;
-    ReduceAdd2bh(bool do_reduce2, bool to_f16) : jit_generator_t(jit_name()), m_do_reduce2(do_reduce2), m_to_f16(to_f16) {
+    ReduceAdd2bh(bool do_reduce2, bool to_f16)
+        : jit_generator_t(jit_name()),
+          m_do_reduce2(do_reduce2),
+          m_to_f16(to_f16) {
         create_kernel();
     }
 

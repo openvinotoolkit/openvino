@@ -80,7 +80,9 @@ jit_mul_add_emitter::jit_mul_add_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
-jit_mul_add_emitter::jit_mul_add_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+jit_mul_add_emitter::jit_mul_add_emitter(x64::jit_generator_t* host,
+                                         x64::cpu_isa_t host_isa,
+                                         ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_mul_add_emitter::get_inputs_num() const {
@@ -418,7 +420,9 @@ jit_ceiling_emitter::jit_ceiling_emitter(x64::jit_generator_t* host,
                                          [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                          ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
-jit_ceiling_emitter::jit_ceiling_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+jit_ceiling_emitter::jit_ceiling_emitter(x64::jit_generator_t* host,
+                                         x64::cpu_isa_t host_isa,
+                                         ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_ceiling_emitter::get_inputs_num() const {
@@ -585,7 +589,9 @@ jit_maximum_emitter::jit_maximum_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
-jit_maximum_emitter::jit_maximum_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+jit_maximum_emitter::jit_maximum_emitter(x64::jit_generator_t* host,
+                                         x64::cpu_isa_t host_isa,
+                                         ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_maximum_emitter::get_inputs_num() const {
@@ -646,7 +652,9 @@ jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
-jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator_t* host,
+                                         x64::cpu_isa_t host_isa,
+                                         ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_minimum_emitter::get_inputs_num() const {
@@ -1046,7 +1054,9 @@ jit_greater_emitter::jit_greater_emitter(x64::jit_generator_t* host,
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
-jit_greater_emitter::jit_greater_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
+jit_greater_emitter::jit_greater_emitter(x64::jit_generator_t* host,
+                                         x64::cpu_isa_t host_isa,
+                                         ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
