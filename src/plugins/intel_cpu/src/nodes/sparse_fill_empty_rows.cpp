@@ -36,22 +36,15 @@ void SparseFillEmptyRows::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
-
     ov::element::Type valuesPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(2);
-
-    // Validate tensor indices are int32 or int64
-    if (indicesPrecision != ov::element::i32 && indicesPrecision != ov::element::i64) {
-        OPENVINO_THROW("SparseFillEmptyRows operation supports only i32 or i64 indices precision");
-    }
-
-    addSupportedPrimDesc({{LayoutType::ncsp, valuesPrecision},    // values
-                          {LayoutType::ncsp, indicesPrecision},   // dense_shape
-                          {LayoutType::ncsp, indicesPrecision},   // indices
-                          {LayoutType::ncsp, valuesPrecision}},   // default_value
-                         {{LayoutType::ncsp, indicesPrecision},   // output_indices
-                          {LayoutType::ncsp, valuesPrecision},    // output_values
-                          {LayoutType::ncsp, ov::element::boolean}}, // empty_row_indicator
+    addSupportedPrimDesc({{LayoutType::ncsp, valuesPrecision},          // values
+                          {LayoutType::ncsp, indicesPrecision},         // dense_shape
+                          {LayoutType::ncsp, indicesPrecision},         // indices
+                          {LayoutType::ncsp, valuesPrecision}},         // default_value
+                         {{LayoutType::ncsp, indicesPrecision},         // output_indices
+                          {LayoutType::ncsp, valuesPrecision},          // output_values
+                          {LayoutType::ncsp, ov::element::boolean}},    // empty_row_indicator
                          impl_desc_type::ref);
 }
 
@@ -65,15 +58,12 @@ bool SparseFillEmptyRows::needPrepareParams() const {
 
 void SparseFillEmptyRows::executeDynamicImpl(const dnnl::stream& strm) {
     std::cout<<"\n\n\nEXECUTING DYNAMIC SPARSE_FILL_EMPTY_ROWS\n\n\n"<<std::endl;
-    // Get input shapes and data
     const auto& valuesMemory = getSrcMemoryAtPort(0);
     const auto& denseShapeMemory = getSrcMemoryAtPort(1);
     const auto& indicesMemory = getSrcMemoryAtPort(2);
-    
     const auto& valuesShape = valuesMemory->getShape();
     const auto& indicesShape = indicesMemory->getShape();
     
-    // Get number of rows from dense_shape
     const auto indicesPrecision = getParentEdgeAt(2)->getMemory().getDesc().getPrecision();
     int64_t numRows = 0;
     
@@ -85,35 +75,28 @@ void SparseFillEmptyRows::executeDynamicImpl(const dnnl::stream& strm) {
         numRows = denseShapePtr[0];
     }
     
-    // Count unique rows to determine empty rows
     std::unordered_set<int64_t> existingRows;
     size_t indicesCount = indicesShape.getElementsCount() / 2; // Divide by 2 because indices is [M,2]
     
     if (indicesPrecision == ov::element::i32) {
         const auto* indicesPtr = getSrcDataAtPortAs<const int32_t>(2);
         for (size_t i = 0; i < indicesCount; i++) {
-            existingRows.insert(static_cast<int64_t>(indicesPtr[i * 2])); // Row indices (first column)
+            existingRows.insert(static_cast<int64_t>(indicesPtr[i * 2]));
         }
     } else { // i64
         const auto* indicesPtr = getSrcDataAtPortAs<const int64_t>(2);
         for (size_t i = 0; i < indicesCount; i++) {
-            existingRows.insert(indicesPtr[i * 2]); // Row indices (first column)
+            existingRows.insert(indicesPtr[i * 2]);
         }
     }
     
-    // Calculate empty rows count
     size_t emptyRowsCount = numRows - existingRows.size();
     size_t valuesCount = valuesShape.getElementsCount();
-    
-    // Define output shapes
     ov::Shape outputIndicesShape{valuesCount + emptyRowsCount, 2};
     ov::Shape outputValuesShape{valuesCount + emptyRowsCount};
     ov::Shape emptyRowIndicatorShape{static_cast<size_t>(numRows)};
     
-    // Redefine output memory with calculated shapes
     redefineOutputMemory({outputIndicesShape, outputValuesShape, emptyRowIndicatorShape});
-    
-    // Execute with the new shapes
     execute(strm);
 }
 

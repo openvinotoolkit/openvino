@@ -11,9 +11,7 @@
 
 using namespace CPUTestUtils;
 
-namespace ov {
-namespace test {
-namespace SparseFillEmptyRows {
+namespace ov::test::SparseFillEmptyRows {
 
 std::string SparseFillEmptyRowsLayerCPUTest::getTestCaseName(testing::TestParamInfo<SparseFillEmptyRowsLayerCPUTestParamsSet> obj) {
     SparseFillEmptyRowsLayerTestParams basicParamsSet;
@@ -64,10 +62,7 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
     const auto& funcInputs = function->inputs();
     const auto secondaryInputType = std::get<3>(std::get<0>(this->GetParam()));
 
-    // Check input ordering based on secondaryInputType
     if (secondaryInputType == ov::test::utils::InputLayerType::CONSTANT) {
-        // CONSTANT case: [values, indices]
-        // Values input (index 0)
         const auto valuesPrecision = funcInputs[0].get_element_type();
         const auto& valuesShape = targetInputStaticShapes[0];
         ov::test::utils::InputGenerateData valuesData;
@@ -76,7 +71,6 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
         const auto valuesTensor = ov::test::utils::create_and_fill_tensor(valuesPrecision, valuesShape, valuesData);
         inputs.insert({funcInputs[0].get_node_shared_ptr(), valuesTensor});
 
-        // Indices input (index 1)
         const auto indicesPrecision = funcInputs[1].get_element_type();
         ov::Shape indicesShape = {valuesShape[0], 2};
         ov::test::utils::InputGenerateData indicesData;
@@ -84,6 +78,7 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
         indicesData.range = 5;
         const auto indicesTensor = ov::test::utils::create_and_fill_tensor(indicesPrecision, indicesShape, indicesData);
         inputs.insert({funcInputs[1].get_node_shared_ptr(), indicesTensor});
+
     } else {
         // PARAMETER case: [values, dense_shape, indices, default_value]
         // Values input (index 0)
@@ -148,49 +143,36 @@ void SparseFillEmptyRowsLayerCPUTest::SetUp() {
     int64_t defaultValue;
     std::tie(valuesShape, indicesShape, denseShapeValues, defaultValue) = sparseFillEmptyRowsParams;
 
-    // Define input shapes - fixing the ordering to match ov::op::v16::SparseFillEmptyRows inputs
     std::vector<ov::test::InputShape> input_shapes = {
-        valuesShape,  // values (0)
+        valuesShape,
         {ov::PartialShape{static_cast<ov::Dimension::value_type>(denseShapeValues.size())},
-         std::vector<ov::Shape>{ov::Shape{static_cast<size_t>(denseShapeValues.size())}}}, // dense_shape (1)
-        indicesShape, // indices (2)
-        {ov::PartialShape{}, std::vector<ov::Shape>{ov::Shape{}}}  // default_value (3)
+         std::vector<ov::Shape>{ov::Shape{static_cast<size_t>(denseShapeValues.size())}}},
+        indicesShape,
+        {ov::PartialShape{}, std::vector<ov::Shape>{ov::Shape{}}}
     };
-
     init_input_shapes(input_shapes);
 
-    // Create parameters in the same order as the op expects
     auto valuesParameter = std::make_shared<ov::op::v0::Parameter>(valuesPrecision, inputDynamicShapes[0]);
-    auto denseShapeParameter = std::make_shared<ov::op::v0::Parameter>(indicesPrecision, inputDynamicShapes[1]);
     auto indicesParameter = std::make_shared<ov::op::v0::Parameter>(indicesPrecision, inputDynamicShapes[2]);
-    auto defaultValueParameter = std::make_shared<ov::op::v0::Parameter>(valuesPrecision, inputDynamicShapes[3]);
-
     ov::ParameterVector params{ valuesParameter };
-
     std::shared_ptr<ov::Node> sparseFillEmptyRows;
-
     if (secondaryInputType == ov::test::utils::InputLayerType::CONSTANT) {
-        // For constant inputs, still use Parameter for indices to keep sync with values
         params.push_back(indicesParameter);
-
-        // Create dense_shape and default_value as constants
         auto denseShapeConst = std::make_shared<ov::op::v0::Constant>(
             indicesPrecision, ov::Shape{denseShapeValues.size()}, denseShapeValues);
         auto defaultValueConst = std::make_shared<ov::op::v0::Constant>(
             valuesPrecision, ov::Shape{}, defaultValue);
-
         sparseFillEmptyRows = std::make_shared<ov::op::v16::SparseFillEmptyRows>(
             valuesParameter, denseShapeConst, indicesParameter, defaultValueConst);
     } else {
-        // Add all parameters in the correct order
+        auto denseShapeParameter = std::make_shared<ov::op::v0::Parameter>(indicesPrecision, inputDynamicShapes[1]);
+        auto defaultValueParameter = std::make_shared<ov::op::v0::Parameter>(valuesPrecision, inputDynamicShapes[3]);
         params.push_back(denseShapeParameter);
         params.push_back(indicesParameter);
         params.push_back(defaultValueParameter);
-
         sparseFillEmptyRows = std::make_shared<ov::op::v16::SparseFillEmptyRows>(
             valuesParameter, denseShapeParameter, indicesParameter, defaultValueParameter);
     }
-
     function = makeNgraphFunction(valuesPrecision, params, sparseFillEmptyRows, "SparseFillEmptyRows");
 }
 
@@ -210,35 +192,33 @@ const std::vector<ElementType> indicesPrecisions = {
 };
 
 const std::vector<SparseFillEmptyRowsSpecificParams> SparseFillEmptyRowsParamsVector = {
+    // Basic example
     SparseFillEmptyRowsSpecificParams {
-        InputShape{{}, {{6}}},                    // values shape
-        InputShape{{}, {{6, 2}}},                 // indices shape
-        std::vector<int64_t>{10, 10},             // dense_shape
-        1                                         // default_value
+        InputShape{{}, {{6}}},                          // values shape
+        InputShape{{}, {{6, 2}}},                       // indices shape
+        std::vector<int64_t>{10, 10},                   // dense_shape
+        1                                               // default_value
     },
     // Dynamic values shape
     SparseFillEmptyRowsSpecificParams {
-        InputShape{{-1}, {{3}, {5}, {8}}},        // values shape
-        InputShape{{-1, 2}, {{3, 2}, {5, 2}, {8, 2}}}, // indices shape
-        std::vector<int64_t>{10, 5},              // dense_shape
-        0                                          // default_value
+        InputShape{{-1}, {{3}, {5}, {8}}},              // values shape
+        InputShape{{-1, 2}, {{3, 2}, {5, 2}, {8, 2}}},  // indices shape
+        std::vector<int64_t>{10, 5},                    // dense_shape
+        0                                               // default_value
     },
     // Empty values tensor
     SparseFillEmptyRowsSpecificParams {
-        InputShape{{}, {{0}}},                    // values shape
-        InputShape{{}, {{0, 2}}},                 // indices shape
-        std::vector<int64_t>{5, 5},               // dense_shape
-        99                                        // default_value
+        InputShape{{}, {{0}}},                          // values shape
+        InputShape{{}, {{0, 2}}},                       // indices shape
+        std::vector<int64_t>{5, 5},                     // dense_shape
+        99                                              // default_value
     },
-    //// Different dense_shape
+    // Different dense_shape
     SparseFillEmptyRowsSpecificParams {
-        InputShape{{}, {{10}}},                   // values shape
-        InputShape{{}, {{10, 2}}},                // indices shape
-        std::vector<int64_t>{20, 30},             // dense_shape
-        7                                          // default_value
+        InputShape{{}, {{10}}},                         // values shape
+        InputShape{{}, {{10, 2}}},                      // indices shape
+        std::vector<int64_t>{20, 30},                   // dense_shape
+        7                                               // default_value
     },
 };
-
-}  // namespace SparseFillEmptyRows
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test::SparseFillEmptyRows
