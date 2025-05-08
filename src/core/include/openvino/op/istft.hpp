@@ -54,6 +54,7 @@ public:
     void set_center(const bool center);
 
     bool get_normalized() const;
+    void set_normalized(const bool normalized);
 
 private:
     bool m_center = false;
