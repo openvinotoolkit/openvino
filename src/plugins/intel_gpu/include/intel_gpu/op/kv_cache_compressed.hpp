@@ -42,7 +42,7 @@ public:
     std::vector<uint64_t> get_scales_zp_output_order() const { return m_quantization_attrs.scales_zp_output_order; }
 
 private:
-    bool m_compressed;
+    bool m_compressed = false;
     QuantizationAttrs m_quantization_attrs = {};
 };
 
