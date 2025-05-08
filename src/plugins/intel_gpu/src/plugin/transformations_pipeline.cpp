@@ -1235,7 +1235,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 return false;
             });
-            if (dynamic_quantization_group_size_max != 0 && dynamic_quantization_group_size_max < dynamic_quantization_group_size) {
+            if (dynamic_quantization_group_size_max < dynamic_quantization_group_size) {
                 GPU_DEBUG_INFO << "dyn_quan is turned off because group_size is larger than max size "
                                << dynamic_quantization_group_size << "/" << dynamic_quantization_group_size_max << std::endl;
             } else {
