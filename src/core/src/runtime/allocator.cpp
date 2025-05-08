@@ -69,8 +69,9 @@ Allocator::Allocator(const Allocator& other, const std::shared_ptr<void>& so) : 
 
 #define OV_ALLOCATOR_NO_THROW_STATEMENT(...) \
     try {                                    \
-        OPENVINO_ASSERT(_impl != nullptr);   \
-        __VA_ARGS__;                         \
+        if (_impl) {                         \
+            __VA_ARGS__;                     \
+        }                                    \
     } catch (...) {                          \
     }
 

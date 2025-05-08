@@ -303,7 +303,7 @@ private:
         }
     }
 
-    void destroy_memory() noexcept {
+    void destroy_memory() {
         destroy_elements(0, get_capacity());
         m_allocator.deallocate(m_ptr, get_bytes_capacity());
         m_ptr = nullptr;

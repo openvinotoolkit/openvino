@@ -89,6 +89,9 @@ class OPENVINO_API Allocator {
                                                                                  std::declval<const size_t>(),
                                                                                  std::declval<const size_t>()))> {};
 
+    template <typename T>
+    static constexpr auto has_noexcept_deallocate_v = HasNoexceptDeallocate<T>::value;
+
     std::shared_ptr<Base> _impl;
     std::shared_ptr<void> _so;
 
@@ -126,24 +129,22 @@ public:
      */
     template <
         typename A,
-        typename std::enable_if<!std::is_same<typename std::decay<A>::type, Allocator>::value &&
-                                    !std::is_abstract<typename std::decay<A>::type>::value &&
-                                    !std::is_convertible<typename std::decay<A>::type, std::shared_ptr<Base>>::value &&
-                                    HasNoexceptDeallocate<A>::value,
-                                bool>::type = true>
-    Allocator(A&& a) : _impl{std::make_shared<Impl<typename std::decay<A>::type>>(std::forward<A>(a))} {}
+        typename std::enable_if_t<
+            !std::is_same_v<typename std::decay_t<A>, Allocator> && !std::is_abstract_v<typename std::decay_t<A>> &&
+                !std::is_convertible_v<typename std::decay_t<A>, std::shared_ptr<Base>> && has_noexcept_deallocate_v<A>,
+            bool> = true>
+    Allocator(A&& a) : _impl{std::make_shared<Impl<typename std::decay_t<A>>>(std::forward<A>(a))} {}
 
-    template <
-        typename A,
-        typename std::enable_if<!std::is_same<typename std::decay<A>::type, Allocator>::value &&
-                                    !std::is_abstract<typename std::decay<A>::type>::value &&
-                                    !std::is_convertible<typename std::decay<A>::type, std::shared_ptr<Base>>::value &&
-                                    !HasNoexceptDeallocate<A>::value,
-                                bool>::type = true>
+    template <typename A,
+              typename std::enable_if_t<!std::is_same_v<typename std::decay_t<A>, Allocator> &&
+                                            !std::is_abstract_v<typename std::decay_t<A>> &&
+                                            !std::is_convertible_v<typename std::decay_t<A>, std::shared_ptr<Base>> &&
+                                            !has_noexcept_deallocate_v<A>,
+                                        bool> = true>
     OPENVINO_DEPRECATED("Please annotate your allocator's deallocate method with noexcept. This method will be "
                         "removed in 2026.0.0 release")
     Allocator(A&& a)
-        : _impl{std::make_shared<Impl<typename std::decay<A>::type>>(std::forward<A>(a))} {}
+        : _impl{std::make_shared<Impl<typename std::decay_t<A>>>(std::forward<A>(a))} {}
 
     /**
      * @brief Allocates memory
