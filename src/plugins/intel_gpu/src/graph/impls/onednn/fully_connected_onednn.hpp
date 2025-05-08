@@ -64,8 +64,8 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             LOG_AND_RETURN_FALSE(node);
 
         if (fc_prim->compressed_weights) {
-            if (!fc_prim->decompression_zero_point.empty()) {
-                auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
+            if (fc_prim->decompression_zero_point.is_valid()) {
+                auto decompression_zp_idx = fc_prim->bias.is_valid() ? 4 : 3;
                 auto decompression_zp_dt = fc_node.get_input_layout(decompression_zp_idx).data_type;
                 if ((wei_dt != ov::element::Type_t::u4 && wei_dt != ov::element::Type_t::u8) ||
                     (decompression_zp_dt != ov::element::Type_t::u8 && decompression_zp_dt != ov::element::Type_t::i8)) {
