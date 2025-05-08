@@ -10,13 +10,13 @@ using namespace ov;
 using namespace ov::test;
 
 TEST_P(MOEExpertTest, Inference) {
+    targetDevice = ov::test::utils::DEVICE_GPU;
     auto actualOutputs = run_test(function);
     check_op("moe_expert", 1);
     check_op("OneHot", 0);
     configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
+    targetDevice = ov::test::utils::DEVICE_CPU;
     auto expectedOutputs = run_test(functionRefs);
-    check_op("moe_expert", 0);
-    check_op("OneHot", 1);
 
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);

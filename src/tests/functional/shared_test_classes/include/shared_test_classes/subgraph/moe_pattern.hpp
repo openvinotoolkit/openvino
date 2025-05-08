@@ -3,6 +3,9 @@
 //
 #pragma once
 
+#include <functional>
+#include <numeric>
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -25,31 +28,17 @@ public:
     void SetUp() override;
 
 protected:
-    template <typename IT, typename T>
-    static void strided_iota(IT first, size_t n, T value, T stride) {
-        for (size_t i = 0; i < n; i++) {
-            *first++ = value;
-            value += stride;
+    // numpy randomint like inferface
+    template<typename T>
+    static std::vector<T> random(int start, int end, const std::vector<size_t>& shape, T scale = T{1}) {
+        auto num = std::accumulate(shape.begin(), shape.end(), size_t{1}, std::multiplies<>());
+        std::vector<T> result(num);
+        ov::test::utils::fill_data_random(result.data(), num, end - start, start);
+        if (scale != T{1}) {
+            std::transform(result.begin(), result.end(), result.begin(), [&scale](T x) {
+                return x * scale;
+            });
         }
-    }
-
-    static std::vector<uint8_t> genList(size_t len, size_t start, size_t end) {
-        std::vector<uint8_t> result(len);
-        if (start == end) {
-            for (size_t i = 0; i < len; i++) {
-                result[i] = start;
-            }
-        } else {
-            for (size_t i = 0; i < len; i++) {
-                result[i] = (start + i) % end;
-            }
-        }
-        return result;
-    }
-
-    static std::vector<float> genList(size_t len, float start, float stride) {
-        std::vector<float> result(len);
-        strided_iota(result.begin(), len, start, stride);
         return result;
     }
 

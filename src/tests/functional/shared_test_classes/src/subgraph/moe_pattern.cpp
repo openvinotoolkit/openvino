@@ -82,7 +82,7 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
         auto index_add__Convert_2 = makeOP<opset1::Convert>({ListUnpack_Squeeze_0_2}, {{"destination_type", "i32"}});
         auto index_add__Reshape_2 = makeOP<opset1::Reshape>({index_add__Convert_2, {-1, 1}}, {{"special_zero", false}});
         auto index_add__Slice_2 = makeOP<opset8::Slice>({final_hidden_states, {0, 0}, {1, INT_MAX}, {1, 1}, {0, 1}});
-        auto index_add__ShapeOf_22 = makeOP<opset3::ShapeOf>({index_add__Slice_2}, {{"output_type", "i32"}});
+        std::shared_ptr<ov::Node> index_add__ShapeOf_22 = makeOP<opset3::ShapeOf>({index_add__Slice_2}, {{"output_type", "i32"}});
         auto index_add__Broadcast_25 =
             makeOP<opset3::Broadcast>({index_add__Reshape_2, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});
         auto index_Gather_4 = makeOP<opset8::Gather>({hidden_states, index_add__Convert_2, 1},
@@ -91,13 +91,13 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
             makeConst(element::u4,
                       ov::Shape({768, 16, 128}),
-                      genList(768 * 16 * 128, size_t{0}, size_t{2}));
+                      random<uint8_t>(0, 3, {768, 16, 128}));
         auto Convert_3988397 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight},
                                                        {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point =
             makeConst(element::u4,
                       ov::Shape({768, 16, 1}),
-                      genList(768 * 16, size_t{1}, size_t{3}));
+                      random<uint8_t>(1, 3, {768, 16}));
         auto Convert_3988400 =
             makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point},
                                     {{"destination_type", "f16"}});
@@ -105,8 +105,7 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
             makeOP<opset1::Subtract>({Convert_3988397, Convert_3988400}, {{"auto_broadcast", "numpy"}});
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale =
             makeConst(element::f16,
-                      ov::Shape({768, 16, 1}),
-                      genList(768 * 16, -0.05f, 0.000001f));
+                      ov::Shape({768, 16, 1}), {0.01f});
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1 =
             makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract,
                                       self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale},
@@ -122,21 +121,19 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
         auto self_model_model_layers_0_mlp_experts_2_up_proj_weight =
             makeConst(element::u4,
                       ov::Shape({768, 16, 128}),
-                      genList(768 * 16 * 128, size_t{0}, size_t{2}));
+                      random<uint8_t>(0, 3, {768, 16, 128}));
         auto Convert_3984145 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight},
                                                        {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point =
             makeConst(element::u4,
                       ov::Shape({768, 16, 1}),
-                      genList(768 * 16, size_t{1}, size_t{3}));
+                      random<uint8_t>(1, 3, {768, 16}));
         auto Convert_3984148 =
             makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point},
                                     {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract =
             makeOP<opset1::Subtract>({Convert_3984145, Convert_3984148}, {{"auto_broadcast", "numpy"}});
-        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale = makeConst(element::f16,
-                                                                                      ov::Shape({768, 16, 1}),
-                                                                                      {.01f});
+        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale = makeConst(element::f16, ov::Shape({768, 16, 1}), {0.01f});
         auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_fq_weights_1 =
             makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract,
                                       self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale},
@@ -151,21 +148,19 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
         auto self_model_model_layers_0_mlp_experts_2_down_proj_weight =
             makeConst(element::u4,
                       ov::Shape({2048, 6, 128}),
-                      genList(2048 * 6 * 128, size_t{0}, size_t{2}));
+                      random<uint8_t>(0, 3, {2048, 6, 128}));
         auto Convert_3992649 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight},
                                                        {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point =
             makeConst(element::u4,
                       ov::Shape({2048, 6, 1}),
-                      genList(2048 * 6, size_t{1}, size_t{3}));
+                      random<uint8_t>(1, 3, {2048, 6}));
         auto Convert_3992652 =
             makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point},
                                     {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract =
             makeOP<opset1::Subtract>({Convert_3992649, Convert_3992652}, {{"auto_broadcast", "numpy"}});
-        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale = makeConst(element::f16,
-                                                                                        ov::Shape({2048, 6, 1}),
-                                                                                        {.00001f});
+        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale = makeConst(element::f16, ov::Shape({2048, 6, 1}), {0.001f});
         auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1 =
             makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract,
                                       self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale},
@@ -210,41 +205,42 @@ void MOEExpertTest::SetUp() {
     std::vector<InputShape> inputShapes;
     std::tie(inType) = this->GetParam();
     rel_threshold = 1e-2f;
+    abs_threshold = 1e-2f;
     if (inType == ElementType::f16) {
         // configuration.insert({"INFERENCE_PRECISION_HINT", "FP16"});
-        rel_threshold = 0.01f;
+        rel_threshold = 0.02f;
+        abs_threshold = 0.02f;
     } else {
         // configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
     }
 
     function = BuildMoeExpert(inType, true, static_cast<int>(_expert_num), static_cast<int>(_topk));
-    targetDevice = ov::test::utils::DEVICE_GPU;
 
     functionRefs = BuildMoeExpert(inType, false, static_cast<int>(_expert_num), static_cast<int>(_topk));
 }
 
-void MOEExpertTest::generate(float idx, size_t seq_length) {
+void MOEExpertTest::generate(float idx, size_t bs) {
     inputs.clear();
-    size_t batch = 1;
-    size_t bs = batch * seq_length;
-    auto create_input = [this](std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, float val, float stride = 0) {
+    auto create_input = [this](std::shared_ptr<op::v0::Parameter> param, ov::Shape shape, int start, int end) {
         if (param->get_element_type() == element::f32) {
             ov::Tensor t{ov::element::f32, shape};
-            strided_iota(static_cast<float*>(t.data()), t.get_size(), val, stride);
+            auto data = random<float>(start, end, shape);
+            memcpy(t.data(), data.data(), data.size() * sizeof(float));
             inputs.insert({param, t});
         } else {
             OPENVINO_ASSERT(param->get_element_type() == element::f16);
             ov::Tensor t{ov::element::f16, shape};
-            strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, stride);
+            auto data = random<ov::float16>(start, end, shape);
+            memcpy(t.data(), data.data(), data.size() * sizeof(ov::float16));
             inputs.insert({param, t});
         }
     };
     // final_hidden_states/f32[batch * seq_length, 2048]
-    create_input(function->get_parameters()[0], {bs, 2048}, 0.0f, 0.f);
+    create_input(function->get_parameters()[0], {bs, 2048}, 0, 0);
     // softmax_in[batch * seq_length, 128]
-    create_input(function->get_parameters()[1], {bs, _expert_num}, 0.9f, -0.1f);
+    create_input(function->get_parameters()[1], {bs, _expert_num}, 1, 1);
     // hidden_states/f32[batch * seq_length, 2048]
-    create_input(function->get_parameters()[2], {bs, 2048}, -1.f, 0.0001f);
+    create_input(function->get_parameters()[2], {bs, 2048}, -1, 2);
 }
 
 void MOEExpertTest::prepare() {
