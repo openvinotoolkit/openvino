@@ -48,11 +48,13 @@ ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(suppo
 
 bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(RoPEFusion);
+    std::cout << "RoPEFusion::run_on_model()" << std::endl;
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
 
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
+    std::cout << "about to register NEOX" << std::endl;
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
     // optional heads & tails are fused in separate matcher pass,
@@ -272,7 +274,6 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
-    // rotate half : [-x2, x1]
     auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, 3);
     auto x2neg = pattern::wrap_type<opset1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
     auto x1 = NewGenSlice(x, 0, "half_ndims", 1, 3);
@@ -281,7 +282,6 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     auto mul_cos = pattern::wrap_type<opset1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
     auto mul_sin = pattern::wrap_type<opset1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
 
-    // [x1, x2]*cos + [-x2, x1]*sin
     auto result = pattern::wrap_type<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -332,6 +332,7 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
+    std::cout << "registered NEOX" << std::endl;
 }
 
 ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
