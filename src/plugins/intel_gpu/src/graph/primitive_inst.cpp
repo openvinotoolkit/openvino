@@ -141,7 +141,7 @@ bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) 
     return false;
 }
 
-primitive_id tag_port_number(const primitive_id& in, size_t port) {
+primitive_id tag_port_number(const primitive_id& in, size_t port = 0) {
     return in + ".port" + std::to_string(port);
 }
 }  // namespace
@@ -2568,8 +2568,8 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
 cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
     GPU_DEBUG_TRACE_DETAIL << id() << ": Use unfused subgraph due to unexpected fusions\n";
     if (!_unfused_subgraph) {
-        const auto has_primitive_id = [](auto begin, auto end, const auto& target_pid) {
-            return std::any_of(begin, end, [&](const auto& pid) {
+        const auto has_primitive_id = [](std::vector<primitive_id> arr, const auto& target_pid) {
+            return std::any_of(arr.cbegin(), arr.cend(), [&](const auto& pid) {
                 return pid == target_pid;
             });
         };
@@ -2577,6 +2577,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         topology t;
 
         std::vector<primitive_id> outer_dep_ids;
+        std::vector<primitive_id> outer_dep_ids_with_port;  // outer_dep_ids that is updated with port number. This contains original name without port
         // Add input primitives: constants are moved as is
         //   Any other primitive types are replaced with input_layout
         //   Name has postfix of port number for multi-port connection case (such as dynamic_quantization)
@@ -2609,6 +2610,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 t.add(in_prim);
             }
             outer_dep_ids.push_back(dep_id);
+            outer_dep_ids_with_port.push_back(dep_id);
             dep_idx += 1;
         }
 
@@ -2640,8 +2642,8 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 // And when we construct unfused subgraph for prim2, we take original eltwise2 primitive which expects eltwise1 primitive as input
                 // which doesn't exist anymore in the graph
                 // Thus we update dependency name used dependencies idx stored in fused descriptor.
-                GPU_DEBUG_TRACE_DETAIL << "    input of prim " << prim->id << "  - idx" << i << "  " << in << "\n";
-                if (!has_primitive_id(outer_dep_ids.begin(), outer_dep_ids.end(), in.pid)) {
+                GPU_DEBUG_TRACE_DETAIL << "    input of prim " << prim->id << "  - idx" << i << "  " << in << std::endl;
+                if (!has_primitive_id(outer_dep_ids, in.pid)) {
                     if (fd.has_outer_dep()) {
                         size_t dep_id = fd.outer_dep_start_idx;
                         auto outer_dep_id = get_node().get_dependency(dep_id).id();
@@ -2651,12 +2653,16 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                             }) == fd.deps.end()) {
                             in = get_node().id();
                         } else {
-                            in = tag_port_number(outer_dep_id, get_node().get_dependency_with_port(dep_id).second);
+                            in = outer_dep_id;
                         }
                     } else {
                         in = get_node().id();
                     }
                 }
+
+                if (has_primitive_id(outer_dep_ids_with_port, in.pid))
+                    in = tag_port_number(in.pid, in.idx);
+
                 GPU_DEBUG_TRACE_DETAIL << "    input of prim " << prim->id << "  - idx" << i << "  " << in << "\n";
             }
             GPU_DEBUG_TRACE_DETAIL << "  add fused_primitive " << prim->id << "\n";
@@ -2666,9 +2672,10 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         // Samely, need to update dependency of the current fused nodes' input primitive ids with those in the current program
         for (size_t i = 0; i < prim_of_fused_node->input.size(); ++i) {
             auto& in = prim_of_fused_node->input[i];
-            if (!has_primitive_id(outer_dep_ids.begin(), outer_dep_ids.end(), in.pid)) {
-                GPU_DEBUG_TRACE_DETAIL << "    update prim_of_fused_node " << in << " -> " << get_node().get_dependency(i).id() << "\n";
-                in = tag_port_number(get_node().get_dependency(i).id(), get_node().get_dependency_with_port(i).second);  // XXX: let's make a lambda function for this
+            if (!has_primitive_id(outer_dep_ids, in.pid)) {
+                auto in_new = tag_port_number(get_node().get_dependency(i).id(), get_node().get_dependency_with_port(i).second);
+                GPU_DEBUG_TRACE_DETAIL << "    update prim_of_fused_node " << in << " -> " << in_new << "\n";
+                in = in_new;
             }
         }
         ExecutionConfig subgraph_config{
