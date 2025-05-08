@@ -552,6 +552,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             OPENVINO_THROW("Failed to read data from stream!");
         }
     }
+
     ov::SharedStreamBuffer buffer =
         ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
     std::istream stream{&buffer};

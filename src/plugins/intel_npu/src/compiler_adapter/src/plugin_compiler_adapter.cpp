@@ -110,7 +110,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    graphHandle,
                                    std::move(networkDesc.metadata),
                                    std::move(tensor),
-                                   /* blobAllocatedByPlugin = */ true,
+                                   /* blobAllocatedByPlugin = */ false,
                                    config,
                                    _compiler);
 }
