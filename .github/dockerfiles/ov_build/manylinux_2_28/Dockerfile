@@ -40,7 +40,9 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
-ENV PATH="$SCCACHE_HOME:$PATH"
+# ENV PATH="$SCCACHE_HOME:$PATH"
+
+ENV PATH=/home/runner/.local/bin:/home/runner/bin:/usr/share/Modules/bin:/usr/lib64/ccache:/opt/sccache:/usr/local/gcc-10.2.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Change ownership of the home directory to the non-root user
 RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
