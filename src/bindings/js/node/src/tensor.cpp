@@ -196,9 +196,9 @@ Napi::Value TensorWrap::is_continuous(const Napi::CallbackInfo& info) {
 
 void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    
+
     std::vector<std::string> allowed_signatures;
-    
+
     if (!ov::js::validate<TensorWrap>(info, allowed_signatures)) {
         const auto error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
         reportError(env, error_message);
@@ -206,17 +206,17 @@ void TensorWrap::copy_to(const Napi::CallbackInfo& info) {
     }
 
     TensorWrap* otherTensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].As<Napi::Object>());
-    ov::Tensor& otherTensor = otherTensorWrap->_tensor;
+    auto& other_tensor = otherTensorWrap->_tensor;
 
-    if (_tensor.get_element_type() != otherTensor.get_element_type()) {
+    if (_tensor.get_element_type() != other_tensor.get_element_type()) {
         reportError(env, "Tensors must have the same element type to copy data.");
         return;
     }
 
-    if (_tensor.get_shape() != otherTensor.get_shape()) {
+    if (_tensor.get_shape() != other_tensor.get_shape()) {
         reportError(env, "Tensors must have the same shape to copy data.");
         return;
     }
 
-    std::memcpy(_tensor.data(), otherTensor.data(), _tensor.get_byte_size());
+    std::memcpy(_tensor.data(), other_tensor.data(), _tensor.get_byte_size());
 }
