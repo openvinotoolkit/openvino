@@ -542,6 +542,20 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::SegmentMa
     return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "SegmentMaxGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v16::SparseFillEmptyRows> &node) {
+    const auto values = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{5});
+    const auto dense_shape = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {2}, {8, 5});
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{5, 2});
+    const auto default_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{});
+    const auto sparseFillEmptyRowsNode = std::make_shared<ov::op::v16::SparseFillEmptyRows>(values, dense_shape, indices, default_value);
+    ov::ResultVector results{
+        std::make_shared<ov::op::v0::Result>(sparseFillEmptyRowsNode->output(0)),
+        std::make_shared<ov::op::v0::Result>(sparseFillEmptyRowsNode->output(1)),
+        std::make_shared<ov::op::v0::Result>(sparseFillEmptyRowsNode->output(2))
+    };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{values, indices, default_value}, "SparseFillEmptyRowsGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Interpolate> &node) {
     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
