@@ -147,7 +147,7 @@ public:
         return m_context;
     }
 
-    dnnl::threadpool_interop::threadpool_iface* getThreadPool() {
+    std::shared_ptr<ThreadPool> getThreadPool() const {
         return m_context->getThreadPool();
     }
 

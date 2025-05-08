@@ -145,7 +145,7 @@ public:
         return weightsCache;
     }
 
-    [[nodiscard]] dnnl::threadpool_interop::threadpool_iface* getThreadPool() const {
+    [[nodiscard]] std::shared_ptr<ThreadPool> getThreadPool() const {
         return threadPool;
     }
 
@@ -161,7 +161,7 @@ private:
     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeighCache;
     int numNumaNodes;
     int curNumaNodeId = -1;
-    dnnl::threadpool_interop::threadpool_iface* threadPool;
+    std::shared_ptr<ThreadPool> threadPool;
 };
 
 class ExecutorFactoryLegacy {

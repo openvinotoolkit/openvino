@@ -45,7 +45,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
             Memory srcMemory{eng, srcWeightDesc->cloneWithNewPrecision(dst_wdt), weightsMem->getData()};
             MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
             auto rtCache = context->getRuntimeCache();
-            node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
+            node::Reorder::reorderData(srcMemory, *_ptr, rtCache, context->getThreadPool());
 
             // do shift
             auto count = _ptr->getSize() / _ptr->getDesc().getPrecision().size();
@@ -70,7 +70,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
         Memory srcMemory{eng, srcWeightDesc, weightsMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
         auto rtCache = context->getRuntimeCache();
-        node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
+        node::Reorder::reorderData(srcMemory, *_ptr, rtCache, context->getThreadPool());
 
         return _ptr;
     };

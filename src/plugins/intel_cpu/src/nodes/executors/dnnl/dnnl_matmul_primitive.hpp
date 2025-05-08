@@ -29,7 +29,10 @@ class DnnlMatMulPrimitive {
     };
 
 public:
-    DnnlMatMulPrimitive(const Key& key, const dnnl::engine& engine, dnnl::threadpool_interop::threadpool_iface* threadPool, const std::vector<impl_desc_type>& implPriorities);
+    DnnlMatMulPrimitive(const Key& key,
+                        const dnnl::engine& engine,
+                        std::shared_ptr<ThreadPool> threadPool,
+                        const std::vector<impl_desc_type>& implPriorities);
 
     void execute(const dnnl_primitive_args& primArgs) const;
 

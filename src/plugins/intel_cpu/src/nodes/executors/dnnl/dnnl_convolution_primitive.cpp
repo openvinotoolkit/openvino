@@ -995,10 +995,10 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
 
 DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
                                                    const dnnl::engine& engine,
-                                                   dnnl::threadpool_interop::threadpool_iface* threadPool,
+                                                   std::shared_ptr<ThreadPool> threadPool,
                                                    const std::vector<impl_desc_type>& implPriorities,
                                                    const impl_desc_type defaultImplType)
-    : m_stream(dnnl::threadpool_interop::make_stream(engine, threadPool)),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),

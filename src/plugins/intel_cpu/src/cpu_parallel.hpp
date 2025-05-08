@@ -18,8 +18,33 @@ public:
         : m_default_partitioner(partitioner),
           m_default_multiplier(multiplier) {}
 
-    Partitioner getPartitioner() const {
+    Partitioner get_partitioner() const {
         return m_default_partitioner;
+    }
+    size_t get_multiplier() {
+        return m_default_multiplier;
+    }
+
+    template <typename T0, typename F>
+    void parallel_simple(const T0& D0, const F& func) const {
+#if OV_THREAD == OV_THREAD_TBB
+        const int nthr = static_cast<size_t>(D0);
+        if (m_default_partitioner == Partitioner::STATIC) {
+            tbb::parallel_for(
+                0,
+                nthr,
+                [&](int ithr) {
+                    func(ithr, nthr);
+                },
+                tbb::static_partitioner());
+        } else {
+            tbb::parallel_for(0, nthr, [&](int ithr) {
+                func(ithr, nthr);
+            });
+        }
+#else
+        ov::parallel_for(D0, func);  // from core
+#endif
     }
 
     template <typename T0, typename F>
@@ -52,7 +77,7 @@ public:
             }
         }
 #else
-        parallel_for(D0, func);  // from core
+        ov::parallel_for(D0, func);  // from core
 #endif
     }
 
@@ -89,7 +114,7 @@ public:
             }
         }
 #else
-        parallel_for2d(D0, D1, func);
+        ov::parallel_for2d(D0, D1, func);
 #endif
     }
 
@@ -127,7 +152,7 @@ public:
             }
         }
 #else
-        parallel_for3d(D0, D1, D2, func);
+        ov::parallel_for3d(D0, D1, D2, func);
 #endif
     }
 
@@ -165,7 +190,7 @@ public:
             }
         }
 #else
-        parallel_for4d(D0, D1, D2, D3, func);
+        ov::parallel_for4d(D0, D1, D2, D3, func);
 #endif
     }
 
@@ -204,7 +229,7 @@ public:
             }
         }
 #else
-        parallel_for5d(D0, D1, D2, D3, D4, func);
+        ov::parallel_for5d(D0, D1, D2, D3, D4, func);
 #endif
     }
 
@@ -244,7 +269,7 @@ public:
             }
         }
 #else
-        parallel_for6d(D0, D1, D2, D3, D4, D5, func);
+        ov::parallel_for6d(D0, D1, D2, D3, D4, D5, func);
 #endif
     }
 

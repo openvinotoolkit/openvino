@@ -470,7 +470,10 @@ std::string Reorder::getReorderArgs(const MemoryDesc& parentDesc, const MemoryDe
     return inArgs + "_" + outArgs;
 }
 
-void Reorder::reorderData(const IMemory& input, const IMemory& output, const MultiCachePtr& cache) {
+void Reorder::reorderData(const IMemory& input,
+                          const IMemory& output,
+                          const MultiCachePtr& cache,
+                          std::shared_ptr<ThreadPool> threadPool) {
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined()) {
         OPENVINO_THROW("Can't reorder data with dynamic shapes");
     }
@@ -545,8 +548,8 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
             }
         }
         if (reorder) {
-            auto threadPool = std::make_shared<ThreadPool>();
-            dnnl::stream loc_stream = dnnl::threadpool_interop::make_stream(engine, threadPool.get());
+            // std::cout << "[ reorderData ] threadPool: " << threadPool << "\n";
+            dnnl::stream loc_stream = make_stream(engine, threadPool);
             reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
             OPENVINO_THROW("Could not make onednn reorder.");

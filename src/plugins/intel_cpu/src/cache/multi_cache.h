@@ -7,10 +7,8 @@
 #include <atomic>
 #include <functional>
 #include <unordered_map>
-#include <common/dnnl_thread.hpp>
 
 #include "cache_entry.h"
-#include "thread_pool_imp.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -50,9 +48,6 @@ public:
               typename ValueType = std::invoke_result_t<BuilderType&, const KeyType&>>
     typename CacheEntry<KeyType, ValueType>::ResultType getOrCreate(const KeyType& key, BuilderType builder) {
         auto entry = getEntry<KeyType, ValueType>();
-// #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
-//         dnnl::impl::threadpool_utils::activate_threadpool(getThreadPool());
-// #endif
         return entry->getOrCreate(key, std::move(builder));
     }
 

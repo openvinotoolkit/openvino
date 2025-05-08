@@ -11,6 +11,7 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "sub_memory_manager.hpp"
 #include "weights_cache.hpp"
+#include "thread_pool_imp.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -68,8 +69,8 @@ public:
         return m_cpuParallel;
     }
 
-    dnnl::threadpool_interop::threadpool_iface* getThreadPool() const {
-        return m_threadPool.get();
+    std::shared_ptr<ThreadPool> getThreadPool() const {
+        return m_threadPool;
     }
 
     std::shared_ptr<SubMemoryManager> getSubMemory() const {
@@ -122,7 +123,7 @@ private:
     // cpu stream executor for current graph
     ov::threading::CPUStreamsExecutor::Ptr m_cpuStreamExecutor;
     std::shared_ptr<CpuParallel> m_cpuParallel;
-    std::shared_ptr<dnnl::threadpool_interop::threadpool_iface> m_threadPool;
+    std::shared_ptr<ThreadPool> m_threadPool;
     // numa submemory manager
     std::shared_ptr<SubMemoryManager> m_subMemoryManager;
 
