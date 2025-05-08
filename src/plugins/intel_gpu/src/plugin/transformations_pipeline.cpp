@@ -834,8 +834,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(
             [&](const_node_ptr &node) -> bool {
-            // Convert to NMSIEInternal when model is static
-            return !func->is_dynamic() ? false : true;
+            // Convert to NMSIEInternal when input shape is static
+            // Otherwise keep NMS op
+            return !node->get_input_partial_shape(0).is_dynamic() ? false : true;
         });
 
         // List of enabled/disabled transformations
