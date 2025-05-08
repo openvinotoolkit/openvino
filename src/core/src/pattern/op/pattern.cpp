@@ -187,8 +187,13 @@ op::Predicate all_of(const std::vector<std::function<bool(Output<Node>)>>& predi
 
 namespace {
 
-#define ACCESSOR(type) \
-    void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { if (m_expected_attrs.count(name) == 0) {return;} match(name, {adapter.get()}); };
+#define ACCESSOR(type)                                                                \
+    void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { \
+        if (m_expected_attrs.count(name) == 0) {                                      \
+            return;                                                                   \
+        }                                                                             \
+        match(name, {adapter.get()});                                                 \
+    };
 
 #define ACCESSOR_V(type) ACCESSOR(type) ACCESSOR(std::vector<type>)
 
@@ -216,7 +221,7 @@ public:
     ACCESSOR_V(double)
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        if (m_expected_attrs.count(name) == 0) //TODO: maybe check for "relaxed_type" instead
+        if (m_expected_attrs.count(name) == 0)
             return;
         OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
     };
