@@ -658,19 +658,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     ov::npuw::s11n::IndicatorType serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        ov::npuw::s11n::IndicatorType compiled_model_indicator;
-        ov::npuw::s11n::read(stream, compiled_model_indicator);
         stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
-
-        if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
-        } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::CompiledModel::import_model(stream, shared_from_this(), properties);
-        } else {
-            OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
-        }
+        // Properties are required for ov::weights_path
+        return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
     }
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
@@ -706,8 +696,28 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
-        const std::shared_ptr<IGraph> graph =
-            parse(stream, tensor, compiler, tensorFromProperty, localConfig, properties);
+        const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
+        size_t blobSize = MetadataBase::getFileSize(stream);
+        if (!skipCompatibility) {
+            auto storedMeta = read_metadata_from(tensor);
+            if (!storedMeta->is_compatible()) {
+                OPENVINO_THROW("Incompatible blob version!");
+            }
+            blobSize = storedMeta->get_blob_size();
+        }
+        if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
+            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
+            if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+                OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+            }
+            stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
+        } else {
+            tensor = ov::Tensor(tensor,
+                                ov::Coordinate{0},
+                                ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
+        }
+        auto graph = compiler->parse(std::move(tensor), !tensorFromProperty, localConfig);
+        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =
             create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
