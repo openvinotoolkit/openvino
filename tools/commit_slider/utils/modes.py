@@ -38,13 +38,14 @@ class NopMode(Mode):
     def printResult(self):
         # if CS launched with template we use custom representation
         # if not, as default we print msg attribute
-        from utils.templates.common_template import Template
-        tmpl = Template.getTemplateByCfg(self.cfg)
-        if issubclass(tmpl, Template):
-            tmpl.printResult(self.commitPath, self.outLogger, self.getCommitInfo)
-        else:
-            print(self.msg)
-            self.outLogger.info(self.msg)
+        # from utils.templates.common_template import Template
+        # todo : get corresponding template
+        # tmpl = Template.getTemplateByCfg(self.cfg)
+        # if issubclass(tmpl, Template):
+        #     tmpl.printResult(self.commitPath, self.outLogger, self.getCommitInfo)
+        # else:
+        print(self.msg)
+        self.outLogger.info(self.msg)
 
 
 class CheckOutputMode(Mode):
