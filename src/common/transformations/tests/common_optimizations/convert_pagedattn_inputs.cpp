@@ -105,6 +105,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, 0.5f);
         auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
+        auto score_aggregation_window = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                              K,
@@ -118,7 +119,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                              scale,
                                                                              sliding_window,
                                                                              alibi_slopes,
-                                                                             max_context_len});
+                                                                             max_context_len,
+                                                                             score_aggregation_window});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -134,7 +136,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                 subsequence_begins,
                                                                 block_indices,
                                                                 block_indices_begins,
-                                                                max_context_len});
+                                                                max_context_len,
+                                                                score_aggregation_window});
         if (isIRKVCacheF16) {
             model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
         }
@@ -199,6 +202,7 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, 0.5f);
         auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
+        auto score_aggregation_window = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                              K,
@@ -212,7 +216,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                              scale,
                                                                              sliding_window,
                                                                              alibi_slopes,
-                                                                             max_context_len});
+                                                                             max_context_len,
+                                                                             score_aggregation_window});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -228,7 +233,8 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                     subsequence_begins,
                                                                     block_indices,
                                                                     block_indices_begins,
-                                                                    max_context_len});
+                                                                    max_context_len,
+                                                                    score_aggregation_window});
     }
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCacheBlockSize = blockSize[0];

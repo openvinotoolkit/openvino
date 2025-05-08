@@ -21,7 +21,7 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
-    validate_inputs_count(op, {13, 16});
+    validate_inputs_count(op, {14, 17});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
 
@@ -78,7 +78,19 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     std::shared_ptr<ov::op::v0::Constant> alibi_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(alibi_idx));
     OPENVINO_ASSERT(alibi_const != nullptr);
     prim.has_alibi = ov::shape_size(alibi_const->get_output_shape(0)) > 0;
-    prim.has_rotated_blocks = op->get_input_size() == 16;
+
+
+    const size_t score_aggregation_idx = 13;
+
+    auto score_aggregation_input = ov::as_type_ptr<ov::op::v0::Parameter>(op->get_input_node_shared_ptr(score_aggregation_idx));
+
+    if (!score_aggregation_input) {
+        prim.has_score_aggregation = false;
+    } else {
+        prim.has_score_aggregation = !score_aggregation_input->get_output_partial_shape(0).is_dynamic();
+    }
+
+    prim.has_rotated_blocks = op->get_input_size() == 17;
 
     prim.num_outputs = 1;
 
