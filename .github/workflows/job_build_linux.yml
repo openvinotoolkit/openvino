@@ -184,14 +184,14 @@ jobs:
       - name: Check CMake configuration
         run: |
           echo options_from_env
-          echo '$CMAKE_OPTIONS'
+          echo ${{ env.CMAKE_OPTIONS }}
           echo options_from_input
           echo ${{ inputs.cmake-options }}
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
 
       - name: CMake configure - OpenVINO
-        run: eval cmake $CMAKE_OPTIONS -S ${OPENVINO_REPO} -B ${BUILD_DIR}
+        run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${OPENVINO_REPO} -B ${BUILD_DIR}
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
 
