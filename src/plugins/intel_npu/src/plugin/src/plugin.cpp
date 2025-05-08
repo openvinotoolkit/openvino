@@ -557,20 +557,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
     std::istream stream{&buffer};
 
-    const bool skipCompatibility =
-        npu_plugin_properties.find(ov::intel_npu::disable_version_check.name()) != npu_plugin_properties.end()
-            ? npu_plugin_properties.at(ov::intel_npu::disable_version_check.name()).as<bool>()
-            : false;
-    if (!skipCompatibility) {
-        auto storedMeta = read_metadata_from(stream);
-        if (!storedMeta->is_compatible()) {
-            OPENVINO_THROW("Can't import network: Incompatible blob version!");
-        }
-        tensor = ov::Tensor(tensor,
-                            ov::Coordinate{0},
-                            ov::Coordinate{storedMeta->get_blob_size()});  // ROI tensor to skip NPU plugin metadata
-    }
-
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
     ov::npuw::s11n::IndicatorType serialization_indicator;
@@ -614,6 +600,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
+        const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
+        if (!skipCompatibility) {
+            auto storedMeta = read_metadata_from(stream);
+            if (!storedMeta->is_compatible()) {
+                OPENVINO_THROW("Incompatible blob version!");
+            }
+            tensor = ov::Tensor(tensor,
+                                ov::Coordinate{0},
+                                ov::Coordinate{storedMeta->get_blob_size()});  // ROI tensor to skip NPU plugin metadata
+        }
         auto graph = compiler->parse(std::move(tensor), blobAllocatedByPlugin, localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
