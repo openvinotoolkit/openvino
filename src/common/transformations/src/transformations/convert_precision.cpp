@@ -482,6 +482,8 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {ov::op::v0::PriorBoxClustered::get_type_info_static(), fuse_type_to_prior_box<ov::op::v0::PriorBoxClustered>},
         {ov::op::v15::SearchSorted::get_type_info_static(), fuse_type_to_search_sorted_v15},
         {ov::op::internal::RMS::get_type_info_static(), fuse_type_to_rms},
+        // This is operation representing inline_extension from
+        // src/bindings/python/src/openvino/frontend/pytorch/inlined_extension.py
         {ov::DiscreteTypeInfo("InlinedCustomOp", "extension"), wrap_into_original_type}};
 
     for (const auto& it : m_additional_type_to_fuse_map) {

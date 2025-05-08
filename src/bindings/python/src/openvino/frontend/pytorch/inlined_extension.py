@@ -7,7 +7,7 @@ import torch
 import numpy as np
 import openvino as ov
 from openvino.frontend.pytorch.ts_decoder import InlineConversionExtension
-from openvino.frontend.pytorch.utils import pt_to_ov_type_map
+from openvino.frontend.pytorch.utils import pt_to_ov_type_map, no_jit_trace
 
 
 class ConstWrap:
@@ -180,7 +180,8 @@ def make_trampoline_class(func: Callable,
             # automatically (unlikely possible)
             packed_args, packed_kwargs = pack(
                 call_args, cls.input_packer)
-            result = func(*packed_args, **packed_kwargs)
+            with no_jit_trace():
+                result = func(*packed_args, **packed_kwargs)
             result, cls.output_packer, _ = unpack(result, torch.Tensor)
             if not op:
                 output_signature = make_output_signature(result)
