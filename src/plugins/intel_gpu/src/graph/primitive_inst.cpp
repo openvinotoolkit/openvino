@@ -1402,6 +1402,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
 
         if (desc->compressed) {
             auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable);
+            OPENVINO_ASSERT(compressed_cache_variable != nullptr, "[GPU] compressed_cache_variable is null");
             auto& present_scales_layout = _impl_params->output_layouts[2];
             const auto sequence_axis = kv_cache_inst::get_scale_zp_sequence_axis();
             kv_cache_inst::update_pad(present_scales_layout, max_pad - new_seq_len, sequence_axis);
@@ -1873,6 +1874,15 @@ void primitive_inst::prepare_primitive() {
         if (get_flag(ExecutionFlags::SKIP)) {
             update_shape_done_by_other = false; // reset
             return;
+        }
+
+        if (_node->is_type<read_value>()) {
+            auto prim = get_node().as<read_value>().get_primitive();
+            auto& variable = get_network().get_variable(prim->variable_id);
+
+            if (variable.is_set() && can_be_optimized()) {
+                set_flag(ExecutionFlags::SKIP);
+            }
         }
 
         // Check successor reorder if layouts are same

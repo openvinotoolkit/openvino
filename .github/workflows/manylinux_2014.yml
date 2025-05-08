@@ -1,6 +1,11 @@
 name: Manylinux 2014
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -260,6 +265,7 @@ jobs:
             ${{ env.INSTALL_WHEELS_DIR }}/wheels
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+          branch_name: ${{ inputs.target-branch }}
 
   Python_API_Tests:
     name: Python API tests

@@ -106,6 +106,7 @@ enum class KernelType {
     DYNAMIC_QUANTIZE,
     SEARCH_SORTED,
     STFT,
+    ISTFT,
     COL2IM
 };
 
