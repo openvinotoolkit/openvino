@@ -168,6 +168,15 @@ static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> 
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> load_dump_raw_binary{"GPU_LOAD_DUMP_RAW_BINARY"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> start_after_processes{"GPU_START_AFTER_PROCESSES"};
 static constexpr Property<bool, ov::PropertyMutability::RW> could_use_flashattn_v2{"GPU_COULD_USE_FLASHATTN_V2"};
+
+/**
+ * @brief This property defines maximum group size for dynamic quantization optimization
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * If dynamic_quantization_group_size is larger than this max value, dynamic quantization will be disabled.
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{
+    "GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {
