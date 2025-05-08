@@ -23,6 +23,7 @@
 #include "utils/kernel_generator.hpp"
 #include "cm/utils/kernel_generator.hpp"
 #include "debug_helper.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -696,12 +697,15 @@ public:
     int _group_size;
     bool _up_use_cl;
     bool _down_use_cl;
+    cldnn::memory::ptr _weights_base;
 
     MoeExpertOptImpl() : PrimitiveImplOCL(MoeExpertOpt::get_type_info_static()) {}
     MoeExpertOptImpl(const program_node& node, const RuntimeParams& params) : MoeExpertOptImpl() {
         node.get_program().get_engine().create_onednn_engine(node.get_program().get_config());
         const auto& moe = node.as<moe_expert>().get_primitive();
         const auto& moe_mlp_params = moe->_mlp_params;
+        _weights_base = moe_mlp_params[0].base_addr;
+        // std::cout << "MoeExpertOptImpl: _weights_base = " << _weights_base << ", this = " << this << std::endl;
         _dnnl_weights.resize(moe_mlp_params.size());
         _hidden_size = static_cast<int>(moe->get_hidden_size());
         _intermediate_size = static_cast<int>(moe->get_intermediate_size());
@@ -770,6 +774,7 @@ public:
         moe->_group_size = _group_size;
         moe->_up_use_cl = _up_use_cl;
         moe->_down_use_cl = _down_use_cl;
+        moe->_weights_base = _weights_base;
         return moe;
     }
 
@@ -806,6 +811,22 @@ public:
         stream.set_arguments(*stage.kernel, desc, args);
         desc.workGroups.global = global;
         desc.workGroups.local = local;
+
+        size_t enable_indirect_usm = true;
+        int param_name = CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL;
+        if (_weights_base->get_allocation_type() == cldnn::allocation_type::usm_device) {
+            param_name = CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL;
+        } else if (_weights_base->get_allocation_type() == cldnn::allocation_type::usm_host) {
+            param_name = CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL;
+        } else if (_weights_base->get_allocation_type() == cldnn::allocation_type::usm_shared) {
+            param_name = CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL;
+        } else {
+            OPENVINO_ASSERT(false, "Unsupported allocation type");
+        }
+        stream.set_kernel_exec_info(*stage.kernel, param_name, enable_indirect_usm);
+        size_t param_value = reinterpret_cast<size_t>(_weights_base->buffer_ptr());
+        param_name = CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL;
+        stream.set_kernel_exec_info(*stage.kernel, param_name, param_value);
 
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
     }

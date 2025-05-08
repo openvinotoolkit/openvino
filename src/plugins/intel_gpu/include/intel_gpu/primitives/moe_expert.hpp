@@ -20,6 +20,7 @@ struct moe_expert : public primitive_base<moe_expert> {
     moe_expert() : primitive_base("", {}) {}
 
     struct mlp_params {
+        cldnn::memory::ptr base_addr;
         struct param {
             cldnn::memory::ptr weight;
             cldnn::memory::ptr bias;

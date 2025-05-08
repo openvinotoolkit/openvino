@@ -47,6 +47,7 @@ public:
     void enqueue_barrier() override;
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
+    void set_kernel_exec_info(kernel& kernel, int param_name, const size_t param_value) override;
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
 
