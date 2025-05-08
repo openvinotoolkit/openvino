@@ -17,7 +17,7 @@ namespace {
 inline void input_check(const ov::Node* node,
                         size_t idx,
                         const std::string_view input_name,
-                        const std::initializer_list<ov::Rank>& allowed_ranks,
+                        std::initializer_list<ov::Rank>&& allowed_ranks,
                         const std::vector<ov::element::Type>& allowed_types) {
     using namespace ov;
     using namespace ov::util;
