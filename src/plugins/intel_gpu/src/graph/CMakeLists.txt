@@ -82,7 +82,7 @@ macro(ov_gpu_add_backend_target)
 
     # We use onednn headers all over the graph module, so we have to append includes to all backends and add a dependency between targets
     if (ENABLE_ONEDNN_FOR_GPU)
-        target_include_directories(${ARG_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
+        target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
         add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
     endif()
 endmacro()
