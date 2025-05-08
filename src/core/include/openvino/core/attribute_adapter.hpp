@@ -89,12 +89,6 @@ protected:
     AT& m_ref;
 };
 
-#ifdef _MSC_VER
-#    define OPENVINO_API_EXTERN
-#else
-#    define OPENVINO_API_EXTERN OPENVINO_API
-#endif
-
 extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<std::string>>;
 extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<signed char>>;
 extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<unsigned short>>;
@@ -107,8 +101,6 @@ extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<int>>;
 extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<long>>;
 extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::vector<unsigned long>>;
 extern template class OPENVINO_API_EXTERN DirectValueAccessor<std::set<std::string>>;
-
-#undef OPENVINO_API_EXTERN
 
 template <typename AT, typename VAT>
 class IndirectScalarValueAccessor : public ValueAccessor<VAT> {
@@ -261,12 +253,6 @@ namespace element {
 enum class Type_t;
 }
 
-#ifdef _MSC_VER
-#    define OPENVINO_API_EXTERN
-#else
-#    define OPENVINO_API_EXTERN OPENVINO_API
-#endif
-
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::PadMode>;
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::FillMode>;
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::PadType>;
@@ -279,8 +265,6 @@ extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::TopKMode>
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::PhiloxAlignment>;
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<op::RecurrentSequenceDirection>;
 extern template class OPENVINO_API_EXTERN EnumAttributeAdapterBase<element::Type_t>;
-
-#undef OPENVINO_API_EXTERN
 
 /// Adapters will see visitor
 class VisitorAdapter : public ValueAccessor<void> {
