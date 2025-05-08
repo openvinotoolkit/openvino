@@ -9,6 +9,7 @@
 #include "emitters/plugin/aarch64/jit_conversion_emitters.hpp"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
+#include "emitters/snippets/aarch64/jit_gemm_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
@@ -25,6 +26,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "emitters/tpp/aarch64/jit_brgemm_emitter.hpp"
@@ -217,7 +219,8 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::op::v0::Sqrt::get_type_info_static()] = CREATE_CPU_EMITTER(jit_sqrt_emitter);
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_CPU_EMITTER(jit_swish_emitter);
     jitters[ov::op::v0::Tanh::get_type_info_static()] = CREATE_CPU_EMITTER(jit_tanh_emitter);
-
+    jitters[ov::intel_cpu::aarch64::GemmCPU::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(jit_gemm_emitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
 #ifdef SNIPPETS_LIBXSMM_TPP
     // brgemm
     jitters[ov::intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =

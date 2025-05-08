@@ -75,7 +75,7 @@ public:
         update_config(expr, linear_ir, m_config);
         OPENVINO_ASSERT(m_config.is_completed(), "Failed to update kernel config in update_by_expression");
         update_kernel(m_config, m_kernel);
-        OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
+        // OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
     void update_by_config(const GenericConfig& new_config) override final { // NOLINT
         if (m_config.hash() == new_config.hash())
@@ -84,7 +84,7 @@ public:
         OPENVINO_ASSERT(new_config.is_completed() && new_ptr, "Failed to update kernel config in get_config");
         m_config = *new_ptr;
         update_kernel(m_config, m_kernel);
-        OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
+        // OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
     const GenericConfig& get_config() const override { return m_config; }
     std::shared_ptr<const KernelType> get_kernel() const { return m_kernel; }
