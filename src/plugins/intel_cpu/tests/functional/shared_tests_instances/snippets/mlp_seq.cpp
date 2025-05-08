@@ -37,7 +37,7 @@ std::vector<std::vector<InputShape>> inputShapeQuantized_2D() {
 }
 
 std::vector <size_t> numHiddenLayers() {
-    return {2, 3, 5, 7, 9};
+    return {1, 2, 3, 5, 7, 9};
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MLP_SEQ_2D_f32,
