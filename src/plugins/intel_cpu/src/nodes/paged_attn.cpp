@@ -152,7 +152,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 
 bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
                                       const ov::element::Type precision,
-                                      const bool isKey) noexcept {
+                                      const bool isKey) {
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
     // By default, by-channel should only be enabled when precision is integral
