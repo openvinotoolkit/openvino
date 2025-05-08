@@ -47,7 +47,7 @@ RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.9.21/Python-3.9.21.tar.xz && \
     tar xvf Python-3.9.21.tar.xz
 RUN cd /usr/src/Python-3.9.21 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --libdir=/usr/local/lib --prefix=/usr && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions && \
     make altinstall
 
 # Python 3.10
@@ -55,7 +55,7 @@ RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.10.16/Python-3.10.16.tar.xz && \
     tar xvf Python-3.10.16.tar.xz
 RUN cd /usr/src/Python-3.10.16 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --libdir=/usr/local/lib --prefix=/usr && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions && \
     make altinstall
 
 # Python 3.11
@@ -63,7 +63,7 @@ RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tar.xz && \
     tar xvf Python-3.11.9.tar.xz
 RUN cd /usr/src/Python-3.11.9 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --libdir=/usr/local/lib --prefix=/usr && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions && \
     make altinstall
 
 # Python 3.12
@@ -71,7 +71,7 @@ RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tar.xz && \
     tar xvf Python-3.12.9.tar.xz
 RUN cd /usr/src/Python-3.12.9 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --libdir=/usr/local/lib --prefix=/usr && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions && \
     make altinstall
 
 # Python 3.13
@@ -79,7 +79,7 @@ RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/3.13.2/Python-3.13.2.tar.xz && \
     tar xvf Python-3.13.2.tar.xz
 RUN cd /usr/src/Python-3.13.2 && \
-    ./configure --enable-optimizations --enable-loadable-sqlite-extensions --libdir=/usr/local/lib --prefix=/usr && \
+    ./configure --enable-optimizations --enable-loadable-sqlite-extensions && \
     make altinstall
 
 # Install sscache
