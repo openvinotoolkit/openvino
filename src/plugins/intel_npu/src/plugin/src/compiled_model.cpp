@@ -5,7 +5,10 @@
 #include "compiled_model.hpp"
 
 #include <chrono>
+#include <condition_variable>
 #include <fstream>
+#include <mutex>
+#include <queue>
 #include <string_view>
 
 #include "async_infer_request.hpp"
@@ -13,21 +16,137 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
+#define USE_SINGLE_THREADED_RUN_INIT 0
+
+namespace intel_npu {
+
 namespace {
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
+std::vector<std::shared_ptr<ov::op::v0::Constant>> getAllConstantsInTopologicalOrder(
+    const std::shared_ptr<const ov::Model>& model) {
+    std::chrono::steady_clock::time_point begin;
+    std::chrono::steady_clock::time_point end;
+
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> constants;
+
+    // Match the inputs of the "init" model with the Constant nodes of the original model
+    begin = std::chrono::steady_clock::now();
+    for (auto&& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+            continue;
+        }
+        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        constants.push_back(constantNode);
+    }
+    end = std::chrono::steady_clock::now();
+    std::cout << "getting constant IDs " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
+              << "[microseconds]" << std::endl;
+
+    return constants;
 }
 
-namespace intel_npu {
+struct QueueData {
+    int64_t initGraphIndex = -1;
+    InitInputData inputs;
+    InitOutputData outputs;
 
-#define USE_SINGLE_THREADED_RUN_INIT 0
+    bool isTerminator() const {
+        return initGraphIndex == -1;
+    }
+};
+
+// very simple multi-threaded executor for 2 kinds of tasks where task 1 "calls"
+// task 2
+template <typename Task1Callable, typename Task2Callable>
+class Parallelizer {
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> _modelConstants;
+
+    std::mutex _mutex;
+    std::queue<QueueData> _payloads;
+    std::atomic_bool _progressTask1 = true;
+
+    Task1Callable _task1;
+    Task2Callable _task2;
+
+public:
+    Parallelizer(const std::shared_ptr<const ov::Model>& model, Task1Callable&& task1, Task2Callable&& task2)
+        : _modelConstants(getAllConstantsInTopologicalOrder(model)),
+          _task1(std::forward<Task1Callable>(task1)),
+          _task2(std::forward<Task2Callable>(task2)) {}
+
+    void callForAllAndWait(const std::vector<std::shared_ptr<IGraph>>& initGraphs) {
+        std::condition_variable task1SyncPoint;
+        std::condition_variable task2SyncPoint;
+
+        std::thread task2Thread([&]() {
+            while (true) {
+                std::unique_lock lock(_mutex);
+                task2SyncPoint.wait(lock, [&]() {
+                    return !_payloads.empty();
+                });
+
+                auto payload = std::move(_payloads.front());
+                _payloads.pop();
+                if (payload.isTerminator()) {
+                    return;  // Note: exit condition
+                }
+                lock.unlock();
+
+                _task2(std::move(payload), task1SyncPoint, _progressTask1);  // TODO: putting sync point inside is meh
+            }
+        });
+
+        std::mutex task1Mutex;
+        for (int64_t i = 0; i < int64_t(initGraphs.size()); ++i) {
+            {
+                // TODO: task1Mutex is *only* used here. this is a poor man's
+                // spinlock on an atomic boolean (without busy wait)
+                std::unique_lock lock(task1Mutex);
+                task1SyncPoint.wait(lock, [&]() {
+                    return _progressTask1.load();
+                });
+            }
+
+            // TODO: should we run task1 under mutex?
+            auto payload = _task1(_modelConstants, i);
+            _progressTask1.store(false);
+            {
+                std::lock_guard guard(_mutex);
+                _payloads.push(std::move(payload));
+            }
+            task2SyncPoint.notify_one();
+        }
+        {
+            std::lock_guard guard(_mutex);
+            _payloads.push({});  // isTerminator()
+        }
+        task2SyncPoint.notify_one();
+
+        task2Thread.join();
+    }
+};
+
+// c++17 deduction guide
+template <typename Task1Callable, typename Task2Callable>
+Parallelizer(const std::shared_ptr<const ov::Model>&, Task1Callable&&, Task2Callable&&)
+    -> Parallelizer<Task1Callable, Task2Callable>;
+
+void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& dst,
+                    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& src) {
+    dst.merge(src);
+    OPENVINO_ASSERT(src.empty(), "Found weights inputs collision between different inits");
+}
+
+}  // namespace
 
 using intel_npu::envVarStrToBool;
 
@@ -60,16 +179,10 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
         if (_config.get<CREATE_EXECUTOR>() && !_config.get<DEFER_WEIGHTS_LOAD>()) {
             begin = std::chrono::steady_clock::now();
 #if USE_SINGLE_THREADED_RUN_INIT
-            for (const auto& initGraph : _initGraphs) {
-                auto [weightsInputs, initOutputsTensor] =
-                    _device->runInit(initGraph, _initModel, get_context(), _config);
+            runInitSingleThreaded();
 
-                add_weights_inputs(weightsInputs);
-                add_init_out_tensor(std::move(initOutputsTensor));
-            }
 #else
-            std::tie(_weightsInputs, _initOutputsTensors) =
-                _device->runInitMultiThreaded(_initGraphs, _initModel, get_context(), _config);
+            runInitMultiThreaded();
 #endif
             end = std::chrono::steady_clock::now();
             std::cout << "run_init() call within the \"CompiledModel\" ctor "
@@ -119,16 +232,9 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 
             begin = std::chrono::steady_clock::now();
 #if USE_SINGLE_THREADED_RUN_INIT
-            for (const auto& initGraph : _initGraphs) {
-                auto [weightsInputs, initOutputsTensor] =
-                    _device->runInit(initGraph, _initModel, get_context(), _config);
-
-                add_weights_inputs(weightsInputs);
-                add_init_out_tensor(std::move(initOutputsTensor));
-            }
+            runInitSingleThreaded();
 #else
-            std::tie(_weightsInputs, _initOutputsTensors) =
-                _device->runInitMultiThreaded(_initGraphs, _initModel, get_context(), _config);
+            runInitMultiThreaded();
 #endif
             end = std::chrono::steady_clock::now();
             std::cout << "run_init() call during inference request creation "
@@ -276,14 +382,90 @@ void CompiledModel::configure_stream_executors() {
     _resultExecutor = ov::threading::executor_manager()->get_executor(executorId);
 }
 
-void CompiledModel::add_weights_inputs(
-    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) const {
-    _weightsInputs.merge(weightsInputs);
-    OPENVINO_ASSERT(weightsInputs.empty(), "Found weights inputs collision between different inits");
+void CompiledModel::runInitSingleThreaded() {
+    std::chrono::steady_clock::time_point begin;
+    std::chrono::steady_clock::time_point end;
+
+    // TODO: this traverses full IR, so ideally only runs once for all inits
+    const auto constants = getAllConstantsInTopologicalOrder(_initModel);
+
+    for (const auto& initGraph : _initGraphs) {
+        auto [inputTensors, initInputsTensor] = initGraph->allocateInputs(constants, get_context(), _config);
+
+        auto [outputTensors, initOutputsTensors, weightsInputs] =
+            initGraph->allocateOutputs(initGraph, get_context(), _config);
+
+        _weightsInputs.merge(weightsInputs);
+        OPENVINO_ASSERT(weightsInputs.empty(), "Found weights inputs collision between different inits");
+        _initOutputsTensors.push_back(std::move(initOutputsTensors));
+
+        // Create zero-pipeline and run it (infer init schedule)
+        begin = std::chrono::steady_clock::now();
+        initGraph->createPipeline(_config, inputTensors, outputTensors);
+        end = std::chrono::steady_clock::now();
+        std::cout << "Creating the pipeline "
+                  << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
+                  << std::endl;
+        begin = std::chrono::steady_clock::now();
+        initGraph->runPipeline();
+        end = std::chrono::steady_clock::now();
+        std::cout << "Running the pipeline "
+                  << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
+                  << std::endl;
+    }
 }
 
-void CompiledModel::add_init_out_tensor(ov::SoPtr<ov::ITensor> tensor) const {
-    _initOutputsTensors.push_back(std::move(tensor));
+void CompiledModel::runInitMultiThreaded() {
+    if (_initGraphs.size() == 1) {
+        std::cout << "::runInitMultiThreaded() for single init - fallback to ::runInitSingleThreaded()" << std::endl;
+        runInitSingleThreaded();
+    }
+
+    // the pipeline:
+    // allocate I/O -> create Pipeline -> run Pipeline
+    //                                    allocate I/O -> create Pipeline -> run Pipeline
+    Parallelizer multiThreadedRunner(
+        _initModel,
+        [&](const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants, int64_t graphIndex) -> QueueData {
+            const auto& initGraph = _initGraphs[graphIndex];
+
+            QueueData data{};
+            data.initGraphIndex = graphIndex;
+            data.inputs = initGraph->allocateInputs(constants, get_context(), _config);
+            data.outputs = initGraph->allocateOutputs(get_context(), _config);
+            return data;
+        },
+        [&](QueueData&& data, std::condition_variable& cv, std::atomic_bool& flag) {
+            std::chrono::steady_clock::time_point begin;
+            std::chrono::steady_clock::time_point end;
+
+            const auto& initGraph = _initGraphs[data.initGraphIndex];
+
+            // Create zero-pipeline and run it (infer init schedule)
+            begin = std::chrono::steady_clock::now();
+            initGraph->createPipeline(config, data.inputs.tensors, data.outputs.tensors);
+            end = std::chrono::steady_clock::now();
+            std::cout << "Creating the pipeline "
+                      << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
+                      << std::endl;
+
+            // progress task 1:
+            flag.store(true);
+            cv.notify_one();
+
+            begin = std::chrono::steady_clock::now();
+            initGraph->runPipeline();
+            end = std::chrono::steady_clock::now();
+            std::cout << "Running the pipeline "
+                      << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
+                      << std::endl;
+
+            // TODO: pre-allocate those well in advance? (outside of this loop)
+            merge_two_maps(_weightsInputs, data.outputs.tensorsMap);
+            _initOutputsTensors.push_back(data.outputs.hostTensor);
+        });
+
+    multiThreadedRunner.callForAllAndWait(initGraphs);
 }
 
 }  // namespace intel_npu

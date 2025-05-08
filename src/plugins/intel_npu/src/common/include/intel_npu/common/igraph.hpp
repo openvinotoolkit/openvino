@@ -10,11 +10,30 @@
 
 #include "intel_npu/common/blob_container.hpp"
 #include "intel_npu/network_metadata.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
+
+// TODO: public for multi-threaded execution
+struct InitInputData {
+    // TODO: is it necessary to keep both fields alive? it doesn't seem like
+    // hostTensor field is ever used.
+    std::vector<std::vector<std::shared_ptr<ov::ITensor>>> tensors;
+    ov::SoPtr<ov::ITensor> hostTensor;
+};
+
+struct InitOutputData {
+    // TODO: is it necessary to keep both fields alive? it doesn't seem like
+    // hostTensor field is ever used.
+    std::vector<std::shared_ptr<ov::ITensor>> tensors;
+    ov::SoPtr<ov::ITensor> hostTensor;
+    std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> tensorsMap;
+};
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
@@ -56,6 +75,12 @@ public:
     uint32_t get_last_submitted_id() const;
 
     const std::optional<std::size_t> get_batch_size() const;
+
+    virtual InitInputData allocateInputs(const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants,
+                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                         const Config& config) = 0;
+
+    virtual InitOutputData allocateOutputs(const ov::SoPtr<ov::IRemoteContext>& context, const Config& config) = 0;
 
     std::vector<uint8_t> _blob;
 

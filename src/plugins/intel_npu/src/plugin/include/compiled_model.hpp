@@ -62,8 +62,9 @@ public:
 private:
     void configure_stream_executors();
 
-    void add_weights_inputs(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& weightsInputs) const;
-    void add_init_out_tensor(ov::SoPtr<ov::ITensor> tensor) const;
+    void runInitSingleThreaded();
+
+    void runInitMultiThreaded();
 
     FilteredConfig _config;
     Logger _logger;
