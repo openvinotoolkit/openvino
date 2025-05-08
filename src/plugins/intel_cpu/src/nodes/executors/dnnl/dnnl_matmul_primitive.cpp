@@ -14,6 +14,7 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -28,11 +29,10 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "utils/cpu_utils.hpp"
-#include "utils/debug_capabilities.h"
-#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include "openvino/core/parallel.hpp"
 #include "thread_pool_imp.hpp"
+#include "utils/cpu_utils.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 

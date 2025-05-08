@@ -10,8 +10,8 @@
 #include "memory_control.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "sub_memory_manager.hpp"
-#include "weights_cache.hpp"
 #include "thread_pool_imp.hpp"
+#include "weights_cache.hpp"
 
 namespace ov {
 namespace intel_cpu {
