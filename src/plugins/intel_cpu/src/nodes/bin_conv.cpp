@@ -66,11 +66,11 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
-                                                                                            post_op.eltwise,
-                                                                                            data_type::f32,
-                                                                                            true,
-                                                                                            eltwise_reserved,
-                                                                                            mask_post_op_reserved));
+                                                                                              post_op.eltwise,
+                                                                                              data_type::f32,
+                                                                                              true,
+                                                                                              eltwise_reserved,
+                                                                                              mask_post_op_reserved));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(
                     std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op, mask_post_op_reserved));

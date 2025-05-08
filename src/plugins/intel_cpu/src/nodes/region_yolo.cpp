@@ -45,8 +45,12 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     }
 
     void generate() override {
-        exp_injector.reset(
-            new jit_uni_eltwise_injector_t<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f, data_type::f32));
+        exp_injector.reset(new jit_uni_eltwise_injector_t<isa>(this,
+                                                               dnnl::impl::alg_kind::eltwise_exp,
+                                                               0.f,
+                                                               0.f,
+                                                               1.f,
+                                                               data_type::f32));
 
         if (mayiuse(avx512_core)) {
             uni_vcvtneps2bf16 = std::make_unique<jit_uni_vcvtneps2bf16>(this, isa);

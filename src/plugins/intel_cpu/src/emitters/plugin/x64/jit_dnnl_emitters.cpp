@@ -50,11 +50,11 @@ void jit_dnnl_emitter::set_injector() {
     } else if (host_isa_ == cpu::x64::avx512_core) {
         eltwise_injector_avx512_core =
             std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::avx512_core>>(h,
-                                                                              kind,
-                                                                              alpha,
-                                                                              beta,
-                                                                              1.f,
-                                                                              data_type::f32);
+                                                                                kind,
+                                                                                alpha,
+                                                                                beta,
+                                                                                1.f,
+                                                                                data_type::f32);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
