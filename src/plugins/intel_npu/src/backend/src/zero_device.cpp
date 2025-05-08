@@ -11,15 +11,12 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-<<<<<<< HEAD
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "zero_host_tensor.hpp"
-=======
->>>>>>> upstream/master
 #include "zero_infer_request.hpp"
 
 using namespace intel_npu;
@@ -410,39 +407,6 @@ std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const Config& config) {
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
 }
-<<<<<<< HEAD
-
-ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
-                                                            const ov::element::Type& element_type,
-                                                            const ov::Shape& shape,
-                                                            const Config& config,
-                                                            ov::intel_npu::TensorType tensor_type,
-                                                            ov::intel_npu::MemType mem_type,
-                                                            const void* mem) {
-    return {std::make_shared<ZeroRemoteTensor>(context,
-                                               _initStructs,
-                                               device_properties,
-                                               element_type,
-                                               shape,
-                                               config,
-                                               tensor_type,
-                                               mem_type,
-                                               mem)};
-};
-
-ov::SoPtr<ov::ITensor> ZeroDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
-                                                    const ov::element::Type& element_type,
-                                                    const ov::Shape& shape,
-                                                    const Config& config,
-                                                    ov::intel_npu::TensorType tensor_type) {
-    return {std::make_shared<ZeroHostTensor>(context,
-                                             _initStructs,
-                                             device_properties,
-                                             element_type,
-                                             shape,
-                                             config,
-                                             tensor_type)};
-};
 
 ZeroDevice::InputData ZeroDevice::allocateInputs(const std::shared_ptr<IGraph>& initGraph,
                                                  const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants,
@@ -467,8 +431,12 @@ ZeroDevice::InputData ZeroDevice::allocateInputs(const std::shared_ptr<IGraph>& 
     }
 
     begin_tensor_creation = std::chrono::steady_clock::now();
-    const ov::SoPtr<ov::ITensor> initInputsTensor =
-        createHostTensor(context._ptr, ov::element::Type_t::u8, ov::Shape({initInputsByteSize}), config);
+    const ov::SoPtr<ov::ITensor> initInputsTensor = {
+        std::make_shared<ZeroHostTensor>(context._ptr,
+                                         _initStructs,
+                                         ov::element::Type_t::u8,
+                                         ov::Shape({initInputsByteSize}),
+                                         ov::intel_npu::TensorType::INPUT)};
     end_tensor_creation = std::chrono::steady_clock::now();
     std::cout
         << "init inputs tensor creation "
@@ -534,8 +502,12 @@ ZeroDevice::OutputData ZeroDevice::allocateOutputs(const std::shared_ptr<IGraph>
     }
 
     begin_tensor_creation = std::chrono::steady_clock::now();
-    const ov::SoPtr<ov::ITensor> initOutputsTensor =
-        createHostTensor(context._ptr, ov::element::Type_t::u8, ov::Shape({initOutputsByteSize}), config);
+    const ov::SoPtr<ov::ITensor> initOutputsTensor = {
+        std::make_shared<ZeroHostTensor>(context._ptr,
+                                         _initStructs,
+                                         ov::element::Type_t::u8,
+                                         ov::Shape({initOutputsByteSize}),
+                                         ov::intel_npu::TensorType::BINDED)};
     end_tensor_creation = std::chrono::steady_clock::now();
     std::cout
         << "init outputs tensor creation "
@@ -561,5 +533,3 @@ ZeroDevice::OutputData ZeroDevice::allocateOutputs(const std::shared_ptr<IGraph>
 
     return {outputTensors, initOutputsTensor, outputTensorsMap};
 }
-=======
->>>>>>> upstream/master

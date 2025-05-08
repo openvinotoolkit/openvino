@@ -166,11 +166,10 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
                                                          outputDescriptor.shapeFromCompiler,
                                                          outputDescriptor.outputTensorNames);
 
-            std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
+            auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
             result->output(0).set_tensor_ptr(tensorDummy);
 
             result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-            results.push_back(result);
         } else {
             if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor) {
                 continue;
@@ -184,28 +183,11 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
                 outputDescriptor.shapeFromCompiler,
                 std::unordered_set<std::string>{outputDescriptor.nameFromCompiler});
 
-            std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
+            auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
             result->output(0).set_tensor_ptr(tensorDummy);
 
             result->set_friendly_name(outputDescriptor.nameFromCompiler);
-            results.push_back(std::move(result));
         }
-<<<<<<< HEAD
-=======
-
-        std::shared_ptr<ov::Node> constantDummy =
-            std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
-
-        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
-            outputDescriptor.precision,
-            outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
-                                                          : outputDescriptor.shapeFromCompiler,
-            outputDescriptor.outputTensorNames);
-
-        auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
-        result->output(0).set_tensor_ptr(tensorDummy);
-        result->set_friendly_name(outputDescriptor.nodeFriendlyName);
->>>>>>> upstream/master
     }
 
     return std::make_shared<ov::Model>(results, parameters);

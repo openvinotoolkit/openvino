@@ -79,25 +79,6 @@ std::map<ov::element::Type, float> IDevice::getGops() const {
     OPENVINO_THROW("Get DEVICE_GOPS is not supported");
 }
 
-<<<<<<< HEAD
-ov::SoPtr<ov::IRemoteTensor> IDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext>,
-                                                         const ov::element::Type&,
-                                                         const ov::Shape&,
-                                                         const Config&,
-                                                         ov::intel_npu::TensorType,
-                                                         ov::intel_npu::MemType,
-                                                         const void*) {
-    OPENVINO_THROW("Create Remote Tensor is not supported");
-}
-
-ov::SoPtr<ov::ITensor> IDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext>,
-                                                 const ov::element::Type&,
-                                                 const ov::Shape&,
-                                                 const Config&,
-                                                 ov::intel_npu::TensorType) {
-    OPENVINO_THROW("Create Host Tensor is not supported");
-}
-
 std::pair<std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>, std::vector<ov::SoPtr<ov::ITensor>>>
 IDevice::runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>& initGraph,
                               const std::shared_ptr<const ov::Model>& model,
@@ -106,6 +87,4 @@ IDevice::runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>& initGr
     OPENVINO_THROW("runInitMultiThreaded is not supported");
 }
 
-=======
->>>>>>> upstream/master
 }  // namespace intel_npu

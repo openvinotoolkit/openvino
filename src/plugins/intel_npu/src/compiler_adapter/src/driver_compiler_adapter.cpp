@@ -479,27 +479,27 @@ std::vector<std::shared_ptr<IGraph>> DriverCompilerAdapter::compileWS(const std:
         }
     }
 
-    std::vector<std::shared_ptr<IGraph>> driverGraphs;
+    std::vector<std::shared_ptr<IGraph>> graphs;
     for (size_t handleIndex = 0; handleIndex < initGraphHandles.size(); ++handleIndex) {
-        driverGraphs.push_back(std::make_shared<DriverGraph>(_zeGraphExt,
-                                                             _zeroInitStruct,
-                                                             initGraphHandles.at(handleIndex),
-                                                             std::move(initNetworkMetadata.at(handleIndex)),
-                                                             config,
-                                                             nullptr));
+        graphs.push_back(std::make_shared<Graph>(_zeGraphExt,
+                                                 _zeroInitStruct,
+                                                 initGraphHandles.at(handleIndex),
+                                                 std::move(initNetworkMetadata.at(handleIndex)),
+                                                 nullptr,
+                                                 config));
     }
-    driverGraphs.push_back(std::make_shared<DriverGraph>(_zeGraphExt,
-                                                         _zeroInitStruct,
-                                                         mainGraphHandle,
-                                                         std::move(mainNetworkMetadata),
-                                                         config,
-                                                         nullptr));
+    graphs.push_back(std::make_shared<Graph>(_zeGraphExt,
+                                             _zeroInitStruct,
+                                             mainGraphHandle,
+                                             std::move(mainNetworkMetadata),
+                                             nullptr,
+                                             config));
 
     // Temporary solution: OV passes are copied here in order to increase the chances of matching the weights of the
     // ov::Model object with the init inputs
     runOVPasses(model);
 
-    return driverGraphs;
+    return graphs;
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,

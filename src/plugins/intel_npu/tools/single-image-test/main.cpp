@@ -342,11 +342,7 @@ std::vector<size_t> getStrides(const ov::Shape& shape) {
     return strides;
 }
 
-<<<<<<< HEAD
-std::vector<cv::Mat> ovToCV(const ov::Tensor& tensor,
-=======
 std::vector<cv::Mat> ovToCV(ov::Tensor& tensor,
->>>>>>> upstream/master
                             const ov::Shape& shape,
                             const ov::Layout& layout,
                             size_t batchInd = 0,
@@ -471,11 +467,7 @@ struct BatchIndexer {
 };
 void cvToOV(const cv::Mat& cvImg,
             const BatchIndexer& cvImgInBatch,
-<<<<<<< HEAD
-            const ov::Tensor& tensor,
-=======
             ov::Tensor& tensor,
->>>>>>> upstream/master
             const ov::Shape& shape,
             const ov::Layout& layout,
             const std::string& colorFormat) {
@@ -579,11 +571,7 @@ void cvToOV(const cv::Mat& cvImg,
                 std::cout << "Fill input batch slices starting from index " << n << " up to " << N
                           << " with image data from the array: " << cvImgInBatch.to_string() << std::endl;
             }
-<<<<<<< HEAD
-            cv::Mat batch(static_cast<int>(H),
-=======
             cv::Mat batch(static_cast<const int>(H),
->>>>>>> upstream/master
                           static_cast<int>(W),
                           cvType,
                           dataBuffer + n * (out.size().area() * out.elemSize()));
@@ -591,11 +579,7 @@ void cvToOV(const cv::Mat& cvImg,
         }
     } else if (layout == ov::Layout("NCHW")) {
         ov::Tensor auxTensor(precision, shape);
-<<<<<<< HEAD
-        const ov::Tensor& outTensor = (cvImgInBatch.index == 0 ? tensor : auxTensor);
-=======
         ov::Tensor& outTensor = (cvImgInBatch.index == 0 ? tensor : auxTensor);
->>>>>>> upstream/master
         // only a first image from an input image array fills an original input tensor up.
         // Subsequent images (if exist) will fill batch slices of the input tensor
         // by its number in the input array respectively
@@ -797,18 +781,12 @@ std::string cleanName(std::string&& name) {
     return std::move(name);
 }
 
-<<<<<<< HEAD
 ov::Tensor loadImages(const ov::element::Type& precision,
                       const ov::Shape& shape,
                       const ov::Layout& layout,
                       const std::vector<std::string>& filePaths,
                       const std::string& colorFormat) {
-    const ov::Tensor tensor(precision, shape);
-=======
-ov::Tensor loadImages(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
-                     const std::vector<std::string>& filePaths, const std::string& colorFormat) {
     ov::Tensor tensor(precision, shape);
->>>>>>> upstream/master
     for (size_t fileIndex = 0; fileIndex != filePaths.size(); fileIndex++) {
         const auto& filePath = filePaths[fileIndex];
         const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
@@ -1596,16 +1574,10 @@ bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_siz
             auto refSoftMax = softmax(refOutput);
 
             std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
-<<<<<<< HEAD
-            std::copy_n(refSoftMax.begin(),
-                        referencesIterator->second.get_size(),
-                        referencesIterator->second.data<float>());
-=======
             // Why reference data is not updated?
             std::copy_n(refSoftMax.begin(),
                         referencesIterator->second.get_size(),
                         const_cast<float*>(referencesIterator->second.data<float>()));
->>>>>>> upstream/master
         }
 
         std::cout << "Compare " << tensorName << " with reference" << std::endl;
@@ -2257,15 +2229,6 @@ static int runSingleImageTest() {
             auto model = core.read_model(FLAGS_network);
             nameIOTensors(model);
 
-<<<<<<< HEAD
-            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
-            InputsInfo infoMap;
-
-            std::cout << "Performing reshape" << std::endl;
-            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_device);
-
-=======
->>>>>>> upstream/master
             ov::preprocess::PrePostProcessor ppp(model);
 
             // Input precision
@@ -2387,8 +2350,7 @@ static int runSingleImageTest() {
             printInputAndOutputsInfoShort(*model);
 
             std::cout << "Performing reshape" << std::endl;
-            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
-                    FLAGS_override_model_batch_size, FLAGS_device);
+            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_device);
 
             std::cout << "Compile model" << std::endl;
             model = ppp.build();

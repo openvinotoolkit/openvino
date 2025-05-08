@@ -15,11 +15,8 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
-<<<<<<< HEAD
 #include "openvino/core/model.hpp"
-=======
 #include "openvino/runtime/make_tensor.hpp"
->>>>>>> upstream/master
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
@@ -182,15 +179,14 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
                 }
             }
 
-            results.push_back(std::make_shared<PluginGraph>(_zeGraphExt,
-                                                            _compiler,
-                                                            _zeroInitStruct,
-                                                            graphHandle,
-                                                            std::move(networkDesc->metadata),
-                                                            std::move(blobContainer),
-                                                            config));
+            results.push_back(std::make_shared<Graph>(_zeGraphExt,
+                                                      _zeroInitStruct,
+                                                      graphHandle,
+                                                      std::move(networkDesc->metadata),
+                                                      std::move(blobContainer),
+                                                      config,
+                                                      _compiler));
         }
-
         return results;
     } break;
     case 2: {
@@ -263,22 +259,22 @@ std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std:
         }
     }
 
-    auto initPluginGraph = std::make_shared<PluginGraph>(_zeGraphExt,
-                                                         _compiler,
-                                                         _zeroInitStruct,
-                                                         initGraphHandle,
-                                                         std::move(initNetworkDescription->metadata),
-                                                         std::move(initContainer),
-                                                         config);
-    auto mainPluginGraph = std::make_shared<PluginGraph>(_zeGraphExt,
-                                                         _compiler,
-                                                         _zeroInitStruct,
-                                                         mainGraphHandle,
-                                                         std::move(mainNetworkDescription->metadata),
-                                                         std::move(mainContainer),
-                                                         config);
+    auto initGraph = std::make_shared<Graph>(_zeGraphExt,
+                                             _zeroInitStruct,
+                                             initGraphHandle,
+                                             std::move(initNetworkDescription->metadata),
+                                             std::move(initContainer),
+                                             config,
+                                             _compiler);
+    auto mainGraph = std::make_shared<Graph>(_zeGraphExt,
+                                             _zeroInitStruct,
+                                             mainGraphHandle,
+                                             std::move(mainNetworkDescription->metadata),
+                                             std::move(mainContainer),
+                                             config,
+                                             _compiler);
 
-    return {initPluginGraph, mainPluginGraph};
+    return {initGraph, mainGraph};
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContainer> blobPtr,

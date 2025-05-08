@@ -640,8 +640,6 @@ struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
 
     static OptionMode mode() {
         return OptionMode::RunTime;
-<<<<<<< HEAD
-=======
     }
 
     static bool isPublic() {
@@ -650,7 +648,6 @@ struct WEIGHTS_PATH final : OptionBase<WEIGHTS_PATH, std::string> {
 
     static ov::PropertyMutability mutability() {
         return ov::PropertyMutability::RW;
->>>>>>> upstream/master
     }
 };
 

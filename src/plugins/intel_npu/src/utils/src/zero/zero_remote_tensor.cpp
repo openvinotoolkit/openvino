@@ -27,13 +27,7 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
                                    TensorType tensor_type,
                                    MemType mem_type,
                                    const void* mem)
-<<<<<<< HEAD:src/plugins/intel_npu/src/backend/src/zero_remote_tensor.cpp
-    : RemoteTensor(context, element_type, shape),
-      _config(config),
-      _logger("ZeroRemoteContext", _config.get<LOG_LEVEL>()),
-=======
     : _context(context),
->>>>>>> upstream/master:src/plugins/intel_npu/src/utils/src/zero/zero_remote_tensor.cpp
       _init_structs(init_structs),
       _element_type(element_type),
       _shape(shape),
