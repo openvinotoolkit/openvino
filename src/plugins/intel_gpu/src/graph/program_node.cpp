@@ -1528,7 +1528,7 @@ void program_node::create_onednn_primitive_attributes(
             auto fused_desc = desc.typed_desc<activation>();
             bool allow_new_shape_infer = get_program().is_new_shape_infer();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
-                && !fused_desc->additional_params_input.empty()) {
+                && fused_desc->additional_params_input.is_valid()) {
                 auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;
                 int oc_dim = 1;
                 if (allow_new_shape_infer)
