@@ -54,7 +54,7 @@ private:
                                                  const element::Type& Sigmoidected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Sigmoid = std::make_shared<op::v0::Sigmoid>(in);
-        return std::make_shared<ov::Model>(NodeVector{Sigmoid}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{Sigmoid}, ParameterVector{in});
     }
 };
 

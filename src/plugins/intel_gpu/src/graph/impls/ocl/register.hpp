@@ -85,7 +85,6 @@ REGISTER_OCL(batch_to_space);
 REGISTER_OCL(border);
 REGISTER_OCL(broadcast);
 REGISTER_OCL(bucketize);
-REGISTER_OCL(col2im);
 REGISTER_OCL(concatenation);
 REGISTER_OCL(crop);
 REGISTER_OCL(custom_gpu_primitive);
@@ -158,6 +157,7 @@ REGISTER_OCL(unique_gather);
 REGISTER_OCL(scaled_dot_product_attention);
 REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
+REGISTER_OCL(ISTFT);
 
 #undef REGISTER_OCL
 

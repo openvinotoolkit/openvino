@@ -107,7 +107,7 @@ private:
         auto constant = ov::test::utils::make_constant(precision, ov::Shape{4096, 1024});
         auto custom_op = std::make_shared<UnsupportedTestOperation>(constant);
 
-        ov::NodeVector results{custom_op};
+        ov::OutputVector results{custom_op};
         return std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "CustomOpModel");
     }
 };

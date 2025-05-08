@@ -5,14 +5,19 @@
 #include "convert_to_interaction.hpp"
 
 #include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "simplify_fakequantize.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
@@ -101,12 +106,11 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
     matcher_pass_callback callback = [=](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto fq_node = ov::as_type_ptr<ov::opset8::FakeQuantize>(pattern_to_output.at(fq_m).get_node_shared_ptr());
+        OPENVINO_ASSERT(fq_node != nullptr, "FakeQuantize node is not found");
         std::vector<float> fq_scale;
-        if (fq_node) {
-            fq_scale = simplifyToScale(fq_node, 0.001f);
-            if (fq_scale.empty()) {
-                return false;
-            }
+        fq_scale = simplifyToScale(fq_node, 0.001f);
+        if (fq_scale.empty()) {
+            return false;
         }
         bool success = ov::replace_output_update_name(fq_node->output(0), fq_node->input_value(0));
         if (!success) {
@@ -196,10 +200,10 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
         auto interaction_node = std::make_shared<InteractionNode>(features_node);
         interaction_node->set_friendly_name(final_concat_node->get_friendly_name());
         auto fq_inter_node = dense_fq_node->clone_with_new_inputs({interaction_node,
-                                                                   dense_fq_node->get_input_node_shared_ptr(1),
-                                                                   dense_fq_node->get_input_node_shared_ptr(2),
-                                                                   dense_fq_node->get_input_node_shared_ptr(3),
-                                                                   dense_fq_node->get_input_node_shared_ptr(4)});
+                                                                   dense_fq_node->input_value(1),
+                                                                   dense_fq_node->input_value(2),
+                                                                   dense_fq_node->input_value(3),
+                                                                   dense_fq_node->input_value(4)});
         fq_inter_node->set_friendly_name(final_concat_node->get_friendly_name());
         replace_node(final_concat_node, fq_inter_node);
         return true;

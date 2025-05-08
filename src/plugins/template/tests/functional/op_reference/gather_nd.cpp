@@ -71,7 +71,7 @@ private:
         } else {
             gatherND = std::make_shared<op::v5::GatherND>(data, indices, params.batchDims);
         }
-        function = std::make_shared<ov::Model>(NodeVector{gatherND}, ParameterVector{data, indices});
+        function = std::make_shared<ov::Model>(OutputVector{gatherND}, ParameterVector{data, indices});
         return function;
     }
 };
@@ -247,7 +247,7 @@ private:
         } else {
             gatherND = std::make_shared<op::v8::GatherND>(data, indices, params.batchDims);
         }
-        function = std::make_shared<ov::Model>(NodeVector{gatherND}, ParameterVector{data, indices});
+        function = std::make_shared<ov::Model>(OutputVector{gatherND}, ParameterVector{data, indices});
         return function;
     }
 };

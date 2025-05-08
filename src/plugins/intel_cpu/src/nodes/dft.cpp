@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <memory>
-#include <openvino/opsets/opset7.hpp>
 #include <string>
 #include <vector>
 
@@ -14,6 +13,9 @@
 #include "dnnl_extension_utils.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/op/dft.hpp"
+#include "openvino/op/idft.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
@@ -24,10 +26,6 @@ namespace ov::intel_cpu::node {
 
 bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (!ov::is_type_any_of<const op::v7::DFT, const op::v7::IDFT>(op)) {
             errorMessage = "Only opset7 DFT/IDFT operation is supported";
             return false;
@@ -45,33 +43,13 @@ DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const size_t inputsNumber = getOriginalInputsNumber();
-    if (inputsNumber != 2 && inputsNumber != 3) {
-        THROW_CPU_NODE_ERR("has invalid number of input/output edges: ", inputsNumber);
-    }
-
-    /* Data */
-    inputShape = inputShapes[DATA_INDEX].getStaticDims();
-    if (inputShape.size() < 2) {
-        THROW_CPU_NODE_ERR("has invalid 'data' input tensor with rank: ", inputShape.size());
-    }
-
-    /* Axes */
-    const auto axesRank = inputShapes[AXES_INDEX].getRank();
-    if (axesRank != 1) {
-        THROW_CPU_NODE_ERR("has invalid 'axes' input tensor with rank: ", axesRank);
-    }
-
-    /* Signal size */
-    if (inputsNumber > SIGNAL_SIZE_INDEX) {
-        const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
-        if (signalSizeRank != 1) {
-            THROW_CPU_NODE_ERR("has invalid 'signal_size' input tensor with rank: ", signalSizeRank);
-        }
-    }
-
     inverse = !ov::is_type<op::v7::DFT>(op);
     lastInverse = !inverse;
+
+    m_is_axes_size_const = is_type<op::v0::Constant>(op->get_input_node_ptr(AXES_INDEX));
+    if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
+        m_is_signal_size_const = is_type<op::v0::Constant>(op->get_input_node_ptr(SIGNAL_SIZE_INDEX));
+    }
 }
 
 void DFT::getSupportedDescriptors() {}
@@ -245,11 +223,20 @@ void copyDataToOutputWithSignalSize(const float* input,
 
 }  // namespace
 
-void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
-    const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
+void DFT::executeDynamicImpl(const dnnl::stream& strm) {
+    execute(strm);
+}
 
+void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
     const auto outputDataEdge = getChildEdgeAt(0);
+
+    const auto& outputShape = outputDataEdge->getMemory().getStaticDims();
+    const auto& inputShape = inputDataEdge->getMemory().getStaticDims();
+
+    if (axes.empty() || !m_is_axes_size_const) {
+        axes = getAxes();
+    }
 
     const auto src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
     auto dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
@@ -445,7 +432,11 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     std::vector<float> outputBuffer(dataLength);
     const size_t nComplex = dataLength / 2;
     const float reciprocalNComplex = 1.0f / nComplex;
-    const auto& twiddles = twiddlesMapDFT.find(nComplex)->second;
+    auto twiddlesIter = twiddlesMapDFT.find(nComplex);
+    if (twiddlesIter == twiddlesMapDFT.end()) {
+        THROW_CPU_NODE_ERR("Twiddles for nComplex=", nComplex, " not found");
+    }
+    const auto& twiddles = twiddlesIter->second;
     const auto& cpu_parallel = context->getCpuParallel();
 
     std::function<void(size_t)> blockIteration;
@@ -551,37 +542,21 @@ bool DFT::created() const {
     return getType() == Type::DFT;
 }
 
-void DFT::prepareParams() {
-    bool hasDFT = false;
-    bool hasFFT = false;
-
-    axes = getAxes();
-    const auto outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
-
-    for (size_t axis : axes) {
-        size_t nComplex = outputShape[axis];
-        if (!IsPowerOfTwo(nComplex)) {
-            hasDFT = true;
-        } else {
-            hasFFT = true;
-        }
-    }
-    if (mayiuse(cpu::x64::sse41)) {
-        createJITKernels(hasDFT, hasFFT);
-    }
-}
-
 std::vector<int32_t> DFT::getAxes() const {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
     const auto* axesStartPtr = axesEdge->getMemoryPtr()->getDataAs<const int32_t>();
-    auto axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
-    for (auto& axis : axes) {
-        if (axis < 0) {
-            axis += inputShape.size() - 1;
+    auto axes_tmp = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
+    const auto& inputShape = getParentEdgeAt(DATA_INDEX)->getMemory().getShape();
+    const auto in_shape_rank = inputShape.getRank();
+    if (in_shape_rank > 0) {
+        for (auto& axis : axes_tmp) {
+            if (axis < 0) {
+                axis += in_shape_rank - 1;
+            }
         }
     }
-    std::sort(axes.begin(), axes.end());
-    return axes;
+    std::sort(axes_tmp.begin(), axes_tmp.end());
+    return axes_tmp;
 }
 void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -618,4 +593,34 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
     }
 #endif
 }
+
+bool DFT::needShapeInfer() const {
+    return !m_is_axes_size_const || !m_is_signal_size_const || Node::needShapeInfer();
+}
+
+bool DFT::needPrepareParams() const {
+    return false;
+}
+
+void DFT::createPrimitive() {
+    bool hasDFT = true;
+    bool hasFFT = true;
+    if (m_is_axes_size_const && outputShapesDefined()) {
+        axes = getAxes();
+        const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
+        hasDFT = hasFFT = false;
+        for (auto axis : axes) {
+            if (IsPowerOfTwo(outputShape[axis])) {
+                hasFFT = true;
+            } else {
+                hasDFT = true;
+            }
+        }
+    }
+    if (mayiuse(cpu::x64::sse41)) {
+        createJITKernels(hasDFT, hasFFT);
+    }
+    Node::createPrimitive();
+}
+
 }  // namespace ov::intel_cpu::node
