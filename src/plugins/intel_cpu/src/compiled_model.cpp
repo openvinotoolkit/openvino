@@ -98,8 +98,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         set_callback_executor(m_callback_executor);
     }
 
-    m_is_single_thread = (executor_config.get_cpu_pinning() == false && executor_config.get_streams() == 1 &&
-                          executor_config.get_threads() == 1);
+    m_is_single_thread = (executor_config.get_streams() == 1 && executor_config.get_threads() == 1);
 
     int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;

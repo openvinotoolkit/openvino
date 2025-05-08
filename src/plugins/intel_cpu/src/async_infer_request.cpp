@@ -19,8 +19,8 @@ ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
         ov::IAsyncInferRequest::infer();
     };
     if (is_single_thread) {
-        // auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(task_executor);
         m_infer_func = [this]() {
+            check_tensors();
             auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_task_executor);
             streams_executor->execute([this]() {
                 m_internal_request->infer();
