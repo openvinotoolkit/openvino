@@ -979,17 +979,17 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
     int numIterations = 1;
     bool isDefault = true;
     for (const auto& rule : inputPortMap) {
-        const auto& dims = getSrcMemoryAtPort(rule.from)->getStaticDims();
-        if (!isIterable(rule)) {
-            continue;
-        }
-
         if (rule.from < 0 || rule.from >= static_cast<int64_t>(inputShapes.size())) {
             THROW_CPU_NODE_ERR(": Invalid \"from\" value: \"from\" = ",
                                rule.from,
                                " inputs number = ",
                                inputShapes.size(),
                                " (out of range)");
+        }
+
+        const auto& dims = getSrcMemoryAtPort(rule.from)->getStaticDims();
+        if (!isIterable(rule)) {
+            continue;
         }
 
         const auto currentNumIterations = getNumIterations(rule, dims);

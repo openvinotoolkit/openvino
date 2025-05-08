@@ -123,7 +123,6 @@ enum class Type {
     PriorBox,
     PriorBoxClustered,
     Interaction,
-    MHA,
     RandomUniform,
     Unique,
     Ngram,

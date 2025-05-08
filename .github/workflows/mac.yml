@@ -1,6 +1,11 @@
 name: macOS (Python 3.11)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
@@ -35,6 +40,7 @@ env:
   NODEJS_VERSION: '21'
   MANIFEST_FILE: manifest.yml
   PRODUCT_TYPE: public_macos_x86_64_release
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
 
@@ -102,6 +108,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
+          ref: ${{ env.TARGET_BRANCH }}
 
       #
       # Print system info
@@ -149,7 +156,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@a1209f81afb8c005c13b4296c32e363431bffea5 # v1.2.17
+        uses: hendrikmuhs/ccache-action@63069e3931dedbf3b63792097479563182fe70d1 # v1.2.18
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
@@ -392,14 +399,14 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
 
       - name: Download OpenVINO artifacts
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: "{openvino_package,openvino_developer_package,openvino_js_package,openvino_node_npm_package,openvino_package_manifest}"
           path: ${{ env.ARTIFACTS_DIR }}
           merge-multiple: true
 
       - name: Download OpenVINO wheels
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: openvino_wheels
           path: ${{ env.WHEELS_DIR }}
@@ -419,3 +426,4 @@ jobs:
             ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/{1}', env.ARTIFACTS_DIR, needs.Build.outputs.openvino_npm_archive_name) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+          branch_name: ${{ inputs.target-branch }}

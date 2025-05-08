@@ -226,7 +226,14 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         ov::intel_cpu::CausalMaskPreprocessNode::Config config;
         config.type = "CausalMaskPreprocess";
 
-        auto triu = ov::as_type_ptr<ov::opset1::Constant>(pattern_map.find(const_triu)->second.get_node_shared_ptr());
+        auto const_triu_it = pattern_map.find(const_triu);
+        if (const_triu_it == pattern_map.end()) {
+            return false;
+        }
+        auto triu = ov::as_type_ptr<ov::opset1::Constant>(const_triu_it->second.get_node_shared_ptr());
+        if (!triu) {
+            return false;
+        }
 
         auto triu_shape = triu->get_output_shape(0);
         if (triu_shape.size() != 4) {
@@ -259,11 +266,21 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
             }
         }
 
+        auto attention_mask_it = pattern_map.find(attention_mask);
+        auto batch_size_it = pattern_map.find(batch_size);
+        auto cache_positions_it = pattern_map.find(cache_positions);
+        auto kvLen_it = pattern_map.find(kvLen);
+
+        if (attention_mask_it == pattern_map.end() || batch_size_it == pattern_map.end() ||
+            cache_positions_it == pattern_map.end() || kvLen_it == pattern_map.end()) {
+            return false;
+        }
+
         ov::OutputVector inputs{
-            pattern_map.find(attention_mask)->second,
-            pattern_map.find(batch_size)->second,
-            pattern_map.find(cache_positions)->second,
-            pattern_map.find(kvLen)->second,
+            attention_mask_it->second,
+            batch_size_it->second,
+            cache_positions_it->second,
+            kvLen_it->second,
         };
         auto replacement = std::make_shared<ov::intel_cpu::CausalMaskPreprocessNode>(inputs, config);
         ov::replace_node(root, replacement);
