@@ -6,11 +6,11 @@
 
 #include <dnnl_extension_utils.h>
 #include <dnnl_types.h>
-#include <oneapi/dnnl/dnnl_threadpool.hpp>
 
 #include <common/primitive_hashing_utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <memory>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
 
@@ -22,9 +22,9 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/transpose_list.hpp"
 #include "openvino/core/parallel.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
-#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu::node {
 

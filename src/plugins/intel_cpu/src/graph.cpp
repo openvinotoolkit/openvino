@@ -5,6 +5,7 @@
 #include "graph.h"
 
 #include <algorithm>
+#include <common/dnnl_thread.hpp>
 #include <cstddef>
 #include <cstdlib>
 #include <iterator>
@@ -13,7 +14,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_threadpool.hpp>
-#include <common/dnnl_thread.hpp>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -48,13 +48,13 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/precision_support.h"
 #include "utils/verbose.h"
-#include "thread_pool_imp.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>

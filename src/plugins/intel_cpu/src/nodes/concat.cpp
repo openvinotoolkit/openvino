@@ -648,65 +648,65 @@ void Concat::execRef() {
         }
         const auto L1Size = dnnl::utils::get_cache_size(1, true);
         UNUSED(L1Size);  // for Windows
-        cpu_parallel->parallel_for6d(physDims[0],
-                       physDims[1],
-                       physDims[2],
-                       physDims[3],
-                       physDims[4],
-                       numSrc,
-                       [&](size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t a) {
-                           // check if zero memory
-                           if (srcPtrs[a] == nullptr) {
-                               return;
-                           }
+        cpu_parallel->parallel_for6d(
+            physDims[0],
+            physDims[1],
+            physDims[2],
+            physDims[3],
+            physDims[4],
+            numSrc,
+            [&](size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t a) {
+                // check if zero memory
+                if (srcPtrs[a] == nullptr) {
+                    return;
+                }
 
-                           size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2 +
-                                          inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
-                           size_t outOff = outputStrides[0] * n0 + outputStrides[1] * n1 + outputStrides[2] * n2 +
-                                           outputStrides[3] * n3 + outputStrides[4] * n4;
-                           const uint8_t* i = &srcPtrs[a][inOff];
-                           uint8_t* o = &dstPtr[dstOffset[a] + outOff];
+                size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2 +
+                               inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
+                size_t outOff = outputStrides[0] * n0 + outputStrides[1] * n1 + outputStrides[2] * n2 +
+                                outputStrides[3] * n3 + outputStrides[4] * n4;
+                const uint8_t* i = &srcPtrs[a][inOff];
+                uint8_t* o = &dstPtr[dstOffset[a] + outOff];
 
 #if defined(__GNUC__)
-                           // Heuristic:
-                           // memcpy works generally faster for data sizes not
-                           // exceeding L1 cache.
-                           if (nelemToCopy[a] > L1Size) {
-                               // The code below performs data copying: o[e] = i[e]
-                               // and uses a workaround to make GNU compilers optimize it
-                               uint8_t* ptro = o;
-                               const uint8_t* ptri = i;
-                               // head part: bytes before 4 byte-align's address
-                               const size_t headPart =
-                                   sizeof(uint32_t) - reinterpret_cast<uint64_t>(ptro) % sizeof(uint32_t);
+                // Heuristic:
+                // memcpy works generally faster for data sizes not
+                // exceeding L1 cache.
+                if (nelemToCopy[a] > L1Size) {
+                    // The code below performs data copying: o[e] = i[e]
+                    // and uses a workaround to make GNU compilers optimize it
+                    uint8_t* ptro = o;
+                    const uint8_t* ptri = i;
+                    // head part: bytes before 4 byte-align's address
+                    const size_t headPart = sizeof(uint32_t) - reinterpret_cast<uint64_t>(ptro) % sizeof(uint32_t);
 
-                               // main part: bytes in 4 byte-align
-                               const size_t mainPart = (nelemToCopy[a] - headPart) / sizeof(uint32_t);
-                               // tail part: bytes after 4 byte-align
-                               const size_t tailPart = (nelemToCopy[a]) - headPart - (mainPart * sizeof(uint32_t));
-                               // copy head part
-                               for (size_t e = 0; e < headPart; ++e) {
-                                   *ptro = *ptri;
-                                   ++ptro;
-                                   ++ptri;
-                               }
-                               // copy main part
-                               std::memcpy(ptro, ptri, mainPart * sizeof(uint32_t));
-                               ptro += mainPart * sizeof(uint32_t);
-                               ptri += mainPart * sizeof(uint32_t);
-                               // copy tail part
-                               for (size_t e = 0; e < tailPart; ++e) {
-                                   *ptro = *ptri;
-                                   ++ptro;
-                                   ++ptri;
-                               }
-                           } else {
-                               std::memcpy(o, i, nelemToCopy[a]);
-                           }
+                    // main part: bytes in 4 byte-align
+                    const size_t mainPart = (nelemToCopy[a] - headPart) / sizeof(uint32_t);
+                    // tail part: bytes after 4 byte-align
+                    const size_t tailPart = (nelemToCopy[a]) - headPart - (mainPart * sizeof(uint32_t));
+                    // copy head part
+                    for (size_t e = 0; e < headPart; ++e) {
+                        *ptro = *ptri;
+                        ++ptro;
+                        ++ptri;
+                    }
+                    // copy main part
+                    std::memcpy(ptro, ptri, mainPart * sizeof(uint32_t));
+                    ptro += mainPart * sizeof(uint32_t);
+                    ptri += mainPart * sizeof(uint32_t);
+                    // copy tail part
+                    for (size_t e = 0; e < tailPart; ++e) {
+                        *ptro = *ptri;
+                        ++ptro;
+                        ++ptri;
+                    }
+                } else {
+                    std::memcpy(o, i, nelemToCopy[a]);
+                }
 #else
-            std::memcpy(o, i, nelemToCopy[a]);
+                std::memcpy(o, i, nelemToCopy[a]);
 #endif
-                       });
+            });
     }
 }
 
