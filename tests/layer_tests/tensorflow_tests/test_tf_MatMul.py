@@ -8,7 +8,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestMatMul(CommonTFLayerTest):
 
-    def create_net_with_matmul_op(self, x_shape, y_shape, x_bool, y_bool, op_type, ir_version, use_legacy_frontend):
+    def create_net_with_matmul_op(self, x_shape, y_shape, x_bool, y_bool, op_type, ir_version):
         import tensorflow as tf
         op_type_to_tf = {
             'BatchMatMul': tf.raw_ops.BatchMatMul,
@@ -58,12 +58,10 @@ class TestMatMul(CommonTFLayerTest):
                                          ])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_matmul_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                                 use_legacy_frontend):
+    def test_matmul_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type):
         self._test(*self.create_net_with_matmul_op(**params, ir_version=ir_version, op_type=op_type,
-                                                  use_legacy_frontend=use_legacy_frontend, x_bool=False, y_bool=False),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                                                  x_bool=False, y_bool=False),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
     test_data = test_data_precommit + [
         dict(x_shape=[2, 3, 4, 4], y_shape=[2, 3, 4, 4]),   #Tests 4D shapes
@@ -85,8 +83,7 @@ class TestMatMul(CommonTFLayerTest):
         ])
     @pytest.mark.nightly
     def test_matmul_op_nightly(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                                x_bool, y_bool, use_legacy_frontend):
+                                x_bool, y_bool):
         self._test(*self.create_net_with_matmul_op(**params, ir_version=ir_version, op_type=op_type,
-                                                  use_legacy_frontend=use_legacy_frontend, x_bool=x_bool, y_bool=y_bool),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                                                  x_bool=x_bool, y_bool=y_bool),
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
