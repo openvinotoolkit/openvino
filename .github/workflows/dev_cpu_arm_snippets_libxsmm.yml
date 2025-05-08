@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       # todo: handle changes by arch - smartci ?
+      # ping PR
       - '.github/workflows/dev_cpu_arm_snippets_libxsmm.yml'
       - 'src/common/snippets/**'
       - 'src/plugins/intel_cpu/src/nodes/subgraph.cpp'
