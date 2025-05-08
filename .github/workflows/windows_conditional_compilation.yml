@@ -180,6 +180,7 @@ jobs:
             -DSELECTIVE_BUILD=COLLECT `
             -DENABLE_FASTER_BUILD=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
+            -DENABLE_PDB_IN_RELEASE=ON `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
