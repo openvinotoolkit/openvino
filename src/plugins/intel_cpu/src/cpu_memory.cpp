@@ -95,6 +95,7 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz, bool bf16sat
     setSubnormalsToZeroAndbf16Saturation(memData, dst.getSize() / sizeof(float), ftz, bf16saturation);
 }
 
+// NOLINTBEGIN(cppcoreguidelines-no-malloc)
 void* _malloc(size_t size, size_t alignment) {
     void* ptr;
 
@@ -115,6 +116,7 @@ void _free(void* ptr) {
     ::free(ptr);
 #endif
 }
+// NOLINTEND(cppcoreguidelines-no-malloc)
 
 }  // namespace
 
