@@ -525,9 +525,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     ov::AnyMap npu_plugin_properties = properties;
-    ov::SharedStreamBuffer buffer = {nullptr, 0};
-    std::istream stream{origStream.rdbuf()};
-    ov::Tensor tensor{ov::element::u8, ov::Shape{0}};
+    ov::Tensor tensor;
+    bool blobAllocatedByPlugin = false;
+
     // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
@@ -542,10 +542,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         } else {
             tensor = compiledBlob;
         }
-
-        buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
-        stream.rdbuf(&buffer);
         npu_plugin_properties.erase(blob_it);
+    } else {  // fallback creating plugin handled buffer for blob
+        size_t streamSize = MetadataBase::getFileSize(origStream);
+        tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
+        blobAllocatedByPlugin = true;
+        origStream.read(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+        if (!origStream) {
+            OPENVINO_THROW("Failed to read data from stream!");
+        }
+    }
+    ov::SharedStreamBuffer buffer =
+        ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+    std::istream stream{&buffer};
+
+    const bool skipCompatibility =
+        npu_plugin_properties.find(ov::intel_npu::disable_version_check.name()) != npu_plugin_properties.end()
+            ? npu_plugin_properties.at(ov::intel_npu::disable_version_check.name()).as<bool>()
+            : false;
+    if (!skipCompatibility) {
+        auto storedMeta = read_metadata_from(stream);
+        if (!storedMeta->is_compatible()) {
+            OPENVINO_THROW("Can't import network: Incompatible blob version!");
+        }
+        tensor = ov::Tensor(tensor,
+                            ov::Coordinate{0},
+                            ov::Coordinate{storedMeta->get_blob_size()});  // ROI tensor to skip NPU plugin metadata
     }
 
     // If was exported via NPUW
@@ -591,35 +613,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     std::shared_ptr<ov::ICompiledModel> compiledModel;
 
     try {
-        uint64_t graphSize;
-        bool blobAllocatedByPlugin = false;
-        const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
-        if (!skipCompatibility) {
-            auto storedMeta = read_metadata_from(stream);
-            if (!storedMeta->is_compatible()) {
-                OPENVINO_THROW("Incompatible blob version!");
-            }
-            graphSize = storedMeta->get_blob_size();
-        } else {
-            _logger.info("Blob compatibility check skipped.");
-            graphSize = MetadataBase::getFileSize(stream);
-        }
-
-        if (tensor.get_byte_size() == 0) {
-            auto blobPtr = std::make_shared<std::vector<uint8_t>>(graphSize);
-            blobAllocatedByPlugin = true;
-            stream.read(reinterpret_cast<char*>(blobPtr->data()), blobPtr->size());
-            if (!stream) {
-                OPENVINO_THROW("Failed to read data from stream!");
-            }
-            _logger.debug("Successfully read %zu bytes into blob.", blobPtr->size());
-
-            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobPtr->size()}, blobPtr->data());
-            auto impl = ov::get_tensor_impl(tensor);
-            impl._so = std::move(blobPtr);
-            tensor = ov::make_tensor(impl);
-        }
-
         auto graph = compiler->parse(std::move(tensor), blobAllocatedByPlugin, localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 

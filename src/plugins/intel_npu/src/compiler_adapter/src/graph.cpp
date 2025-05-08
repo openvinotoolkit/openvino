@@ -180,13 +180,8 @@ bool Graph::release_blob(const Config& config) {
         return false;
     }
 
-    // using move semantics on ov::Tensor and std::optional<ov::Tensor> objects, shared object of blob allocated by
-    // plugin is ensured to have only 1 use count till here
-    // use count increment will happen below
-    auto impl = ov::get_tensor_impl(*_blob);  // cannot move as const ref is expected, will explicitly reset impl below
     if (_blobAllocatedByPlugin) {
         _blob = std::nullopt;
-        impl = {};
         _logger.debug("Blob is released");
         return true;
     }
