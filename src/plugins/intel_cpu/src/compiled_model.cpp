@@ -180,7 +180,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
-                    auto cpuParallel = std::make_shared<CpuParallel>(Partitioner::STATIC, 32);
+                    auto cpuParallel = std::make_shared<CpuParallel>(m_cfg.tbbPartitioner, 32);
                     ctx = std::make_shared<GraphContext>(m_cfg,
                                                          m_socketWeights[socketId],
                                                          isQuantizedFlag,
@@ -277,6 +277,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::enable_cpu_pinning.name()),
             RO_property(ov::hint::enable_cpu_reservation.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
+            RO_property(ov::hint::tbb_partitioner.name()),
             RO_property(ov::hint::model_distribution_policy.name()),
             RO_property(ov::hint::enable_hyper_threading.name()),
             RO_property(ov::execution_devices.name()),
@@ -337,6 +338,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::hint::scheduling_core_type) {
         const auto stream_mode = config.schedulingCoreType;
         return stream_mode;
+    }
+    if (name == ov::hint::tbb_partitioner) {
+        const auto tbb_partitioner = config.tbbPartitioner;
+        return tbb_partitioner;
     }
     if (name == ov::hint::model_distribution_policy) {
         const auto& distribution_policy = config.modelDistributionPolicy;

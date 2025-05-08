@@ -91,6 +91,7 @@ struct Config {
     bool changedCpuPinning = false;
     bool enableCpuReservation = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    ov::hint::TbbPartitioner tbbPartitioner = ov::hint::TbbPartitioner::STATIC;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
     int streamsRankLevel = 1;
     int numSubStreams = 0;

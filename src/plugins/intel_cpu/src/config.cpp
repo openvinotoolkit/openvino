@@ -140,6 +140,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::scheduling_core_type.name(),
                                ". Expected only ov::hint::SchedulingCoreType::ANY_CORE/PCORE_ONLY/ECORE_ONLY");
             }
+        } else if (key == ov::hint::tbb_partitioner.name()) {
+            try {
+                tbbPartitioner = val.as<ov::hint::TbbPartitioner>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::tbb_partitioner.name(),
+                               ". Expected only ov::hint::TbbPartitioner::STATIC/AUTO");
+            }
         } else if (key == ov::hint::model_distribution_policy.name()) {
             auto error_info = [&]() {
                 OPENVINO_THROW("Wrong value ",

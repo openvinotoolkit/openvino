@@ -350,6 +350,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
     }
+    if (name == ov::hint::tbb_partitioner) {
+        const auto partitioner = engConfig.tbbPartitioner;
+        return partitioner;
+    }
     if (name == ov::hint::model_distribution_policy) {
         const auto& distribution_policy = engConfig.modelDistributionPolicy;
         return distribution_policy;
@@ -440,6 +444,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RW_property(ov::hint::enable_cpu_pinning.name()),
             RW_property(ov::hint::enable_cpu_reservation.name()),
             RW_property(ov::hint::scheduling_core_type.name()),
+            RW_property(ov::hint::tbb_partitioner.name()),
             RW_property(ov::hint::model_distribution_policy.name()),
             RW_property(ov::hint::enable_hyper_threading.name()),
             RW_property(ov::device::id.name()),
