@@ -5,7 +5,6 @@
 #pragma once
 
 #include <algorithm>
-#include <iostream>
 #include <unordered_set>
 #include <vector>
 
@@ -73,4 +72,5 @@ void sparse_fill_empty_rows(const T* values,
         }
     }
 }
+
 }  // namespace ov::reference

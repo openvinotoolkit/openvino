@@ -10,9 +10,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "gtest/gtest.h"
 
-namespace ov {
-namespace test {
-namespace SparseFillEmptyRows {
+namespace ov::test::SparseFillEmptyRows {
 
 using SparseFillEmptyRowsSpecificParams = std::tuple<
         InputShape,                   // values shape
@@ -46,8 +44,4 @@ extern const std::vector<SparseFillEmptyRowsSpecificParams> SparseFillEmptyRowsP
 extern const std::vector<ov::test::utils::InputLayerType> secondaryInputTypes;
 extern const std::vector<ElementType> indicesPrecisions;
 
-}  // namespace SparseFillEmptyRows
-}  // namespace test
-}  // namespace ov
-
-
+}  // namespace ov::test::SparseFillEmptyRows
