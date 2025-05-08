@@ -604,19 +604,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     ov::npuw::s11n::IndicatorType serialization_indicator;
     ov::npuw::s11n::read(stream, serialization_indicator);
     if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        ov::npuw::s11n::IndicatorType compiled_model_indicator;
-        ov::npuw::s11n::read(stream, compiled_model_indicator);
         stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
-
-        if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
-        } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-            // Properties are required for ov::weights_path
-            return ov::npuw::CompiledModel::import_model(stream, shared_from_this(), properties);
-        } else {
-            OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
-        }
+        // Properties are required for ov::weights_path
+        return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
     }
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
@@ -655,7 +645,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
         size_t blobSize = MetadataBase::getFileSize(stream);
         if (!skipCompatibility) {
-            auto storedMeta = read_metadata_from(stream);
+            auto storedMeta = read_metadata_from(tensor);
             if (!storedMeta->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
