@@ -1839,7 +1839,7 @@ void primitive_inst::prepare_primitive() {
     const auto& primitive_id = id();
     if (!_has_valid_input) {
         // For unfused network with dynamic_quantization, we may have empty/unused input
-        GPU_DEBUG_TRACE_DETAIL << primitive_id << " does not have proper input. do nothing" << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << primitive_id << " does not have valid input. do nothing" << std::endl;
         return;
     }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
@@ -2595,7 +2595,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             if (dep_idx < prim_of_fused_node->dependencies().size())
                 prim_of_fused_node->get_dependency(dep_idx) = {port_dep_id, 0};
 
-            GPU_DEBUG_TRACE_DETAIL << "  add primitive: " << port_dep_id << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "  add primitive for outer_dep: " << port_dep_id << "\n";
 
             if (dep.first->is_type<data>()) {
                 auto& data_node = dep.first->as<data>();
@@ -2620,7 +2620,6 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         t.add_primitive(prim_of_fused_node);
         outer_dep_ids.push_back(get_node().id());
 
-
         GPU_DEBUG_TRACE_DETAIL << "  Add fused primitives of " << get_node().id() << "\n";
         // Add primitives for fused-ops
         for (auto& fd : _impl_params->fused_desc) {
@@ -2642,7 +2641,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 // which doesn't exist anymore in the graph
                 // Thus we update dependency name used dependencies idx stored in fused descriptor.
                 GPU_DEBUG_TRACE_DETAIL << "    input of prim " << prim->id << "  - idx" << i << "  " << in << "\n";
-                if (has_primitive_id(outer_dep_ids.begin(), outer_dep_ids.end(), in.pid)) {
+                if (!has_primitive_id(outer_dep_ids.begin(), outer_dep_ids.end(), in.pid)) {
                     if (fd.has_outer_dep()) {
                         size_t dep_id = fd.outer_dep_start_idx;
                         auto outer_dep_id = get_node().get_dependency(dep_id).id();
@@ -2667,7 +2666,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         // Samely, need to update dependency of the current fused nodes' input primitive ids with those in the current program
         for (size_t i = 0; i < prim_of_fused_node->input.size(); ++i) {
             auto& in = prim_of_fused_node->input[i];
-            if (has_primitive_id(outer_dep_ids.begin(), outer_dep_ids.end(), in.pid)) {
+            if (!has_primitive_id(outer_dep_ids.begin(), outer_dep_ids.end(), in.pid)) {
                 GPU_DEBUG_TRACE_DETAIL << "    update prim_of_fused_node " << in << " -> " << get_node().get_dependency(i).id() << "\n";
                 in = tag_port_number(get_node().get_dependency(i).id(), get_node().get_dependency_with_port(i).second);  // XXX: let's make a lambda function for this
             }
