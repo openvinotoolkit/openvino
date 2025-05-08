@@ -169,17 +169,13 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
 
     std::vector<std::shared_ptr<ov::Node>> zero_vectors;
     for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
-        zero_vectors.push_back(std::make_shared<ov::op::v0::Constant>(
-            ov::element::f32,
-            ov::Shape{input_shapes[0].to_shape()[0]},
-            std::vector<float>{0.0f + mm_count}));
+        zero_vectors.push_back(
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.0f + mm_count}));
     }
     std::vector<std::shared_ptr<ov::Node>> hidden_vectors;
     for (size_t mm_count = 0; mm_count < num_hidden_layers; ++mm_count) {
-        hidden_vectors.push_back(std::make_shared<ov::op::v0::Constant>(
-            ov::element::f32,
-            ov::Shape{input_shapes[0].to_shape()[0]},
-            std::vector<float>{0.1122f + mm_count}));
+        hidden_vectors.push_back(
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, b_shape, std::vector<float>{0.1122f + mm_count}));
     }
 
     // Create subgraph parameters (must be preserved even if similar constants exist).
@@ -190,13 +186,11 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
     for (size_t i = 0; i < num_hidden_layers; ++i) {
         sub_zeros64_vec.push_back(std::make_shared<ov::op::v0::Parameter>(
             ov::element::f32,
-            ov::Shape{input_shapes[0].to_shape()[0]}));
+            b_shape));
     }
     std::vector<std::shared_ptr<ov::op::v0::Parameter>> sub_hidden_vec;
     for (size_t i = 0; i < num_hidden_layers; ++i) {
-        sub_hidden_vec.push_back(std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f32,
-            ov::Shape{input_shapes[0].to_shape()[0]}));
+        sub_hidden_vec.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, b_shape));
     }
     auto sub_trans_zeros1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shapes[0]);
 
@@ -255,7 +249,6 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
             ov::op::TemporaryReplaceOutputType(current, ov::element::f32).get(),
             ov::op::TemporaryReplaceOutputType(sub_zeros2, ov::element::f32).get());
         for (size_t i = 0; i < num_hidden_layers; ++i) {
-            auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{b_shape}, std::vector<float>{0.1122f + i});
             current = std::make_shared<op::TypeRelaxed<ov::op::v1::Add>>(
                 std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
                 std::vector<ov::element::Type>{ov::element::f32},
