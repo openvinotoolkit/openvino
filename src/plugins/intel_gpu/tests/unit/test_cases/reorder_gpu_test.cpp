@@ -2920,7 +2920,7 @@ public:
     memory::ptr generate_reference_typed(const std::vector<cldnn::memory::ptr>& inputs)
     {
         auto reorder = std::static_pointer_cast<cldnn::reorder>(layer_params);
-        primitive_id mean = reorder->mean;
+        primitive_id mean = reorder->mean.pid;
         std::vector<float> subtract_per_feature = reorder->subtract_per_feature;
         assert(mean == "");
         assert(subtract_per_feature.size() == 0);

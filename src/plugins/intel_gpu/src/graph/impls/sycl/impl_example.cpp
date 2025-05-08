@@ -155,10 +155,10 @@ struct fully_connected_sycl_example : typed_primitive_sycl_impl<fully_connected>
 
         std::vector<memory::ptr> inputs = { instance.input_memory_ptr(0) };
         size_t in_id = instance.bias_term() ? 3 : 2;
-        if (!desc->decompression_scale.empty())
+        if (desc->decompression_scale.is_valid())
             inputs.push_back(instance.dep_memory_ptr(in_id++));
 
-        if (!desc->decompression_zero_point.empty())
+        if (desc->decompression_zero_point.is_valid())
             inputs.push_back(instance.dep_memory_ptr(in_id));
 
         OPENVINO_ASSERT(!instance.bias_term() && !instance.get_node().has_fused_primitives());

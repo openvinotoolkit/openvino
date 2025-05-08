@@ -3769,7 +3769,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         if (is_wzp_test) {
             fc_prim.compressed_weights = true;
-            fc_prim.decompression_zero_point = is_wzp_test ? "wzp" : "";
+            fc_prim.decompression_zero_point = is_wzp_test ? input_info("wzp") : input_info();
         }
 
         // Implemented dynamic quantize kernel
@@ -3895,7 +3895,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         if (is_wzp_test) {
             fc_prim.compressed_weights = true;
-            fc_prim.decompression_zero_point = is_wzp_test ? "wzp" : "";
+            fc_prim.decompression_zero_point = is_wzp_test ? input_info("wzp") : input_info();
         }
 
         // Implemented dynamic quantize kernel

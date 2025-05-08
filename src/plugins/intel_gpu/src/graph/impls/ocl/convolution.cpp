@@ -146,16 +146,16 @@ public:
         if ((impl_param.input_layouts[0].data_type == data_types::u8 ||
              impl_param.input_layouts[0].data_type == data_types::i8 ||
              (impl_param.input_layouts[0].data_type == data_types::f32 &&
-              (!primitive->weights_zero_points.empty() ||
-               !primitive->activations_zero_points.empty() ||
-               !primitive->compensation.empty())))
+              (primitive->weights_zero_points.is_valid() ||
+               primitive->activations_zero_points.is_valid() ||
+               primitive->compensation.is_valid())))
             && (impl_param.input_layouts[1].data_type == data_types::i8 ||
                 impl_param.input_layouts[1].data_type == data_types::u8)) {
-            if (!primitive->weights_zero_points.empty() && !primitive->activations_zero_points.empty()) {
+            if (primitive->weights_zero_points.is_valid() && primitive->activations_zero_points.is_valid()) {
                 conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS;
-            } else if (!primitive->weights_zero_points.empty()) {
+            } else if (primitive->weights_zero_points.is_valid()) {
                 conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_WEIGHTS;
-            } else if (!primitive->activations_zero_points.empty()) {
+            } else if (primitive->activations_zero_points.is_valid()) {
                 conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_DATA;
             } else {
                 conv_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
