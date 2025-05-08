@@ -307,6 +307,14 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
         // update enable flag
         cfg.enable(key, isEnabled);
     });
+
+    // Special case for NPU_TURBO which might not be supported by compiler, but driver will still use it
+    // if it exists in config = driver supports it
+    // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
+    // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
+    if (cfg.hasOpt(ov::intel_npu::turbo.name())) {
+        cfg.enable(ov::intel_npu::turbo.name(), true);
+    }
 }
 
 FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string>& rawConfig,

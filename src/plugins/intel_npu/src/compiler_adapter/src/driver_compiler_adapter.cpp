@@ -485,6 +485,28 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
     }
 
+    // Special case for compiler Turbo
+    // NPU_TURBO is a special option in the sense that by default it is a driver-setting, but certain compilers support
+    // and make use of it too If we have turbo in the config string, we check if compiler supports it. If it doesn't
+    // support it, we remove it
+    if (std::regex_search(content, std::regex("NPU_TURBO"))) {
+        bool is_supported = false;
+        try {
+            is_supported = is_option_supported("NPU_TURBO");
+        } catch (...) {
+            // mute it, not critical
+            is_supported = false;
+        }
+        if (!is_supported) {
+            std::ostringstream turbostr;
+            turbostr << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                     << VALUE_DELIMITER;
+            logger.warning("NPU_TURBO property is not supported by this compiler. Removing from "
+                           "parameters");
+            content = std::regex_replace(content, std::regex(turbostr.str()), "");
+        }
+    }
+
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
     if (compilerVersion.major < 5) {
