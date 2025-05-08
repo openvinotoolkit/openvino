@@ -18,8 +18,13 @@ void gather(const T* const data,
             const Shape& data_shape,
             const Shape& indices_shape,
             const Shape& out_shape,
-            size_t axis,
+            int64_t generic_axis,
             size_t batch_dims = 0) {
+    // calculate real axis value
+    while (generic_axis < 0) {
+        generic_axis += data_shape.size();
+    }
+    auto axis = static_cast<size_t>(generic_axis);
     // flattened shapes
     int64_t batch_size = shape_size(span(data_shape).subspan(0, batch_dims));
     int64_t outer_size = shape_size(span(data_shape).subspan(batch_dims, axis - batch_dims));
