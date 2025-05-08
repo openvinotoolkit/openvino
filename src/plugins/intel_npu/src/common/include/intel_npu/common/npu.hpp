@@ -11,8 +11,6 @@
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "openvino/runtime/intel_npu/remote_properties.hpp"
-#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace intel_npu {
@@ -36,8 +34,6 @@ public:
     virtual uint32_t getGraphExtVersion() const;
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
-    /** @brief Backend has support for concurrency batching */
-    virtual bool isBatchingSupported() const = 0;
     /** @brief Backend has support for workload type */
     virtual bool isCommandQueueExtSupported() const = 0;
     /** @brief Backend has support for LUID info */
@@ -95,6 +91,7 @@ public:
 
     virtual void updateInfo(const Config& config) = 0;
 
+<<<<<<< HEAD
     virtual ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(
         std::shared_ptr<ov::IRemoteContext> context,
         const ov::element::Type& element_type,
@@ -111,6 +108,8 @@ public:
         const Config& config,
         ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED);
 
+=======
+>>>>>>> upstream/master
 protected:
     virtual ~IDevice() = default;
 };

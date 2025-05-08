@@ -12,13 +12,15 @@
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+<<<<<<< HEAD
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "zero_host_tensor.hpp"
+=======
+>>>>>>> upstream/master
 #include "zero_infer_request.hpp"
-#include "zero_remote_tensor.hpp"
 
 using namespace intel_npu;
 
@@ -408,6 +410,7 @@ std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const Config& config) {
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
 }
+<<<<<<< HEAD
 
 ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
                                                             const ov::element::Type& element_type,
@@ -558,3 +561,5 @@ ZeroDevice::OutputData ZeroDevice::allocateOutputs(const std::shared_ptr<IGraph>
 
     return {outputTensors, initOutputsTensor, outputTensorsMap};
 }
+=======
+>>>>>>> upstream/master

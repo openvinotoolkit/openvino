@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -14,10 +15,13 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+<<<<<<< HEAD
 #include "openvino/core/model.hpp"
+=======
+#include "openvino/runtime/make_tensor.hpp"
+>>>>>>> upstream/master
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#include "plugin_graph.hpp"
 
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {
@@ -81,13 +85,27 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
     _logger.debug("compile start");
     auto networkDesc = _compiler->compile(model, config);
-    auto blobPtr = std::make_unique<BlobContainerVector>(std::move(networkDesc.compiledNetwork));
     _logger.debug("compile end");
+
+    auto tensor =
+        ov::Tensor(ov::element::u8, ov::Shape{networkDesc.compiledNetwork.size()}, networkDesc.compiledNetwork.data());
+    auto impl = ov::get_tensor_impl(tensor);
+    std::shared_ptr<std::vector<uint8_t>> sharedCompiledNetwork =
+        std::make_shared<std::vector<uint8_t>>(std::move(networkDesc.compiledNetwork));
+    impl._so = std::move(sharedCompiledNetwork);
+    tensor = ov::make_tensor(impl);
+
+    auto modelBuffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(tensor.data()),
+                                                                      tensor.get_byte_size(),
+                                                                      tensor);
+
+    auto blobPtr = std::make_unique<BlobContainerAlignedBuffer>(modelBuffer, 0, tensor.get_byte_size());
 
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
-        // Depending on the config, we may get an error when trying to get the graph handle from the compiled network
+        // Depending on the config, we may get an error when trying to get the graph handle from the compiled
+        // network
         try {
             graphHandle =
                 _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
@@ -97,13 +115,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         }
     }
 
-    return std::make_shared<PluginGraph>(_zeGraphExt,
-                                         _compiler,
-                                         _zeroInitStruct,
-                                         graphHandle,
-                                         std::move(networkDesc.metadata),
-                                         std::move(blobPtr),
-                                         config);
+    return std::make_shared<Graph>(_zeGraphExt,
+                                   _zeroInitStruct,
+                                   graphHandle,
+                                   std::move(networkDesc.metadata),
+                                   std::move(blobPtr),
+                                   config,
+                                   _compiler);
 }
 
 std::vector<std::shared_ptr<IGraph>> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
@@ -283,13 +301,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(std::unique_ptr<BlobContain
             _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blobPtr->get_ptr()), blobPtr->size());
     }
 
-    return std::make_shared<PluginGraph>(_zeGraphExt,
-                                         _compiler,
-                                         _zeroInitStruct,
-                                         graphHandle,
-                                         std::move(networkMeta),
-                                         std::move(blobPtr),
-                                         config);
+    return std::make_shared<Graph>(_zeGraphExt,
+                                   _zeroInitStruct,
+                                   graphHandle,
+                                   std::move(networkMeta),
+                                   std::move(blobPtr),
+                                   config,
+                                   _compiler);
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

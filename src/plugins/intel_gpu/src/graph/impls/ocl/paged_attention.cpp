@@ -640,7 +640,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         kernel_selector::sdpa_configuration config;
 
         const auto desc = impl_param.typed_desc<paged_attention>();
-        config.head_size = desc->head_size;
+        config.k_head_size = desc->k_head_size;
+        config.v_head_size = desc->v_head_size;
         config.heads_num = desc->heads_num;
         config.kv_heads_num = desc->kv_heads_num;
         config.has_alibi_input = desc->has_alibi;
@@ -852,6 +853,8 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             out_tensor_to_offset_map.insert({1, out_offsets_map.at(1)});
 
         params.set_dynamic_shape_offsets(in_tensor_to_offset_map, out_tensor_to_offset_map);
+
+        params.could_use_flashattn_v2 = impl_param.get_program().get_config().get_could_use_flashattn_v2();
 
         return params;
     }

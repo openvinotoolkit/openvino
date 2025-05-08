@@ -178,7 +178,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     ov::ParameterVector parameters;
-    ov::NodeVector results;
+    ov::ResultVector results;
 
     for (const IODescriptor& inputDescriptor : _graph->get_metadata().inputs) {
         if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
@@ -212,10 +212,9 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
                                                      outputDescriptor.shapeFromCompiler,
                                                      outputDescriptor.outputTensorNames);
 
-        std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v0::Result>(constantDummy);
+        auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-        results.push_back(std::move(result));
     }
 
     _logger.warning("Returning a dummy ov::Model object that contains only the given parameter and result nodes");

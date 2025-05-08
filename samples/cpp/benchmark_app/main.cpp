@@ -302,7 +302,7 @@ void handle_performance_hint(const std::string& device, const ov::Core& core, ov
             config.erase(ov::hint::performance_mode.name());
         }
     } else {
-        if (FLAGS_hint != "none" || FLAGS_hint != "") {
+        if (FLAGS_hint != "none" && FLAGS_hint != "") {
             slog::warn << "Device(" << device << ") does not support performance hint property(-hint)." << slog::endl;
         }
     }

@@ -4,7 +4,7 @@
 
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "gmock/gmock.h"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "utils.hpp"
 
 using namespace ov;

@@ -79,6 +79,7 @@ std::map<ov::element::Type, float> IDevice::getGops() const {
     OPENVINO_THROW("Get DEVICE_GOPS is not supported");
 }
 
+<<<<<<< HEAD
 ov::SoPtr<ov::IRemoteTensor> IDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext>,
                                                          const ov::element::Type&,
                                                          const ov::Shape&,
@@ -105,4 +106,6 @@ IDevice::runInitMultiThreaded(const std::vector<std::shared_ptr<IGraph>>& initGr
     OPENVINO_THROW("runInitMultiThreaded is not supported");
 }
 
+=======
+>>>>>>> upstream/master
 }  // namespace intel_npu

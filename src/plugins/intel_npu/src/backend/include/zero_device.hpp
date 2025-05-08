@@ -57,6 +57,7 @@ public:
         log.setLevel(config.get<LOG_LEVEL>());
     }
 
+<<<<<<< HEAD
     ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(
         std::shared_ptr<ov::IRemoteContext> context,
         const ov::element::Type& element_type,
@@ -73,6 +74,8 @@ public:
         const Config& config,
         ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED) override;
 
+=======
+>>>>>>> upstream/master
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;
 

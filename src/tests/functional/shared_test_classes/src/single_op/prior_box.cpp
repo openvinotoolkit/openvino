@@ -10,6 +10,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/op/prior_box.hpp"
 
 namespace ov {
 namespace test {

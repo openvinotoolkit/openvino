@@ -23,9 +23,9 @@
 #include "fake_quantize.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset11.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset11_decl.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/static_shape.hpp"
 #include "utils/bfloat16.hpp"
@@ -2069,8 +2069,8 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             if (isAxesSpecified) {
                 axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))
                            ->cast_vector<int>();
-                if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2 && mayiuse(cpu::x64::sse41)) {
-                    NCHWAsNHWC = true;
+                if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2) {
+                    interpAttrs.NCHWAsNHWC = true;
                     axes[0] = 2;
                     axes[1] = 3;
                 }
@@ -2111,7 +2111,7 @@ void Interpolate::getSupportedDescriptors() {
     }
     // correct pad
     if (hasPad) {
-        NCHWAsNHWC = false;
+        interpAttrs.NCHWAsNHWC = false;
         auto correctPad = [&](std::vector<int> pad, int rank) {
             int padLen = pad.size();
             if (padLen == rank) {
@@ -2264,19 +2264,19 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
         if (dataRank == 4) {
             if (mayiuse(cpu::x64::avx512_core)) {
-                if (NCHWAsNHWC) {
+                if (interpAttrs.NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_avx512, true);
                 } else {
                     pushDesc(LayoutType::nspc, jit_avx512, true);
                 }
             } else if (mayiuse(cpu::x64::avx2)) {
-                if (NCHWAsNHWC) {
+                if (interpAttrs.NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_avx2, true);
                 } else {
                     pushDesc(LayoutType::nspc, jit_avx2, true);
                 }
             } else if (mayiuse(cpu::x64::sse41)) {
-                if (NCHWAsNHWC) {
+                if (interpAttrs.NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_sse42, true);
                 } else {
                     pushDesc(LayoutType::nspc, jit_sse42, true);
@@ -2441,7 +2441,7 @@ void Interpolate::prepareParams() {
     VectorDims dstDims = dstDimsOrign;
 
     // layoutAlignment
-    if (NCHWAsNHWC && srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
+    if (interpAttrs.NCHWAsNHWC && srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         auto logicalShapeAlign = [](VectorDims& Dims) {
             size_t C = Dims[3];
             Dims[3] = Dims[2];
@@ -2463,7 +2463,8 @@ void Interpolate::prepareParams() {
 
     std::vector<float> dataScales =
         getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
-    if (!NCHWAsNHWC && (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
+    if (!interpAttrs.NCHWAsNHWC &&
+        (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f))) {
         THROW_CPU_NODE_ERR("only supports resize on spatial dimensions(depth, height and width)");
     }
 
@@ -2503,7 +2504,7 @@ void Interpolate::prepareParams() {
         bool isNearestLinearOrCubicSupported = isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32);
         bool isPillowModeSupported = isPillowMode && isByChannelLayout;
 
-        if (isNearestLinearOrCubicSupported || isPillowModeSupported) {
+        if ((isNearestLinearOrCubicSupported || isPillowModeSupported) && mayiuse(cpu::x64::sse41)) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,
@@ -3960,7 +3961,7 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
                         }
                     }
 
-                    if (!wsum) {
+                    if (wsum == 0.0f) {
                         setValue(out_ptr_ncdh, ox * dstDataSize, 0.f, outputPrec);
                     } else {
                         float dst_value = sum / wsum;
@@ -4077,6 +4078,110 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
 
     parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
         for_2d(ithr, nthr, B, C, bc_loop);
+    });
+}
+
+void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
+                                                              uint8_t* out_ptr_,
+                                                              int B,
+                                                              int C,
+                                                              int IH,
+                                                              int IW,
+                                                              int OH,
+                                                              int OW) {
+    size_t offset = 0;
+    int filterLenX = auxTable[offset];
+    int filterLenY = auxTable[offset + 1];
+    offset += 2;
+    auto* weightX = reinterpret_cast<float*>(&auxTable[offset]);
+    offset += filterLenX * OW;
+    auto* weightY = reinterpret_cast<float*>(&auxTable[offset]);
+    offset += filterLenY * OH;
+    auto* indexX = static_cast<int*>(&auxTable[offset]);
+    offset += 2 * OW;
+    auto* indexY = static_cast<int*>(&auxTable[offset]);
+
+    bool xPass = IW != OW;
+    bool yPass = IH != OH;
+
+    auto b_loop = [&](size_t b) {
+        const uint8_t* in_ptr_b = in_ptr_ + b * IH * IW * C * srcDataSize;
+        uint8_t* out_ptr_b = out_ptr_ + b * OH * OW * C * dstDataSize;
+
+        uint8_t* xpass_out_ptr_b = nullptr;
+        const uint8_t* ypass_in_ptr_b = nullptr;
+
+        if (xPass && yPass) {
+            size_t parallel_num = B;
+            size_t buffer_size = static_cast<size_t>(IH) * OW * C;
+            if (parallel_num < m_threads_num) {
+                xpass_out_ptr_b = static_cast<uint8_t*>(&pillow_working_buf[b * buffer_size * srcDataSize]);
+            } else {
+                size_t threadsIdx = parallel_get_thread_num();
+                xpass_out_ptr_b = static_cast<uint8_t*>(&pillow_working_buf[threadsIdx * buffer_size * srcDataSize]);
+            }
+            ypass_in_ptr_b = static_cast<const uint8_t*>(xpass_out_ptr_b);
+        } else if (xPass && !yPass) {
+            xpass_out_ptr_b = out_ptr_b;
+        } else if (!xPass && yPass) {
+            ypass_in_ptr_b = in_ptr_b;
+        } else if (!xPass && !yPass) {
+            cpu_memcpy(out_ptr_b, in_ptr_b, OH * OW * C * dstDataSize);
+        }
+
+        float result;
+        int f, filterS, filterL;
+        float* weight;
+
+        if (xPass) {
+            for (size_t ih = 0; ih < static_cast<size_t>(IH); ih++) {
+                for (size_t ow = 0; ow < static_cast<size_t>(OW); ow++) {
+                    filterS = indexX[ow * 2];
+                    filterL = indexX[ow * 2 + 1];
+                    weight = reinterpret_cast<float*>(&weightX[ow * filterLenX]);
+                    for (size_t c = 0; c < static_cast<size_t>(C); c++) {
+                        result = 0.f;
+                        for (f = 0; f < filterL; f++) {
+                            float pixel =
+                                getValue(in_ptr_b, ((ih * IW + (f + filterS)) * C + c) * srcDataSize, inputPrec);
+                            result += pixel * weight[f];
+                        }
+                        if (!isFloatCompatible(outputPrec)) {
+                            result =
+                                static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5f : result - 0.5f));
+                        }
+                        setValue(xpass_out_ptr_b, ((ih * OW + ow) * C + c) * dstDataSize, result, outputPrec);
+                    }
+                }
+            }
+        }
+
+        if (yPass) {
+            for (size_t oh = 0; oh < static_cast<size_t>(OH); oh++) {
+                filterS = indexY[oh * 2];
+                filterL = indexY[oh * 2 + 1];
+                weight = reinterpret_cast<float*>(&weightY[oh * filterLenY]);
+                for (size_t ow = 0; ow < static_cast<size_t>(OW); ow++) {
+                    for (size_t c = 0; c < static_cast<size_t>(C); c++) {
+                        result = 0.f;
+                        for (f = 0; f < filterL; f++) {
+                            float pixel =
+                                getValue(ypass_in_ptr_b, (((f + filterS) * OW + ow) * C + c) * srcDataSize, inputPrec);
+                            result += pixel * weight[f];
+                        }
+                        if (!isFloatCompatible(outputPrec)) {
+                            result =
+                                static_cast<float>(static_cast<int>(result >= 0.0 ? result + 0.5f : result - 0.5f));
+                        }
+                        setValue(out_ptr_b, ((oh * OW + ow) * C + c) * dstDataSize, result, outputPrec);
+                    }
+                }
+            }
+        }
+    };
+
+    parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+        for_1d(ithr, nthr, B, b_loop);
     });
 }
 
@@ -4290,7 +4395,11 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
     }
     case InterpolateMode::bilinear_pillow:
     case InterpolateMode::bicubic_pillow: {
-        pillowRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+        if (refInterpAttrs.NCHWAsNHWC) {
+            pillowRefNCHWAsNHWC(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+        } else {
+            pillowRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+        }
         break;
     }
     default: {

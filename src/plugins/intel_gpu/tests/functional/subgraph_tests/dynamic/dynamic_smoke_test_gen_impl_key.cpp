@@ -11,6 +11,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/concat.hpp"
 
 namespace {
 using ov::test::InputShape;
