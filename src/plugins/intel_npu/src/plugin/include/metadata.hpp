@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "openvino/core/version.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
 
@@ -19,9 +20,9 @@ public:
     MetadataBase(uint32_t version, uint64_t blobDataSize);
 
     /**
-     * @brief Reads metadata from a stream.
+     * @brief Reads metadata from a ov::Tensor.
      */
-    virtual void read(std::istream& stream) = 0;
+    virtual void read(const ov::Tensor& tensor) = 0;
 
     /**
      * @brief Writes metadata to a stream.
@@ -124,9 +125,9 @@ public:
     ~OpenvinoVersion() = default;
 
     /**
-     * @brief Reads version data from a stream.
+     * @brief Reads version data from a ov::Tensor.
      */
-    void read(std::istream& stream);
+    void read(const ov::Tensor& tensor);
 
     /**
      * @brief Writes version data to a stream.
@@ -165,7 +166,7 @@ class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
     Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion = std::nullopt);
 
-    void read(std::istream& stream) override;
+    void read(const ov::Tensor& tensor) override;
 
     /**
      * @attention It's a must to first write metadata version in any metadata specialization.
@@ -238,6 +239,6 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
  */
-std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
+std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
 
 }  // namespace intel_npu
