@@ -1,9 +1,9 @@
 // Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <optional>
 
-#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include "acl_fullyconnected.hpp"
 #include "acl_utils.hpp"
 #include "common/primitive_desc_iface.hpp"
@@ -15,9 +15,9 @@
 #include "nodes/convert.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
-#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {
 
