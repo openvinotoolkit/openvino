@@ -16,7 +16,8 @@ SparseFillEmptyRows::SparseFillEmptyRows(const std::shared_ptr<ov::Node>& op, co
     }
 }
 
-bool SparseFillEmptyRows::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool SparseFillEmptyRows::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                               std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type<ov::op::v16::SparseFillEmptyRows>(op)) {
             errorMessage = "Only opset16 SparseFillEmptyRows operation is supported";
@@ -38,13 +39,13 @@ void SparseFillEmptyRows::initSupportedPrimitiveDescriptors() {
     }
     ov::element::Type valuesPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(2);
-    addSupportedPrimDesc({{LayoutType::ncsp, valuesPrecision},          // values
-                          {LayoutType::ncsp, indicesPrecision},         // dense_shape
-                          {LayoutType::ncsp, indicesPrecision},         // indices
-                          {LayoutType::ncsp, valuesPrecision}},         // default_value
-                         {{LayoutType::ncsp, indicesPrecision},         // output_indices
-                          {LayoutType::ncsp, valuesPrecision},          // output_values
-                          {LayoutType::ncsp, ov::element::boolean}},    // empty_row_indicator
+    addSupportedPrimDesc({{LayoutType::ncsp, valuesPrecision},        // values
+                          {LayoutType::ncsp, indicesPrecision},       // dense_shape
+                          {LayoutType::ncsp, indicesPrecision},       // indices
+                          {LayoutType::ncsp, valuesPrecision}},       // default_value
+                         {{LayoutType::ncsp, indicesPrecision},       // output_indices
+                          {LayoutType::ncsp, valuesPrecision},        // output_values
+                          {LayoutType::ncsp, ov::element::boolean}},  // empty_row_indicator
                          impl_desc_type::ref);
 }
 
@@ -56,46 +57,49 @@ bool SparseFillEmptyRows::needPrepareParams() const {
     return false;
 }
 
+bool SparseFillEmptyRows::isExecutable() const {
+    return !isInputTensorAtPortEmpty(1) && !isInputTensorAtPortEmpty(3);
+}
+
 void SparseFillEmptyRows::executeDynamicImpl(const dnnl::stream& strm) {
-    std::cout<<"\n\n\nEXECUTING DYNAMIC SPARSE_FILL_EMPTY_ROWS\n\n\n"<<std::endl;
     const auto& valuesMemory = getSrcMemoryAtPort(0);
     const auto& denseShapeMemory = getSrcMemoryAtPort(1);
     const auto& indicesMemory = getSrcMemoryAtPort(2);
     const auto& valuesShape = valuesMemory->getShape();
     const auto& indicesShape = indicesMemory->getShape();
-    
+
     const auto indicesPrecision = getParentEdgeAt(2)->getMemory().getDesc().getPrecision();
     int64_t numRows = 0;
-    
+
     if (indicesPrecision == ov::element::i32) {
         const auto* denseShapePtr = getSrcDataAtPortAs<const int32_t>(1);
         numRows = static_cast<int64_t>(denseShapePtr[0]);
-    } else { // i64
+    } else {
         const auto* denseShapePtr = getSrcDataAtPortAs<const int64_t>(1);
         numRows = denseShapePtr[0];
     }
-    
+
     std::unordered_set<int64_t> existingRows;
-    size_t indicesCount = indicesShape.getElementsCount() / 2; // Divide by 2 because indices is [M,2]
-    
+    size_t indicesCount = indicesShape.getElementsCount() / 2;  // Divide by 2 because indices is [M, 2]
+
     if (indicesPrecision == ov::element::i32) {
         const auto* indicesPtr = getSrcDataAtPortAs<const int32_t>(2);
         for (size_t i = 0; i < indicesCount; i++) {
             existingRows.insert(static_cast<int64_t>(indicesPtr[i * 2]));
         }
-    } else { // i64
+    } else {
         const auto* indicesPtr = getSrcDataAtPortAs<const int64_t>(2);
         for (size_t i = 0; i < indicesCount; i++) {
             existingRows.insert(indicesPtr[i * 2]);
         }
     }
-    
+
     size_t emptyRowsCount = numRows - existingRows.size();
     size_t valuesCount = valuesShape.getElementsCount();
     ov::Shape outputIndicesShape{valuesCount + emptyRowsCount, 2};
     ov::Shape outputValuesShape{valuesCount + emptyRowsCount};
     ov::Shape emptyRowIndicatorShape{static_cast<size_t>(numRows)};
-    
+
     redefineOutputMemory({outputIndicesShape, outputValuesShape, emptyRowIndicatorShape});
     execute(strm);
 }
@@ -108,30 +112,14 @@ struct SparseFillEmptyRowsContext {
 
 template <typename T, typename T_IND>
 void SparseFillEmptyRows::executeImpl() {
-    const auto valuesShape = getSrcMemoryAtPort(0)->getShape();
-    const auto denseShapeShape = getSrcMemoryAtPort(1)->getShape();
-    const auto indicesShape = getSrcMemoryAtPort(2)->getShape();
-    const auto outputIndicesShape = getDstMemoryAtPort(0)->getShape();
-    const auto outputValuesShape = getDstMemoryAtPort(1)->getShape();
-    const auto emptyRowIndicatorShape = getDstMemoryAtPort(2)->getShape();
-    
-    std::cout << "Debug SparseFillEmptyRows shapes:" << std::endl;
-    std::cout << "  values shape: " << valuesShape << ", count: " << valuesShape.getElementsCount() << std::endl;
-    std::cout << "  dense_shape shape: " << denseShapeShape << std::endl;
-    std::cout << "  indices shape: " << indicesShape << std::endl;
-    std::cout << "  output_indices shape: " << outputIndicesShape << std::endl;
-    std::cout << "  output_values shape: " << outputValuesShape << std::endl;
-    std::cout << "  empty_row_indicator shape: " << emptyRowIndicatorShape << std::endl;
-    
-    ov::reference::sparse_fill_empty_rows(
-        getSrcDataAtPortAs<const T>(0),
-        getSrcMemoryAtPort(0)->getShape().getElementsCount(),
-        getSrcDataAtPortAs<const T_IND>(1),
-        getSrcDataAtPortAs<const T_IND>(2),
-        *getSrcDataAtPortAs<const T>(3),
-        getDstDataAtPortAs<T_IND>(0),
-        getDstDataAtPortAs<T>(1),
-        getDstDataAtPortAs<bool>(2));
+    ov::reference::sparse_fill_empty_rows(getSrcDataAtPortAs<const T>(0),                        // values
+                                          getSrcMemoryAtPort(0)->getShape().getElementsCount(),  // values_size
+                                          getSrcDataAtPortAs<const T_IND>(1),                    // dense_shape
+                                          getSrcDataAtPortAs<const T_IND>(2),                    // indices
+                                          *getSrcDataAtPortAs<const T>(3),                       // default_value
+                                          getDstDataAtPortAs<T_IND>(0),                          // output_indices
+                                          getDstDataAtPortAs<T>(1),                              // output_values
+                                          getDstDataAtPortAs<bool>(2));                          // empty_row_indicator
 }
 
 template <typename T>

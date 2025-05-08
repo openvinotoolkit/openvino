@@ -18,6 +18,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     bool created() const override;
     bool needPrepareParams() const override;
+    bool isExecutable() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
     void execute(const dnnl::stream& strm) override;
 
@@ -30,4 +31,3 @@ private:
 };
 
 }  // namespace ov::intel_cpu::node
-

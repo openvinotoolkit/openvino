@@ -5,9 +5,9 @@
 #pragma once
 
 #include <algorithm>
+#include <iostream>
 #include <unordered_set>
 #include <vector>
-#include <iostream>
 
 #include "openvino/core/shape.hpp"
 
@@ -22,23 +22,6 @@ void sparse_fill_empty_rows(const T* values,
                             T_IDX* output_indices,
                             T* output_values,
                             bool* empty_row_indicator) {
-    // Debug print input parameters
-    std::cout << "DEBUG Reference sparse_fill_empty_rows called with:" << std::endl;
-    std::cout << "  values_size: " << values_size << std::endl;
-    std::cout << "  dense_shape: [" << dense_shape[0] << ", " << dense_shape[1] << "]" << std::endl;
-    std::cout << "  default_value: " << default_value << std::endl;
-    
-    // Print first few indices if available
-    if (values_size > 0 && indices != nullptr) {
-        std::cout << "  indices sample: [" << indices[0] << ", " << indices[1] << "]";
-        if (values_size > 1) {
-            std::cout << ", [" << indices[2] << ", [" << indices[3] << "]";
-        }
-        std::cout << std::endl;
-    } else {
-        std::cout << "  indices: empty" << std::endl;
-    }
-    
     const auto num_rows = dense_shape[0];
 
     std::unordered_set<T_IDX> existing_rows;
@@ -89,33 +72,5 @@ void sparse_fill_empty_rows(const T* values,
             output_values[i] = default_value;
         }
     }
-
-    // Add debug prints for all output tensors
-    std::cout << "DEBUG Reference output tensors:" << std::endl;
-    
-    // Print output_indices
-    std::cout << "  output_indices: [";
-    for (size_t i = 0; i < total_rows * 2; i += 2) {
-        if (i > 0) std::cout << ", ";
-        std::cout << "[" << output_indices[i] << ", " << output_indices[i+1] << "]";
-    }
-    std::cout << "]" << std::endl;
-    
-    // Print output_values
-    std::cout << "  output_values: [";
-    for (size_t i = 0; i < total_rows; i++) {
-        if (i > 0) std::cout << ", ";
-        std::cout << output_values[i];
-    }
-    std::cout << "]" << std::endl;
-    
-    // Print empty_row_indicator
-    std::cout << "  empty_row_indicator: [";
-    for (T_IDX i = 0; i < num_rows; i++) {
-        if (i > 0) std::cout << ", ";
-        std::cout << (empty_row_indicator[i] ? "true" : "false");
-    }
-    std::cout << "]" << std::endl;
 }
-
 }  // namespace ov::reference

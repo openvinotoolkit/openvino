@@ -80,8 +80,6 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
         inputs.insert({funcInputs[1].get_node_shared_ptr(), indicesTensor});
 
     } else {
-        // PARAMETER case: [values, dense_shape, indices, default_value]
-        // Values input (index 0)
         const auto valuesPrecision = funcInputs[0].get_element_type();
         const auto& valuesShape = targetInputStaticShapes[0];
         ov::test::utils::InputGenerateData valuesData;
@@ -90,11 +88,9 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
         const auto valuesTensor = ov::test::utils::create_and_fill_tensor(valuesPrecision, valuesShape, valuesData);
         inputs.insert({funcInputs[0].get_node_shared_ptr(), valuesTensor});
 
-        // Dense shape input (index 1)
         const auto indicesPrecision = funcInputs[2].get_element_type();
         const auto& denseShapeShape = targetInputStaticShapes[1]; // {2}
 
-        // Fix: Create tensor with specific values
         const auto& denseShapeValues = std::get<2>(std::get<0>(std::get<0>(this->GetParam())));
         auto denseShapeTensor = ov::Tensor(indicesPrecision, denseShapeShape);
         if (indicesPrecision == ov::element::i32) {
@@ -102,7 +98,7 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
             for (size_t i = 0; i < denseShapeValues.size(); i++) {
                 data_ptr[i] = static_cast<int32_t>(denseShapeValues[i]);
             }
-        } else { // i64
+        } else {
             auto* data_ptr = denseShapeTensor.data<int64_t>();
             for (size_t i = 0; i < denseShapeValues.size(); i++) {
                 data_ptr[i] = denseShapeValues[i];
@@ -110,7 +106,6 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
         }
         inputs.insert({funcInputs[1].get_node_shared_ptr(), denseShapeTensor});
 
-        // Indices input (index 2)
         ov::Shape indicesShape = {valuesShape[0], 2};
         ov::test::utils::InputGenerateData indicesData;
         indicesData.start_from = 0;
@@ -118,7 +113,6 @@ void SparseFillEmptyRowsLayerCPUTest::generate_inputs(const std::vector<ov::Shap
         const auto indicesTensor = ov::test::utils::create_and_fill_tensor(indicesPrecision, indicesShape, indicesData);
         inputs.insert({funcInputs[2].get_node_shared_ptr(), indicesTensor});
 
-        // Default value input (index 3)
         const auto defaultValue = std::get<3>(std::get<0>(std::get<0>(this->GetParam())));
         const auto defaultValueTensor = ov::test::utils::create_and_fill_tensor(valuesPrecision, {}, defaultValue);
         inputs.insert({funcInputs[3].get_node_shared_ptr(), defaultValueTensor});
@@ -199,14 +193,14 @@ const std::vector<SparseFillEmptyRowsSpecificParams> SparseFillEmptyRowsParamsVe
         std::vector<int64_t>{10, 10},                   // dense_shape
         1                                               // default_value
     },
-    // Dynamic values shape
+    // Dynamic values shape, sequential inference
     SparseFillEmptyRowsSpecificParams {
         InputShape{{-1}, {{3}, {5}, {8}}},              // values shape
         InputShape{{-1, 2}, {{3, 2}, {5, 2}, {8, 2}}},  // indices shape
         std::vector<int64_t>{10, 5},                    // dense_shape
         0                                               // default_value
     },
-    // Empty values tensor
+    // Empty values and indices tensors
     SparseFillEmptyRowsSpecificParams {
         InputShape{{}, {{0}}},                          // values shape
         InputShape{{}, {{0, 2}}},                       // indices shape
