@@ -63,7 +63,6 @@ bool SparseFillEmptyRows::isExecutable() const {
 
 void SparseFillEmptyRows::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& valuesMemory = getSrcMemoryAtPort(0);
-    const auto& denseShapeMemory = getSrcMemoryAtPort(1);
     const auto& indicesMemory = getSrcMemoryAtPort(2);
     const auto& valuesShape = valuesMemory->getShape();
     const auto& indicesShape = indicesMemory->getShape();
