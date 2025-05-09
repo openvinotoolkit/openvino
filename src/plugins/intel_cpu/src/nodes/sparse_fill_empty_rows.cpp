@@ -135,7 +135,7 @@ struct SparseFillEmptyRows::SparseFillEmptyRowsExecute {
     }
 };
 
-void SparseFillEmptyRows::execute(const dnnl::stream& strm) {
+void SparseFillEmptyRows::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto valuesPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     SparseFillEmptyRowsContext ctx = {*this};
     OV_SWITCH(intel_cpu,
