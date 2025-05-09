@@ -208,7 +208,11 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initReference() c
     for (const auto& param : zero_vectors) {
         subgraph_nodes.push_back(param);
     }
-    subgraph_nodes.push_back(transposes[1]);
+    if (transposes.size() > 1) {
+        subgraph_nodes.push_back(transposes[1]);
+    } else {
+        subgraph_nodes.push_back(transposes[0]);
+    }
     subgraph_nodes.push_back(zeros_matrix);
     for (const auto& param : hidden_vectors) {
         subgraph_nodes.push_back(param);
