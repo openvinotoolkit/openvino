@@ -36,7 +36,6 @@ public:
 
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
-    std::shared_ptr<ov::Model> initReference() const override;
 
     const std::vector<ov::element::Type> precisions;
     const size_t num_input_nodes, num_hidden_layers;
@@ -57,7 +56,6 @@ public:
 
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
-    std::shared_ptr<ov::Model> initReference() const override;
 
     const std::vector<ov::element::Type> precisions;
     const size_t num_input_nodes, num_hidden_layers;

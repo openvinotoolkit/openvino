@@ -43,10 +43,6 @@ std::shared_ptr<ov::Model> MLPSeqFunction::initOriginal() const {
     return std::make_shared<Model>(ResultVector{result}, ParameterVector{A_param});
 }
 
-std::shared_ptr<ov::Model> MLPSeqFunction::initReference() const {
-    return std::make_shared<ov::Model>(ov::ResultVector{}, ov::ParameterVector{});
-}
-
 std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
     auto A_param = std::make_shared<ov::op::v0::Parameter>(precisions[0], input_shapes[0]);
     std::shared_ptr<Node> A = A_param;
@@ -81,10 +77,6 @@ std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initOriginal() const {
 
     auto result = std::make_shared<ov::op::v0::Result>(dq_A);
     return std::make_shared<Model>(ResultVector{result}, ParameterVector{A_param});
-}
-
-std::shared_ptr<ov::Model> MLPSeqQuantizedFunction::initReference() const {
-    return std::make_shared<ov::Model>(ov::ResultVector{}, ov::ParameterVector{});
 }
 
 std::shared_ptr<ov::Model> MLPSeqQuantizedTypeRelaxedFunction::initOriginal() const {
