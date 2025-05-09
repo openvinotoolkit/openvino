@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <deque>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <initializer_list>
@@ -40,3 +41,9 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include "element_visitor.hpp"
+#include "itt.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/validation_util.hpp"
