@@ -38,7 +38,7 @@ size_t Graph::export_blob(std::ostream& stream) const {
     std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
 
     if (_blobIsReleased) {
-        OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
+        OPENVINO_THROW("Model was released after initialization. Try importing it using `ov::hint::compiled_blob` property to extend "
                        "its lifetime.");
     }
 
