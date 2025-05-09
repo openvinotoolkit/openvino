@@ -80,37 +80,48 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        Abs
        Acos
        Acosh
+       AdaptiveAvgPool2d
        Add
+       Affine
        And
-       ArgMin
        ArgMax
+       ArgMin
        Asin
        Asinh
        Atan
-       ATen
        Atanh
+       ATen
        AveragePool
        BatchNormalization
        BitShift
+       BitwiseAnd
+       BitwiseNot
+       BitwiseOr
+       BitwiseXor
+       BlackmanWindow
        Cast
        CastLike
        Ceil
+       Celu
        Clip
+       Compress
        Concat
        Constant
+       ConstantFill
        ConstantOfShape
        Conv
        ConvInteger
        ConvTranspose
-       Compress
        Cos
        Cosh
-       ConstantFill
+       Crop
        CumSum
        DepthToSpace
        DequantizeLinear
+       DFT
        Div
        Dropout
+       DynamicQuantizeLinear
        Einsum
        Elu
        Equal
@@ -123,53 +134,68 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        Gather
        GatherElements
        GatherND
+       Gelu
        Gemm
        GlobalAveragePool
        GlobalLpPool
        GlobalMaxPool
        Greater
+       GreaterOrEqual
+       GridSample
+       GroupNormalization
        GRU
-       Hardmax
+       HammingWindow
        HardSigmoid
        HardSwish
+       Hardmax
        Identity
        If
        ImageScaler
        InstanceNormalization
+       IsFinite
+       IsInf
+       IsNaN
+       LayerNormalization
        LeakyRelu
        Less
+       LessOrEqual
        Log
        LogSoftmax
        Loop
        LpNormalization
        LRN
        LSTM
-       MatMulInteger
        MatMul
-       MaxPool
+       MatMulInteger
        Max
+       MaxPool
+       MaxRoiPool
        Mean
        MeanVarianceNormalization
        Min
+       Mish
+       MMCVRoIAlignRotated
        Mod
        Mul
+       Multinomial
        Neg
+       NMSRotated
        NonMaxSuppression
        NonZero
        Not
-       Or
        OneHot
+       Or
        Pad
        Pow
        PRelu
        QLinearConv
        QLinearMatMul
        QuantizeLinear
-       Range
        RandomNormal
        RandomNormalLike
        RandomUniform
        RandomUniformLike
+       Range
        Reciprocal
        ReduceLogSum
        ReduceLogSumExp
@@ -188,6 +214,7 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        RNN
        RoiAlign
        Round
+       Scan
        ScatterElements
        ScatterND
        Selu
@@ -206,6 +233,7 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        Split
        Sqrt
        Squeeze
+       STFT
        Sub
        Sum
        Tan
@@ -214,7 +242,10 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        Tile
        TopK
        Transpose
+       Trilu
+       Unique
        Unsqueeze
+       Upsample
        Where
        Xor
       ==========================================  ==========================================================================================
@@ -251,9 +282,25 @@ Data as of OpenVINO 2024.4, 18 Oct. 2024.
        ONNX Supported Operations (custom - com.microsoft Domain)               Limitations
       ======================================================================  ==============================================================
        Attention
+       Bias_Add
        BiasGelu
+       Dynamic_Quantize_MatMul
        EmbedLayerNormalization
+       Fast_Gelu
+       Fused_Conv
+       FusedGemm
+       FusedMatMul
+       MatMulIntegerToFloat
+       MatMulNBits
+       Pad
+       QLinearActivation
+       QLinearAdd
+       QLinearMul
+       QuickGelu
+       Range
+       SimplifiedLayerNormalization
        SkipLayerNormalization
+       SkipSimplifiedLayerNormalization
       ======================================================================  ==============================================================
 
 
