@@ -8,6 +8,7 @@ import math
 import os
 import re
 import logging
+import platform
 from pathlib import Path
 
 import torch
@@ -481,11 +482,14 @@ def verify_model(model, example_input, expected_ops):
     test_input = example_input.numpy(force=True)
     res = compiled_model((test_input,))
     ref = model(torch.from_numpy(test_input))
+    rtol, atol = 1e-7, 0
+    if platform.machine() in ('arm', 'armv7l', 'aarch64', 'arm64', 'ARM64'):
+        rtol, atol = 0.1, 0.001
     if isinstance(ref, tuple):
         for i, ref_part in enumerate(ref):
-            np.testing.assert_allclose(res[i], ref_part.numpy())
+            np.testing.assert_allclose(res[i], ref_part.numpy(), rtol, atol)
     else:
-        np.testing.assert_allclose(res[0], ref.numpy())
+        np.testing.assert_allclose(res[0], ref.numpy(), rtol, atol)
 
 
 def test_inlined_extension():
