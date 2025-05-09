@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -311,7 +312,7 @@ bool convert_function_precision(ov::pass::PassBase& pass,
 
     if (is_output_precision_changed) {
         ops = f->get_ordered_ops();
-        is_changed = is_output_precision_changed || is_changed;
+        is_changed = true;
     }
 
     if (!is_subgraph) {

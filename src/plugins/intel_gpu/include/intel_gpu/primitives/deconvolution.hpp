@@ -31,8 +31,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param activation_slp Relu activation slope.
     deconvolution(const primitive_id& id,
                   const input_info& input,
-                  const std::vector<primitive_id>& weights,
-                  const std::vector<primitive_id>& bias,
+                  const primitive_id& weights,
+                  const primitive_id& bias,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
                   ov::Strides dilations = {1, 1})
@@ -62,8 +62,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param activation_slp Relu activation slope.
     deconvolution(const primitive_id& id,
                   const input_info& input,
-                  const std::vector<primitive_id>& weights,
-                  const std::vector<primitive_id>& bias,
+                  const primitive_id& weights,
+                  const primitive_id& bias,
                   uint32_t groups,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
@@ -93,7 +93,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param activation_slp Relu activation slope.
     deconvolution(const primitive_id& id,
                   const input_info& input,
-                  const std::vector<primitive_id>& weights,
+                  const primitive_id& weights,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
                   ov::Strides dilations = {1, 1})
@@ -110,7 +110,7 @@ struct deconvolution : public primitive_base<deconvolution> {
           output_partial_shape({}),
           output_shape_id(""),
           weights(weights),
-          bias(std::vector<primitive_id>(0)) {}
+          bias("") {}
 
     /// @brief Constructs deconvolution primitive (w/o bias).
     /// @param id This primitive id.
@@ -123,7 +123,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param activation_slp Relu activation slope.
     deconvolution(const primitive_id& id,
                   const input_info& input,
-                  const std::vector<primitive_id> &weights,
+                  const primitive_id& weights,
                   uint32_t groups,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
@@ -141,7 +141,7 @@ struct deconvolution : public primitive_base<deconvolution> {
           output_partial_shape({}),
           output_shape_id(""),
           weights(weights),
-          bias(std::vector<primitive_id>(0)) {}
+          bias("") {}
 
     /// @brief Constructs deconvolution primitive (computes input paddings to match output size).
     /// @param id This primitive id.
@@ -155,8 +155,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     deconvolution(const primitive_id& id,
                   const input_info& input,
-                  const std::vector<primitive_id>& weights,
-                  const std::vector<primitive_id>& bias,
+                  const primitive_id& weights,
+                  const primitive_id& bias,
                   ov::Strides stride,
                   ov::CoordinateDiff pad,
                   ov::Strides dilations,
@@ -190,8 +190,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     deconvolution(const primitive_id& id,
                   const input_info& input,
-                  const std::vector<primitive_id>& weights,
-                  const std::vector<primitive_id>& bias,
+                  const primitive_id& weights,
+                  const primitive_id& bias,
                   uint32_t groups,
                   ov::Strides stride,
                   ov::CoordinateDiff pad,
@@ -227,8 +227,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     deconvolution(const primitive_id& id,
                   const input_info& input,
-                  const std::vector<primitive_id>& weights,
-                  const std::vector<primitive_id>& bias,
+                  const primitive_id& weights,
+                  const primitive_id& bias,
                   uint32_t groups,
                   ov::Strides stride,
                   ov::CoordinateDiff pad,
@@ -263,7 +263,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     deconvolution(const primitive_id& id,
                   const input_info& input,
-                  const std::vector<primitive_id>& weights,
+                  const primitive_id& weights,
                   ov::Strides stride,
                   ov::CoordinateDiff pad,
                   ov::Strides dilations,
@@ -280,7 +280,7 @@ struct deconvolution : public primitive_base<deconvolution> {
           out_padding(pad.size(), 0),
           grouped_weights_shape(false),
           weights(weights),
-          bias(std::vector<primitive_id>(0)) {}
+          bias("") {}
 
     /// @brief Constructs deconvolution primitive (computes input paddings to match output size).
     /// @param id This primitive id.
@@ -295,8 +295,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @return Deconvolution primitive with specified settings.
     static deconvolution create_with_output_size(const primitive_id& id,
                                                  const input_info& input,
-                                                 const std::vector<primitive_id>& weights,
-                                                 const std::vector<primitive_id>& bias,
+                                                 const primitive_id& weights,
+                                                 const primitive_id& bias,
                                                  tensor output_size,
                                                  ov::Strides stride = {1, 1},
                                                  ov::CoordinateDiff pad = {0, 0},
@@ -323,7 +323,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @return Deconvolution primitive with specified settings.
     static deconvolution create_with_output_size(const primitive_id& id,
                                                  const input_info& input,
-                                                 const std::vector<primitive_id>& weights,
+                                                 const primitive_id& weights,
                                                  tensor output_size,
                                                  ov::Strides stride = {1, 1},
                                                  ov::CoordinateDiff pad = {0, 0},
@@ -360,11 +360,11 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @brief Defines spatial shape of the output.
     ov::PartialShape output_partial_shape;
     /// @brief Data primitive id containing spatial shape of the output.
-    primitive_id output_shape_id;
+    input_info output_shape_id;
     /// @brief List of primitive ids containing weights data.
-    const primitive_id_arr weights;
+    input_info weights;
     /// @brief List of primitive ids containing bias data.
-    const primitive_id_arr bias;
+    input_info bias;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -372,9 +372,9 @@ struct deconvolution : public primitive_base<deconvolution> {
         seed = hash_range(seed, stride.begin(), stride.end());
         seed = hash_combine(seed, groups);
         seed = hash_combine(seed, grouped_weights_shape);
-        seed = hash_combine(seed, weights.size());
-        seed = hash_combine(seed, bias.size());
-        seed = hash_combine(seed, output_shape_id.empty());
+        seed = hash_combine(seed, weights.is_valid());
+        seed = hash_combine(seed, bias.is_valid());
+        seed = hash_combine(seed, output_shape_id.is_valid());
         return seed;
     }
 
@@ -393,9 +393,9 @@ struct deconvolution : public primitive_base<deconvolution> {
                cmp_fields(pads_end) &&
                cmp_fields(out_padding) &&
                cmp_fields(grouped_weights_shape) &&
-               cmp_fields(weights.size()) &&
-               cmp_fields(bias.size()) &&
-               cmp_fields(output_shape_id.empty());
+               cmp_fields(weights.is_valid()) &&
+               cmp_fields(bias.is_valid()) &&
+               cmp_fields(output_shape_id.is_valid());
         #undef cmp_fields
     }
 
@@ -431,17 +431,23 @@ struct deconvolution : public primitive_base<deconvolution> {
         ib >> grouped_weights_shape;
         ib >> output_partial_shape;
         ib >> output_shape_id;
-        ib >> *const_cast<primitive_id_arr*>(&weights);
-        ib >> *const_cast<primitive_id_arr*>(&bias);
+        ib >> weights;
+        ib >> bias;
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override {
-        std::vector<input_info> ret;
-        ret.reserve(weights.size() + bias.size() + (output_shape_id.empty() ? 0 : 1));
-        for (auto& w : weights) ret.push_back(w);
-        for (auto& b : bias) ret.push_back(b);
-        if (!output_shape_id.empty()) ret.push_back(output_shape_id);
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        OPENVINO_ASSERT(weights.is_valid());
+        ret[idx++] = &weights;
+
+        if (bias.is_valid())
+            ret[idx++] = &bias;
+
+        if (output_shape_id.is_valid())
+            ret[idx++] = &output_shape_id;
 
         return ret;
     }

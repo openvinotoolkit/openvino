@@ -25,6 +25,10 @@ bool is_set(const std::size_t sub_idx,
 // NB: Newer C++ standards would allow to use string views or smt
 ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
+// In case of working with memory which will be detached later (Constant will be freed),
+// we need to explicitly create a tensor which owns the memory during the execution.
+ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
+
 bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);

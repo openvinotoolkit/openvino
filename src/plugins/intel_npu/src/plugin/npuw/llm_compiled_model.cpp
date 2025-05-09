@@ -738,6 +738,8 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     // Write header regardless of encryption requirement - to identify NPUW serializated blobs
     // Serialize magic number first
     write(stream, NPUW_SERIALIZATION_INDICATOR);
+    // Serilize LLMCompiledModel identifier
+    write(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR);
     // Serialize general meta info
     write(stream, OPENVINO_VERSION_MAJOR);
     write(stream, OPENVINO_VERSION_MINOR);
@@ -801,8 +803,10 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_cfg);
 
         // Serialize CompiledModels
-        m_kvcache_compiled->serialize(model_stream);
-        m_prefill_compiled->serialize(model_stream);
+        // Note: no need to pass any encryption here as it's done in export_model()
+        EncryptContext enc_ctx(false, nullptr, nullptr);
+        m_kvcache_compiled->serialize(model_stream, enc_ctx);
+        m_prefill_compiled->serialize(model_stream, enc_ctx);
     };
 
     std::stringstream non_encrypted_stream;
@@ -844,6 +848,11 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     ov::npuw::s11n::IndicatorType serialization_indicator;
     read(stream, serialization_indicator);
     NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
+
+    ov::npuw::s11n::IndicatorType llm_compiled_indicator;
+    read(stream, llm_compiled_indicator);
+    NPUW_ASSERT(llm_compiled_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR &&
+                "This blob wasn't serialized via LLMCompiledModel!");
 
     // Deserialize general meta info
     int vmajor, vminor, vpatch;
@@ -964,7 +973,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, parameters);
         read(model_stream, results);
 
-        auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
+        auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
 
         auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
 
@@ -980,8 +989,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         compiled->implement_properties();
 
         // Deserialize CompiledModels
-        compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties);
-        compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties);
+        // Note: no need to pass any encryption here as it's done in import_model()
+        EncryptContext enc_ctx(false, nullptr, nullptr);
+        compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+        compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
 
         return compiled;
     };

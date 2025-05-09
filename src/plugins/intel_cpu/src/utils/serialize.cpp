@@ -74,7 +74,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr) + hdr_pos) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          (hdr.model_size = file_size - hdr.model_offset);
+                          ((hdr.model_size = file_size - hdr.model_offset) != 0u);
     if (!is_valid_model) {
         OPENVINO_THROW("[CPU] Could not deserialize by device xml header.");
     }
@@ -136,7 +136,7 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr) + hdr_pos) &&
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
-                          (hdr.model_size = file_size - hdr.model_offset);
+                          ((hdr.model_size = file_size - hdr.model_offset) != 0u);
     if (!is_valid_model) {
         OPENVINO_THROW("[CPU] Could not deserialize by device xml header.");
     }

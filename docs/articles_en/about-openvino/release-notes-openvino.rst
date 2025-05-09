@@ -691,7 +691,7 @@ Discontinued in 2025
     `model conversion transition guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api.html>`__.
   * Intel® Streaming SIMD Extensions (Intel® SSE) are currently not enabled in the binary
     package by default. They are still supported in the source code form.
-  * Legacy prefixes: l_, w_, and m_ have been removed from OpenVINO archive names.
+  * Legacy prefixes: ``l_``, ``w_``, and ``m_`` have been removed from OpenVINO archive names.
 
 * OpenVINO GenAI:
 

@@ -572,6 +572,10 @@ void Partitioner::identifySubgraphs() {
         std::sort(input_mapping_sorted.begin(),
                   input_mapping_sorted.end(),
                   [](const PairNodePtr& p1, const PairNodePtr& p2) {
+                      // FIXME: some compilers could potentially compare element with itself
+                      if (p1.first.get() == p2.first.get()) {
+                          return false;
+                      }
                       // Sanity check
                       NPUW_ASSERT(p1.first->get_friendly_name() != p2.first->get_friendly_name());
                       return p1.first->get_friendly_name() < p2.first->get_friendly_name();
@@ -1848,6 +1852,7 @@ void Partitioner::optimize(const std::string& func_name) {
     auto do_cvtf16 = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_f16) {
             auto param_idx = f._model->get_parameter_index(p);
+            NPUW_ASSERT(param_idx != -1);
             auto closure_idx = param_idx - f._param_offset;
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
@@ -1867,6 +1872,7 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
+        rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWf8>(std::ref(ctx));
         // NB: This pass is disabled for reason! It doesn't make things better
         // rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx));

@@ -11,7 +11,11 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/log.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -27,7 +31,7 @@ TEST_F(TransformationTestsF, SoftPlusFusing) {
         auto add = std::make_shared<opset4::Add>(exp, input_const);
         auto log = std::make_shared<opset4::Log>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{log}, ParameterVector{input0});
+        model = std::make_shared<ov::Model>(OutputVector{log}, ParameterVector{input0});
 
         manager.register_pass<ov::pass::SoftPlusFusion>();
     }
@@ -36,7 +40,7 @@ TEST_F(TransformationTestsF, SoftPlusFusing) {
         auto data = std::make_shared<opset4::Parameter>(element::f32, Shape{3, 1, 2});
         auto softplus = std::make_shared<opset4::SoftPlus>(data);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{softplus}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{softplus}, ParameterVector{data});
     }
 }
 
@@ -48,7 +52,7 @@ TEST_F(TransformationTestsF, SoftPlusFusingDynamic) {
         auto add = std::make_shared<opset4::Add>(exp, input_const);
         auto log = std::make_shared<opset4::Log>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{log}, ParameterVector{input0});
+        model = std::make_shared<ov::Model>(OutputVector{log}, ParameterVector{input0});
 
         manager.register_pass<ov::pass::SoftPlusFusion>();
     }
@@ -57,7 +61,7 @@ TEST_F(TransformationTestsF, SoftPlusFusingDynamic) {
         auto data = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(1));
         auto softplus = std::make_shared<opset4::SoftPlus>(data);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{softplus}, ParameterVector{data});
+        model_ref = std::make_shared<ov::Model>(OutputVector{softplus}, ParameterVector{data});
     }
 }
 
@@ -69,7 +73,7 @@ TEST_F(TransformationTestsF, SoftPlusFusingNegative) {
         auto add = std::make_shared<opset4::Add>(exp, input_const);
         auto log = std::make_shared<opset4::Log>(add);
 
-        model = std::make_shared<ov::Model>(NodeVector{log}, ParameterVector{input0});
+        model = std::make_shared<ov::Model>(OutputVector{log}, ParameterVector{input0});
 
         manager.register_pass<ov::pass::SoftPlusFusion>();
     }
@@ -81,6 +85,6 @@ TEST_F(TransformationTestsF, SoftPlusFusingNegative) {
         auto add = std::make_shared<opset4::Add>(exp, input_const);
         auto log = std::make_shared<opset4::Log>(add);
 
-        model_ref = std::make_shared<ov::Model>(NodeVector{log}, ParameterVector{input0});
+        model_ref = std::make_shared<ov::Model>(OutputVector{log}, ParameterVector{input0});
     }
 }

@@ -610,6 +610,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::cache_encryption_callbacks.name(), PropertyMutability::WO},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::model.name(), PropertyMutability::WO},
+        ov::PropertyName{ov::intel_gpu::config_file.name(), PropertyMutability::RW},
     };
 
     return supported_properties;
@@ -814,7 +815,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     try {
         model = model_param->second.as<std::shared_ptr<const ov::Model>>();
     } catch (...) {
-        OPENVINO_THROW("[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<ov::Model> type");
+        OPENVINO_THROW("[OPTIMAL_BATCH_SIZE] ov::hint::model should be std::shared_ptr<const ov::Model> type");
     }
     GPU_DEBUG_INFO << "DEVICE_INFO:"
                    << "gfx_version.major, " << device_info.gfx_ver.major

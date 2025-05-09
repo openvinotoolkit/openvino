@@ -131,7 +131,7 @@ struct pooling : public primitive_base<pooling> {
               maxPoolOpset8Features(true) {}
 
     /// @brief Primitive id which contains indices output.
-    primitive_id indices_output;
+    input_info indices_output;
     /// @brief Pooling mode.
     pooling_mode mode = pooling_mode::max;
     /// @brief Pooling kernel size.
@@ -171,7 +171,7 @@ struct pooling : public primitive_base<pooling> {
         seed = hash_combine(seed, axis);
         seed = hash_combine(seed, index_element_type);
         seed = hash_combine(seed, maxPoolOpset8Features);
-        seed = hash_combine(seed, indices_output.empty());
+        seed = hash_combine(seed, indices_output.is_valid());
         return seed;
     }
 
@@ -193,7 +193,7 @@ struct pooling : public primitive_base<pooling> {
                cmp_fields(axis) &&
                cmp_fields(index_element_type) &&
                cmp_fields(maxPoolOpset8Features) &&
-               cmp_fields(indices_output.empty());
+               cmp_fields(indices_output.is_valid());
         #undef cmp_fields
     }
 
@@ -234,10 +234,13 @@ struct pooling : public primitive_base<pooling> {
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override {
-        std::vector<input_info> ret;
-        if (!indices_output.empty())
-            ret.push_back(indices_output);
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        if (indices_output.is_valid())
+            ret[idx++] = &indices_output;
+
         return ret;
     }
 };
