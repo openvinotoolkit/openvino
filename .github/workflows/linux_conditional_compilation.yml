@@ -90,7 +90,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: ${{ github.event_name != 'merge_group' && !needs.smart_ci.outputs.skip_workflow }}
+    if: ${{ github.event_name != 'merge_group' && needs.smart_ci.outputs.skip_workflow != 'True' }}
     timeout-minutes: 150
     defaults:
       run:
