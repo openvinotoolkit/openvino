@@ -127,7 +127,7 @@ async function isModelAvailable(model) {
 }
 
 function getReluModel() {
-  const modelbuffor = Buffer.from(`<?xml version="1.0"?>
+  const modelBuffer = Buffer.from(`<?xml version="1.0"?>
     <net name="test_model" version="11">
       <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
@@ -178,5 +178,5 @@ function getReluModel() {
     </net>
     `, 'utf8');
 
-  return Buffer.from(modelbuffor, 'utf8');
+  return Buffer.from(modelBuffer, 'utf8');
 }
