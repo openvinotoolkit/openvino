@@ -58,8 +58,6 @@ ignore = [
     "**/_ov_api.py",
     "**/_op_base.py",
     "**/utils/node_factory.py",
-    "**/frontend/pytorch",
-    "**/frontend/jax",
     "**/frontend/tensorflow",
     "**/frontend/pytorch",
     "**/frontend/jax"
