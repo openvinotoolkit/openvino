@@ -48,13 +48,11 @@ ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(suppo
 
 bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(RoPEFusion);
-    std::cout << "RoPEFusion::run_on_model()" << std::endl;
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
 
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
-    std::cout << "about to register NEOX" << std::endl;
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
     // optional heads & tails are fused in separate matcher pass,
@@ -332,7 +330,6 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
-    std::cout << "registered NEOX" << std::endl;
 }
 
 ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {

@@ -11,7 +11,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
-#include "ov_ops/type_relaxed.hpp"
 
 namespace ov::pass::pattern {
 namespace op {
