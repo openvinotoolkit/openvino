@@ -361,25 +361,11 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
 
-        if (params.is_dynamic()) {
-            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
-        }
-        args.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-            assert(!params.is_dynamic());
-            auto& wgs = kd.params.workGroups;
-
-            // auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
-            wgs.global[0] = wgs.local[0];
-            wgs.global[1] = wgs.local[1];
-        }};
+        return DispatchDataFunc{nullptr};
     }
 };
 
@@ -401,26 +387,11 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
 
-        if (params.is_dynamic()) {
-            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
-        }
-        args.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-            assert(!params.is_dynamic());
-            auto& wgs = kd.params.workGroups;
-
-            // auto max_wgs = params.get_program().get_engine().get_device_info().max_work_group_size;
-
-            wgs.global[0] = wgs.local[0];
-            wgs.global[1] = wgs.local[1];
-        }};
+        return DispatchDataFunc{nullptr};
     }
 };
 
@@ -441,13 +412,11 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+        return DispatchDataFunc{nullptr};
     }
 };
 
@@ -532,13 +501,11 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+        return DispatchDataFunc{nullptr};
     }
 };
 
@@ -557,13 +524,11 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+        return DispatchDataFunc{nullptr};
     }
 };
 
@@ -582,13 +547,11 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+        return DispatchDataFunc{nullptr};
     }
 };
 
@@ -607,13 +570,11 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+        return DispatchDataFunc{nullptr};
     }
 };
 
@@ -632,13 +593,11 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+        return DispatchDataFunc{nullptr};
     }
 };
 
@@ -657,13 +616,11 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         return args;
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+        return DispatchDataFunc{nullptr};
     }
 };
 
@@ -691,6 +648,42 @@ public:
         dnnl::memory zp;
         int ic, oc, ic_group_size;
     };
+
+    // expert_mask result in cpu side
+    struct expert_mask_cpu {
+        std::vector<int8_t> pred_flag;
+        // shape: [expert_num, batch_no]
+        std::vector<std::vector<int>> batch;
+        // shape: [expert_num, topk_no]
+        std::vector<std::vector<int>> topk;
+    };
+
+    // store expert_mask for gpu kernel
+    struct expert_mask_gpu {
+        memory::ptr batch;
+        memory::ptr topk;
+    };
+
+    struct scratch_buffers {
+        // softmax+topk
+        memory::ptr topk_id;
+        memory::ptr topk_weights;
+
+        // fast single batch: scratch.up = up(x) * silu(gate(x))
+        //                    scratch.y = down(scratch.up) * routing_weights
+        memory::ptr up;
+        memory::ptr y;
+        // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
+        //         scratch.up = up(scratch.x)
+        //         scratch.gate = gate(scratch.x) * scratch.up
+        //         scratch.y = down(scratch.gate) * routing_weights
+        memory::ptr x;
+        memory::ptr routing_weights;
+        memory::ptr gate;
+        // buffers for batch and topk from cpu, each expert has one
+        std::vector<expert_mask_gpu> expert_masks;
+    };
+
     std::vector<std::vector<dnnl_weights>> _dnnl_weights;
     int _hidden_size;
     int _intermediate_size;
@@ -778,6 +771,129 @@ public:
         return moe;
     }
 
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
+        auto moe = params.typed_desc<moe_expert>();
+        const auto& config = moe->_config;
+        int max_topk = static_cast<int>(config.topk);
+        int expert_num = static_cast<int>(config.expert_num);
+
+        auto hidden_states_layout = params.input_layouts[0];
+        auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
+        auto data_type = hidden_states_layout.data_type;
+
+        std::vector<BufferDescriptor> internal_buffers;
+        // softmax+topk
+        layout layout_topk_id(ov::PartialShape{batch, max_topk}, data_types::u32, cldnn::format::bfyx);
+        layout layout_topk_weights(ov::PartialShape{batch, max_topk}, data_type, cldnn::format::bfyx);
+        internal_buffers.emplace_back(layout_topk_id, false);               // topk_id
+        internal_buffers.emplace_back(layout_topk_weights, false);          // topk_weights
+        // fast single batch: scratch.up = up(x) * silu(gate(x)); scratch.y = down(scratch.up) * weight[expert_no]
+        layout layout_gateup_out(ov::PartialShape{batch, static_cast<int>(config.intermediate_size)}, data_type, cldnn::format::bfyx);
+        layout layout_down_out(ov::PartialShape{batch, static_cast<int>(config.hidden_size)}, data_type, cldnn::format::bfyx);
+        internal_buffers.emplace_back(layout_gateup_out, false);            // up
+        internal_buffers.emplace_back(layout_down_out, false);              // y
+        // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
+        //         scratch.up = up(scratch.x)
+        //         scratch.gate = gate(scratch.x) * scratch.up
+        //         scratch.y = down(scratch.gate) * routing_weights
+        internal_buffers.emplace_back(layout_down_out, false);              // x, scratch.x has same layout with down output
+        layout routing_layout(ov::PartialShape{batch * max_topk}, data_type, cldnn::format::bfyx);
+        internal_buffers.emplace_back(layout_down_out, false);              // routing_weights
+        internal_buffers.emplace_back(layout_gateup_out, false);            // gate, scratch.gate has same layout with up
+        // expert masks for gpu
+        layout index_layout(ov::PartialShape{batch}, ov::element::i32, cldnn::format::bfyx);
+        for (int i = 0; i < expert_num; i++) {
+            internal_buffers.emplace_back(index_layout, true);              // batch
+            internal_buffers.emplace_back(index_layout, true);              // topk
+        }
+
+        return internal_buffers;
+    }
+
+    void prepare_internal_buffers(typed_primitive_inst<moe_expert>& instance, scratch_buffers& scratch, bool is_single_batch) {
+        const auto& intermediates_memories = instance.get_intermediates_memories();
+        scratch.topk_id = intermediates_memories[0];
+        scratch.topk_weights = intermediates_memories[1];
+        scratch.up = intermediates_memories[2];
+        scratch.y = intermediates_memories[3];
+        if (!is_single_batch) {
+            scratch.x = intermediates_memories[4];
+            scratch.routing_weights = intermediates_memories[5];
+            scratch.gate = intermediates_memories[6];
+            const auto& config = instance.get_typed_desc<moe_expert>()->_config;
+            int expert_num = static_cast<int>(config.expert_num);
+            scratch.expert_masks.resize(expert_num);
+            for (int i = 0; i < expert_num; i++) {
+                scratch.expert_masks[i].batch = intermediates_memories[7 + 2 * i + 0];
+                scratch.expert_masks[i].topk  = intermediates_memories[7 + 2 * i + 1];
+            }
+        }
+    }
+
+    void get_expert_mask_from_gpu(const MOEExpert::Config &config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask) {
+        // shape: [batch, topk]
+        auto layout = mem->get_layout();
+        const auto& shape = layout.get_shape();
+
+        int max_expert_num = static_cast<int>(config.expert_num),
+            max_topk = static_cast<int>(config.topk),
+            max_tokens = static_cast<int>(shape[0]);
+
+        expert_mask.pred_flag.resize(max_expert_num, 0);
+        expert_mask.batch.resize(max_expert_num, {});
+        expert_mask.topk.resize(max_expert_num, {});
+
+        OPENVINO_ASSERT(!layout.data_padding, "get_expert_mask_from_memory not support padding");
+
+        std::vector<int32_t> buf(max_topk * max_tokens);
+        mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
+
+        for (int b = 0; b < max_tokens; b++) {
+            auto* tok_p = &buf[b * max_topk];
+            for (int t = 0; t < max_topk; t++) {
+                auto expert_no = tok_p[t];
+                OPENVINO_ASSERT(expert_no < max_expert_num);
+                expert_mask.batch[expert_no].push_back(b);
+                expert_mask.topk[expert_no].push_back(t + b * max_topk);
+                expert_mask.pred_flag[expert_no] = 1;
+            }
+        }
+        {
+            // check if the result is ok
+            int count = 0;
+            for (int no = 0; no < max_expert_num; no++) {
+                count += static_cast<int>(expert_mask.batch[no].size());
+            }
+            OPENVINO_ASSERT(count == max_topk * max_tokens,
+                            "With max_expert_num=",
+                            max_expert_num,
+                            ",max_topk=",
+                            max_topk,
+                            ",max_tokens=",
+                            max_tokens,
+                            " should have ",
+                            max_topk * max_tokens,
+                            " tokens, but current is ",
+                            count,
+                            ". layout=",
+                            layout);
+        }
+    }
+
+    void copy_expert_mask_to_gpu(stream& stream, const expert_mask_cpu& expert_mask,
+                                 size_t expert_no, expert_mask_gpu& expert_mask_mem) {
+        auto size = expert_mask.batch[expert_no].size() * sizeof(int);
+
+        {
+            mem_lock<int32_t, mem_lock_type::write> lock_data{expert_mask_mem.batch, stream};
+            memcpy(lock_data.data(), expert_mask.batch[expert_no].data(), size);
+        }
+        {
+            mem_lock<int32_t, mem_lock_type::write> lock_data{expert_mask_mem.topk, stream};
+            memcpy(lock_data.data(), expert_mask.topk[expert_no].data(), size);
+        }
+    }
+
     cldnn::event::ptr execute_stage(const std::vector<cldnn::event::ptr>& events,
                                     cldnn::primitive_inst& instance,
                                     Stage& stage,
@@ -838,9 +954,9 @@ public:
         return std::make_tuple(mem, layout);
     }
 
-    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_expert>& instance, expert_mask_tmp_scratch& scratch) {
-        int max_topk = static_cast<int>(instance.get_config().topk);
+    cldnn::event::ptr exec_single_batch(typed_primitive_inst<moe_expert>& instance, scratch_buffers& scratch) {
         auto moe = instance.get_typed_desc<moe_expert>();
+        int max_topk = static_cast<int>(moe->_config.topk);
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto batch_mem_ptr = scratch.topk_id;
@@ -849,7 +965,6 @@ public:
 
         _hidden_size = static_cast<int>(moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(moe->_config.intermediate_size);
-        instance.get_tmp_memory(hidden_states_layout.data_type, max_topk, _hidden_size, _intermediate_size, max_topk, scratch);
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
@@ -1034,34 +1149,23 @@ public:
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("MoeExpertOptImpl::execute"));
         auto& instance = reinterpret_cast<typed_primitive_inst<moe_expert>&>(ins);
-        int max_topk = static_cast<int>(instance.get_config().topk);
+        auto moe = instance.get_typed_desc<moe_expert>();
+        const auto& config = moe->_config;
+        int max_topk = static_cast<int>(config.topk);
         auto& cur_net = instance.get_network();
         auto& stream = cur_net.get_stream();
-        auto moe = instance.get_typed_desc<moe_expert>();
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 0);
         auto batch = static_cast<int>(hidden_states_layout.get_shape()[0]);
 
         instance.update_output_layout();
         instance.update_output_memory(batch != 1);
-        if (!cur_net.has_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key)) {
-            cur_net.set_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key, {});
-        }
-        expert_mask_tmp_scratch& scratch = cur_net.get_scratch<expert_mask_tmp_scratch>(expert_mask_tmp_scratch_key);
+
+        scratch_buffers scratch;
+        prepare_internal_buffers(instance, scratch, batch == 1);
 
         {
-            layout layout_topk_id(ov::PartialShape{batch, max_topk}, data_types::u32, cldnn::format::bfyx);
-            layout layout_topk_weights(ov::PartialShape{batch, max_topk}, data_types::f16, cldnn::format::bfyx);
-            if (scratch.topk_size < batch * max_topk) {
-                scratch.topk_id = instance.alloc_buf(scratch.topk_id.get(), layout_topk_id);
-                scratch.topk_weights = instance.alloc_buf(scratch.topk_weights.get(), layout_topk_weights);
-                scratch.topk_size = batch * max_topk;
-            }
-            scratch.topk_id_layout = layout_topk_id;
-            scratch.topk_weights_layout = layout_topk_weights;
-            scratch.topk_id = instance.reinterpret_buf(*scratch.topk_id, layout_topk_id);
-            scratch.topk_weights = instance.reinterpret_buf(*scratch.topk_weights, layout_topk_weights);
-
+            // softmax+topk
             auto lws_size = moe->_config.expert_num;
             execute_stage(events,
                           instance,
@@ -1079,42 +1183,15 @@ public:
             return exec_single_batch(instance, scratch);
         }
 
-        expert_mask_scratch expert_mask;
+        expert_mask_cpu expert_mask;
         {
-            // Wait for moe_expert statement event only, and pass all other events to sub-network directly
-            // The UpdateShape() is bypassed and it's in-order queue
+            // Wait for topk is ready
             stream.finish();
 
             // [batch, max_topk]
             auto topk_id_mem = scratch.topk_id;
-            auto layout = scratch.topk_id_layout;
 
-            instance.get_expert_mask_from_memory(topk_id_mem, layout, stream, expert_mask);
-            {
-                const auto& shape = layout.get_shape();
-                int max_expert_num = static_cast<int>(moe->_config.expert_num),
-                    max_topk = static_cast<int>(moe->_config.topk),
-                    max_tokens = static_cast<int>(shape[0]);
-                int count = 0;
-                for (int no = 0; no < max_expert_num; no++) {
-                    count += static_cast<int>(expert_mask.batch[no].size());
-                }
-                OPENVINO_ASSERT(count == max_topk * max_tokens,
-                                "With max_expert_num=",
-                                max_expert_num,
-                                ",max_topk=",
-                                max_topk,
-                                ",exec count=",
-                                expert_mask.execed_count,
-                                ",max_tokens=",
-                                max_tokens,
-                                " should have ",
-                                max_topk * max_tokens,
-                                " tokens, but current is ",
-                                count,
-                                ". layout=",
-                                layout);
-            }
+            get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask);
         }
 
         auto& dnn_stream = stream.get_onednn_stream();
@@ -1123,7 +1200,6 @@ public:
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto final_hidden_states_layout = instance.get_output_layout(0);
         auto routing_mem_ptr = scratch.topk_weights;
-        auto routing_layout = scratch.topk_weights_layout;
         auto get_best_lws = [](size_t hidden_size) {
             const size_t candidate[] = {128, 64, 32, 16, 8};
             for (size_t i = 0; i < sizeof(candidate) / sizeof(size_t); i++) {
@@ -1136,7 +1212,7 @@ public:
         auto lws_size = get_best_lws(_hidden_size);
 
         OPENVINO_ASSERT(batch != 1, "batch size shouldn't be 1 for this path!");
-        for (size_t expert_no = 0; expert_no < instance.get_config().expert_num; expert_no++) {
+        for (size_t expert_no = 0; expert_no < config.expert_num; expert_no++) {
             OPENVINO_ASSERT(expert_no < expert_mask.pred_flag.size());
             auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
             if (can_skip_subgraph) {
@@ -1145,18 +1221,10 @@ public:
             auto& dnnl_weights = _dnnl_weights[expert_no];
 
             // expert_mask
-            expert_mask_mem_scratch* expert_mask_mem = nullptr;
-            {
-                auto key = expert_mask_mem_scratch_key + std::to_string(expert_no);
-                if (!cur_net.has_scratch<expert_mask_mem_scratch>(key)) {
-                    cur_net.set_scratch<expert_mask_mem_scratch>(key, {});
-                }
-                expert_mask_mem = &cur_net.get_scratch<expert_mask_mem_scratch>(key);
-                instance.copy_expert_mask_to_gpu(stream, expert_mask, expert_no, *expert_mask_mem);
-            }
+            expert_mask_gpu& expert_mask_mem = scratch.expert_masks[expert_no];
+            copy_expert_mask_to_gpu(stream, expert_mask, expert_no, expert_mask_mem);
 
             auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
-            instance.get_tmp_memory(hidden_states_layout.data_type, n_token, _hidden_size, _intermediate_size, max_topk, scratch);
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
             memory::ptr& x = scratch.x;
 
@@ -1164,7 +1232,7 @@ public:
             execute_stage(events,
                           instance,
                           *gather,
-                          {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem->batch, expert_mask_mem->topk},
+                          {hidden_states_mem_ptr, routing_mem_ptr, expert_mask_mem.batch, expert_mask_mem.topk},
                           {x, scratch.routing_weights},
                           {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
                           {1, lws_size});
@@ -1193,7 +1261,7 @@ public:
             result_event = execute_stage(events,
                                          instance,
                                          *scatter,
-                                         {scratch.y, expert_mask_mem->batch},
+                                         {scratch.y, expert_mask_mem.batch},
                                          {final_hidden_states_mem_ptr},
                                          {static_cast<size_t>(n_token), static_cast<size_t>(_hidden_size)},
                                          {1, lws_size},
