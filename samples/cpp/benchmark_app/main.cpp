@@ -51,6 +51,41 @@
 
 // clang-format on
 
+#if defined _WIN32
+
+#    include <psapi.h>
+#    include <windows.h>
+
+int64_t getPeakMemoryUsage() {
+    PROCESS_MEMORY_COUNTERS memCounters;
+    GetProcessMemoryInfo(GetCurrentProcess(), &memCounters, sizeof(memCounters));
+    return memCounters.PeakWorkingSetSize / 1000;
+}
+
+#else
+
+#    include <fstream>
+#    include <regex>
+#    include <sstream>
+
+int64_t getPeakMemoryUsage() {
+    size_t peakMemUsageKB = 0;
+
+    std::ifstream statusFile("/proc/self/status");
+    std::string line;
+    std::regex vmPeakRegex("VmPeak:");
+    std::smatch vmMatch;
+    while (std::getline(statusFile, line)) {
+        if (std::regex_search(line, vmMatch, vmPeakRegex)) {
+            std::istringstream iss(vmMatch.suffix());
+            iss >> peakMemUsageKB;
+        }
+    }
+    return static_cast<int64_t>(peakMemUsageKB);
+}
+
+#endif
+
 namespace {
 
 #if defined(_WIN32)
@@ -119,6 +154,15 @@ int64_t get_peak_memory_usage() {
 }
 
 #endif
+
+constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
+constexpr std::string_view BLOB_EXTENSION = ".blob";
+constexpr std::string_view ONNX_EXTENSION = ".onnx";
+
+inline bool file_exists(const std::string& file_name) {
+    std::ifstream file(file_name.c_str());
+    return file.good();
+}
 
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
@@ -862,8 +906,30 @@ int main(int argc, char* argv[]) {
             auto startTime = Time::now();
 
             std::ifstream modelStream(FLAGS_m, std::ios_base::binary | std::ios_base::in);
+            auto importModelMemStart = getPeakMemoryUsage();
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
+            }
+
+            device_config.insert(ov::hint::allow_auto_batching(false));
+
+            if (!device_config.count(ov::weights_path.name())) {
+                // Temporary solution: build the path to the weights by leveragin the one towards the binary object
+                std::string weightsPath = FLAGS_m;
+                weightsPath.replace(weightsPath.size() - BLOB_EXTENSION.length(),
+                                    BLOB_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION);
+
+                if (!file_exists(weightsPath)) {
+                    weightsPath.replace(weightsPath.size() - WEIGHTS_EXTENSION.length(),
+                                        WEIGHTS_EXTENSION.length(),
+                                        ONNX_EXTENSION);
+                    if (!file_exists(weightsPath)) {
+                        std::cout << "No weights file could be found by using the path towards the compiled model"
+                                  << std::endl;
+                    }
+                }
+                device_config.insert(ov::weights_path(weightsPath));
             }
 
             compiledModel = core.import_model(modelStream, device_name, device_config);

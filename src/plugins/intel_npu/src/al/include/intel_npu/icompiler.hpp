@@ -57,6 +57,42 @@ public:
     virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
     /**
+     * @brief TODO
+     *
+     * @param model
+     * @param config
+     * @return NetworkDescription
+     */
+    virtual std::vector<std::shared_ptr<NetworkDescription>> compileWS_v1(const std::shared_ptr<ov::Model>& model,
+                                                                          const Config& config) const = 0;
+
+    /**
+     * @brief Sequantial compilation of Init(s) and Main
+     *
+     * "Stateful compiler" approach
+     */
+    virtual std::shared_ptr<NetworkDescription> compileWS_v2(const std::shared_ptr<ov::Model>& model,
+                                                             const Config& config) = 0;
+
+    /**
+     * @brief Sequantial compilation of Init(s) and Main
+     *
+     * "Stateless compiler" approach
+     * We want to get multiple Inits in the case of a large number of weights.
+     * This allows us to build pipeline:
+     * Allocate W1 -> Init1
+     *             Allocate W2 -> Init2
+     *                          Allocate W3 -> Init2
+     *
+     * This is why there is an additional parameter callNumber:
+     * Compiler should somehow understand wich Init(or Main) to return
+     * Plugin does not know total numbers og Init schedules
+     */
+    virtual std::shared_ptr<NetworkDescription> compileWS_v3(const std::shared_ptr<ov::Model>& model,
+                                                             const Config& config,
+                                                             size_t callNumber) const = 0;
+
+    /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
      * @param config A reference to NPUConfig containing plugin config options

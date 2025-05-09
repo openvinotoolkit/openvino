@@ -16,7 +16,7 @@
 
 namespace intel_npu {
 
-class Graph final : public IGraph {
+class Graph : public IGraph {
 public:
     Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
           const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
@@ -35,13 +35,26 @@ public:
 
     void initialize(const Config& config) override;
 
+    virtual InitInputData allocateInputs(const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants,
+                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                         const Config& config) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
+
+    virtual InitOutputData allocateOutputs(const ov::SoPtr<ov::IRemoteContext>& context,
+                                           const Config& config) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
+
     ~Graph() override;
+
+protected:
+    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
 private:
     bool release_blob(const Config& config);
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
-    std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     const ov::SoPtr<ICompiler> _compiler;
 

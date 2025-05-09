@@ -14,6 +14,10 @@
 #include "intel_npu/utils/zero/zero_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 
+namespace ov::op::v0 {
+class Constant;
+}
+
 namespace intel_npu {
 
 class ZeroDevice : public IDevice {

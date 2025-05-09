@@ -33,7 +33,9 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
-                  const FilteredConfig& config);
+                  const FilteredConfig& config,
+                  const std::vector<std::shared_ptr<IGraph>>& initGraphs = {},
+                  const std::shared_ptr<ov::Model>& initModel = nullptr);
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -60,14 +62,27 @@ public:
 private:
     void configure_stream_executors();
 
+    void runInitSingleThreaded();
+
+    void runInitMultiThreaded();
+
     FilteredConfig _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor;
 
+    /**
+     * @brief TODO
+     *
+     */
+    mutable std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> _weightsInputs;
+    mutable std::vector<ov::SoPtr<ov::ITensor>> _initOutputsTensors;
+
     std::unique_ptr<Properties> _properties;
 
     std::shared_ptr<IGraph> _graph;
+    std::vector<std::shared_ptr<IGraph>> _initGraphs;
+    std::shared_ptr<ov::Model> _initModel;
 };
 
 }  //  namespace intel_npu
