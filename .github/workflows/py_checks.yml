@@ -106,8 +106,7 @@ jobs:
       
       # Run pyright to assert no regressions in type hinting
       - name: Run pyright on Python API
-        run: python -m pyright ./src/openvino -p ./pyproject.toml
-        working-directory: src/bindings/python
+        run: python -m pyright --verbose
 
         # layer_tests Flake code-style
       - name: Run flake8 on python tests in openvino/tests/layer_tests
