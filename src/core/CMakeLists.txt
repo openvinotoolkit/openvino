@@ -80,7 +80,8 @@ target_compile_definitions(openvino_core_obj PRIVATE IMPLEMENT_OPENVINO_API XBYA
 
 ov_build_target_faster(openvino_core_obj
     UNITY
-    PCH PRIVATE "src/precomp.hpp")
+    PCH "src/precomp.hpp"
+    PCH_EXCLUDE "src/op/util/attr_types.cpp")
 
 ov_add_version_defines(src/version.cpp openvino_core_obj)
 
