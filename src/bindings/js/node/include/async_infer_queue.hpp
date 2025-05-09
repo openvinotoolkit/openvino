@@ -37,9 +37,8 @@ private:
     std::vector<Napi::ObjectReference> m_user_inputs;  // to prevent garbage collection
 
     std::queue<size_t> m_idle_handles;
-    std::queue<std::tuple<Napi::ObjectReference, Napi::ObjectReference, Napi::Promise::Deferred>> awaiting_requests;
+    std::queue<std::tuple<Napi::ObjectReference, Napi::ObjectReference, Napi::Promise::Deferred>> m_awaiting_requests;
 
     std::mutex m_mutex;
-    std::queue<Napi::Error> m_errors;
-    Napi::ThreadSafeFunction tsfn;
+    Napi::ThreadSafeFunction m_tsfn;
 };

@@ -23,7 +23,7 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
     if (ov::js::validate<CompiledModelWrap, int>(info)) {
         auto& compiled = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(info[0].ToObject())->get_compiled_model();
         size_t jobs = info[1].As<Napi::Number>().Int32Value();
-        tsfn = nullptr;
+        m_tsfn = nullptr;
 
         m_requests.reserve(jobs);
         m_user_ids.reserve(jobs);
@@ -36,7 +36,7 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
             m_user_inputs.push_back(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 1));
             m_idle_handles.push(handle);
         }
-        this->set_default_callbacks();
+        set_default_callbacks();
     } else {
         reportError(info.Env(), "Invalid arguments. Expected CompiledModel and number of requests.");
     }
@@ -49,10 +49,10 @@ AsyncInferQueue::~AsyncInferQueue() {
 }
 
 void AsyncInferQueue::release(const Napi::CallbackInfo& info) {
-    if (!this->tsfn) {
+    if (!m_tsfn) {
         return;
     }
-    const auto status = this->tsfn.Release();
+    const auto status = m_tsfn.Release();
     if (status == napi_invalid_arg) {
         reportError(info.Env(), "Failed to release AsyncInferQueue thread-safe function. Its thread-count is zero.");
     } else if (status != napi_ok) {
@@ -104,11 +104,11 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     try {
         if (ov::js::validate<Napi::Function>(info, allowed_signatures)) {
-            this->tsfn = Napi::ThreadSafeFunction::New(info.Env(),
-                                                       info[0].As<Napi::Function>(),
-                                                       "AsyncInferQueueCallback",
-                                                       0,
-                                                       1);
+            m_tsfn = Napi::ThreadSafeFunction::New(info.Env(),
+                                                   info[0].As<Napi::Function>(),
+                                                   "AsyncInferQueueCallback",
+                                                   0,
+                                                   1);
             for (size_t handle = 0; handle < m_requests.size(); handle++) {
                 m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
                     if (exception_ptr == nullptr) {
@@ -125,13 +125,13 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                             {
                                 // Start async inference on the next request or add idle handle to queue
                                 std::lock_guard<std::mutex> lock(m_mutex);
-                                if (awaiting_requests.size() > 0) {
-                                    auto& request = awaiting_requests.front();
-                                    this->start_async_impl(*handle,
-                                                           std::get<2>(request),
-                                                           std::get<0>(request).Value(),
-                                                           std::get<1>(request).Value());
-                                    awaiting_requests.pop();
+                                if (m_awaiting_requests.size() > 0) {
+                                    auto& request = m_awaiting_requests.front();
+                                    start_async_impl(*handle,
+                                                     std::get<2>(request),
+                                                     std::get<0>(request).Value(),
+                                                     std::get<1>(request).Value());
+                                    m_awaiting_requests.pop();
                                 } else {
                                     m_idle_handles.push(*handle);
                                 }
@@ -139,7 +139,7 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                             delete handle;
                         };
                         // The ov_callback will execute when the main event loop becomes idle
-                        tsfn.BlockingCall(new int(handle), ov_callback);
+                        m_tsfn.BlockingCall(new int(handle), ov_callback);
                     }
                     try {
                         if (exception_ptr) {
@@ -186,13 +186,13 @@ Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
             OPENVINO_THROW("'startAsync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
 
-        const int handle = this->check_idle_request_id();
+        const int handle = check_idle_request_id();
         Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(info.Env());
         if (handle == -1) {
-            this->awaiting_requests.push(
+            m_awaiting_requests.push(
                 std::make_tuple(Napi::Persistent(info[0].ToObject()), Napi::Persistent(info[1].ToObject()), deferred));
         } else {
-            this->start_async_impl(handle, deferred, info[0].ToObject(), info[1].ToObject());
+            start_async_impl(handle, deferred, info[0].ToObject(), info[1].ToObject());
         }
         return deferred.Promise();
 
