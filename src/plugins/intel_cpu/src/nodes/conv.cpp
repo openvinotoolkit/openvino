@@ -343,7 +343,7 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc,
                                    const Shape& sumShape,
                                    ov::element::Type sumPrecision) {
     if (outputDesc->getShape().isStatic()) {
-        return outputDesc;
+        return outputDesc->cloneWithNewPrecision(sumPrecision);
     }
 
     // When we set the input shape with ranged dimensions, the sum node's input shape may mismatch with the output
@@ -351,7 +351,7 @@ static MemoryDescPtr getSumMemDesc(const MemoryDescPtr& outputDesc,
     // {128, 256}} Sum input shape = {1, 160, 1, 1} Update sum shape to {1, 160, {1, 256}, {1, 256}}
     const auto& shape = outputDesc->getShape();
     if (shape.getRank() != sumShape.getRank()) {
-        return outputDesc;
+        return outputDesc->cloneWithNewPrecision(sumPrecision);
     }
 
     const auto& sumDims = sumShape.getDims();
