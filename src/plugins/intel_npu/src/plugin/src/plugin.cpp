@@ -220,6 +220,8 @@ void Plugin::init_options() {
             REGISTER_OPTION(TURBO);
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
+        // register backend options
+        _backend->registerOptions(*_options);
     }
 
     // parse again env_variables to update registered configs which have env vars set
@@ -227,10 +229,6 @@ void Plugin::init_options() {
 
     // filter out unsupported options
     filter_config_by_compiler_support(_globalConfig);
-
-    if (_backend) {
-        _backend->registerOptions(*_options);
-    }
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -523,29 +521,13 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
-    // If was exported via NPUW
-    auto stream_start_pos = stream.tellg();
-    ov::npuw::s11n::IndicatorType serialization_indicator;
-    ov::npuw::s11n::read(stream, serialization_indicator);
-    if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
-        // Properties are required for ov::weights_path
-        return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
-    }
-    stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
-
-    // Drop NPUW properties if there are any
-    ov::AnyMap npu_plugin_properties;
-    for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW") == it->first.npos) {
-            npu_plugin_properties.insert(*it);
-        }
-    }
-
+    ov::AnyMap npu_plugin_properties = properties;
     std::shared_ptr<ov::AlignedBuffer> modelBuffer;
+    ov::SharedStreamBuffer buffer = {nullptr, 0};
+    std::istream stream{origStream.rdbuf()};
     // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
@@ -554,7 +536,41 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         modelBuffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
                                                                      compiled_blob.get_byte_size(),
                                                                      compiled_blob);
+        buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size());
+        stream.rdbuf(&buffer);
+        if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
+            loadedFromCache != npu_plugin_properties.end() && loadedFromCache->second.as<bool>() != false) {
+            stream.seekg(origStream.tellg(), std::ios::cur);  // skip OV header in case of cached blob
+        }
         npu_plugin_properties.erase(blob_it);
+    }
+
+    // If was exported via NPUW
+    auto stream_start_pos = stream.tellg();
+    ov::npuw::s11n::IndicatorType serialization_indicator;
+    ov::npuw::s11n::read(stream, serialization_indicator);
+    if (serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+        ov::npuw::s11n::IndicatorType compiled_model_indicator;
+        ov::npuw::s11n::read(stream, compiled_model_indicator);
+        stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+
+        if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+            // Properties are required for ov::weights_path
+            return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
+        } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+            // Properties are required for ov::weights_path
+            return ov::npuw::CompiledModel::import_model(stream, shared_from_this(), properties);
+        } else {
+            OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
+        }
+    }
+    stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
+
+    // Drop NPUW properties if there are any
+    for (auto it = properties.begin(); it != properties.end(); ++it) {
+        if (it->first.find("NPUW") != it->first.npos) {
+            npu_plugin_properties.erase(it);
+        }
     }
 
     CompilerAdapterFactory compilerAdapterFactory;

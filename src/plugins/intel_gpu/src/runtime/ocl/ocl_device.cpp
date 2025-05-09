@@ -322,10 +322,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     using namespace dnnl::impl::gpu::intel::jit;
-    ngen::HW hw = ngen::HW::Unknown;
-    ngen::Product product = {ngen::ProductFamily::Unknown, 0};
-    generator_t<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get(), hw, product);
-    info.arch = convert_ngen_arch(hw);
+    ngen::Product product = ngen::OpenCLCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get());
+    info.arch = convert_ngen_arch(ngen::getCore(product.family));
+
     // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
     // This is required to guarantee some level of forward compatibility for the new HW generations
     // as OneDNN code generators are not generic and typically requires some updates for the new architectures

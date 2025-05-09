@@ -60,8 +60,8 @@ struct generate_proposals
 
     ov::op::v9::GenerateProposals::Attributes attrs;
 
-    primitive_id output_rois_scores;
-    primitive_id output_rois_num;
+    input_info output_rois_scores;
+    input_info output_rois_num;
     data_types roi_num_type = data_types::dynamic;
 
     size_t hash() const override {
@@ -73,8 +73,8 @@ struct generate_proposals
         seed = hash_combine(seed, attrs.normalized);
         seed = hash_combine(seed, attrs.nms_eta);
         seed = hash_combine(seed, roi_num_type);
-        seed = hash_combine(seed, output_rois_scores.empty());
-        seed = hash_combine(seed, output_rois_num.empty());
+        seed = hash_combine(seed, output_rois_scores.is_valid());
+        seed = hash_combine(seed, output_rois_num.is_valid());
         return seed;
     }
 
@@ -92,8 +92,8 @@ struct generate_proposals
                cmp_fields(attrs.normalized) &&
                cmp_fields(attrs.nms_eta) &&
                cmp_fields(roi_num_type) &&
-               cmp_fields(output_rois_scores.empty()) &&
-               cmp_fields(output_rois_num.empty());
+               cmp_fields(output_rois_scores.is_valid()) &&
+               cmp_fields(output_rois_num.is_valid());
         #undef cmp_fields
     }
 
@@ -124,12 +124,16 @@ struct generate_proposals
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override {
-        std::vector<input_info> ret;
-        if (!output_rois_scores.empty())
-            ret.push_back(output_rois_scores);
-        if (!output_rois_num.empty())
-            ret.push_back(output_rois_num);
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
+
+        if (output_rois_scores.is_valid())
+            ret[idx++] = &output_rois_scores;
+
+        if (output_rois_num.is_valid())
+            ret[idx++] = &output_rois_num;
+
         return ret;
     }
 };
