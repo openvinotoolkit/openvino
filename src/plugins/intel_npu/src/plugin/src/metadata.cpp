@@ -158,9 +158,8 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
 
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     size_t magicBytesSize = MAGIC_BYTES.size();
-    std::string_view blobMagicBytes(
-        reinterpret_cast<const char* const>(tensor.data<const char>() + tensor.get_byte_size() - magicBytesSize),
-        magicBytesSize);
+    std::string_view blobMagicBytes(tensor.data<const char>() + tensor.get_byte_size() - magicBytesSize,
+                                    magicBytesSize);
 
     if (MAGIC_BYTES != blobMagicBytes) {
         OPENVINO_THROW("Blob is missing NPU metadata!");
