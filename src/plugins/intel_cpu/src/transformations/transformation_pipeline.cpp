@@ -876,11 +876,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [&](const_node_ptr& node) -> bool {
-            if (NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
-                one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3)) {
-                return false;
-            }
-            return true;
+            return !(NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
+                     one_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3));
         },
         MatMulTransformation);
 
