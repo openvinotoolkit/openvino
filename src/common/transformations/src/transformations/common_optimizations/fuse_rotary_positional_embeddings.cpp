@@ -283,36 +283,27 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     // branch.
     // so here we use a WA, only match the path of rotate_hal(x)*sin and check the x*cos path
     // in the callback
-    auto x = makePattern(ov::Rank(4));
-    auto x_or_cos1 = makePattern(ov::Rank(4));
-    auto x_or_cos2 = makePattern(ov::Rank(4));
-    auto t_sin = makePattern(ov::Rank(4));
+    auto x = pattern::any_input(pattern::rank_equals(4));
+    auto x_or_cos1 = pattern::any_input(pattern::rank_equals(4));
+    auto x_or_cos2 = pattern::any_input(pattern::rank_equals(4));
+    auto t_sin = pattern::any_input(pattern::rank_equals(4));
 
-    auto half_ndims = ov::gen_pattern::Symbol("half_ndims");
-
-    auto varsplit = makePattern<opset1::VariadicSplit>({x, 3, {half_ndims, ov::gen_pattern::Symbol("end")}});
+    auto varsplit = pattern::wrap_type<opset1::VariadicSplit>({x, 3, {"half_ndims", "?"}});
     varsplit->set_output_size(2);
 
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
-    // rotate half : [-x2, x1]
-    auto x2 = GenSlice(x, half_ndims, int32_max, 1, 3);
-    auto x2neg = makePattern<opset1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
-    auto x1 = GenSlice(x, 0, half_ndims, 1, 3);
-    auto x_rotate_half = makePattern<opset1::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
+    auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, 3);
+    auto x2neg = pattern::wrap_type<opset1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto x1 = NewGenSlice(x, 0, "half_ndims", 1, 3);
+    auto x_rotate_half = pattern::wrap_type<opset1::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 
-    auto mul_cos = makePattern<opset1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
-    auto mul_sin = makePattern<opset1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
+    auto mul_cos = pattern::wrap_type<opset1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
+    auto mul_sin = pattern::wrap_type<opset1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
 
-    // [x1, x2]*cos + [-x2, x1]*sin
-    auto result = makePattern<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
+    auto result = pattern::wrap_type<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -327,9 +318,15 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
             return false;
         }
 
+        auto symbols = m.get_symbols();
+        auto half_ndims = symbols["half_ndims"];
+        if (!half_ndims.is_integer()) {
+            return false;
+        }
+
         op::internal::RoPE::Config config;
         OutputVector new_args;
-        config.rotary_ndims = 2ul * static_cast<size_t>(validator["half_ndims"]);
+        config.rotary_ndims = 2ul * static_cast<size_t>(half_ndims.i());
 
         new_args.push_back(pattern_map.at(x));
         new_args.push_back(v_cos);
@@ -349,7 +346,6 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
         // this new node may match following additional matchers
         register_new_node(new_node);
-
         return true;
     };
 
