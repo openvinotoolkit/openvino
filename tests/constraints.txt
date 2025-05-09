@@ -19,7 +19,7 @@ py>=1.9.0
 pytest>=5.0,<8.4
 pytest-dependency==0.6.0
 pytest-html==4.1.1
-pytest-timeout==2.3.1
+pytest-timeout==2.4.0
 kornia==0.8.0
 
 --extra-index-url https://download.pytorch.org/whl/cpu
