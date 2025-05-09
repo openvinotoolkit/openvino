@@ -423,7 +423,7 @@ protected:
 #define N_BLOCK 4
 #define SUBGROUP_NUM 8
 
-static void add_common_consts(const RuntimeParams& params, JitConstants& jit, bool gen_weights_ptr = true) {
+static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     auto desc = params.typed_desc<moe_expert>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
@@ -437,53 +437,6 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit, bo
     jit.make("GROUP_SIZE", desc->_config.group_size);
     jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
-    if (gen_weights_ptr) {
-        // typedef struct {
-        //     __global void* weight[3];
-        //     __global void* zp[3];
-        //     __global void* scale[3];
-        // } FUNC(expert_info);
-        const auto& params = desc->_mlp_params;
-        std::stringstream buf;
-        for (size_t i = 0; i < params.size(); i++) {
-            const auto& param = params[i];
-            buf << "{{";
-            for (size_t j = 0; j < 3; j++) {
-#ifdef _WIN32
-                buf << "0x" << param.param[j].weight->buffer_ptr();
-#else
-                buf << param.param[j].weight->buffer_ptr();
-#endif
-                if (j != 3 - 1)
-                    buf << ",";
-            }
-            buf << "},{";
-            for (size_t j = 0; j < 3; j++) {
-#ifdef _WIN32
-                buf << "0x" << param.param[j].zp->buffer_ptr();
-#else
-                buf << param.param[j].zp->buffer_ptr();
-#endif
-                if (j != 3 - 1)
-                    buf << ",";
-            }
-            buf << "},{";
-            for (size_t j = 0; j < 3; j++) {
-#ifdef _WIN32
-                buf << "0x" << param.param[j].scale->buffer_ptr();
-#else
-                buf << param.param[j].scale->buffer_ptr();
-#endif
-                if (j != 3 - 1)
-                    buf << ",";
-            }
-            if (i != params.size() - 1)
-                buf << "}},";
-            else
-                buf << "}}";
-        }
-        jit.make("WEIGHT_POINTERS", buf.str());
-    }
 }
 
 class MoeExpertOptMLPGateUp : public KernelGenerator {
@@ -540,7 +493,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_expert>();
-        add_common_consts(params, jit, false);
+        add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
         return jit;
     }
@@ -563,7 +516,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_expert>();
-        add_common_consts(params, jit, false);
+        add_common_consts(params, jit);
         jit.make("KERNEL_NAME", get_entry_point(params));
         return jit;
     }
@@ -586,7 +539,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_expert>();
-        add_common_consts(params, jit, false);
+        add_common_consts(params, jit);
         jit.make("KERNEL_NAME", get_entry_point(params));
         return jit;
     }
@@ -609,7 +562,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_expert>();
-        add_common_consts(params, jit, false);
+        add_common_consts(params, jit);
         jit.make("KERNEL_NAME", get_entry_point(params));
         return jit;
     }
@@ -690,14 +643,14 @@ public:
     int _group_size;
     bool _up_use_cl;
     bool _down_use_cl;
-    cldnn::memory::ptr _weights_base;
+    // cldnn::memory::ptr _weights_base;
 
     MoeExpertOptImpl() : PrimitiveImplOCL(MoeExpertOpt::get_type_info_static()) {}
     MoeExpertOptImpl(const program_node& node, const RuntimeParams& params) : MoeExpertOptImpl() {
         node.get_program().get_engine().create_onednn_engine(node.get_program().get_config());
         const auto& moe = node.as<moe_expert>().get_primitive();
         const auto& moe_mlp_params = moe->_mlp_params;
-        _weights_base = moe_mlp_params[0].base_addr;
+        // _weights_base = moe_mlp_params[0].base_addr;
         // std::cout << "MoeExpertOptImpl: _weights_base = " << _weights_base << ", this = " << this << std::endl;
         _dnnl_weights.resize(moe_mlp_params.size());
         _hidden_size = static_cast<int>(moe->_config.hidden_size);
@@ -767,7 +720,7 @@ public:
         moe->_group_size = _group_size;
         moe->_up_use_cl = _up_use_cl;
         moe->_down_use_cl = _down_use_cl;
-        moe->_weights_base = _weights_base;
+        // moe->_weights_base = _weights_base;
         return moe;
     }
 
@@ -928,22 +881,6 @@ public:
         desc.workGroups.global = global;
         desc.workGroups.local = local;
 
-        size_t enable_indirect_usm = true;
-        int param_name = CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL;
-        if (_weights_base->get_allocation_type() == cldnn::allocation_type::usm_device) {
-            param_name = CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL;
-        } else if (_weights_base->get_allocation_type() == cldnn::allocation_type::usm_host) {
-            param_name = CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL;
-        } else if (_weights_base->get_allocation_type() == cldnn::allocation_type::usm_shared) {
-            param_name = CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL;
-        } else {
-            OPENVINO_ASSERT(false, "Unsupported allocation type");
-        }
-        stream.set_kernel_exec_info(*stage.kernel, param_name, enable_indirect_usm);
-        size_t param_value = reinterpret_cast<size_t>(_weights_base->buffer_ptr());
-        param_name = CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL;
-        stream.set_kernel_exec_info(*stage.kernel, param_name, param_value);
-
         return stream.enqueue_kernel(*stage.kernel, desc, {}, events, needs_completion_event);
     }
 
@@ -968,6 +905,7 @@ public:
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
+        const auto& mlp_weight_mem = moe->_mlp_weights_mem;
         event::ptr ret;
         if (cm_mlp_up) {
             const auto& scale_zps = moe->_scale_zp;
@@ -976,7 +914,7 @@ public:
                 execute_stage({},
                               instance,
                               *mlp_gate_up,
-                              {batch_mem_ptr, hidden_states_mem_ptr},
+                              {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, hidden_states_mem_ptr},
                               {scratch.up},
                               {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
                               {1, subgroup_size, SUBGROUP_NUM});
@@ -995,7 +933,7 @@ public:
                 execute_stage({},
                               instance,
                               *mlp_down,
-                              {batch_mem_ptr, scratch.up, routing_mem_ptr},
+                              {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, scratch.up, routing_mem_ptr},
                               {scratch.y},
                               {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
                               {1, subgroup_size, SUBGROUP_NUM});
@@ -1033,7 +971,7 @@ public:
             execute_stage({},
                         instance,
                         *mlp_gate_up,
-                        {batch_mem_ptr, hidden_states_mem_ptr},
+                        {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, hidden_states_mem_ptr},
                         {scratch.up},
                         {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
                         {1, subgroup_size, SUBGROUP_NUM});
@@ -1041,7 +979,7 @@ public:
             execute_stage({},
                         instance,
                         *mlp_down,
-                        {batch_mem_ptr, scratch.up, routing_mem_ptr},
+                        {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, scratch.up, routing_mem_ptr},
                         {scratch.y},
                         {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
                         {1, subgroup_size, SUBGROUP_NUM});

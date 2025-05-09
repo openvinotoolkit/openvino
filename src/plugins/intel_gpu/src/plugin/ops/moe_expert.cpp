@@ -79,6 +79,8 @@ static size_t get_weights_size(const std::shared_ptr<ov::op::internal::MOEExpert
                 weights_size += get_size(current_consts.down[j]);
             }
         }
+        // 9*4 = 36 bytes for gate/up/down weight/scale/zp offsets
+        weights_size += EACH_EXPERT_WEIGHTS_OFFSET_SIZE;
     }
     if (cm_mask) {
         // [64bytes]->gate_addrs,up_addrs, gate_scales_addrs, up_scales_addrs,gate_zp_addrs,up_zp_addrs, padding1, padding2
@@ -102,8 +104,9 @@ static cldnn::memory::ptr pre_allocate_weights(ProgramBuilder& p, const std::sha
 }
 
 static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert>& op, std::vector<cldnn::moe_expert::mlp_params>& params,
-    cldnn::moe_expert::scale_zp_mems& scale_zp, cldnn::memory::ptr& weights_base, int cm_mask) {
+    cldnn::moe_expert::scale_zp_mems& scale_zp, cldnn::moe_expert::mlp_weights_mem& wei_mem, int cm_mask) {
 
+    cldnn::memory::ptr& weights_base = wei_mem.weights_base;
     size_t weights_offset = 0;
     const auto& consts = op->get_consts();
     auto alloc = [&] (const std::shared_ptr<ov::Node>& node, bool try_repack = false) {
@@ -134,22 +137,6 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
     OPENVINO_ASSERT(op->get_config().expert_num == consts.size());
     params.resize(consts.size());
 
-    cldnn::layout ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num)}, cldnn::data_types::u64, cldnn::format::byfx);
-    cldnn::layout gate_up_ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num * 64 / sizeof(uint64_t))},
-                                     cldnn::data_types::u64,
-                                     cldnn::format::byfx);
-
-    if (cm_mask) {
-        // [64bytes]->gate_addrs,up_addrs, gate_scales_addrs, up_scales_addrs,gate_zp_addrs,up_zp_addrs, padding1, padding2
-        scale_zp.gate_up_addrs = p.get_engine().create_subbuffer(*weights_base, gate_up_ptr_layout, weights_offset);
-        weights_offset += gate_up_ptr_layout.bytes_count();
-        scale_zp.down_addrs = p.get_engine().create_subbuffer(*weights_base, ptr_layout, weights_offset);
-        weights_offset += ptr_layout.bytes_count();
-        scale_zp.down_scales_addrs = p.get_engine().create_subbuffer(*weights_base, ptr_layout, weights_offset);
-        weights_offset += ptr_layout.bytes_count();
-        scale_zp.down_zp_addrs = p.get_engine().create_subbuffer(*weights_base, ptr_layout, weights_offset);
-        weights_offset += ptr_layout.bytes_count();
-    }
     std::array<std::vector<uint64_t>, 3> buf_down;
     struct addrs {
         uint64_t gate_addrs;
@@ -163,7 +150,7 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
     std::vector<addrs> buf_gate_up(op->get_config().expert_num);
     for (size_t i = 0; i < consts.size(); i++) {
         auto current_consts = consts[i];
-        params[i].base_addr = weights_base;
+        // params[i].base_addr = weights_base;
 #define SET_BUF(src_name, dst_idx) \
         params[i].param[dst_idx].weight = alloc(current_consts.src_name[0]);  \
         buf_gate_up[i].gate_addrs = reinterpret_cast<uint64_t>(params[i].param[dst_idx].weight->buffer_ptr());    \
@@ -193,6 +180,21 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
     }
 
     if (cm_mask) {
+        // [64bytes]->gate_addrs,up_addrs, gate_scales_addrs, up_scales_addrs,gate_zp_addrs,up_zp_addrs, padding1, padding2
+        cldnn::layout ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num)}, cldnn::data_types::u64, cldnn::format::byfx);
+        cldnn::layout gate_up_ptr_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num * 64 / sizeof(uint64_t))},
+                                         cldnn::data_types::u64,
+                                         cldnn::format::byfx);
+        // initialize memory
+        scale_zp.gate_up_addrs = p.get_engine().create_subbuffer(*weights_base, gate_up_ptr_layout, weights_offset);
+        weights_offset += gate_up_ptr_layout.bytes_count();
+        scale_zp.down_addrs = p.get_engine().create_subbuffer(*weights_base, ptr_layout, weights_offset);
+        weights_offset += ptr_layout.bytes_count();
+        scale_zp.down_scales_addrs = p.get_engine().create_subbuffer(*weights_base, ptr_layout, weights_offset);
+        weights_offset += ptr_layout.bytes_count();
+        scale_zp.down_zp_addrs = p.get_engine().create_subbuffer(*weights_base, ptr_layout, weights_offset);
+        weights_offset += ptr_layout.bytes_count();
+        // copy data
         auto& stream = p.get_engine().get_service_stream();
         scale_zp.gate_up_addrs->copy_from(stream, buf_gate_up.data(), 0, 0, gate_up_ptr_layout.bytes_count(), true);
         scale_zp.down_addrs->copy_from(stream, buf_down[0].data(), 0, 0, ptr_layout.bytes_count(), true);
@@ -200,7 +202,29 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
         scale_zp.down_zp_addrs->copy_from(stream, buf_down[2].data(), 0, 0, ptr_layout.bytes_count(), true);
     }
 
-    // std::cout << "weights offset: " << weights_offset << ", weights_size: " << weights_base->size() << std::endl;
+    cldnn::layout offset_layout(ov::PartialShape{static_cast<int>(op->get_config().expert_num), EACH_EXPERT_WEIGHTS_OFFSET_SIZE},
+                                cldnn::data_types::i8,
+                                cldnn::format::byfx);
+    wei_mem.weights_offset = p.get_engine().create_subbuffer(*weights_base, offset_layout, weights_offset);
+    weights_offset += offset_layout.bytes_count();
+}
+
+static void update_weights_offsets(ProgramBuilder& p, std::vector<cldnn::moe_expert::mlp_params>& mlp_params, cldnn::moe_expert::mlp_weights_mem& wei_mem) {
+    auto& stream = p.get_engine().get_service_stream();
+    auto weights_base_ptr = reinterpret_cast<uint8_t*>(wei_mem.weights_base->buffer_ptr());
+    std::vector<uint32_t> offsets;
+    offsets.reserve(mlp_params.size() * EACH_EXPERT_WEIGHTS_OFFSET_SIZE / sizeof(uint32_t));
+    for (size_t i = 0; i < mlp_params.size(); i++) {
+        auto& params = mlp_params[i];
+        // gate/up/down weight/scale/zp offsets
+        for (size_t j = 0; j < 3; j++) {
+            offsets.push_back(reinterpret_cast<uint8_t*>(params.param[j].weight->buffer_ptr()) - weights_base_ptr);
+            offsets.push_back(reinterpret_cast<uint8_t*>(params.param[j].scale->buffer_ptr()) - weights_base_ptr);
+            offsets.push_back(reinterpret_cast<uint8_t*>(params.param[j].zp->buffer_ptr()) - weights_base_ptr);
+        }
+    }
+
+    wei_mem.weights_offset->copy_from(stream, offsets.data(), 0, 0, wei_mem.weights_offset->get_layout().bytes_count(), true);
 }
 
 static void CreateMOEExpertOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOEExpert>& op) {
@@ -212,16 +236,18 @@ static void CreateMOEExpertOp(ProgramBuilder& p, const std::shared_ptr<ov::op::i
     const std::string layerName = layer_type_name_ID(op);
     std::vector<cldnn::moe_expert::mlp_params> params;
     cldnn::moe_expert::scale_zp_mems scale_zps;
+    cldnn::moe_expert::mlp_weights_mem wei_mem;
 
     int cm_mask = 1;
     auto env = std::getenv("CM_MASK");
     if (env) {
         cm_mask = std::atoi(env);
     }
-    auto mem = pre_allocate_weights(p, op, cm_mask);
-    prepare_weights(p, op, params, scale_zps, mem, cm_mask);
+    wei_mem.weights_base = pre_allocate_weights(p, op, cm_mask);
+    prepare_weights(p, op, params, scale_zps, wei_mem, cm_mask);
+    update_weights_offsets(p, params, wei_mem);
 
-    const cldnn::moe_expert moe(layerName, inputs, config, params, scale_zps);
+    const cldnn::moe_expert moe(layerName, inputs, config, params, wei_mem, scale_zps);
 
     p.add_primitive(*op, moe);
 }

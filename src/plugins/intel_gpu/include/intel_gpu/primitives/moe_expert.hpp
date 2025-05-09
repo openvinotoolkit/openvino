@@ -20,7 +20,6 @@ struct moe_expert : public primitive_base<moe_expert> {
     moe_expert() : primitive_base("", {}) {}
 
     struct mlp_params {
-        cldnn::memory::ptr base_addr;
         struct param {
             cldnn::memory::ptr weight;
             cldnn::memory::ptr bias;
@@ -38,6 +37,17 @@ struct moe_expert : public primitive_base<moe_expert> {
             return param[0] == rhs.param[0] && param[1] == rhs.param[1] && param[2] == rhs.param[2];
         }
     };
+
+    #define EACH_EXPERT_WEIGHTS_OFFSET_SIZE 36
+    struct mlp_weights_mem {
+        memory::ptr weights_base;
+        // weights/scale/zp offsets, each expert has 9*4 = 36 bytes
+        // gate_weight_offset, up_weight_offset, down_weight_offset
+        // gate_scale_offset, up_scale_offset, down_scale_offset
+        // gate_zp_offset, up_zp_offset, down_zp_offset
+        memory::ptr weights_offset;
+    };
+
     struct scale_zp_mems {
         // [64bytes]->gate_addrs,up_addrs, gate_scales_addrs, up_scales_addrs,gate_zp_addrs ,up_zp_addrs, padding1, padding2
         memory::ptr gate_up_addrs;
@@ -53,15 +63,18 @@ struct moe_expert : public primitive_base<moe_expert> {
     moe_expert(const primitive_id& id,
             const std::vector<input_info>& inputs,
             const MOEExpert::Config& config, const std::vector<mlp_params>& param,
+            const mlp_weights_mem& wei_mem,
             const scale_zp_mems& scale_zp)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
           _config(config),
           _mlp_params(param),
+          _mlp_weights_mem(wei_mem),
           _scale_zp(scale_zp) {
     }
 
     MOEExpert::Config _config;
     std::vector<mlp_params> _mlp_params;
+    mlp_weights_mem _mlp_weights_mem;
     scale_zp_mems _scale_zp;
 
     bool operator==(const primitive& rhs) const override {

@@ -303,34 +303,6 @@ void ocl_stream::enqueue_barrier() {
     }
 }
 
-void ocl_stream::set_kernel_exec_info(kernel& kernel, int param_name, const size_t param_value) {
-    auto& ocl_kernel = downcast<ocl::ocl_kernel>(kernel);
-    auto& kern = ocl_kernel.get_handle();
-    try {
-        cl_kernel_exec_info name = static_cast<cl_kernel_exec_info>(param_name);
-        switch (name) {
-        case CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL:
-        case CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL:
-        case CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL:
-            if (param_value != 0 && param_value != 1) {
-                OPENVINO_THROW("Invalid value for kernel execution info: ", param_name);
-            }
-            kern.setExecInfo<const size_t>(name, param_value);
-            break;
-        case CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL:
-            if (param_value == 0) {
-                OPENVINO_THROW("Invalid value for kernel execution info: ", param_name);
-            }
-            kern.setExecInfo<const void*>(name, reinterpret_cast<const void*>(param_value));
-            break;
-        default:
-            OPENVINO_THROW("Unsupported kernel execution info: ", param_name);
-        }
-    } catch (cl::Error const& err) {
-        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
-    }
-}
-
 event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
     // Wait for all previously enqueued tasks if deps list is empty
     if (deps.empty()) {

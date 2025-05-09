@@ -12,11 +12,7 @@
 //#define N_BLOCK_SIZE 64
 //#define SUBGROUP_SIZE 32
 
-typedef struct {
-    __global void* weight[3];
-    __global void* zp[3];
-    __global void* scale[3];
-} FUNC(expert_info);
+#define EACH_EXPERT_WEIGHTS_OFFSET_SIZE 36
 
 #if GATE_UP_ENABLE
 // x: [1, K]
@@ -83,7 +79,7 @@ inline void gemv_n2x(const __global uchar* weight,
     int num_sg = get_num_sub_groups();
     int id_sg = get_sub_group_id();
     int id_local = get_sub_group_local_id();
-#if 1
+
     //# interleaving x into x2
     half * px = x + id_sg*GROUP_SIZE;
     half * px2 = x2 + id_sg*GROUP_SIZE;
@@ -102,7 +98,7 @@ inline void gemv_n2x(const __global uchar* weight,
             xg_sum[i] = x_group_sum / SUBGROUP_SIZE;
         }
     }
-#endif
+
     barrier(CLK_LOCAL_MEM_FENCE);
 
     int n_start = get_global_id(2) * N_BLOCK;
@@ -185,27 +181,36 @@ inline void gemv_n2x(const __global uchar* weight,
     }
 }
 
-__global FUNC(expert_info) FUNC(g_info_ptrs)[] = {
-WEIGHT_POINTERS
-};
-
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL (mlp_gate_up)(
     const __global int* expert_list,
+    const __global uchar* weight_base_addr,
+    const __global uchar* weight_offset,
     __global TYPE* x,                        // [1, HIDDEN_SIZE]
     __global TYPE* y) {                      // [MAX_TOPK, INTERMEDIATE_SIZE]
     // global: [expert, SUBGROUP_SIZE, N//N_BLOCK],[1, SUBGROUP_SIZE, SUBGROUP_NUM]
     int expert_no = get_global_id(0);
     y += expert_no * INTERMEDIATE_SIZE;
-    __global FUNC(expert_info)* info_ptr = &(FUNC(g_info_ptrs)[expert_list[expert_no]]);
-    // up, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
-    __global uchar* up_weight = (__global uchar*)info_ptr->weight[1];
-    __global half* up_scale = (__global half*)info_ptr->scale[1];
-    __global uchar* up_zp = (__global uchar*)info_ptr->zp[1];
+    __global unsigned int *addr_offset = (__global unsigned int *)(weight_offset + expert_list[expert_no] * EACH_EXPERT_WEIGHTS_OFFSET_SIZE);
+
     // gate, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
-    __global uchar* gate_weight = (__global uchar*)info_ptr->weight[0];
-    __global half* gate_scale = (__global half*)info_ptr->scale[0];
-    __global uchar* gate_zp = (__global uchar*)info_ptr->zp[0];
+    __global uchar* gate_weight = (__global uchar*)(weight_base_addr + addr_offset[0]);
+    __global half* gate_scale = (__global half*)(weight_base_addr + addr_offset[1]);
+    __global uchar* gate_zp = (__global uchar*)(weight_base_addr + addr_offset[2]);
+
+    // up, [HIDDEN_SIZE, INTERMEDIATE_SIZE]
+    __global uchar* up_weight = (__global uchar*)(weight_base_addr + addr_offset[3]);
+    __global half* up_scale = (__global half*)(weight_base_addr + addr_offset[4]);
+    __global uchar* up_zp = (__global uchar*)(weight_base_addr + addr_offset[5]);
+
+#if 0
+    if(get_global_id(1)==0 && get_global_id(2)==0) {
+        int id = expert_list[expert_no];
+        printf("[%d]=%d: addr_offset[%d-%d]: %d, %d, %d, %d, %d, %d\n", expert_no, id, id*EACH_EXPERT_WEIGHTS_OFFSET_SIZE/4,
+                    (id+1)*EACH_EXPERT_WEIGHTS_OFFSET_SIZE/4 - 1,
+                    addr_offset[0], addr_offset[1], addr_offset[2], addr_offset[3], addr_offset[4], addr_offset[5]);
+    }
+#endif
 
     __local half x2[HIDDEN_SIZE];
     __local float xg_sum[HIDDEN_SIZE/32];
@@ -263,13 +268,11 @@ inline void gemv_n(const __global uchar* weight, __global half* scales, __global
     }
 }
 
-__global FUNC(expert_info) FUNC(g_info_ptrs)[] = {
-WEIGHT_POINTERS
-};
-
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 KERNEL (mlp_down)(
     const __global int* expert_list,
+    const __global uchar* weight_base_addr,
+    const __global uchar* weight_offset,
     const __global TYPE* x,                               // [MAX_TOPK, INTERMEDIATE_SIZE]
     __global TYPE* routing_weights,                       // [MAX_TOPK]
     __global TYPE* y) {                                   // [MAX_TOPK, HIDDEN_SIZE]
@@ -277,12 +280,12 @@ KERNEL (mlp_down)(
     int expert_no = get_global_id(0);
     x += expert_no * INTERMEDIATE_SIZE;
     y += expert_no * HIDDEN_SIZE;
+    __global unsigned int *addr_offset = (__global unsigned int *)(weight_offset + expert_list[expert_no] * EACH_EXPERT_WEIGHTS_OFFSET_SIZE);
 
-    __global FUNC(expert_info)* info_ptr = &(FUNC(g_info_ptrs)[expert_list[expert_no]]);
     // down, [INTERMEDIATE_SIZE, HIDDEN_SIZE]
-    __global uchar* weight = (__global uchar*)info_ptr->weight[2];
-    __global half* scales = (__global half*)info_ptr->scale[2];
-    __global uchar* zps = (__global uchar*)info_ptr->zp[2];
+    __global uchar* weight = (__global uchar*)(weight_base_addr + addr_offset[6]);
+    __global half* scales = (__global half*)(weight_base_addr + addr_offset[7]);
+    __global uchar* zps = (__global uchar*)(weight_base_addr + addr_offset[8]);
 
     int N = HIDDEN_SIZE;
     int K = INTERMEDIATE_SIZE;

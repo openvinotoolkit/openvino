@@ -16,13 +16,6 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #endif
 
-#ifndef CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL
-#define CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL   0x4200
-#define CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL 0x4201
-#define CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL 0x4202
-#define CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL               0x4203
-#endif
-
 namespace cldnn {
 
 // Possible sync methods for kernels in stream
@@ -74,7 +67,6 @@ public:
     virtual event::ptr create_user_event(bool set) = 0;
     virtual event::ptr create_base_event() = 0;
     virtual event::ptr aggregate_events(const std::vector<event::ptr>& events, bool group = false, bool is_output = false);
-    virtual void set_kernel_exec_info(kernel& kernel, int param_name, const size_t param_value) = 0;
 
     QueueTypes get_queue_type() const { return m_queue_type; }
     SyncMethods get_sync_method() const { return m_sync_method; }
