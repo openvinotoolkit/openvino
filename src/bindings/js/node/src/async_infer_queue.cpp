@@ -20,7 +20,14 @@
 
 AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectWrap<AsyncInferQueue>(info) {
     const auto env = info.Env();
-    if (ov::js::validate<CompiledModelWrap, int>(info)) {
+    std::vector<std::string> allowed_signatures;
+
+    try {
+        const auto are_arguments_valid = ov::js::validate<CompiledModelWrap, int>(info, allowed_signatures);
+        OPENVINO_ASSERT(are_arguments_valid,
+                        "'AsyncInferQueue' constructor",
+                        ov::js::get_parameters_error_msg(info, allowed_signatures));
+
         auto& compiled = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(info[0].ToObject())->get_compiled_model();
         size_t jobs = info[1].As<Napi::Number>().Int32Value();
         m_tsfn = nullptr;
@@ -37,8 +44,9 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
             m_idle_handles.push(handle);
         }
         set_default_callbacks();
-    } else {
-        reportError(info.Env(), "Invalid arguments. Expected CompiledModel and number of requests.");
+
+    } catch (const ov::Exception& e) {
+        reportError(env, e.what());
     }
 }
 
@@ -179,9 +187,10 @@ Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
 
     try {
-        if (!ov::js::validate<Napi::Object, Napi::Value>(info, allowed_signatures)) {
-            OPENVINO_THROW("'startAsync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
-        }
+        const auto are_arguments_valid = ov::js::validate<Napi::Object, Napi::Value>(info, allowed_signatures);
+        OPENVINO_ASSERT(are_arguments_valid,
+                        "'startAsync'",
+                        ov::js::get_parameters_error_msg(info, allowed_signatures));
 
         const int handle = check_idle_request_id();
         Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(info.Env());

@@ -45,6 +45,31 @@ describe('Tests for AsyncInferQueue.', () => {
     return tensorData;
   }
 
+  it('Test AsyncInferQueue constructor with invalid arguments', async () => {
+    assert.throws(() => {
+      new ov.AsyncInferQueue(); // No arguments
+    },
+    /'AsyncInferQueue' constructor method called with incorrect parameters./
+    );
+
+    assert.throws(() => {
+      new ov.AsyncInferQueue(compiledModel); // Missing numRequest
+    },
+    /'AsyncInferQueue' constructor method called with incorrect parameters./
+    );
+
+    assert.throws(() => {
+      new ov.AsyncInferQueue(null, numRequest); // Invalid compiledModel
+    }, 'TypeError: Cannot convert undefined or null to object');
+
+    assert.throws(() => {
+      // Invalid numRequest type
+      new ov.AsyncInferQueue(compiledModel, 'invalid');
+    },
+    /'AsyncInferQueue' constructor method called with incorrect parameters./
+    );
+  });
+
   it('Test main event loop non-blocking inference', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     const jobsDone = Array.from({ length: jobs }, () => ({ finished: false }));
