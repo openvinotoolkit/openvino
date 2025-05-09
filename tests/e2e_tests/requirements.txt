@@ -8,7 +8,7 @@ py-cpuinfo==9.0.0
 scipy>=1.5.4,<1.16
 opencv-python>=4.5; sys_platform != "darwin"
 opencv-python==4.8.1.78; sys_platform == "darwin"
-unittest-xml-reporting==3.0.4
+unittest-xml-reporting==3.2.0
 lpips==0.1.4
 
 # for utils/e2e/comparator note: python 3.6 wheels is not available since 0.18
