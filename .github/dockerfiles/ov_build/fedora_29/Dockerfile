@@ -98,6 +98,8 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 RUN python3.9 -m venv venv
 ENV PATH="/venv/bin:$PATH"
 RUN alternatives --install /usr/bin/python python /usr/local/bin/python3.9 10
+RUN alternatives --install /usr/bin/python3.9 python3 /usr/local/bin/python3.9 10
+RUN alternatives --install /usr/bin/python3 python3-bin /usr/local/bin/python3.9 10
 
 # Setup pip
 ENV PIP_VERSION="24.0"
