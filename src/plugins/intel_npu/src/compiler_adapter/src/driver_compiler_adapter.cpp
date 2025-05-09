@@ -501,8 +501,8 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
             std::ostringstream turbostr;
             turbostr << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                      << VALUE_DELIMITER;
-            logger.warning("NPU_TURBO property is not supported by this compiler. Removing from "
-                           "parameters");
+            logger.info("NPU_TURBO property is not supported by this compiler. Removing from "
+                        "parameters");
             content = std::regex_replace(content, std::regex(turbostr.str()), "");
         }
     }
