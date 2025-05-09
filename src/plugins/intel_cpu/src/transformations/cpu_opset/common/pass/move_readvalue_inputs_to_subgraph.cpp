@@ -9,6 +9,8 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
@@ -32,8 +34,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
             return false;
         }
 
-        if (readvalue->get_rt_info().count("DisableInitSubgraphFusing") &&
-            readvalue->get_rt_info()["DisableInitSubgraphFusing"].as<bool>()) {
+        if (auto it = readvalue->get_rt_info().find("DisableInitSubgraphFusing");
+            it != readvalue->get_rt_info().end() && it->second.as<bool>()) {
             return false;
         }
 
@@ -142,7 +144,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         }
 
         // Subgraph's output
-        auto last_node = readvalue->get_input_node_shared_ptr(0);
+        auto last_node = readvalue->input_value(0);
         auto output = std::make_shared<ov::op::v0::Result>(last_node);
         auto func = std::make_shared<Model>(ov::ResultVector({output}), params, "state_init_submodel");
 

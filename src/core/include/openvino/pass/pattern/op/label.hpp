@@ -72,9 +72,11 @@ protected:
 };
 }  // namespace op
 
-OPENVINO_API std::shared_ptr<Node> any_input();
+OPENVINO_API std::shared_ptr<Node> any_input(const Attributes& attrs = {});
 
-template <typename TPredicate>
+template <typename TPredicate,
+          typename std::enable_if_t<std::is_constructible_v<op::Predicate, TPredicate> &&
+                                    !std::is_constructible_v<Attributes, TPredicate>>* = nullptr>
 std::shared_ptr<Node> any_input(const TPredicate& pred) {
     return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), op::Predicate(pred));
 }

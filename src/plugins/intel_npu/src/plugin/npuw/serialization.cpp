@@ -94,7 +94,9 @@ enum class AnyType : int {
     FLOAT,
     BOOL,
     CACHE_MODE,
-    ELEMENT_TYPE
+    ELEMENT_TYPE,
+    ANYMAP,
+    PERFMODE
 };
 
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
@@ -133,6 +135,12 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     } else if (var.is<ov::element::Type>()) {
         write(stream, static_cast<int>(AnyType::ELEMENT_TYPE));
         write(stream, var.as<ov::element::Type>());
+    } else if (var.is<ov::AnyMap>()) {
+        write(stream, static_cast<int>(AnyType::ANYMAP));
+        write(stream, var.as<ov::AnyMap>());
+    } else if (var.is<ov::hint::PerformanceMode>()) {
+        write(stream, static_cast<int>(AnyType::PERFMODE));
+        write(stream, var.as<ov::hint::PerformanceMode>());
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -148,6 +156,18 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::CacheMode& var) {
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::element::Type& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::hint::PerformanceMode& var) {
+    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::AnyMap& var) {
+    write(stream, var.size());
+    for (const auto& el : var) {
+        write(stream, el.first);
+        write_any(stream, el.second);
+    }
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
@@ -299,6 +319,14 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         ov::element::Type val;
         read(stream, val);
         var = val;
+    } else if (type == AnyType::ANYMAP) {
+        ov::AnyMap val;
+        read(stream, val);
+        var = val;
+    } else if (type == AnyType::PERFMODE) {
+        ov::hint::PerformanceMode val;
+        read(stream, val);
+        var = val;
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -314,6 +342,22 @@ void ov::npuw::s11n::read(std::istream& stream, ov::CacheMode& var) {
 
 void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {
     stream.read(reinterpret_cast<char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::hint::PerformanceMode& var) {
+    stream.read(reinterpret_cast<char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::AnyMap& var) {
+    std::size_t var_size = 0;
+    read(stream, var_size);
+    for (std::size_t i = 0; i < var_size; ++i) {
+        std::string k;
+        read(stream, k);
+        ov::Any v;
+        read_any(stream, v);
+        var[k] = v;
+    }
 }
 
 // Weightless
@@ -375,10 +419,8 @@ void ov::npuw::s11n::read_weightless(std::istream& stream,
             } else {
                 auto it = ctx.consts_cache.find({offset, byte_size});
                 NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
-                auto tensor = ov::npuw::util::tensor_from_const(it->second);
-                NPUW_ASSERT(tensor.get_byte_size() == byte_size && tensor.get_shape() == shape &&
-                            tensor.get_element_type() == type);
-                tensor.copy_to(t);
+                t = ov::npuw::util::copy_tensor_from_const(it->second);
+                NPUW_ASSERT(t.get_byte_size() == byte_size && t.get_shape() == shape && t.get_element_type() == type);
             }
 
             var.push_back(t);

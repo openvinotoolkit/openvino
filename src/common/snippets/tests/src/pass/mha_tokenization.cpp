@@ -285,6 +285,17 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Reshape_extraction) {
     run();
 }
 
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Rank_Change_Reshape_extraction) {
+    const auto& f = MHARankUpgradeToReductionFunction(std::vector<PartialShape>{{100, 16, 100, 32},
+                                                                                {100, 16, 32, 100},
+                                                                                {1, 16, 100, 100},
+                                                                                {1, 100, 1, 100, 100},
+                                                                                {100, 16, 100, 32}});
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
