@@ -102,7 +102,7 @@ def segment_max(
 def sparse_fill_empty_rows(
     values: NodeInput,
     dense_shape: NodeInput,
-    indices: NodeInput, 
+    indices: NodeInput,
     default_value: NodeInput,
     name: Optional[str] = None,
 ) -> Node:

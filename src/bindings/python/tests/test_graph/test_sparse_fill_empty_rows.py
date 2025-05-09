@@ -26,7 +26,7 @@ def test_sparse_fill_empty_rows(values_dtype, indices_dtype, values_shape, indic
     dense_shape = parameter((len(dense_shape_value),), name="dense_shape", dtype=indices_dtype)
     indices = parameter(indices_shape, name="indices", dtype=indices_dtype)
     default_value = parameter((), name="default_value", dtype=values_dtype)
-    
+
     node = ov.sparse_fill_empty_rows(values, dense_shape, indices, default_value)
 
     assert node.get_type_name() == "SparseFillEmptyRows"
