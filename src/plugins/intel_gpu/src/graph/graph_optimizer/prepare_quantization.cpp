@@ -528,7 +528,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         reorder_bfyx_to_fbyx(decompression_scale_idx);
     }
 
-    if (!fc_prim->decompression_zero_point.empty()) {
+    if (fc_prim->decompression_zero_point.is_valid()) {
         auto decompression_zp_idx = decompression_scale_idx + 1;
         if (need_reorder(decompression_zp_idx)) {
             reorder_bfyx_to_fbyx(decompression_zp_idx);

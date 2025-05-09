@@ -808,7 +808,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
                 auto activation_desc = fused_desc.typed_desc<activation>();
                 if (activation_desc->activation_function == cldnn::activation_func::relu_negative_slope &&
-                    !activation_desc->additional_params_input.empty()) {
+                    activation_desc->additional_params_input.is_valid()) {
                     const auto expected_dt = data_types::f32;
                     const auto dep_idx = fused_desc.outer_dep_start_idx;
                     const auto orig_layout = node->get_dependency(dep_idx).get_output_layout();

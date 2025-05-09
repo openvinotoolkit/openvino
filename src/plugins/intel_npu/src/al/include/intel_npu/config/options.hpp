@@ -1286,6 +1286,10 @@ struct RUN_INFERENCES_SEQUENTIALLY final : OptionBase<RUN_INFERENCES_SEQUENTIALL
         return false;
     }
 
+    static bool isPublic() {
+        return true;
+    }
+
     static OptionMode mode() {
         return OptionMode::RunTime;
     }

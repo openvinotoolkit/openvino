@@ -85,10 +85,10 @@ public:
         return deformable_mode;
     }
 
-    bool bias_term() const { return get_primitive()->bias.size() > 0; }
-    bool weights_zero_points_term() const { return get_primitive()->weights_zero_points.size() > 0; }
-    bool compensation_term() const { return get_primitive()->compensation.size() > 0; }
-    bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.size() > 0; }
+    bool bias_term() const { return get_primitive()->bias.is_valid(); }
+    bool weights_zero_points_term() const { return get_primitive()->weights_zero_points.is_valid(); }
+    bool compensation_term() const { return get_primitive()->compensation.is_valid(); }
+    bool activations_zero_points_term() const { return get_primitive()->activations_zero_points.is_valid(); }
     bool use_explicit_padding() const { return get_primitive()->auto_pad == ov::op::PadType::EXPLICIT; }
 
     // Currently convolution with constant weight is only supported for dynamic shape
