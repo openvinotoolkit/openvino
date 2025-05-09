@@ -38,7 +38,7 @@ size_t Graph::export_blob(std::ostream& stream) const {
     std::vector<uint8_t> blob;
 
     if (_blobIsReleased) {
-        OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
+        OPENVINO_THROW("Model was released after initialization. Try importing it using `ov::hint::compiled_blob` property to extend "
                        "its lifetime.");
     }
 
