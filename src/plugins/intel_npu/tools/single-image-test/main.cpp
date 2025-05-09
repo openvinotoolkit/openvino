@@ -718,6 +718,54 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
     return out;
 }
 
+std::string parseInputFiles(const ov::OutputVector& inputInfo, const std::string& input_file) {
+    // Parse input string into key-value pairs
+    std::map<std::string, std::string> inputFileMap = parseArgMap(input_file);
+
+    // Create vector to store matched values for each input
+    std::vector<std::string> inputValues(inputInfo.size());
+
+    // Iterate through inputInfo and find matches
+    for (size_t i = 0; i < inputInfo.size(); ++i) {
+        const auto& input = inputInfo[i];
+        const auto& inputNames = input.get_names();
+
+        for (const auto& name : inputNames) {
+            auto it = inputFileMap.find(name);
+            if (it != inputFileMap.end()) {
+                // If we already have a value for this input, it's a duplicate
+                if (!inputValues[i].empty()) {
+                    OPENVINO_ASSERT(false, "Duplicate input specification found for input with name ",
+                                  name);
+                }
+                inputValues[i] = it->second;
+                std::cout << "--- Matched input: " << name << " with value: " << it->second << std::endl;
+                break;
+            }
+        }
+    }
+
+    // Count how many inputs have values
+    size_t valueCount = std::count_if(inputValues.begin(), inputValues.end(),
+                                    [](const std::string& s) { return !s.empty(); });
+
+    // All inputs must have values or none must have values
+    if (valueCount > 0 && valueCount < inputInfo.size()) {
+        OPENVINO_ASSERT(false, "Incomplete input specification. All inputs must be specified or none.");
+    }
+
+    // Concatenate results with ; delimiter
+    std::string result;
+    for (size_t i = 0; i < inputValues.size(); ++i) {
+        if (i > 0) {
+            result += ";";
+        }
+        result += inputValues[i];
+    }
+
+    return result;
+}
+
 template <class T>
 std::optional<T> getRegexSubstitutionIfExist(const std::string& haystack, const std::map<RegexPtr, T>& substitutions) {
     for (const auto& s : substitutions) {
@@ -1964,81 +2012,17 @@ static int runSingleImageTest() {
         std::map<RegexPtr, ov::Layout> inModelLayouts = parseLayoutRegex(FLAGS_iml);
         std::map<RegexPtr, ov::Layout> outModelLayouts = parseLayoutRegex(FLAGS_oml);
 
+        // Move input file processing to after checking of loadable network
         std::vector<std::string> inputFilesPerCase;
         using FilesPerInput = std::vector<std::string>;
         using FilesForModelInputs = std::vector<FilesPerInput>;
         std::vector<FilesForModelInputs> inputFilesForOneInfer;
-
-        inputFilesPerCase = splitStringList(FLAGS_input, ';');
-        for (const auto& images : inputFilesPerCase) {
-            std::vector<std::string> filesPerModel = splitStringList(images, ',');
-            FilesForModelInputs entireModelFiles;
-            entireModelFiles.reserve(filesPerModel.size());
-            for (auto &&filesPerInput : filesPerModel) {
-                // from now on each input of a model support multiple image files as content of a batched input
-                entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
-            }
-            inputFilesForOneInfer.push_back(std::move(entireModelFiles));
-        }
-
+        // Move output file processing to after checking of loadable network
         std::vector<std::string> refFilesPerCase;
         using RefFilesPerInput = std::vector<std::string>;
         using RefFilesForModelOutputs = std::vector<RefFilesPerInput>;
         RefFilesForModelOutputs refFilesForOneInfer;
-
-        if (!FLAGS_ref_results.empty()) {
-            refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
-            // Make sure that the number of test cases (separated by ;) is the same as number of test cases given in
-            // input files
-            if (refFilesPerCase.size() != inputFilesPerCase.size()) {
-                std::cout << "The number of test cases in reference files is not equal to the number of test cases"
-                    << " given in input files. "
-                    << "  Number of test cases in reference files: " << refFilesPerCase.size()
-                    << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
-                return EXIT_FAILURE;
-            }
-
-            for (const auto& refResult : refFilesPerCase) {
-                std::vector<std::string> refFilesPerModel = splitStringList(refResult, ',');
-                refFilesForOneInfer.push_back(std::move(refFilesPerModel));
-            }
-        }
-
-        std::vector<std::string> inputBinPrecisionStrPerCase;
-        std::vector<std::vector<ov::element::Type>> inputBinPrecisionForOneInfer(inputFilesForOneInfer.size());
-        if (FLAGS_img_as_bin) {
-            for (std::size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
-                inputBinPrecisionForOneInfer[i] =
-                    std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::dynamic);
-            }
-            inputBinPrecisionStrPerCase = splitStringList(FLAGS_img_bin_precision, ';');
-            std::size_t inferIdx = 0;
-            for (const auto& precisions : inputBinPrecisionStrPerCase) {
-                std::vector<std::string> inputBinPrecisionsStrThisInfer = splitStringList(precisions, ',');
-                std::size_t precisionIdx = 0;
-                for (const auto& precision : inputBinPrecisionsStrThisInfer) {
-                    if (strEq(precision, "FP32")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f32;
-                    } else if (strEq(precision, "FP16")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f16;
-                    } else if (strEq(precision, "BF16")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::bf16;
-                    } else if (strEq(precision, "I32")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i32;
-                    } else if (strEq(precision, "I64")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i64;
-                    } else if (strEq(precision, "U8")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u8;
-                    } else {
-                        std::cout << "WARNING: Unhandled precision '" << precision
-                                  << "'! Only FP32, FP16, I32, I64 and U8 can be currently converted to the network's"
-                                  << "input tensor precision.";
-                    }
-                    ++precisionIdx;
-                }
-                ++inferIdx;
-            }
-        }
+        // Move processing of input binaries to after checking of loadable network
 
         if (FLAGS_network.empty()) {
             std::cout << "Not enough parameters. (Network not specified). Check help." << std::endl;
@@ -2057,8 +2041,47 @@ static int runSingleImageTest() {
 
             ov::preprocess::PrePostProcessor ppp(model);
 
+            const ov::OutputVector inputInfo = model->inputs();
+            // To determine the type of `inputInfo`, you can use `decltype`:
+            using InputInfoType = decltype(inputInfo);
+            std::cout << "Type of inputInfo: " << typeid(InputInfoType).name() << std::endl;
+
+            // Input files
+            // std::vector<std::string> inputFilesPerCase;
+            // using FilesPerInput = std::vector<std::string>;
+            // using FilesForModelInputs = std::vector<FilesPerInput>;
+            // std::vector<FilesForModelInputs> inputFilesForOneInfer;
+
+            // START TEST
+            auto fileMatch = parseInputFiles(inputInfo, FLAGS_input);
+            // Log the vector fileMatch
+            std::cout << "[HI] Final parsed input string: " << fileMatch << std::endl;
+            // END TEST
+
+            inputFilesPerCase = splitStringList(FLAGS_input, ';');
+            for (const auto& images : inputFilesPerCase) {
+                std::vector<std::string> filesPerModel = splitStringList(images, ',');
+                FilesForModelInputs entireModelFiles;
+                entireModelFiles.reserve(filesPerModel.size());
+                // START TEST
+                // Log the vector filesPerModel
+                for (const auto& file : filesPerModel) {
+                    std::cout << "Input file: " << file << " " << std::endl;
+                    for (size_t i = 0; i < inputInfo.size(); ++i) {
+                        // Log all inputs
+                        std::cout << "InputInfo name: " << inputInfo[i].get_any_name() << std::endl;
+                    }
+                }
+                // END OF TEST
+                for (auto &&filesPerInput : filesPerModel) {
+                    // TODO SOME MAGIC HERE
+                    // from now on each input of a model support multiple image files as content of a batched input
+                    entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
+                }
+                inputFilesForOneInfer.push_back(std::move(entireModelFiles));
+            }
+
             // Input precision
-            const auto inputInfo = model->inputs();
             if (!FLAGS_ip.empty()) {
                 ov::element::Type prc_in = ov::element::u8;
                 if (FLAGS_ip == "FP16")
@@ -2196,6 +2219,44 @@ static int runSingleImageTest() {
             OPENVINO_ASSERT(file.is_open(), "Can't open file ", FLAGS_network, " for read");
             compiledModel = core.import_model(file, FLAGS_device);
         }
+
+        // START OF MOVED CODE BLOCK - Input Binaries
+        std::vector<std::string> inputBinPrecisionStrPerCase;
+        std::vector<std::vector<ov::element::Type>> inputBinPrecisionForOneInfer(inputFilesForOneInfer.size());
+        if (FLAGS_img_as_bin) {
+            for (std::size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
+                inputBinPrecisionForOneInfer[i] =
+                    std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::dynamic);
+            }
+            inputBinPrecisionStrPerCase = splitStringList(FLAGS_img_bin_precision, ';');
+            std::size_t inferIdx = 0;
+            for (const auto& precisions : inputBinPrecisionStrPerCase) {
+                std::vector<std::string> inputBinPrecisionsStrThisInfer = splitStringList(precisions, ',');
+                std::size_t precisionIdx = 0;
+                for (const auto& precision : inputBinPrecisionsStrThisInfer) {
+                    if (strEq(precision, "FP32")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f32;
+                    } else if (strEq(precision, "FP16")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f16;
+                    } else if (strEq(precision, "BF16")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::bf16;
+                    } else if (strEq(precision, "I32")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i32;
+                    } else if (strEq(precision, "I64")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i64;
+                    } else if (strEq(precision, "U8")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u8;
+                    } else {
+                        std::cout << "WARNING: Unhandled precision '" << precision
+                                << "'! Only FP32, FP16, I32, I64 and U8 can be currently converted to the network's"
+                                << "input tensor precision.";
+                    }
+                    ++precisionIdx;
+                }
+                ++inferIdx;
+            }
+        }
+        // END OF MOVED CODE BLOCK - Input Binaries
 
         // store compiled model, if required
         if (!FLAGS_compiled_blob.empty()) {
