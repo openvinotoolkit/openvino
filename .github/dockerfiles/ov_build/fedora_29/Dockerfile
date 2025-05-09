@@ -24,7 +24,6 @@ RUN dnf update -y && dnf install -y \
     gcc-c++ \
     # parallel gzip
     pigz \
-    # To build git from source
     xz
 
 # Install build dependencies
@@ -111,6 +110,7 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | b
 RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
 ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 
+# To build git and curl from source
 RUN dnf update -y && dnf install -y dh-autoreconf \
     curl-devel \
     expat-devel \
