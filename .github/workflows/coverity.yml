@@ -156,44 +156,55 @@ jobs:
         run: |
           rm -rf ${COVERITY_TOOL_DIR} && mkdir -p ${COVERITY_TOOL_DIR}
           pushd ${COVERITY_TOOL_DIR}
-            wget https://scan.coverity.com/download/linux64 --progress=bar:force:noscroll --post-data "token=${{ secrets.COVERITY_TOKEN }}&project=openvino" -O coverity_tool.tgz
-            tar -I pigz -xf coverity_tool.tgz && rm coverity_tool.tgz
+            wget https://ubit-artifactory-or.intel.com/artifactory/coverity-or-local/Enterprise/license.dat -O license.dat
+            wget https://ubit-artifactory-or.intel.com/artifactory/coverity-or-local/Enterprise/cov-analysis-linux64-2024.6.1.sh -O cov-analysis-2024.6.1.sh
+            chmod u+x cov-analysis-2024.6.1.sh
+            ./cov-analysis-2024.6.1.sh --unattended --skip-license --prefix ${COVERITY_TOOL_DIR}
+            ./cov-analysis-2024.6.1.sh \
+              -q \
+              --installation.dir=${COVERITY_TOOL_DIR} \
+              --license.agreement=agree \
+              --license.region=0 \
+              --license.type.choice=0 \
+              --license.cov.path=${COVERITY_TOOL_DIR}/license.dat \
+              --component.sdk=false \
+              --component.skip.documentation=true
+            rm cov-analysis-2024.6.1.sh
+            export PATH=$PATH:${COVERITY_TOOL_DIR}/bin/
           popd
 
-      - name: Cmake build - OpenVINO with Coverity
-        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+      - name: Cmake build - OpenVINO with Coverity (create coverity artifacts)
+        run: cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
-      - name: Pack Artefacts
-        run: tar -cvf - cov-int | pigz > openvino.tgz
-        working-directory: ${{ env.BUILD_DIR }}
+      - name: Coverity - analyze created artifacts
+        run: |
+          cov-manage-emit --dir cov-int --tu-pattern "file('/usr/.*')" delete
+          cov-manage-emit --dir cov-int --tu-pattern "file('/thirdparty/.*')" delete
+          cov-manage-emit --dir cov-int --tu-pattern "file('/src/plugins/intel_gpu/thirdparty/.*')" delete
+          cov-manage-emit --dir cov-int --tu-pattern "file('/src/plugins/intel_cpu/thirdparty/.*')" delete
+          cov-manage-emit --dir cov-int --tu-pattern "file('/src/plugins/intel_npu/thirdparty/.*')" delete
+          cov-manage-emit --dir cov-int --tu-pattern "file('/build/.*')" delete
+          cov-manage-emit --dir cov-int --tu-pattern "file('/docs/.*')" delete
+          cov-analyze \
+          --dir ${BUILD_DIR}/cov-int \
+          --concurrency \
+          --security \
+          --rule --enable-constraint-fpp --enable-fnptr --enable-virtual --enable-default --webapp-security --enable-audit-checkers --enable-audit-mode \
+          --strip-path ${{ env.OPENVINO_REPO }}
 
       - name: Submit artefacts
         run: |
-          apt-get update && apt-get install -y curl jq
-          pushd ${BUILD_DIR}
-            curl -X POST -d token=${{ secrets.COVERITY_TOKEN }} \
-              -d email=${{ secrets.COVERITY_USER }} \
-              -d file_name="openvino.tgz" \
-              -d version="${{ github.sha }}" \
-              -d description="https://github.com/openvinotoolkit/openvino/runs/${{ github.run_number }}" \
-              https://scan.coverity.com/projects/21921/builds/init | tee response
-          
-            upload_url=$(jq -r '.url' response)
-            build_id=$(jq -r '.build_id' response)
-          
-            curl -X PUT \
-              --header 'Content-Type: application/json' \
-              --upload-file openvino.tgz \
-              $upload_url
-            
-            curl -X PUT \
-              -d token=${{ secrets.COVERITY_TOKEN }} \
-            https://scan.coverity.com/projects/21921/builds/$build_id/enqueue
-          popd
+        	cov-commit-defects \
+            --dir cov-int \
+            --stream OpenVINO-master-stream \
+            --url  https://coverityent.devtools.intel.com/prod1 \
+            --user <user> \
+            --password <coverity> \
+            --strip-path ${{ env.OPENVINO_REPO }} --noxrefs
 
       - name: Show Coverity configure logs
         continue-on-error: true
-        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-configure -c ${COVERITY_TOOL_DIR}/cov-analysis-linux64-2023.6.2/config/coverity_config.xml -lscc text
+        run: cov-configure -c ${COVERITY_TOOL_DIR}/coverity_config.xml -lscc text
 
       - name: Upload Coverity build log
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -201,12 +212,4 @@ jobs:
         with:
           name: coverity_logs
           path: ${{ env.BUILD_DIR }}/cov-int/build-log.txt
-          if-no-files-found: 'error'
-
-      - name: Upload Coverity build archive
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: always()
-        with:
-          name: coverity_archive
-          path: ${{ env.BUILD_DIR }}/openvino.tgz
           if-no-files-found: 'error'
