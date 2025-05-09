@@ -60,30 +60,6 @@ struct moe_expert : public primitive_base<moe_expert> {
           _scale_zp(scale_zp) {
     }
 
-    size_t get_hidden_size() const {
-        auto shape = _mlp_params[0].param[0].weight->get_layout().get_shape();
-
-        if (shape.size() == 3) {
-            return shape[1] * shape[2];
-        }
-        OPENVINO_ASSERT(shape.size() == 2);
-        return shape[1];
-    }
-
-    size_t get_intermediate_size() const {
-        auto shape = _mlp_params[0].param[0].weight->get_layout().get_shape();
-
-        return shape[0];
-    }
-
-    size_t get_group_size() const {
-        auto shape = _mlp_params[0].param[0].weight->get_layout().get_shape();
-        if (shape.size() == 3) {
-            return shape[2];
-        }
-        return shape[1];
-    }
-
     MOEExpert::Config _config;
     std::vector<mlp_params> _mlp_params;
     scale_zp_mems _scale_zp;
@@ -103,6 +79,12 @@ struct moe_expert : public primitive_base<moe_expert> {
         ob << _config.expert_num;
         ob << _config.hidden_size;
         ob << _config.topk;
+        ob << _config.fused_router_logic;
+        ob << _config.intermediate_size;
+        ob << _config.group_size;
+        // ob << _config.weight_type;
+        // ob << _config.scale_type;
+        // ob << _config.zp_type;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -110,6 +92,12 @@ struct moe_expert : public primitive_base<moe_expert> {
         ib >> _config.expert_num;
         ib >> _config.hidden_size;
         ib >> _config.topk;
+        ib >> _config.fused_router_logic;
+        ib >> _config.intermediate_size;
+        ib >> _config.group_size;
+        // ib >> _config.weight_type;
+        // ib >> _config.scale_type;
+        // ib >> _config.zp_type;
     }
 
 protected:

@@ -55,9 +55,7 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
     // shape: [expert_number, topk, batch]
     auto expert_mask = permute_Transpose;
 
-    auto routing_weights_shapeof_split = makeConst(element::i32,
-                                                   ov::Shape({1}),
-                                                   {topk});
+    auto routing_weights_shapeof_split = makeConst(element::i32, ov::Shape({1}), {topk});
     // shape: [self.topk * batch, 1]
     auto routing_weights = index_Reshape;
 
@@ -82,30 +80,25 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
         auto index_add__Convert_2 = makeOP<opset1::Convert>({ListUnpack_Squeeze_0_2}, {{"destination_type", "i32"}});
         auto index_add__Reshape_2 = makeOP<opset1::Reshape>({index_add__Convert_2, {-1, 1}}, {{"special_zero", false}});
         auto index_add__Slice_2 = makeOP<opset8::Slice>({final_hidden_states, {0, 0}, {1, INT_MAX}, {1, 1}, {0, 1}});
-        std::shared_ptr<ov::Node> index_add__ShapeOf_22 = makeOP<opset3::ShapeOf>({index_add__Slice_2}, {{"output_type", "i32"}});
+        std::shared_ptr<ov::Node> index_add__ShapeOf_22 =
+            makeOP<opset3::ShapeOf>({index_add__Slice_2}, {{"output_type", "i32"}});
         auto index_add__Broadcast_25 =
             makeOP<opset3::Broadcast>({index_add__Reshape_2, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});
-        auto index_Gather_4 = makeOP<opset8::Gather>({hidden_states, index_add__Convert_2, 1},
-                                                     {{"batch_dims", 0}});
+        auto index_Gather_4 = makeOP<opset8::Gather>({hidden_states, index_add__Convert_2, 1}, {{"batch_dims", 0}});
         auto reshape_Reshape_2 = makeOP<opset1::Reshape>({index_Gather_4, {-1, 2048}}, {{"special_zero", true}});
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
-            makeConst(element::u4,
-                      ov::Shape({768, 16, 128}),
-                      random<uint8_t>(0, 3, {768, 16, 128}));
+            makeConst(element::u4, ov::Shape({768, 16, 128}), random<uint8_t>(0, 3, {768, 16, 128}));
         auto Convert_3988397 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight},
                                                        {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point =
-            makeConst(element::u4,
-                      ov::Shape({768, 16, 1}),
-                      random<uint8_t>(1, 3, {768, 16}));
+            makeConst(element::u4, ov::Shape({768, 16, 1}), random<uint8_t>(1, 3, {768, 16}));
         auto Convert_3988400 =
             makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point},
                                     {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract =
             makeOP<opset1::Subtract>({Convert_3988397, Convert_3988400}, {{"auto_broadcast", "numpy"}});
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale =
-            makeConst(element::f16,
-                      ov::Shape({768, 16, 1}), {0.01f});
+            makeConst(element::f16, ov::Shape({768, 16, 1}), {0.01f});
         auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1 =
             makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract,
                                       self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale},
@@ -119,21 +112,18 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
         auto silu_Swish = makeOP<opset4::Swish>({gate_linear_MatMul});
         // shape[N,K], pack K dimension
         auto self_model_model_layers_0_mlp_experts_2_up_proj_weight =
-            makeConst(element::u4,
-                      ov::Shape({768, 16, 128}),
-                      random<uint8_t>(0, 3, {768, 16, 128}));
+            makeConst(element::u4, ov::Shape({768, 16, 128}), random<uint8_t>(0, 3, {768, 16, 128}));
         auto Convert_3984145 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight},
                                                        {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point =
-            makeConst(element::u4,
-                      ov::Shape({768, 16, 1}),
-                      random<uint8_t>(1, 3, {768, 16}));
+            makeConst(element::u4, ov::Shape({768, 16, 1}), random<uint8_t>(1, 3, {768, 16}));
         auto Convert_3984148 =
             makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point},
                                     {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract =
             makeOP<opset1::Subtract>({Convert_3984145, Convert_3984148}, {{"auto_broadcast", "numpy"}});
-        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale = makeConst(element::f16, ov::Shape({768, 16, 1}), {0.01f});
+        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale =
+            makeConst(element::f16, ov::Shape({768, 16, 1}), {0.01f});
         auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_fq_weights_1 =
             makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract,
                                       self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale},
@@ -146,21 +136,18 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
                                                        {{"transpose_a", false}, {"transpose_b", true}});
         auto mul_Multiply = makeOP<opset1::Multiply>({silu_Swish, up_linear_MatMul}, {{"auto_broadcast", "numpy"}});
         auto self_model_model_layers_0_mlp_experts_2_down_proj_weight =
-            makeConst(element::u4,
-                      ov::Shape({2048, 6, 128}),
-                      random<uint8_t>(0, 3, {2048, 6, 128}));
+            makeConst(element::u4, ov::Shape({2048, 6, 128}), random<uint8_t>(0, 3, {2048, 6, 128}));
         auto Convert_3992649 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight},
                                                        {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point =
-            makeConst(element::u4,
-                      ov::Shape({2048, 6, 1}),
-                      random<uint8_t>(1, 3, {2048, 6}));
+            makeConst(element::u4, ov::Shape({2048, 6, 1}), random<uint8_t>(1, 3, {2048, 6}));
         auto Convert_3992652 =
             makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point},
                                     {{"destination_type", "f16"}});
         auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract =
             makeOP<opset1::Subtract>({Convert_3992649, Convert_3992652}, {{"auto_broadcast", "numpy"}});
-        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale = makeConst(element::f16, ov::Shape({2048, 6, 1}), {0.001f});
+        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale =
+            makeConst(element::f16, ov::Shape({2048, 6, 1}), {0.001f});
         auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1 =
             makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract,
                                       self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale},
@@ -188,12 +175,9 @@ std::shared_ptr<ov::Model> MOEExpertTest::BuildMoeExpert(ElementType inType,
             makeOP<opset1::Multiply>({down_linear_MatMul, index_Reshape_8_2}, {{"auto_broadcast", "numpy"}});
         auto index_add__Broadcast_26 =
             makeOP<opset3::Broadcast>({mul_Multiply_3, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});
-        auto index_add__ScatterElementsUpdate_8 =
-            makeOP<opset12::ScatterElementsUpdate>({final_hidden_states,
-                                                    index_add__Broadcast_25,
-                                                    index_add__Broadcast_26,
-                                                    0},
-                                                   {{"reduction", "sum"}, {"use_init_val", true}});
+        auto index_add__ScatterElementsUpdate_8 = makeOP<opset12::ScatterElementsUpdate>(
+            {final_hidden_states, index_add__Broadcast_25, index_add__Broadcast_26, 0},
+            {{"reduction", "sum"}, {"use_init_val", true}});
         final_hidden_states = index_add__ScatterElementsUpdate_8;
     }
     return std::make_shared<ov::Model>(ov::OutputVector{final_hidden_states},

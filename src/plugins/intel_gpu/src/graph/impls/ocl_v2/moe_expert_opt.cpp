@@ -392,7 +392,7 @@ protected:
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_expert>();
         jit.make("GATHER_ENABLE", 1);
-        jit.make("HIDDEN_SIZE", desc->get_hidden_size());
+        jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
@@ -433,7 +433,7 @@ protected:
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_expert>();
         jit.make("SCATTER_ENABLE", 1);
-        jit.make("HIDDEN_SIZE", desc->get_hidden_size());
+        jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
         jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
         jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
         return jit;
@@ -460,12 +460,12 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit, bo
     const auto& info = engine.get_device_info();
     jit.make("MAX_TOPK", desc->_config.topk);
     jit.make("EXPERT_NUM", desc->_config.expert_num);
-    jit.make("HIDDEN_SIZE", desc->get_hidden_size());
-    jit.make("INTERMEDIATE_SIZE", desc->get_intermediate_size());
+    jit.make("HIDDEN_SIZE", desc->_config.hidden_size);
+    jit.make("INTERMEDIATE_SIZE", desc->_config.intermediate_size);
     jit.make("N_BLOCK", N_BLOCK);
     jit.make("SUBGROUP_SIZE", info.arch >= gpu_arch::xe2 ? 32 : 16);
     jit.make("SUBGROUP_NUM", SUBGROUP_NUM);
-    jit.make("GROUP_SIZE", desc->get_group_size());
+    jit.make("GROUP_SIZE", desc->_config.group_size);
     jit.make("TYPE", params.get_input_layout(0).data_type == ov::element::f16 ? "half" : "float");
     jit.make("TYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
     if (gen_weights_ptr) {
@@ -707,9 +707,9 @@ public:
         _weights_base = moe_mlp_params[0].base_addr;
         // std::cout << "MoeExpertOptImpl: _weights_base = " << _weights_base << ", this = " << this << std::endl;
         _dnnl_weights.resize(moe_mlp_params.size());
-        _hidden_size = static_cast<int>(moe->get_hidden_size());
-        _intermediate_size = static_cast<int>(moe->get_intermediate_size());
-        _group_size = static_cast<int>(moe->get_group_size());
+        _hidden_size = static_cast<int>(moe->_config.hidden_size);
+        _intermediate_size = static_cast<int>(moe->_config.intermediate_size);
+        _group_size = static_cast<int>(moe->_config.group_size);
 
         for (size_t j = 0; j < moe_mlp_params.size(); j++) {
             const auto& mlp_params = moe_mlp_params[j];
@@ -847,8 +847,8 @@ public:
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, 0);
         auto routing_mem_ptr = scratch.topk_weights;
 
-        _hidden_size = static_cast<int>(moe->get_hidden_size());
-        _intermediate_size = static_cast<int>(moe->get_intermediate_size());
+        _hidden_size = static_cast<int>(moe->_config.hidden_size);
+        _intermediate_size = static_cast<int>(moe->_config.intermediate_size);
         instance.get_tmp_memory(hidden_states_layout.data_type, max_topk, _hidden_size, _intermediate_size, max_topk, scratch);
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;

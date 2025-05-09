@@ -268,8 +268,13 @@ static std::shared_ptr<ov::Model> BuildFusedMoeExpert(const int expert_num, cons
     op::internal::MOEExpert::Config config;
     config.expert_num = expert_num;
     config.hidden_size = 2048;
+    config.group_size = 128;
+    config.intermediate_size = 768;
     config.topk = topk;
     config.fused_router_logic = true;
+    config.weight_type = ov::element::u4;
+    config.scale_type = ov::element::f16;
+    config.zp_type = ov::element::u4;
 
     OutputVector new_args(2);
     // [hidden_states, router_logits]

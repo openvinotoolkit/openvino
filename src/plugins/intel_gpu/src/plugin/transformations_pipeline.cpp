@@ -194,6 +194,7 @@
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
+#include "ov_ops/moe_expert.hpp"
 
 namespace {
 template<typename T>
@@ -451,6 +452,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::FuseMoeExpert>();
         manager.register_pass<ov::pass::FuseMoeExpertRouter>();
+        pass_config->set_callback<ov::pass::FuseMoeExpert>(
+            [](const_node_ptr& node) -> bool {
+                auto moe = as_type_ptr<const ov::op::internal::MOEExpert>(node);
+                const auto& config = moe->get_config();
+                // TODO(MOE): support more cases
+                if (config.weight_type == ov::element::u4 && config.scale_type == ov::element::f16 && config.zp_type == ov::element::u4 &&
+                    config.group_size == 128) {
+                    // TODO(MOE): force using onednn
+                    return false;
+                }
+                return true;
+            });
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression

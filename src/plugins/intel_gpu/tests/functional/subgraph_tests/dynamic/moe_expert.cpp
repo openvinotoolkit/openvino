@@ -23,7 +23,7 @@ TEST_P(MOEExpertTest, Inference) {
     }
 }
 
-// TODO: cache feature
+// TODO(MOE): cache feature
 TEST_P(MOEExpertTest, Inference_cached) {
     core->set_property(ov::cache_dir(""));
     auto func_bak = function;

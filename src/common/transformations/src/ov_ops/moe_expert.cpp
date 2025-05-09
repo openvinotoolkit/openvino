@@ -44,7 +44,12 @@ bool MOEExpert::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("topk", m_config.topk);
     visitor.on_attribute("expert_num", m_config.expert_num);
     visitor.on_attribute("hidden_size", m_config.hidden_size);
+    visitor.on_attribute("intermediate_size", m_config.intermediate_size);
+    visitor.on_attribute("group_size", m_config.group_size);
     visitor.on_attribute("fused_router_logic", m_config.fused_router_logic);
+    visitor.on_attribute("weight_type", m_config.weight_type);
+    visitor.on_attribute("scale_type", m_config.scale_type);
+    visitor.on_attribute("zp_type", m_config.zp_type);
     visitor.finish_structure();
     m_consts.resize(m_config.expert_num);
     for (size_t i = 0; i < m_config.expert_num; i++) {
