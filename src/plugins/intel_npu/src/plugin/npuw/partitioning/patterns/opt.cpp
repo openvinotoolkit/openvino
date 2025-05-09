@@ -799,6 +799,52 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulGQ2iP"), std::move(callback));
 }
 
+DQEinsum::DQEinsum(Context::Ref ctx) {
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    auto einsum = opp::wrap_type<ov::op::v7::Einsum>({opp::any_input(), qcvtw});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_qcvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
+        auto matched_node_einsum = node_to_output.at(einsum).get_node_shared_ptr();
+
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+        auto matched_einsum = std::static_pointer_cast<ov::op::v7::Einsum>(matched_node_einsum);
+
+        auto weight_shape = matched_qweight->output(0).get_shape();
+        auto einsum_out_shape = matched_einsum->output(0).get_shape();
+
+        if (weight_shape.size() == 2 &&
+            ((weight_shape[0] == weight_shape[1]) || (einsum_out_shape.back() != weight_shape.front()))) {
+            // FIXME: not supporting actual NPUW DQ here, only FULL:NO
+            if (!ctx.get().mm_dq_full) {
+                // Transpose the weight
+                ctx.get().permute(matched_qweight, {1, 0});
+
+                // Update the convert shape
+                matched_node_qcvtw->validate_and_infer_types();
+
+                // Add Transpose and insert it
+                std::vector<std::size_t> new_transpose_order = {1, 0};
+                auto new_transpose_order_c =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{2}, new_transpose_order);
+                auto new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qcvtw, new_transpose_order_c);
+
+                matched_einsum->input(1).replace_source_output(new_transpose);
+                matched_einsum->validate_and_infer_types();
+
+                return false;  // root hasn't changed
+            }
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(einsum, "OptDQEinsum"), std::move(callback));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Parallel matmuls
 // Identifies this pattern
