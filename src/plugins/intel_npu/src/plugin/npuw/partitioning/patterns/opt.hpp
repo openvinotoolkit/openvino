@@ -120,6 +120,12 @@ public:
     DQLiftGatherSymGQ();
 };
 
+class DQLiftGatherCW : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherCW");
+    DQLiftGatherCW();
+};
+
 // Head vocab unpacks
 
 class DQUnpackDictGatheru : public ov::pass::MatcherPass {
