@@ -13,6 +13,11 @@ namespace op {
 
 OutputVector translate_pythonop(const NodeContext& context) {
     auto decoder = context.get_decoder();
+    if (decoder->has_converter()) {
+        // If the node has a custom converter, use it
+        // A custom converter is defined for in-model definition of a custom operation.
+        return decoder->convert(&context);
+    }
     PYTORCH_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 1,
                                 "PythonOp must have 1 subgraph to be able to translate it to OV.");
     auto body = context.convert_subgraph(0);
