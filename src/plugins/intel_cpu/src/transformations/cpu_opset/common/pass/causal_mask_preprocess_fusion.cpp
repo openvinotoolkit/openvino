@@ -36,6 +36,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
+using namespace ov::pass;
 
 class CausalMaskPreprocess : public ov::pass::MatcherPass {
 public:

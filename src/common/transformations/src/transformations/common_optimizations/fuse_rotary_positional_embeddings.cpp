@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <variant>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -33,12 +34,46 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/common_util.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::gen_pattern;
+using namespace ov::pass;
+
+ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
+
+bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(RoPEFusion);
+    ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
+
+    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionFlux>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTNEOX>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionGPTJ>();
+    // optional heads & tails are fused in separate matcher pass,
+    // after RoPENode has been created.
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionCosSinPreprocess>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionIOSlicing>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionPreprocess>();
+
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1);
+    if (m_support_2d_rope) {
+        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0, true);
+        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1, true);
+    }
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(0);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(1);
+
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
+
+    return symbolic_optimizations.run_on_model(model);
+}
 
 // This is a utility function used in the work around in ChatGLM pattern.
 // Since the existing implementation of Symbols don't allow for checking
@@ -150,6 +185,71 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     this->register_matcher(m, callback);
 }
 
+using symbol_variant = std::variant<float, int32_t, int64_t, std::string>;
+
+static std::string ParseSymbolVariant(std::vector<symbol_variant> values) {
+    std::vector<std::string> symbol_strings;
+    symbol_strings.reserve(values.size());
+    for (auto& value : values) {
+        if (std::holds_alternative<float>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<float>(value)));
+        } else if (std::holds_alternative<int>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<int>(value)));
+        } else if (std::holds_alternative<int32_t>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<int32_t>(value)));
+        } else if (std::holds_alternative<int64_t>(value)) {
+            symbol_strings.push_back(std::to_string(std::get<int64_t>(value)));
+        } else {
+            symbol_strings.push_back(std::get<std::string>(value));
+        }
+    }
+
+    return ov::util::join(symbol_strings);
+}
+
+static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
+                                             symbol_variant start,
+                                             symbol_variant stop,
+                                             symbol_variant step,
+                                             size_t axis) {
+    auto slice_start = ParseSymbolVariant({start});
+    auto slice_stop = ParseSymbolVariant({stop});
+    auto slice_step = ParseSymbolVariant({step});
+    auto slice_axis = ParseSymbolVariant({static_cast<int64_t>(axis)});
+
+    auto opt1 = pattern::wrap_type<ov::opset8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
+
+    std::vector<symbol_variant> vbegin(axis + 1, 0);
+    std::vector<symbol_variant> vend(axis + 1, 0);
+    std::vector<symbol_variant> vstride(axis + 1, 1);
+
+    vbegin[axis] = start;
+    vend[axis] = stop;
+    vstride[axis] = step;
+
+    auto begin = ParseSymbolVariant(vbegin);
+    auto end = ParseSymbolVariant(vend);
+    auto stride = ParseSymbolVariant(vstride);
+
+    std::vector<int64_t> begin_mask(axis + 1, 1);
+    std::vector<int64_t> end_mask(axis + 1, 1);
+    std::vector<int64_t> new_axis_mask;
+    std::vector<int64_t> shrink_axis_mask;
+    std::vector<int64_t> ellipsis_mask;
+
+    begin_mask[axis] = 0;
+    end_mask[axis] = 0;
+
+    auto opt2 = pattern::wrap_type<ov::opset1::StridedSlice>({data, begin, end, stride},
+                                                             {{"begin_mask", begin_mask},
+                                                              {"end_mask", end_mask},
+                                                              {"new_axis_mask", new_axis_mask},
+                                                              {"shrink_axis_mask", shrink_axis_mask},
+                                                              {"ellipsis_mask", ellipsis_mask}});
+
+    return opt1 | opt2;
+}
+
 ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     MATCHER_SCOPE(RoPEFusionGPTNEOX);
 
@@ -162,36 +262,27 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
     // branch.
     // so here we use a WA, only match the path of rotate_hal(x)*sin and check the x*cos path
     // in the callback
-    auto x = makePattern(ov::Rank(4));
-    auto x_or_cos1 = makePattern(ov::Rank(4));
-    auto x_or_cos2 = makePattern(ov::Rank(4));
-    auto t_sin = makePattern(ov::Rank(4));
+    auto x = pattern::any_input(pattern::rank_equals(4));
+    auto x_or_cos1 = pattern::any_input(pattern::rank_equals(4));
+    auto x_or_cos2 = pattern::any_input(pattern::rank_equals(4));
+    auto t_sin = pattern::any_input(pattern::rank_equals(4));
 
-    auto half_ndims = ov::gen_pattern::Symbol("half_ndims");
-
-    auto varsplit = makePattern<opset1::VariadicSplit>({x, 3, {half_ndims, ov::gen_pattern::Symbol("end")}});
+    auto varsplit = pattern::wrap_type<opset1::VariadicSplit>({x, 3, {"half_ndims", "?"}});
     varsplit->set_output_size(2);
 
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
-    // rotate half : [-x2, x1]
-    auto x2 = GenSlice(x, half_ndims, int32_max, 1, 3);
-    auto x2neg = makePattern<opset1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
-    auto x1 = GenSlice(x, 0, half_ndims, 1, 3);
-    auto x_rotate_half = makePattern<opset1::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
+    auto x2 = NewGenSlice(x, "half_ndims", int32_max, 1, 3);
+    auto x2neg = pattern::wrap_type<opset1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto x1 = NewGenSlice(x, 0, "half_ndims", 1, 3);
+    auto x_rotate_half = pattern::wrap_type<opset1::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 
-    auto mul_cos = makePattern<opset1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
-    auto mul_sin = makePattern<opset1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
+    auto mul_cos = pattern::wrap_type<opset1::Multiply>({x_or_cos1, x_or_cos2}, {{"auto_broadcast", "numpy"}});
+    auto mul_sin = pattern::wrap_type<opset1::Multiply>({x_rotate_half, t_sin}, {{"auto_broadcast", "numpy"}});
 
-    // [x1, x2]*cos + [-x2, x1]*sin
-    auto result = makePattern<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
+    auto result = pattern::wrap_type<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -206,9 +297,15 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
             return false;
         }
 
+        auto symbols = m.get_symbols();
+        auto half_ndims = symbols["half_ndims"];
+        if (!half_ndims.is_integer()) {
+            return false;
+        }
+
         op::internal::RoPE::Config config;
         OutputVector new_args;
-        config.rotary_ndims = 2ul * static_cast<size_t>(validator["half_ndims"]);
+        config.rotary_ndims = 2ul * static_cast<size_t>(half_ndims.i());
 
         new_args.push_back(pattern_map.at(x));
         new_args.push_back(v_cos);
@@ -228,7 +325,6 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 
         // this new node may match following additional matchers
         register_new_node(new_node);
-
         return true;
     };
 
