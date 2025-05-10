@@ -29,10 +29,7 @@ private:
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);
     ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_splits, int64_t axis);
     std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
-                                              ov::Output<ov::Node> past_seqlen,
-                                              std::shared_ptr<ov::Node> seqlen_k,
-                                              std::shared_ptr<ov::Node> cos_cache,
-                                              std::shared_ptr<ov::Node> sin_cache,
-                                              std::shared_ptr<ov::Node> dim_head_size,
+                                              ov::Output<ov::Node> cos,
+                                              ov::Output<ov::Node> sin,
                                               bool interleaved);
 };
