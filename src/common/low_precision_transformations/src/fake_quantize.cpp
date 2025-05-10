@@ -211,6 +211,12 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
             ((eltwise->get_output_element_type(0) == element::f16) || (eltwise->get_output_element_type(0) == element::f32))) {
             return nullptr;
         }
+        if (auto quantize_before_convert = eltwise->get_input_node_shared_ptr(0)) {
+            //fakequantize can't be before fakequantize due to no fake quantize kernel for quantized(e.g i8) input
+            if (ov::is_type<opset1::FakeQuantize>(quantize_before_convert)) {
+                return nullptr;
+            }
+        }
     } else {
         return nullptr;
     }
