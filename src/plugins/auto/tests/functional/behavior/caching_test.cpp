@@ -43,8 +43,8 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
     // No cached model for actual device
-    // will cache model for both actual device and CPU plugin
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
+    // will only cache model only for actual device. CVS-141026
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     ov::test::utils::removeFilesWithExt(cache_path, "blob");
     {
         auto compiled_model = core.compile_model(
@@ -70,8 +70,8 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
     // model hash id changed for actual device
-    // will cache model for both actual device and CPU as accelerator
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 3);
+    // will cache model for actual device with new device id
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     core.set_property(ov::cache_dir(""));
 }
 
@@ -89,8 +89,8 @@ TEST_F(AutoFuncTests, load_model_path_to_actual_device_and_disable_CPU_accelerat
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
     // No cached model for actual device
-    // will cache model for both actual device and CPU plugin
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
+    // will only cache model only for actual device. CVS-141026
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     ov::test::utils::removeFilesWithExt(cache_path, "blob");
     {
         auto compiled_model = core.compile_model(
@@ -116,8 +116,8 @@ TEST_F(AutoFuncTests, load_model_path_to_actual_device_and_disable_CPU_accelerat
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
     // model hash id changed for actual device
-    // will cache model for both actual device and CPU as accelerator
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 3);
+    // will cache model for actual device with new device id
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     core.set_property(ov::cache_dir(""));
     ov::test::utils::removeIRFiles(m_xml_path, m_bin_path);
 }
@@ -132,8 +132,8 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                   ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
     }
     // No cached model for actual device
-    // will cache model for both actual device and CPU plugin
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
+    // will only cache model only for actual device. CVS-141026
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 1);
     ov::test::utils::removeFilesWithExt(cache_path, "blob");
     {
         auto compiled_model = core.compile_model(
@@ -160,7 +160,7 @@ TEST_F(AutoFuncTests, load_cached_model_to_actual_device_and_disable_CPU_acceler
                                                   ov::intel_auto::enable_startup_fallback(false)});
     }
     // model hash id changed for actual device
-    // will cache 2 models for actual device and no cached model for CPU
+    // will cache model for actual device with new device id
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     core.set_property(ov::cache_dir(""));
 }
