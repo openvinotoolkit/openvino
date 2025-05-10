@@ -130,7 +130,7 @@ std::string InsertPerfCountVerbose::collect_params(const ov::snippets::lowered::
 
     size_t m_block = in_0_desc->get_subtensor().front();
     size_t n_block = in_1_desc->get_subtensor().back();
-    size_t k_block = out_desc->get_subtensor().back();
+    size_t k_block = in_0_desc->get_subtensor().back();
 
     auto append_block_info = [&](size_t block) {
         if (block == utils::get_full_dim_value()) {
