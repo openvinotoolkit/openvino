@@ -345,6 +345,21 @@ Known Issues
 .. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 .. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+.. dropdown:: 2025.1 - 09 April 2025
+   :animate: fade-in-slide-down
+   :color: secondary
+
+   **OpenVINO™ Runtime**
+
+   *Common*
+
+   * Delayed weight compression is now available - compressed weights are not stored in memory
+     but saved to a file immediately after compression to control memory consumption.
+   * Register extensions per frontend (update for extension API)
+   * mmaped tensors havve been added, to read ov::Tensor from file on disk using mmap and
+     help reduce memory consumption in some scenarios, for example, when using LoRa adapters
+     in GenAI.
+
 .. dropdown:: 2025.0 - 05 February 2025
    :animate: fade-in-slide-down
    :color: secondary
