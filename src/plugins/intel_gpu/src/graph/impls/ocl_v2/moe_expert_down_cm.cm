@@ -102,6 +102,7 @@ void moe_forward_down_kernel(
     BUFFERINDEX(input),
     BUFFERINDEX(indexs),
     BUFFERINDEX(eweights),
+    BUFFERINDEX(base_addrs),
     BUFFERINDEX(down_addrs),
     BUFFERINDEX(down_scales_addrs),
     BUFFERINDEX(down_zp_addrs),
@@ -135,13 +136,13 @@ void moe_forward_down_kernel(
     int g_offset = index / 8;
     int l_offset = index % 8;
     vector<int, 16> gpu_down_addr = LSC_LOAD_0(int, 16)(down_addrs, g_offset * 64);
-    const uint8_t* weight = (uint8_t*)gpu_down_addr.format<unsigned long long>()[l_offset];
+    const uint8_t* weight = (uint8_t*)base_addrs + gpu_down_addr.format<unsigned long long>()[l_offset];
 
     vector<int, 16> gpu_down_scales_addr = LSC_LOAD_0(int, 16)(down_scales_addrs, g_offset * 64);
-    const uint8_t* scales = (const uint8_t*)gpu_down_scales_addr.format<unsigned long long>()[l_offset];
+    const uint8_t* scales = (const uint8_t*)base_addrs + gpu_down_scales_addr.format<unsigned long long>()[l_offset];
   
     vector<int, 16> gpu_down_zp_addr = LSC_LOAD_0(int, 16)(down_zp_addrs, g_offset * 64);
-    const uint8_t* zp1 = (const uint8_t*)gpu_down_zp_addr.format<unsigned long long>()[l_offset];
+    const uint8_t* zp1 = (const uint8_t*)base_addrs + gpu_down_zp_addr.format<unsigned long long>()[l_offset];
 
 
     int input_base_offset = eid * state_size * sizeof(IT);
@@ -222,6 +223,7 @@ _GENX_MAIN_ void KERNEL_NAME(
     BUFFERINDEX(input),             // shape: f16[8, 1, 768]
     BUFFERINDEX(indexs),            // shape: i32[8]
     BUFFERINDEX(eweights),          // shape: f16[8]
+    BUFFERINDEX(base_addrs),        // shape: u8[?]
     BUFFERINDEX(down_addrs),        // shape: u64[128]
     BUFFERINDEX(down_scales_addrs), // shape: u64[128]
     BUFFERINDEX(down_zp_addrs),
@@ -234,6 +236,7 @@ _GENX_MAIN_ void KERNEL_NAME(
         input,                  // shape: f16[8, 1, 768]
         indexs,                 // shape: i32[8]
         eweights,               // shape: f16[8]
+        base_addrs,             // shape: u8[?]
         down_addrs,             // shape: u64[128]
         down_scales_addrs,      // shape: u64[128]
         down_zp_addrs,

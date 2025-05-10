@@ -80,6 +80,7 @@ static size_t get_weights_size(const std::shared_ptr<ov::op::internal::MOEExpert
             }
         }
         // 9*4 = 36 bytes for gate/up/down weight/scale/zp offsets
+        // 64-36 = 28 bytes for padding
         weights_size += EACH_EXPERT_WEIGHTS_OFFSET_SIZE;
     }
     if (cm_mask) {
@@ -150,32 +151,35 @@ static void prepare_weights(ProgramBuilder& p, const std::shared_ptr<ov::op::int
     std::vector<addrs> buf_gate_up(op->get_config().expert_num);
     for (size_t i = 0; i < consts.size(); i++) {
         auto current_consts = consts[i];
-        // params[i].base_addr = weights_base;
-#define SET_BUF(src_name, dst_idx) \
-        params[i].param[dst_idx].weight = alloc(current_consts.src_name[0]);  \
-        buf_gate_up[i].gate_addrs = reinterpret_cast<uint64_t>(params[i].param[dst_idx].weight->buffer_ptr());    \
-        params[i].param[dst_idx].scale = alloc(current_consts.src_name[1], true);    \
-        params[i].param[dst_idx].zp = alloc(current_consts.src_name[2], true);   \
-        if (cm_mask) {  \
-            params[i].param[dst_idx].scale_ba = alloc(current_consts.src_name[1], false);    \
-            buf_gate_up[i].src_name##_scales_addrs = reinterpret_cast<uint64_t>(params[i].param[dst_idx].scale_ba->buffer_ptr());   \
-            params[i].param[dst_idx].zp_ba = alloc(current_consts.src_name[2], false);   \
-            buf_gate_up[i].src_name##_zp_addrs = reinterpret_cast<uint64_t>(params[i].param[dst_idx].zp_ba->buffer_ptr());  \
-        }
+#define SET_BUF(src_name, dst_idx)                                                                                                                \
+    params[i].param[dst_idx].weight = alloc(current_consts.src_name[0]);                                                                          \
+    buf_gate_up[i].src_name##_addrs =                                                                                                                   \
+        reinterpret_cast<uint64_t>(params[i].param[dst_idx].weight->buffer_ptr()) - reinterpret_cast<uint64_t>(weights_base->buffer_ptr());       \
+    params[i].param[dst_idx].scale = alloc(current_consts.src_name[1], true);                                                                     \
+    params[i].param[dst_idx].zp = alloc(current_consts.src_name[2], true);                                                                        \
+    if (cm_mask) {                                                                                                                                \
+        params[i].param[dst_idx].scale_ba = alloc(current_consts.src_name[1], false);                                                             \
+        buf_gate_up[i].src_name##_scales_addrs =                                                                                                  \
+            reinterpret_cast<uint64_t>(params[i].param[dst_idx].scale_ba->buffer_ptr()) - reinterpret_cast<uint64_t>(weights_base->buffer_ptr()); \
+        params[i].param[dst_idx].zp_ba = alloc(current_consts.src_name[2], false);                                                                \
+        buf_gate_up[i].src_name##_zp_addrs =                                                                                                      \
+            reinterpret_cast<uint64_t>(params[i].param[dst_idx].zp_ba->buffer_ptr()) - reinterpret_cast<uint64_t>(weights_base->buffer_ptr());    \
+    }
 
         SET_BUF(gate, 0)
         SET_BUF(up, 1)
 #undef SET_BUF
 
         params[i].param[2].weight = alloc(current_consts.down[0]);
-        buf_down[0].push_back(reinterpret_cast<uint64_t>(params[i].param[2].weight->buffer_ptr()));
+        buf_down[0].push_back(reinterpret_cast<uint64_t>(params[i].param[2].weight->buffer_ptr()) - reinterpret_cast<uint64_t>(weights_base->buffer_ptr()));
         params[i].param[2].scale = alloc(current_consts.down[1], true);
         params[i].param[2].zp = alloc(current_consts.down[2], true);
         if (cm_mask) {
             params[i].param[2].scale_ba = alloc(current_consts.down[1], false);
-            buf_down[1].push_back(reinterpret_cast<uint64_t>(params[i].param[2].scale_ba->buffer_ptr()));
+            buf_down[1].push_back(reinterpret_cast<uint64_t>(params[i].param[2].scale_ba->buffer_ptr()) -
+                                  reinterpret_cast<uint64_t>(weights_base->buffer_ptr()));
             params[i].param[2].zp_ba = alloc(current_consts.down[2], false);
-            buf_down[2].push_back(reinterpret_cast<uint64_t>(params[i].param[2].zp_ba->buffer_ptr()));
+            buf_down[2].push_back(reinterpret_cast<uint64_t>(params[i].param[2].zp_ba->buffer_ptr()) - reinterpret_cast<uint64_t>(weights_base->buffer_ptr()));
         }
     }
 
@@ -221,6 +225,10 @@ static void update_weights_offsets(ProgramBuilder& p, std::vector<cldnn::moe_exp
             offsets.push_back(reinterpret_cast<uint8_t*>(params.param[j].weight->buffer_ptr()) - weights_base_ptr);
             offsets.push_back(reinterpret_cast<uint8_t*>(params.param[j].scale->buffer_ptr()) - weights_base_ptr);
             offsets.push_back(reinterpret_cast<uint8_t*>(params.param[j].zp->buffer_ptr()) - weights_base_ptr);
+        }
+        // padding
+        for (size_t j = 0; j < EACH_EXPERT_WEIGHTS_OFFSET_SIZE / sizeof(uint32_t) - 9; j++) {
+            offsets.push_back(0);
         }
     }
 

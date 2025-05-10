@@ -38,7 +38,7 @@ struct moe_expert : public primitive_base<moe_expert> {
         }
     };
 
-    #define EACH_EXPERT_WEIGHTS_OFFSET_SIZE 36
+    #define EACH_EXPERT_WEIGHTS_OFFSET_SIZE 64
     struct mlp_weights_mem {
         memory::ptr weights_base;
         // weights/scale/zp offsets, each expert has 9*4 = 36 bytes

@@ -101,6 +101,7 @@ template <typename IT, const int VS, const int GS, const int ES>
 void moe_forward_up_kernel(
     BUFFERINDEX(input),
     BUFFERINDEX(indexs),
+    BUFFERINDEX(base_addrs),
     BUFFERINDEX(gate_addrs), //[64bytes][64][64][].... .....128 groups  : [64]->  gate_addrs,up_addrs, gate_scales_addrs, up_scales_addrs,gate_zp_addrs ,up_zp_addrs, padding1, padding2
     BUFFERINDEX(output),
     const int num_experts,
@@ -129,12 +130,12 @@ void moe_forward_up_kernel(
     //int g_offset = index / 8;
     //int l_offset = index % 8;
     vector<int, 16> gpu_expert_addrs = LSC_LOAD_0(int, 16)(gate_addrs, index * 64);     //each expert address size 
-    const uint8_t* weight1 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[0];
-    const uint8_t* weight2 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[1];
-    const uint8_t* scales1 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[2];
-    const uint8_t* scales2 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[3];
-    const uint8_t* zp1 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[4];
-    const uint8_t* zp2 = (uint8_t*)gpu_expert_addrs.format<unsigned long long>()[5];
+    const uint8_t* weight1 = (uint8_t*)base_addrs + gpu_expert_addrs.format<unsigned long long>()[0];
+    const uint8_t* weight2 = (uint8_t*)base_addrs + gpu_expert_addrs.format<unsigned long long>()[1];
+    const uint8_t* scales1 = (uint8_t*)base_addrs + gpu_expert_addrs.format<unsigned long long>()[2];
+    const uint8_t* scales2 = (uint8_t*)base_addrs + gpu_expert_addrs.format<unsigned long long>()[3];
+    const uint8_t* zp1 = (uint8_t*)base_addrs + gpu_expert_addrs.format<unsigned long long>()[4];
+    const uint8_t* zp2 = (uint8_t*)base_addrs + gpu_expert_addrs.format<unsigned long long>()[5];
 
 #if 0
     vector<int, 16> gpu_up_addr = LSC_LOAD_0(int, 16)(up_addrs, g_offset * 64);     //8  * 16
@@ -269,6 +270,7 @@ void moe_forward_up_kernel(
 _GENX_MAIN_ void KERNEL_NAME(
     BUFFERINDEX(input),                 // shape: f16[1, 2048]
     BUFFERINDEX(indexs),                // shape: i32[8]
+    BUFFERINDEX(base_addrs),            // shape: u8[?]
     BUFFERINDEX(gate_addrs),            // shape: u64[128]
     BUFFERINDEX(output)) {              // shape: f16[8, 1, 768]
     const int VS = 2;
@@ -279,6 +281,7 @@ _GENX_MAIN_ void KERNEL_NAME(
     moe_forward_up_kernel<fp16, 2U, 4U, 32U>(
         input,                 // shape: f16[1, 2048]
         indexs,                // shape: i32[8]
+        base_addrs,            // shape: u8[?]
         gate_addrs,            // shape: u64[128]
         output,                // shape: f16[8, 1, 768]
         EXPERT_NUM,
