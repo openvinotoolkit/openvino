@@ -48,13 +48,7 @@ macro(ov_install_pdb target)
                     string(REGEX REPLACE ">$" "" object_library "${source}")
 
                     if(TARGET ${object_library})
-                        # we need to rename CPU dnnl PDB files to be different from GPU ones (which we cannot rename on cmake level because of external project)
-                        if(object_library MATCHES "^dnnl.*")
-                            set(_compile_pdb_name "openvino_cpu_${object_library}")
-                        else()
-                            set(_compile_pdb_name ${object_library})
-                        endif()
-
+                        set(_compile_pdb_name ${object_library})
                         set_target_properties(${object_library} PROPERTIES
                                               COMPILE_PDB_NAME ${_compile_pdb_name}
                                               COMPILE_PDB_NAME_DEBUG ${_compile_pdb_name}${OV_DEBUG_POSTFIX}
