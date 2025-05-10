@@ -24,6 +24,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "properties.hpp"
+#include "context.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
@@ -35,6 +36,10 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
 
     auto config = Configuration{properties, m_cfg};
     auto compiled_model = std::make_shared<CompiledModel>(model->clone(), shared_from_this(), config);
+    execution_devices = compiled_model->get_property("EXECUTION_DEVICES").as<std::vector<std::string>>();
+    for (auto device : execution_devices) {
+        std::cout << "device: " << device << std::endl;
+    }
     return compiled_model;
 }
 
@@ -157,25 +162,25 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                 // Estimate the memory size required for the model is 1.2 * total_ops_size
                 // 1. Check if current device that can take the entire model
                 // 2. Check if all left devices can take the entire model
-                if (available_device_mem_map[device_name] >= 1.2 * total_ops_size || device_name.find("CPU") == 0) {
-                    device_config[ov::internal::query_model_ratio.name()] = 1.0f;
-                } else if (available_discrete_device_memory >= 1.2 * total_ops_size ||
-                           available_device_mem_map.count("CPU")) {
-                    float model_ratio =
-                        total_ops_size > 0
-                            ? static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size))
-                            : 1.0f;
-                    if (total_ops_size < available_device_mem_map[device_name]) {
-                        model_ratio = 1.0f;
-                    }
-                    device_config[ov::internal::query_model_ratio.name()] = model_ratio;
-                } else {
+                // if (available_device_mem_map[device_name] >= 1.2 * total_ops_size || device_name.find("CPU") == 0) {
+                //     device_config[ov::internal::query_model_ratio.name()] = 1.0f;
+                // } else if (available_discrete_device_memory >= 1.2 * total_ops_size ||
+                //            available_device_mem_map.count("CPU")) {
+                //     float model_ratio =
+                //         total_ops_size > 0
+                //             ? static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size))
+                //             : 1.0f;
+                //     if (total_ops_size < available_device_mem_map[device_name]) {
+                //         model_ratio = 1.0f;
+                //     }
+                //     device_config[ov::internal::query_model_ratio.name()] = model_ratio;
+                // } else {
                     float model_ratio = available_discrete_device_memory > 0
                                             ? static_cast<float>(available_device_mem_map[device_name] * 1.0 /
                                                                  available_discrete_device_memory)
                                             : 1.0f;
                     device_config[ov::internal::query_model_ratio.name()] = model_ratio;
-                }
+                // }
                 // Remove the current device
                 available_device_mem_map.erase(device_name);
             }
@@ -329,5 +334,9 @@ ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::create_context(const ov::AnyMa
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts_for_tp;
+    for (auto device : execution_devices) {
+        contexts_for_tp.insert({device, get_core()->get_default_context(device)});
+    }
+    return std::make_shared<ov::hetero::HeteroContext>(contexts_for_tp);
 }
