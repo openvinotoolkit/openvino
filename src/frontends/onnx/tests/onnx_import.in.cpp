@@ -6958,3 +6958,73 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e4m3fn_constant) {
 
     test_case.run();
 }
+
+// Basic Col2Im test
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im) {
+    const auto model = convert_model("col2im_cpu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f});
+    test_case.add_input<int64_t>({3, 3});
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 3}, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f});
+
+    test_case.run();
+}
+
+// Col2Im with dilations test
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_dilations) {
+    const auto model = convert_model("col2im_dilations_cpu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f});
+    test_case.add_input<int64_t>({5, 5});
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5}, 
+                                        {1.0f, 0.0f, 2.0f, 0.0f, 0.0f,
+                                         0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                         3.0f, 0.0f, 4.0f, 0.0f, 0.0f,
+                                         0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                         0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+
+    test_case.run();
+}
+
+
+// Col2Im with pads test
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_pads) {
+    const auto model = convert_model("col2im_pads_cpu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f});
+    test_case.add_input<int64_t>({2, 2});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {1.0f, 2.0f, 3.0f, 4.0f});
+
+    test_case.run();
+}
+
+
+// Col2Im with strides test
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_strides) {
+    const auto model = convert_model("col2im_strides_cpu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f});
+    test_case.add_input<int64_t>({5, 5});
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5}, 
+                                        {1.0f, 0.0f, 2.0f, 0.0f, 0.0f,
+                                         0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                         3.0f, 0.0f, 4.0f, 0.0f, 0.0f,
+                                         0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                         0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+
+    test_case.run();
+}
+
+
+// Col2Im with 5D test
+OPENVINO_TEST(${BACKEND_NAME}, onnx_col2im_5d) {
+    const auto model = convert_model("col2im_5d_cpu.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f});
+    test_case.add_input<int64_t>({2, 2, 2});
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2, 2}, 
+                                        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f});
+
+    test_case.run();
+}
