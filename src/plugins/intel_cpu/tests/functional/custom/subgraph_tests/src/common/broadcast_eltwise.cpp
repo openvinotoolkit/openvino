@@ -82,6 +82,21 @@ protected:
         EXPECT_EQ(layer_type, "Broadcast");
 
         const bool data_shape_exceeds_target = [&]() {
+            const auto& in_data_partial_shape = model->get_parameters()[0]->get_output_partial_shape(0);
+            std::cout << "Partial shape: " << in_data_partial_shape << std::endl;
+            auto non_const_model = std::const_pointer_cast<ov::Model>(model);
+            ov::pass::Serialize(std::string("test.xml"), "").run_on_model(non_const_model);
+            std::cerr << "Reading the file and printing to stderr" << std::endl;
+            std::ifstream file("test.xml");
+            if (file.is_open()) {
+                std::string line;
+                while (std::getline(file, line)) {
+                    std::cerr << line << std::endl;
+                }
+                file.close();
+            } else {
+                std::cerr << "Unable to open file test.xml" << std::endl;
+            }
             const auto& in_data_shape = model->get_parameters()[0]->get_output_shape(0);
             if (in_data_shape.size() < target_shape.size()) {
                 return false;
