@@ -92,6 +92,12 @@ public:
     explicit DQMatMulGQ2iP(Context::Ref ctx);
 };
 
+class DQEinsum : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQEinsum");
+    explicit DQEinsum(Context::Ref ctx);
+};
+
 class DQParMMGQ : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQParMMGQ");

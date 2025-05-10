@@ -581,8 +581,31 @@ void permute120(const ov::Tensor& src, ov::Tensor& dst) {
 
 ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::size_t>& axes) {
     ov::Shape shape = t.get_shape();
-    NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
+    NPUW_ASSERT(shape.size() == 2 || shape.size() == 3);
 
+    if (shape.size() == 2) {
+        if (axes[0] == 1 && axes[1] == 0) {
+            ov::Shape tshape = {shape[1], shape[0]};
+            ov::Tensor tnew(t.get_element_type(), tshape);
+            // Iterate over output tensor coordinates
+            for (std::size_t p = 0; p < tshape[0]; p++) {
+                for (std::size_t r = 0; r < tshape[1]; r++) {
+                    switch (t.get_element_type()) {
+                    case ov::element::f16:
+                        twrite<uint16_t>(tnew, tread<uint16_t>(t, p, r, shape[0]), r, p, shape[1]);
+                        break;
+                    default:
+                        NPUW_ASSERT(false && "Element type is not supported yet");
+                    }
+                }
+            }
+            return tnew;
+        } else {
+            NPUW_ASSERT(false && "Not supported yet");
+        }
+    }
+
+    NPUW_ASSERT(shape.size() == 3);
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
         return transpose(t);
     } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
