@@ -129,7 +129,9 @@ private:
     void write_cache_entry(const std::string& id, StreamWriter writer) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
-        std::ofstream stream(getBlobFile(id), std::ios_base::binary | std::ofstream::out);
+        // Storing the str::wstring return value of getBlobFile into a path variable to avoid argument type mismatch compilation error 
+        std::filesystem::path pth = getBlobFile(id);
+        std::ofstream stream(pth, std::ios_base::binary | std::ofstream::out);
         writer(stream);
     }
 
