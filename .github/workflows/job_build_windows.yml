@@ -328,12 +328,18 @@ jobs:
           Compress-Archive @compress
       
       - name: Pack openvino_node_npm_package
-        id: openvino_node_npm_package
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         run: |
           npm i
-          $archiveName = npm pack --silent --pack-destination ${{ env.BUILD_DIR }}
-          Write-Output "archive_name=$archiveName" >> $env:GITHUB_OUTPUT
+          npm pack
+          $file1 = Get-ChildItem -Path . -Filter bin
+          $file2 = Get-ChildItem -Path . -Filter openvino-node-*
+          $compress = @{
+            Path = $file1, $file2
+            CompressionLevel = "Optimal"
+            DestinationPath = "${{ env.BUILD_DIR }}/openvino_node_npm_package.zip"
+          }
+          Compress-Archive @compress
         working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
       - name: Cmake & Build - OpenVINO Contrib
@@ -396,7 +402,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_node_npm_package
-          path: ${{ env.BUILD_DIR }}/${{ steps.openvino_node_npm_package.outputs.archive_name }}
+          path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.zip
           if-no-files-found: 'error'
 
       - name: Store artifacts to a shared drive
@@ -410,7 +416,7 @@ jobs:
             ${{ env.BUILD_DIR }}/openvino_tests.zip
             ${{ env.MANIFEST_PATH }}
             ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_js_package.zip', env.BUILD_DIR) || '' }}
-            ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/{1}', env.BUILD_DIR, steps.openvino_node_npm_package.outputs.archive_name) || '' }}
+            ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_node_npm_package.zip', env.BUILD_DIR) || '' }}
             ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
