@@ -150,7 +150,7 @@ static format to_weights_format(format f, bool is_grouped) {
 
     switch (f) {
         case format::bfyx:
-            return format::oiyx;
+            return is_grouped ? format::goix : format::oiyx;
         case format::fbyx:
             return format::ioyx;
         case format::fyxb:
