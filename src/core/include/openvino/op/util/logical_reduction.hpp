@@ -30,6 +30,7 @@ protected:
 
 public:
     OPENVINO_OP("LogicalReduction", "util", ReductionBase);
+    ~LogicalReduction() override;
     void validate_and_infer_types() override;
 };
 }  // namespace util

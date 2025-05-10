@@ -14,6 +14,7 @@ namespace v9 {
 class OPENVINO_API RDFT : public util::FFTBase {
 public:
     OPENVINO_OP("RDFT", "opset9", util::FFTBase);
+    ~RDFT() override;
     RDFT() = default;
 
     /// \brief Constructs a RDFT operation. RDFT is performed for full size axes.

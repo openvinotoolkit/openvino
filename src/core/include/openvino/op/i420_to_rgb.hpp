@@ -34,6 +34,7 @@ namespace v8 {
 class OPENVINO_API I420toRGB : public util::ConvertColorI420Base {
 public:
     OPENVINO_OP("I420toRGB", "opset8", util::ConvertColorI420Base);
+    ~I420toRGB() override;
 
     I420toRGB() = default;
 

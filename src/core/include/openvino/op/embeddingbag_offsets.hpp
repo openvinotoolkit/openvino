@@ -16,6 +16,7 @@ namespace v15 {
 class OPENVINO_API EmbeddingBagOffsets : public util::EmbeddingBagOffsetsBase {
 public:
     OPENVINO_OP("EmbeddingBagOffsets", "opset15", util::EmbeddingBagOffsetsBase);
+    ~EmbeddingBagOffsets() override;
     /// \brief Constructs a EmbeddingBagOffsets operation.
     EmbeddingBagOffsets() = default;
     /// \brief Constructs a EmbeddingBagOffsets operation.

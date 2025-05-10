@@ -15,6 +15,7 @@ namespace v1 {
 class OPENVINO_API DeformablePSROIPooling : public Op {
 public:
     OPENVINO_OP("DeformablePSROIPooling", "opset1", op::Op);
+    ~DeformablePSROIPooling() override;
 
     DeformablePSROIPooling() = default;
     /// \brief Constructs a DeformablePSROIPooling operation

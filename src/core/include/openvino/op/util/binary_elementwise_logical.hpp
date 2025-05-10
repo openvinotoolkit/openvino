@@ -49,6 +49,7 @@ protected:
 
 public:
     OPENVINO_OP("BinaryElementwiseLogical", "util");
+    ~BinaryElementwiseLogical() override;
 
     void validate_and_infer_types() override;
 

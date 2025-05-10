@@ -52,6 +52,7 @@ protected:
 
 public:
     OPENVINO_OP("BinaryElementwiseComparison", "util");
+    ~BinaryElementwiseComparison() override;
 
     void validate_and_infer_types() override;
 

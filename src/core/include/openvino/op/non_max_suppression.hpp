@@ -18,6 +18,8 @@ public:
 
     OPENVINO_OP("NonMaxSuppression", "opset1", op::Op);
 
+    ~NonMaxSuppression() override;
+
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -87,6 +89,8 @@ public:
     enum class BoxEncodingType { CORNER, CENTER };
 
     OPENVINO_OP("NonMaxSuppression", "opset3", op::Op);
+
+    ~NonMaxSuppression() override;
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -166,6 +170,7 @@ namespace v4 {
 class OPENVINO_API NonMaxSuppression : public op::v3::NonMaxSuppression {
 public:
     OPENVINO_OP("NonMaxSuppression", "opset4", op::v3::NonMaxSuppression);
+    ~NonMaxSuppression() override;
     NonMaxSuppression() = default;
 
     /// \brief Constructs a NonMaxSuppression operation.
@@ -217,6 +222,7 @@ namespace v5 {
 class OPENVINO_API NonMaxSuppression : public Op {
 public:
     OPENVINO_OP("NonMaxSuppression", "opset5", op::Op);
+    ~NonMaxSuppression() override;
     enum class BoxEncodingType { CORNER, CENTER };
 
     NonMaxSuppression() = default;
@@ -364,6 +370,7 @@ namespace v9 {
 class OPENVINO_API NonMaxSuppression : public Op {
 public:
     OPENVINO_OP("NonMaxSuppression", "opset9", op::Op);
+    ~NonMaxSuppression() override;
     enum class BoxEncodingType { CORNER, CENTER };
 
     NonMaxSuppression() = default;

@@ -16,6 +16,7 @@ namespace internal {
 class OPENVINO_API RMSNorm : public ov::op::Op {
 public:
     OPENVINO_OP("RMSNorm");
+    ~RMSNorm() override;
 
     RMSNorm() = default;
     /// \brief Constructs an RMSNorm operation without scaling.

@@ -32,6 +32,8 @@ bool validate_axes_indices_et(const element::Type& et) {
 }
 }  // namespace
 
+Reverse::~Reverse() = default;
+
 Reverse::Reverse(const Output<Node>& data, const Output<Node>& reversed_axes, const std::string& mode)
     : Op({data, reversed_axes}),
       m_mode{mode_from_string(mode)} {

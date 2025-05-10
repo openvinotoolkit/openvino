@@ -14,6 +14,7 @@ namespace v15 {
 class OPENVINO_API StringTensorPack : public ov::op::Op {
 public:
     OPENVINO_OP("StringTensorPack", "opset15", ov::op::Op);
+    ~StringTensorPack() override;
 
     StringTensorPack() = default;
     /// \brief Constructs a StringTensorPack operation.

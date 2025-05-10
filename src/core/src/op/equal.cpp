@@ -72,6 +72,8 @@ struct Evaluate : public element::NoAction<bool> {
 
 //------------------------------- v1 -------------------------------------------
 namespace v1 {
+Equal::~Equal() = default;
+
 Equal::Equal(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseComparison(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

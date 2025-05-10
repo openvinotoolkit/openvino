@@ -16,6 +16,7 @@ namespace v0 {
 class OPENVINO_API SquaredDifference : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("SquaredDifference", "opset1", util::BinaryElementwiseArithmetic);
+    ~SquaredDifference() override;
 
     /// \brief Constrcuts an uninitialized squared difference operation
     SquaredDifference() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

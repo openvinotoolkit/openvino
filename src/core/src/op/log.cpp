@@ -23,6 +23,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace log
 
 namespace v0 {
+Log::~Log() = default;
+
 Log::Log(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

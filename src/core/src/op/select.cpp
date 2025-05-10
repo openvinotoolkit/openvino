@@ -45,6 +45,8 @@ struct Evaluate : public element::NoAction<bool> {
 }  // namespace select
 
 namespace v1 {
+Select::~Select() = default;
+
 Select::Select(const Output<Node>& arg0,
                const Output<Node>& arg1,
                const Output<Node>& arg2,

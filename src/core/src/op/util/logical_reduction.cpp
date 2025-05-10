@@ -20,6 +20,8 @@ op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const Axis
 op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const Output<Node>& reduction_axes)
     : ReductionBase(arg, reduction_axes) {}
 
+op::util::LogicalReduction::~LogicalReduction() = default;
+
 void op::util::LogicalReduction::validate_and_infer_types() {
     OV_OP_SCOPE(util_LogicalReduction_validate_and_infer_types);
 

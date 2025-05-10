@@ -18,6 +18,7 @@ namespace v0 {
 class OPENVINO_API TensorIterator : public op::util::SubGraphOp {
 public:
     OPENVINO_OP("TensorIterator", "opset1", op::util::SubGraphOp);
+    ~TensorIterator() override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

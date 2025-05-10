@@ -25,6 +25,8 @@
 namespace ov {
 namespace op {
 namespace v1 {
+StridedSlice::~StridedSlice() = default;
+
 StridedSlice::StridedSlice(const Output<Node>& data,
                            const Output<Node>& begin,
                            const Output<Node>& end,

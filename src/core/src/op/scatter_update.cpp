@@ -17,6 +17,8 @@
 namespace ov {
 namespace op {
 namespace v3 {
+ScatterUpdate::~ScatterUpdate() = default;
+
 ScatterUpdate::ScatterUpdate(const Output<Node>& data,
                              const Output<Node>& indices,
                              const Output<Node>& updates,

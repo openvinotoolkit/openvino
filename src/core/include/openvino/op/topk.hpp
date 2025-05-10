@@ -19,6 +19,7 @@ namespace v1 {
 class OPENVINO_API TopK : public util::TopKBase {
 public:
     OPENVINO_OP("TopK", "opset1", op::util::TopKBase);
+    ~TopK() override;
 
     using SortType = TopKSortType;
     using Mode = TopKMode;
@@ -68,6 +69,7 @@ namespace v3 {
 class OPENVINO_API TopK : public util::TopKBase {
 public:
     OPENVINO_OP("TopK", "opset3", op::util::TopKBase);
+    ~TopK() override;
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.
@@ -108,6 +110,7 @@ namespace v11 {
 class OPENVINO_API TopK : public util::TopKBase {
 public:
     OPENVINO_OP("TopK", "opset11", op::util::TopKBase);
+    ~TopK() override;
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.

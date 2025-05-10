@@ -16,6 +16,7 @@ namespace v3 {
 class OPENVINO_API ScatterUpdate : public util::ScatterBase {
 public:
     OPENVINO_OP("ScatterUpdate", "opset3", util::ScatterBase);
+    ~ScatterUpdate() override;
     ScatterUpdate() = default;
     ///
     /// \brief      Constructs ScatterUpdate operator object.

@@ -25,6 +25,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace eye
 
 namespace v9 {
+Eye::~Eye() = default;
+
 Eye::Eye(const Output<Node>& num_rows,
          const Output<Node>& num_columns,
          const Output<Node>& diagonal_index,

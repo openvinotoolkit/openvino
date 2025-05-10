@@ -175,3 +175,5 @@ std::shared_ptr<ov::Node> ov::op::util::RNNCellBase::clip(const Output<Node>& da
 
     return std::make_shared<ov::op::v0::Clamp>(data, -m_clip, m_clip);
 }
+
+ov::op::util::RNNCellBase::~RNNCellBase() = default;

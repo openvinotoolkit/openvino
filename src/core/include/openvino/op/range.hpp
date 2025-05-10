@@ -14,6 +14,7 @@ namespace v4 {
 class OPENVINO_API Range : public Op {
 public:
     OPENVINO_OP("Range", "opset4", op::Op);
+    ~Range() override;
     /// \brief Constructs an unitialized range operation.
     Range() = default;
 
@@ -55,6 +56,7 @@ namespace v0 {
 class OPENVINO_API Range : public Op {
 public:
     OPENVINO_OP("Range", "opset1");
+    ~Range() override;
 
     /// \brief Constructs an unitialized range operation.
     Range() = default;

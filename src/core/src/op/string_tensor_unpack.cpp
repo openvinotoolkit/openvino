@@ -13,6 +13,8 @@ namespace ov {
 namespace op {
 namespace v15 {
 
+StringTensorUnpack::~StringTensorUnpack() = default;
+
 StringTensorUnpack::StringTensorUnpack(const Output<Node>& data) : Op({data}) {
     constructor_validate_and_infer_types();
 }

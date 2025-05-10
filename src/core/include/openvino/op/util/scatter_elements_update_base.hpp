@@ -13,6 +13,7 @@ namespace util {
 class OPENVINO_API ScatterElementsUpdateBase : public Op {
 public:
     OPENVINO_OP("ScatterElementsUpdateBase", "util");
+    ~ScatterElementsUpdateBase() override;
     ScatterElementsUpdateBase() = default;
 
     /// \brief The common base class for all ScatterElementsUpdate operator versions

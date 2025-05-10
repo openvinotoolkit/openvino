@@ -14,6 +14,7 @@ namespace v0 {
 class OPENVINO_API Tanh : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Tanh", "opset1", op::util::UnaryElementwiseArithmetic);
+    ~Tanh() override;
 
     /// \brief Constructs a hyperbolic tangent operation.
     ///

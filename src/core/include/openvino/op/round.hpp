@@ -19,6 +19,7 @@ class OPENVINO_API Round : public util::UnaryElementwiseArithmetic {
 public:
     enum class RoundMode { HALF_TO_EVEN, HALF_AWAY_FROM_ZERO };
     OPENVINO_OP("Round", "opset5", util::UnaryElementwiseArithmetic);
+    ~Round() override;
 
     /// \brief Constructs a round operation.
     Round() = default;

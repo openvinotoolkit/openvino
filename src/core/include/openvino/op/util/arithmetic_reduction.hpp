@@ -26,6 +26,7 @@ protected:
 
 public:
     OPENVINO_OP("ArithmeticReduction", "util", ReductionBase);
+    ~ArithmeticReduction() override;
     void validate_and_infer_types() override;
 };
 }  // namespace util

@@ -14,6 +14,8 @@ namespace ov {
 namespace op {
 namespace v1 {
 
+Transpose::~Transpose() = default;
+
 Transpose::Transpose(const Output<Node>& arg, const Output<Node>& input_order) : Op({arg, input_order}) {
     constructor_validate_and_infer_types();
 }

@@ -138,6 +138,8 @@ bool evaluate(const util::TopKBase* const node, TensorVector& outputs, const Ten
 
 // v1 version starts
 namespace v1 {
+TopK::~TopK() = default;
+
 TopK::TopK(const Output<Node>& data,
            const Output<Node>& k,
            const int64_t axis,
@@ -186,6 +188,8 @@ bool TopK::has_evaluate() const {
 
 // v3 version starts
 namespace v3 {
+TopK::~TopK() = default;
+
 TopK::TopK(const Output<Node>& data,
            const Output<Node>& k,
            const int64_t axis,
@@ -223,6 +227,8 @@ bool TopK::has_evaluate() const {
 
 // =============== V11 ===============
 namespace v11 {
+TopK::~TopK() = default;
+
 TopK::TopK(const Output<Node>& data,
            const Output<Node>& k,
            const int64_t axis,

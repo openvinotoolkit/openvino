@@ -10,6 +10,8 @@
 namespace ov {
 namespace op {
 namespace v0 {
+CTCGreedyDecoder::~CTCGreedyDecoder() = default;
+
 CTCGreedyDecoder::CTCGreedyDecoder(const Output<Node>& input,
                                    const Output<Node>& seq_len,
                                    const bool ctc_merge_repeated)

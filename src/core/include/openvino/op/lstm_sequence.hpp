@@ -31,6 +31,7 @@ namespace v5 {
 class OPENVINO_API LSTMSequence : public util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase);
+    ~LSTMSequence() override;
     LSTMSequence() = default;
 
     using direction = RecurrentSequenceDirection;

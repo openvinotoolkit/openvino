@@ -18,6 +18,7 @@ namespace v0 {
 class OPENVINO_API NormalizeL2 : public Op {
 public:
     OPENVINO_OP("NormalizeL2", "opset1");
+    ~NormalizeL2() override;
 
     NormalizeL2() = default;
     ///

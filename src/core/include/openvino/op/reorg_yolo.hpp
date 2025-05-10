@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API ReorgYolo : public Op {
 public:
     OPENVINO_OP("ReorgYolo", "opset2");
+    ~ReorgYolo() override;
 
     ReorgYolo() = default;
     /// \brief Constructs a ReorgYolo operation

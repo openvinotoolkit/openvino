@@ -14,7 +14,7 @@ namespace op {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Sink : public Op {
 public:
-    ~Sink() override = 0;
+    ~Sink() override;
     OPENVINO_OP("Sink", "util", Op);
 
 protected:

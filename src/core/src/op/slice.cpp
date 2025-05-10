@@ -32,6 +32,8 @@ bool slice_no_axes(const Node* const node) {
 namespace v8 {
 using ov::op::v0::Constant;
 
+Slice::~Slice() = default;
+
 Slice::Slice(const Output<Node>& data, const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step)
     : Op({data, start, stop, step}) {
     constructor_validate_and_infer_types();

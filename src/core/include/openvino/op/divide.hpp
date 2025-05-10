@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API Divide : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Divide", "opset1", util::BinaryElementwiseArithmetic);
+    ~Divide() override;
     /// \brief Constructs a division operation.
     Divide() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 

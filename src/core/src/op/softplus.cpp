@@ -11,6 +11,8 @@
 namespace ov {
 namespace op {
 namespace v4 {
+SoftPlus::~SoftPlus() = default;
+
 SoftPlus::SoftPlus(const Output<Node>& arg) : util::UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

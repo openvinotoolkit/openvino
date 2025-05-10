@@ -55,6 +55,8 @@ bool is_input_valid_et(const element::Type& et) {
 }  // namespace range
 
 namespace v4 {
+Range::~Range() = default;
+
 Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step, element::Type output_type)
     : Op({start, stop, step}),
       m_output_type(output_type) {
@@ -139,6 +141,8 @@ bool Range::has_evaluate() const {
 }  // namespace v4
 
 namespace v0 {
+
+Range::~Range() = default;
 
 Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step) : Op({start, stop, step}) {
     constructor_validate_and_infer_types();

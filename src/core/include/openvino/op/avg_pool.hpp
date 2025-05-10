@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API AvgPool : public util::AvgPoolBase {
 public:
     OPENVINO_OP("AvgPool", "opset1", util::AvgPoolBase);
+    ~AvgPool() override;
 
     /// \brief Constructs a batched average pooling operation.
     AvgPool() = default;
@@ -54,6 +55,7 @@ namespace v14 {
 class OPENVINO_API AvgPool : public util::AvgPoolBase {
 public:
     OPENVINO_OP("AvgPool", "opset14", util::AvgPoolBase);
+    ~AvgPool() override;
 
     /// \brief Constructs a batched average pooling operation.
     AvgPool() = default;

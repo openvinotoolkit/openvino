@@ -102,6 +102,8 @@ bool Clamp::has_evaluate() const {
     }
 }
 
+Clamp::~Clamp() = default;
+
 Clamp::Clamp(const Output<Node>& data, const double min, const double max)
     : util::UnaryElementwiseArithmetic(data),
       m_min{min},

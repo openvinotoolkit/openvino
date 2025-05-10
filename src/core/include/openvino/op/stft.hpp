@@ -14,6 +14,7 @@ namespace v15 {
 class OPENVINO_API STFT : public Op {
 public:
     OPENVINO_OP("STFT", "opset15");
+    ~STFT() override;
     STFT() = default;
 
     /// \brief Constructs a STFT operation.

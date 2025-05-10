@@ -26,6 +26,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace reduce_and
 
 namespace v1 {
+ReduceLogicalAnd::~ReduceLogicalAnd() = default;
+
 ReduceLogicalAnd::ReduceLogicalAnd(const Output<Node>& data, const Output<Node>& reduction_axes, const bool keep_dims)
     : LogicalReductionKeepDims(data, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();

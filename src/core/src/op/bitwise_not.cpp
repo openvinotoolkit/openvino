@@ -9,6 +9,8 @@
 namespace ov {
 namespace op {
 namespace v13 {
+BitwiseNot::~BitwiseNot() = default;
+
 BitwiseNot::BitwiseNot(const Output<Node>& arg) : op::Op({arg}) {
     constructor_validate_and_infer_types();
 }

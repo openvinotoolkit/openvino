@@ -13,6 +13,8 @@
 namespace ov {
 namespace op {
 namespace v3 {
+Assign::~Assign() = default;
+
 Assign::Assign(const Output<Node>& new_value, const std::string& variable_id)
     : AssignBase({new_value}),
       m_variable_id(variable_id) {
@@ -58,6 +60,8 @@ bool Assign::visit_attributes(AttributeVisitor& visitor) {
 }  // namespace v3
 
 namespace v6 {
+Assign::~Assign() = default;
+
 Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<util::Variable>& variable)
     : AssignBase({new_value}) {
     m_variable = variable;

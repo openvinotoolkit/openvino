@@ -27,6 +27,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace reduce_l2
 namespace v4 {
 
+ReduceL2::~ReduceL2() = default;
+
 ReduceL2::ReduceL2(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();

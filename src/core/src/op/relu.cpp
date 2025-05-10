@@ -23,6 +23,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace relu
 namespace v0 {
 
+Relu::~Relu() = default;
+
 Relu::Relu(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

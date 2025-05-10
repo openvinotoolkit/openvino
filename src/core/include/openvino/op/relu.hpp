@@ -17,6 +17,7 @@ namespace v0 {
 class OPENVINO_API Relu : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Relu", "opset1", util::UnaryElementwiseArithmetic);
+    ~Relu() override;
     Relu() = default;
     /// \brief Constructs a Relu operation.
     ///

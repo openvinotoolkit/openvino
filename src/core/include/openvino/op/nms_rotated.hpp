@@ -15,6 +15,7 @@ namespace v13 {
 class OPENVINO_API NMSRotated : public Op {
 public:
     OPENVINO_OP("NMSRotated", "opset13", op::Op);
+    ~NMSRotated() override;
 
     NMSRotated() = default;
 

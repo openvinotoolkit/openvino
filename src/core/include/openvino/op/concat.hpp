@@ -16,6 +16,7 @@ namespace v0 {
 class OPENVINO_API Concat : public Op {
 public:
     OPENVINO_OP("Concat", "opset1");
+    ~Concat() override;
 
     /// \brief Constructs a concatenation operation.
     Concat() = default;

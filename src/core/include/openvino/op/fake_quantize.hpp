@@ -27,6 +27,7 @@ namespace v0 {
 class OPENVINO_API FakeQuantize : public Op {
 public:
     OPENVINO_OP("FakeQuantize", "opset1");
+    ~FakeQuantize() override;
 
     FakeQuantize();
     ///

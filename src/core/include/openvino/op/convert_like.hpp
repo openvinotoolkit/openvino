@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API ConvertLike : public Op {
 public:
     OPENVINO_OP("ConvertLike", "opset1", op::Op);
+    ~ConvertLike() override;
 
     /// \brief Constructs a conversion operation.
     ConvertLike() = default;

@@ -30,6 +30,8 @@ std::shared_ptr<Node> Erf::clone_with_new_inputs(const OutputVector& new_args) c
     return std::make_shared<Erf>(new_args.at(0));
 }
 
+Erf::~Erf() = default;
+
 Erf::Erf(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

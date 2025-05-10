@@ -15,6 +15,8 @@
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------
 namespace ov {
+op::v1::GroupConvolution::~GroupConvolution() = default;
+
 op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
                                            const Output<Node>& filters,
                                            const Strides& strides,
@@ -82,6 +84,8 @@ std::shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const Outp
 //------------------------------------------------------------------------------
 //                        v1::GroupConvolutionBackpropData
 //------------------------------------------------------------------------------
+
+op::v1::GroupConvolutionBackpropData::~GroupConvolutionBackpropData() = default;
 
 op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData() : ConvolutionBackPropBase() {}
 

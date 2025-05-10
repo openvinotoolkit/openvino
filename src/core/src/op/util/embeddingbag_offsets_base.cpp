@@ -64,6 +64,8 @@ ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node
     constructor_validate_and_infer_types();
 }
 
+ov::op::util::EmbeddingBagOffsetsBase::~EmbeddingBagOffsetsBase() = default;
+
 void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_EmbeddingBagOffsetsBase_validate_and_infer_types);
     NODE_VALIDATION_CHECK(

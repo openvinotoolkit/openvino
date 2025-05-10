@@ -29,6 +29,7 @@ namespace v1 {
 class OPENVINO_API Power : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Power", "opset1", op::util::BinaryElementwiseArithmetic);
+    ~Power() override;
 
     Power() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 

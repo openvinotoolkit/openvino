@@ -18,6 +18,7 @@ namespace v13 {
 class OPENVINO_API FakeConvert : public Op {
 public:
     OPENVINO_OP("FakeConvert", "opset13");
+    ~FakeConvert() override;
 
     FakeConvert() = default;
 

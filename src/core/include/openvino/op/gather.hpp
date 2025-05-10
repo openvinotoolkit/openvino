@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
     OPENVINO_OP("Gather", "opset1", op::util::GatherBase);
+    ~Gather() override;
     static constexpr int64_t AXIS_NOT_SET_VALUE = std::numeric_limits<int64_t>::max();
     Gather() = default;
     /// \param data The tensor from which slices are gathered
@@ -33,6 +34,7 @@ namespace v7 {
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
     OPENVINO_OP("Gather", "opset7", op::util::GatherBase);
+    ~Gather() override;
     Gather() = default;
 
     /// \param data The tensor from which slices are gathered
@@ -60,6 +62,7 @@ namespace v8 {
 class OPENVINO_API Gather : public op::util::GatherBase {
 public:
     OPENVINO_OP("Gather", "opset8", op::util::GatherBase);
+    ~Gather() override;
     Gather() = default;
 
     /// \param data The tensor from which slices are gathered

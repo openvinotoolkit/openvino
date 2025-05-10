@@ -17,6 +17,7 @@ namespace v0 {
 class OPENVINO_API Elu : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Elu", "opset1", util::UnaryElementwiseArithmetic);
+    ~Elu() override;
 
     Elu() = default;
     /// \brief Constructs an Elu operation.

@@ -34,6 +34,8 @@ RMSNorm::RMSNorm(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
+RMSNorm::~RMSNorm() = default;
+
 bool RMSNorm::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(v14_RMSNorm_visit_attributes);
     visitor.on_attribute("epsilon", m_epsilon);

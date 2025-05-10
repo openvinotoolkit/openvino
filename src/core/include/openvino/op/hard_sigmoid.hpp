@@ -16,6 +16,7 @@ namespace v0 {
 class OPENVINO_API HardSigmoid : public Op {
 public:
     OPENVINO_OP("HardSigmoid", "opset1");
+    ~HardSigmoid() override;
 
     HardSigmoid();
 

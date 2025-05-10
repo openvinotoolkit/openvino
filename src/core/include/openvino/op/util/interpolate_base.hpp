@@ -13,6 +13,7 @@ namespace util {
 class OPENVINO_API InterpolateBase : public Op {
 public:
     OPENVINO_OP("InterpolateBase", "util");
+    ~InterpolateBase() override;
     /// \brief PartialShape calculation mode
     ///
     /// SIZES  - output shape for interpolated axes is calculated using input `sizes`

@@ -26,6 +26,8 @@ SqueezeBase::SqueezeBase(const Output<Node>& data) : Op({data}) {
     constructor_validate_and_infer_types();
 }
 
+SqueezeBase::~SqueezeBase() = default;
+
 bool SqueezeBase::has_evaluate() const {
     OV_OP_SCOPE(util_SqueezeBase_has_evaluate);
     const auto validate_axes_type = [](const element::Type& et) -> bool {

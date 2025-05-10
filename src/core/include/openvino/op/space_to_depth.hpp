@@ -20,6 +20,7 @@ namespace v0 {
 class OPENVINO_API SpaceToDepth : public Op {
 public:
     OPENVINO_OP("SpaceToDepth", "opset1");
+    ~SpaceToDepth() override;
 
     enum class SpaceToDepthMode {
         // The output depth is gathered from [block_size, ..., block_size, C]

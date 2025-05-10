@@ -9,6 +9,8 @@
 namespace ov {
 namespace op {
 namespace v15 {
+ROIAlignRotated::~ROIAlignRotated() = default;
+
 ROIAlignRotated::ROIAlignRotated(const Output<Node>& input,
                                  const Output<Node>& rois,
                                  const Output<Node>& batch_indices,

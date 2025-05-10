@@ -19,6 +19,7 @@ namespace v0 {
 class OPENVINO_API Parameter : public op::Op {
 public:
     OPENVINO_OP("Parameter", "opset1");
+    ~Parameter() override;
     /// \brief Constructions a tensor-typed parameter node.
     Parameter() = default;
     /// \brief Constructions a tensor-typed parameter node.

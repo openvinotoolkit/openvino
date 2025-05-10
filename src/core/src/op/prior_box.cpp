@@ -60,6 +60,8 @@ bool evaluate_prior_box(const Tensor& arg0,
 }
 }  // namespace
 
+PriorBox::~PriorBox() = default;
+
 PriorBox::PriorBox(const Output<Node>& layer_shape, const Output<Node>& image_shape, const PriorBox::Attributes& attrs)
     : Op({layer_shape, image_shape}),
       m_attrs(attrs) {
@@ -202,6 +204,7 @@ bool evaluate_prior_box(const Tensor& arg0,
 }
 }  // namespace
 
+PriorBox::~PriorBox() = default;
 PriorBox::PriorBox(const Output<Node>& layer_shape, const Output<Node>& image_shape, const PriorBox::Attributes& attrs)
     : Op({layer_shape, image_shape}),
       m_attrs(attrs) {

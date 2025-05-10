@@ -27,6 +27,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace reduce_max
 namespace v1 {
 
+ReduceMax::~ReduceMax() = default;
+
 ReduceMax::ReduceMax(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();

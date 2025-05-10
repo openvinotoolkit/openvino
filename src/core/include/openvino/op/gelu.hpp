@@ -16,6 +16,7 @@ namespace v0 {
 class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Gelu", "opset2", util::UnaryElementwiseArithmetic);
+    ~Gelu() override;
 
     Gelu();
     /// \brief Constructs a Gelu operation.
@@ -42,6 +43,7 @@ namespace v7 {
 class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Gelu", "opset7", util::UnaryElementwiseArithmetic);
+    ~Gelu() override;
 
     Gelu() = default;
     /// \brief Constructs a Gelu operation.

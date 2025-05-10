@@ -14,6 +14,7 @@ namespace v0 {
 class OPENVINO_API Cosh : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Cosh", "opset1", util::UnaryElementwiseArithmetic);
+    ~Cosh() override;
 
     /// \brief Constructs a hyperbolic cosine operation.
     Cosh() = default;

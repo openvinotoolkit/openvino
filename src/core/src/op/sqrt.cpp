@@ -23,6 +23,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace sqrt
 
 namespace v0 {
+Sqrt::~Sqrt() = default;
+
 Sqrt::Sqrt(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

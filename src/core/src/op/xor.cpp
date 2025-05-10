@@ -60,6 +60,8 @@ bool evaluate(const Node* const op, TensorVector& outputs, const TensorVector& i
 }  // namespace logxor
 
 namespace v0 {
+Xor::~Xor() = default;
+
 Xor::Xor(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseLogical(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

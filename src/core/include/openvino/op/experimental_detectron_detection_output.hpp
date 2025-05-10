@@ -21,6 +21,7 @@ namespace v6 {
 class OPENVINO_API ExperimentalDetectronDetectionOutput : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronDetectionOutput", "opset6", op::Op);
+    ~ExperimentalDetectronDetectionOutput() override;
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

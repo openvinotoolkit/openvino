@@ -15,6 +15,7 @@ class OPENVINO_API EmbeddingBagPackedBase : public Op {
 public:
     enum class Reduction { SUM, MEAN };
     OPENVINO_OP("EmbeddingBagPackedBase", "util");
+    ~EmbeddingBagPackedBase() override;
     /// \brief Constructs a EmbeddingBagPackedBase operation.
     EmbeddingBagPackedBase() = default;
     /// \brief Constructs a EmbeddingBagPackedBase operation.

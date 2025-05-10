@@ -13,6 +13,7 @@ namespace util {
 class OPENVINO_API GatherNDBase : public Op {
 public:
     OPENVINO_OP("GatherNDBase", "util");
+    ~GatherNDBase() override;
     GatherNDBase() = default;
 
     /// \brief Constructs a GatherND operation.

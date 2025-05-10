@@ -9,6 +9,8 @@
 #include "openvino/core/attribute_visitor.hpp"
 
 namespace ov {
+op::v6::ExperimentalDetectronTopKROIs::~ExperimentalDetectronTopKROIs() = default;
+
 op::v6::ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const Output<Node>& input_rois,
                                                                      const Output<Node>& rois_probs,
                                                                      size_t max_rois)

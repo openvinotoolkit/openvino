@@ -18,6 +18,8 @@ ov::op::util::ScatterNDBase::ScatterNDBase(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
+ov::op::util::ScatterNDBase::~ScatterNDBase() = default;
+
 bool ov::op::util::ScatterNDBase::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(util_ScatterNDBase_visit_attributes);
     return true;

@@ -13,6 +13,8 @@ namespace ov {
 namespace op {
 namespace v1 {
 
+AvgPool::~AvgPool() = default;
+
 AvgPool::AvgPool(const Output<Node>& arg,
                  const Strides& strides,
                  const Shape& pads_begin,
@@ -54,6 +56,8 @@ std::shared_ptr<Node> AvgPool::clone_with_new_inputs(const OutputVector& new_arg
 namespace ov {
 namespace op {
 namespace v14 {
+AvgPool::~AvgPool() = default;
+
 AvgPool::AvgPool(const Output<Node>& arg,
                  const Strides& strides,
                  const Shape& pads_begin,

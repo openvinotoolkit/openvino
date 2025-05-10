@@ -17,6 +17,7 @@ namespace v0 {
 class OPENVINO_API BatchNormInference : public Op {
 public:
     OPENVINO_OP("BatchNormInference", "opset1");
+    ~BatchNormInference() override;
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]
@@ -60,6 +61,7 @@ namespace v5 {
 class OPENVINO_API BatchNormInference : public Op {
 public:
     OPENVINO_OP("BatchNormInference", "opset5", op::Op);
+    ~BatchNormInference() override;
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]

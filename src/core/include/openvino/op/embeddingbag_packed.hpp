@@ -16,6 +16,7 @@ namespace v15 {
 class OPENVINO_API EmbeddingBagPacked : public util::EmbeddingBagPackedBase {
 public:
     OPENVINO_OP("EmbeddingBagPacked", "opset15", util::EmbeddingBagPackedBase);
+    ~EmbeddingBagPacked() override;
     /// \brief Constructs a EmbeddingBagPacked operation.
     EmbeddingBagPacked() = default;
     /// \brief Constructs a EmbeddingBagPacked operation.

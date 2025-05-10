@@ -12,6 +12,8 @@ ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axe
 ov::op::util::FFTBase::FFTBase(const Output<Node>& data, const Output<Node>& axes, const Output<Node>& signal_size)
     : Op({data, axes, signal_size}) {}
 
+ov::op::util::FFTBase::~FFTBase() = default;
+
 bool ov::op::util::FFTBase::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(util_FFTBase_visit_attributes);
     return true;

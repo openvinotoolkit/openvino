@@ -40,6 +40,7 @@ protected:
 
 public:
     OPENVINO_OP("BroadcastBase", "util");
+    ~BroadcastBase() override;
 
     void validate_and_infer_types() override;
     /// \return true and the AxisSet if broadcast axes can be fully determined.

@@ -16,6 +16,7 @@ namespace v1 {
 class OPENVINO_API Pad : public util::PadBase {
 public:
     OPENVINO_OP("Pad", "opset1", op::util::PadBase);
+    ~Pad() override;
 
     /// \brief Constructs a Pad-1 operation.
     Pad() = default;
@@ -60,6 +61,7 @@ namespace v12 {
 class OPENVINO_API Pad : public util::PadBase {
 public:
     OPENVINO_OP("Pad", "opset12", op::util::PadBase);
+    ~Pad() override;
 
     /// \brief Constructs a Pad-12 operation.
     Pad() = default;

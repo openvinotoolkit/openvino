@@ -25,6 +25,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace ceiling
 
 namespace v0 {
+Ceiling::~Ceiling() = default;
+
 Ceiling::Ceiling(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }

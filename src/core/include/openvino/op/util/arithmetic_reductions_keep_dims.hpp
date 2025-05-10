@@ -22,6 +22,7 @@ protected:
 
 public:
     OPENVINO_OP("ArithmeticReductionKeepDims", "util", util::ArithmeticReduction);
+    ~ArithmeticReductionKeepDims() override;
     void validate_and_infer_types() override;
 
     /// \return If set to 1 it holds axes that are used for reduction.

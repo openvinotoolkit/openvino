@@ -17,6 +17,7 @@ namespace v0 {
 class OPENVINO_API PRelu : public Op {
 public:
     OPENVINO_OP("PRelu", "opset1");
+    ~PRelu() override;
     PRelu();
     /// \brief Constructs a PRelu operation.
     ///

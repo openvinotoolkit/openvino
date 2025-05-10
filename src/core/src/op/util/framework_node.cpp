@@ -19,6 +19,8 @@ ov::op::util::FrameworkNode::FrameworkNode(const ov::op::util::FrameworkNode& ot
     other.clone_to(*this);
 }
 
+ov::op::util::FrameworkNode::~FrameworkNode() = default;
+
 void ov::op::util::FrameworkNode::clone_to(ov::op::util::FrameworkNode& dst) const {
     dst.set_output_size(get_output_size());
 

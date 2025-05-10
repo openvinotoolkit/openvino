@@ -14,6 +14,7 @@ namespace v13 {
 class OPENVINO_API BitwiseNot : public op::Op {
 public:
     OPENVINO_OP("BitwiseNot", "opset13", op::Op);
+    ~BitwiseNot() override;
     /// \brief Constructs a bitwise negation operation.
     BitwiseNot() = default;
     /// \brief Constructs a bitwise negation operation.

@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API Convert : public Op {
 public:
     OPENVINO_OP("Convert", "opset1");
+    ~Convert() override;
 
     /// \brief Constructs a conversion operation.
     Convert() = default;

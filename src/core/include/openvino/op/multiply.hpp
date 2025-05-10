@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API Multiply : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Multiply", "opset1", util::BinaryElementwiseArithmetic);
+    ~Multiply() override;
 
     /// \brief Constructs a multiplication operation.
     Multiply() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

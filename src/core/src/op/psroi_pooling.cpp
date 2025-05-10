@@ -12,6 +12,8 @@ namespace ov {
 namespace op {
 namespace v0 {
 
+PSROIPooling::~PSROIPooling() = default;
+
 PSROIPooling::PSROIPooling(const Output<Node>& input,
                            const Output<Node>& coords,
                            const size_t output_dim,

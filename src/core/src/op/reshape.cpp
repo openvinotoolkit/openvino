@@ -25,6 +25,8 @@ Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_pattern, boo
     constructor_validate_and_infer_types();
 }
 
+Reshape::~Reshape() = default;
+
 bool Reshape::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_Reshape_visit_attributes);
     visitor.on_attribute("special_zero", m_special_zero);

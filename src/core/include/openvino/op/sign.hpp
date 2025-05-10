@@ -15,6 +15,7 @@ namespace v0 {
 class OPENVINO_API Sign : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Sign", "opset1", util::UnaryElementwiseArithmetic);
+    ~Sign() override;
 
     Sign() = default;
     /// \brief Constructs an elementwise sign operation.

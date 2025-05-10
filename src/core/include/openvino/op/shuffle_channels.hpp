@@ -16,6 +16,7 @@ namespace v0 {
 class OPENVINO_API ShuffleChannels : public Op {
 public:
     OPENVINO_OP("ShuffleChannels", "opset1");
+    ~ShuffleChannels() override;
 
     ShuffleChannels() = default;
     /// \brief Constructs a ShuffleChannels node.

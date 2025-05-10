@@ -25,6 +25,7 @@ protected:
 
 public:
     OPENVINO_OP("BinaryElementwiseBitwise", "util");
+    ~BinaryElementwiseBitwise() override;
 
     void validate_and_infer_types() override;
 

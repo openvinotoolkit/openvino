@@ -15,6 +15,7 @@ namespace v3 {
 class OPENVINO_API ROIAlign : public util::ROIAlignBase {
 public:
     OPENVINO_OP("ROIAlign", "opset3", util::ROIAlignBase);
+    ~ROIAlign() override;
     enum class PoolingMode { AVG, MAX };
 
     ROIAlign() = default;
@@ -71,6 +72,7 @@ namespace v9 {
 class OPENVINO_API ROIAlign : public util::ROIAlignBase {
 public:
     OPENVINO_OP("ROIAlign", "opset9", util::ROIAlignBase);
+    ~ROIAlign() override;
     enum class PoolingMode { AVG, MAX };
     enum class AlignedMode { ASYMMETRIC, HALF_PIXEL_FOR_NN, HALF_PIXEL };
 

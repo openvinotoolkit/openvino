@@ -48,6 +48,8 @@ struct Evaluate : element::NoAction<bool> {
 }  // namespace fake_quantize
 namespace v0 {
 
+FakeQuantize::~FakeQuantize() = default;
+
 FakeQuantize::FakeQuantize() : Op(), m_levels() {}
 
 FakeQuantize::FakeQuantize(const Output<Node>& data,

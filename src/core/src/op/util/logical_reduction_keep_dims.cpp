@@ -12,6 +12,8 @@ ov::op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(const ov::Outpu
     : LogicalReduction(arg, reduction_axes),
       m_keep_dims{keep_dims} {}
 
+ov::op::util::LogicalReductionKeepDims::~LogicalReductionKeepDims() = default;
+
 bool ov::op::util::LogicalReductionKeepDims::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_util_LogicalReductionKeepDims_visit_attributes);
     visitor.on_attribute("keep_dims", m_keep_dims);

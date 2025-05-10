@@ -59,6 +59,8 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
 }  // namespace variadic_split
 
 namespace v1 {
+VariadicSplit::~VariadicSplit() = default;
+
 VariadicSplit::VariadicSplit(const Output<Node>& data, const Output<Node>& axis, const Output<Node>& split_lengths)
     : Op({data, axis, split_lengths}) {
     constructor_validate_and_infer_types();

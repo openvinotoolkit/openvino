@@ -14,6 +14,7 @@ namespace v1 {
 class OPENVINO_API Subtract : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Subtract", "opset1", util::BinaryElementwiseArithmetic);
+    ~Subtract() override;
 
     Subtract() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 

@@ -34,6 +34,8 @@ op::util::PadBase::PadBase(const Output<Node>& arg,
     mark_as_precision_sensitive(input(2));
 }
 
+op::util::PadBase::~PadBase() = default;
+
 CoordinateDiff op::util::PadBase::get_pads_begin() const {
     CoordinateDiff pads_begin_coord{};
     if (auto pads_begin_const = ov::util::get_constant_from_source(input_value(1))) {
