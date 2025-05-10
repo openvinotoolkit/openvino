@@ -116,7 +116,7 @@ def commitPatchList(versionList, innerPath, fileName):
             textFile.write(version['content'])
 
         runCmd("git add {}".format(fileName), innerPath)
-        runCmd("git commit -m \"{}\"".format(version['comment']), innerPath)
+        runCmd("git commit -m \"{}\"".format(version['comment'].replace(" ", "_")), innerPath)
         hash = runCmd("git rev-parse HEAD", innerPath)[0]
 
         markedVersion = {
