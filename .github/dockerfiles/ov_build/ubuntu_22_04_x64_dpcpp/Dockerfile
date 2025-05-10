@@ -3,6 +3,15 @@ FROM ${REGISTRY}/library/ubuntu:22.04
 
 USER root
 
+# Create a non-root user and group
+ENV USER_NAME=runner
+ENV USER_ID=1000
+ENV GROUP_NAME=${USER_NAME}
+ENV GROUP_ID=${USER_ID}
+
+RUN groupadd -g ${GROUP_ID} ${GROUP_NAME}
+RUN useradd ${USER_NAME} -u ${USER_ID} -g ${GROUP_ID} -ms /bin/bash
+
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
@@ -96,3 +105,12 @@ ENV CPATH=/opt/intel/oneapi/dpl/2022.6/include:/opt/intel/oneapi/dev-utilities/2
 # Set Intel DPC++ as a default compiler
 ENV CC=icx
 ENV CXX=icpx
+
+# Change ownership of the home directory to the non-root user
+RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
+
+# Change ownership of the venv directory to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} /venv
+
+# Switch to the non-root user
+USER ${USER_NAME}
