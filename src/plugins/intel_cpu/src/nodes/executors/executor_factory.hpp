@@ -104,6 +104,16 @@ public:
             return theOnlyImplementation.create(m_attrs, memory, m_context);
         }
 
+
+        m_suitableImplementations.erase(std::remove_if(m_suitableImplementations.begin(),
+                                                       m_suitableImplementations.end(),
+                                                       [&](const ExecutorImplementationRef& impl) -> bool {
+                                                           auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs);
+                                                           if (auto fallbackConfig = impl.get().requiresFallback(config)) {
+                                                               return true;
+                                                           }
+                                                           return false;
+                                                       }), m_suitableImplementations.end());
         return std::make_shared<VariableExecutor<Attrs>>(memory, m_attrs, m_context, m_suitableImplementations);
     }
 
@@ -143,15 +153,6 @@ private:
             }
 
             suitableImplementations.push_back(std::ref(implementation));
-
-            // implementation is supported and it is shape agnostic, there is no way
-            // an implementation with a lower priority will be chosen
-            if (implementation.shapeAgnostic()) {
-                DEBUG_LOG("Implementation is shape agnostic: ",
-                          implementation.name(),
-                          ". Stop processing implementations");
-                break;
-            }
         }
 
         return suitableImplementations;

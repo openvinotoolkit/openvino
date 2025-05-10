@@ -94,7 +94,7 @@ enum class ShapeTolerance { Agnostic, Dependant };
 
 enum class ExecutorType { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, jit_aarch64, Shl, Kleidiai };
 
-enum class OperationType { FullyConnected, MatMul, Convolution };
+enum class OperationType { FullyConnected, MatMul, Convolution, MVN };
 
 std::string ExecutorTypeToString(const ExecutorType type);
 ExecutorType ExecutorTypeFromString(const std::string& typeStr);

@@ -660,6 +660,7 @@ void FullyConnected::createPrimitive() {
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway
     executor = factory->make(memory);
+    getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 
     Node::createPrimitive();
 }
