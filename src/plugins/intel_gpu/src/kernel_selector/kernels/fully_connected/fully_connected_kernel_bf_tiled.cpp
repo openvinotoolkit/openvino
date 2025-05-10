@@ -166,7 +166,11 @@ bool should_dynamic_quantize(const fully_connected_params& params) {
                                << ", W:" << kernel_selector::toString(params.weights.GetDType())
                                << "), Format(W:" << kernel_selector::toString(params.weights.GetLayout())
                                << ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v
-                               << ", Y: " << params.inputs[0].Y().v << std ::endl;
+                               << ", Y: " << params.inputs[0].Y().v
+                               << ", X: " << params.inputs[0].X().v
+                               << ", input_b: " << input_b
+                               << ", input_f: " << input_f
+                               << std ::endl;
         return true;
     }
 
