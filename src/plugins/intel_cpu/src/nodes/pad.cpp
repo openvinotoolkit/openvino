@@ -194,7 +194,7 @@ void Pad::createPrimitive() {
         MemoryCPtr padValue = srcMemory.size() > PAD_VALUE_ID ? srcMemory[PAD_VALUE_ID] : nullptr;
         if (padValue && !getParentEdgeAt(PAD_VALUE_ID)->getParent()->isConstant()) {
             // set artificial zero memory just to avoid reading garbage from the uninitilized input
-            auto tmpPadValue = std::make_shared<Memory>(getEngine(), padValue->getDescPtr());
+            auto tmpPadValue = std::make_shared<Memory>(padValue->getDescPtr());
             tmpPadValue->nullify();
             srcMemory[PAD_VALUE_ID] = tmpPadValue;
         }

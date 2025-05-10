@@ -2125,7 +2125,7 @@ void Eltwise::fuseInto(NodePtr& parentNode) {
 void Eltwise::appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
         DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {data.size()});
-        memPtr = std::make_shared<Memory>(getEngine(), memoryDesc, data.data());
+        memPtr = std::make_shared<Memory>(memoryDesc, data.data());
         postOpsMem.push_back(memPtr);
     }
 }
@@ -2503,8 +2503,7 @@ ov::element::Type Eltwise::getRuntimePrecision() const {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated &&
             !parentEdge->getParent()->isConstant()) {
-            inputPrecisions.emplace_back(
-                DnnlExtensionUtils::DataTypeToElementType((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(parentEdge->getMemoryPtr()->getPrecision());
         }
     }
 

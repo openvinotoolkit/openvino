@@ -57,7 +57,6 @@ public:
         return "Unexpected";
     }
 
-    void changeStatus(Status state);
     bool inPlace(LOOK look = LOOK_BOTH) const;
 
     void init();
@@ -80,10 +79,6 @@ public:
 
     int getInputNum() const;
     int getOutputNum() const;
-
-    void setChildPort(const size_t port) {
-        child_port = port;
-    }
 
     void sharedMemFrom(const EdgePtr& edge);
     EdgePtr getSharedEdge() const;
@@ -118,6 +113,7 @@ private:
 
     EdgePtr getBaseEdge(int look = LOOK_BOTH);
     void allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& allocate);
+    void changeStatus(Status state);
 
     friend class Graph;
 };

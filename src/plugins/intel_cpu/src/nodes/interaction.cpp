@@ -248,9 +248,10 @@ void Interaction::execRef(const dnnl::stream& strm) {
         auto inPtr = getSrcDataAtPortAs<const uint8_t>(n);
         inputPtrs[n] = inPtr;
     }
-    std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->getPrimitive()},
-                                            {DNNL_ARG_WEIGHTS, inputMemPtr->getPrimitive()},
-                                            {DNNL_ARG_DST, outputMemPtr->getPrimitive()}};
+    std::unordered_map<int, memory> mem_ags{
+        {DNNL_ARG_SRC, DnnlExtensionUtils::createMemoryPrimitive(inputMemPtr, getEngine())},
+        {DNNL_ARG_WEIGHTS, DnnlExtensionUtils::createMemoryPrimitive(inputMemPtr, getEngine())},
+        {DNNL_ARG_DST, DnnlExtensionUtils::createMemoryPrimitive(outputMemPtr, getEngine())}};
     float* scales = fqScales.empty() ? nullptr : fqScales.data();
     for (int64_t start = 0; start < static_cast<int64_t>(batchSize); start++) {
         cat(inputMemPtr->getDataAs<uint8_t>(), inputPtrs, featureSizes, start, dataPrecision.size());
@@ -309,7 +310,7 @@ void Interaction::prepareParams() {
     prim = matmul(matmul_pd);
     featureSizes.assign(inputSizes, featureSize);
     auto initMemoryPtr = [&](const ov::element::Type& prc, const intel_cpu::Shape& shape, MemoryPtr& ptr) {
-        ptr = std::make_shared<Memory>(getEngine(), intel_cpu::DnnlBlockedMemoryDesc(prc, shape));
+        ptr = std::make_shared<Memory>(intel_cpu::DnnlBlockedMemoryDesc(prc, shape));
     };
     initMemoryPtr(dataPrecision, intel_cpu::Shape{inputSizes, featureSize}, inputMemPtr);
     initMemoryPtr(dataPrecision, intel_cpu::Shape{inputShapes.size(), inputShapes.size()}, outputMemPtr);

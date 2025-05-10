@@ -114,8 +114,8 @@ std::shared_ptr<MemoryDesc> MemoryDescUtils::makeEmptyDesc() {
     return emptyDesc;
 }
 
-std::shared_ptr<IMemory> MemoryDescUtils::makeEmptyMemory(const GraphContext::CPtr& context) {
-    return std::make_shared<StaticMemory>(context->getEngine(), makeEmptyDesc(), nullptr);
+std::shared_ptr<IMemory> MemoryDescUtils::makeEmptyMemory() {
+    return std::make_shared<StaticMemory>(makeEmptyDesc(), nullptr);
 }
 
 Shape MemoryDescUtils::makeDummyShape(const Shape& shape, Dim dummyVal) {

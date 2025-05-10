@@ -541,10 +541,10 @@ bool Convolution::created() const {
 }
 
 template <typename T>
-static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engine& engine) {
+static MemoryPtr memoryViewToVector(const std::vector<T>& vec) {
     const auto type = ov::element::from<T>();
     DnnlBlockedMemoryDesc memoryDesc(type, {vec.size()});
-    return std::make_shared<Memory>(engine, memoryDesc, vec.data());
+    return std::make_shared<Memory>(memoryDesc, vec.data());
 }
 
 bool Convolution::canFuse(const NodePtr& node) const {
@@ -562,8 +562,7 @@ ov::element::Type Convolution::getRuntimePrecision() const {
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {
-            inputPrecisions.emplace_back(
-                DnnlExtensionUtils::DataTypeToElementType((parentEdge->getMemoryPtr()->getDataType())));
+            inputPrecisions.emplace_back(parentEdge->getMemoryPtr()->getPrecision());
         }
     }
 
@@ -586,7 +585,7 @@ void Convolution::createPrimitive() {
     }
 
     if (!m_attrs.withBias) {
-        m_memory[ARG_BIAS] = MemoryDescUtils::makeEmptyMemory(context);
+        m_memory[ARG_BIAS] = MemoryDescUtils::makeEmptyMemory();
     }
 
     if (withDWConv) {
@@ -595,21 +594,21 @@ void Convolution::createPrimitive() {
     }
 
     if (!legacyInputZeroPoints.empty()) {
-        m_memory[ARG_ATTR_ZERO_POINTS | ARG_SRC] = memoryViewToVector(legacyInputZeroPoints, getEngine());
+        m_memory[ARG_ATTR_ZERO_POINTS | ARG_SRC] = memoryViewToVector(legacyInputZeroPoints);
     }
 
     if (!legacyWeightsZeroPoints.empty()) {
-        m_memory[ARG_ATTR_ZERO_POINTS | ARG_WEI] = memoryViewToVector(legacyWeightsZeroPoints, getEngine());
+        m_memory[ARG_ATTR_ZERO_POINTS | ARG_WEI] = memoryViewToVector(legacyWeightsZeroPoints);
     }
 
     if (!legacyOutputCompensation.empty()) {
-        m_memory[ARG_ATTR_ZERO_POINTS | ARG_DST] = memoryViewToVector(legacyOutputCompensation, getEngine());
+        m_memory[ARG_ATTR_ZERO_POINTS | ARG_DST] = memoryViewToVector(legacyOutputCompensation);
     }
 
     if (!inputZeroPoints.empty()) {
         // WA Pass different representation of zero points using different identifier ARG_SRC_3
         // which is normally not used by convolution
-        m_memory[ARG_ATTR_ZERO_POINTS | ARG_SRC_3] = memoryViewToVector(inputZeroPoints, getEngine());
+        m_memory[ARG_ATTR_ZERO_POINTS | ARG_SRC_3] = memoryViewToVector(inputZeroPoints);
     }
 
     if (withSum) {
