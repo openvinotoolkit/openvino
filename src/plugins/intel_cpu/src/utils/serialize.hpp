@@ -1,14 +1,13 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 #include <pugixml.hpp>
 
 #include "openvino/core/model.hpp"
-#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
-#include "openvino/util/mmap_object.hpp"
 #include "utils/codec_xor.hpp"
 
 namespace ov::intel_cpu {
@@ -17,25 +16,28 @@ class ModelSerializer {
 public:
     using CacheEncrypt = std::function<std::string(const std::string&)>;
 
-    ModelSerializer(std::ostream& ostream, CacheEncrypt encrypt_fn = {});
+    ModelSerializer(std::ostream& ostream, CacheEncrypt encrypt_fn = {}, bool skip_weightless_constants = false);
 
     void operator<<(const std::shared_ptr<ov::Model>& model);
 
 private:
     std::ostream& m_ostream;
     CacheEncrypt m_cache_encrypt;
+    bool m_skip_weightless_constants;
 };
 
 class ModelDeserializer {
 public:
     using ModelBuilder = std::function<std::shared_ptr<ov::Model>(const std::shared_ptr<ov::AlignedBuffer>&,
+                                                                  const std::shared_ptr<ov::AlignedBuffer>&,
                                                                   const std::shared_ptr<ov::AlignedBuffer>&)>;
 
     ModelDeserializer(std::istream& model,
                       std::shared_ptr<ov::AlignedBuffer> model_buffer,
                       ModelBuilder fn,
                       const CacheDecrypt& encrypt_fn,
-                      bool decript_from_string);
+                      bool decript_from_string,
+                      std::string origin_weights_path = "");
 
     virtual ~ModelDeserializer() = default;
 
@@ -53,6 +55,7 @@ protected:
     CacheDecrypt m_cache_decrypt;
     bool m_decript_from_string;
     std::shared_ptr<ov::AlignedBuffer> m_model_buffer;
+    std::string m_origin_weights_path;
 };
 
 }  // namespace ov::intel_cpu
