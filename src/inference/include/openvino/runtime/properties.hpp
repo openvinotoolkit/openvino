@@ -1219,6 +1219,8 @@ namespace capability {
 constexpr static const auto FP32 = "FP32";                    //!< Device supports fp32 inference
 constexpr static const auto BF16 = "BF16";                    //!< Device supports bf16 inference
 constexpr static const auto FP16 = "FP16";                    //!< Device supports fp16 inference
+constexpr static const auto NF4 = "NF4";                      //!< Device supports nf4 inference
+constexpr static const auto INT4 = "INT4";                    //!< Device supports int4 inference
 constexpr static const auto INT8 = "INT8";                    //!< Device supports int8 inference
 constexpr static const auto INT16 = "INT16";                  //!< Device supports int16 inference
 constexpr static const auto BIN = "BIN";                      //!< Device supports binary inference
