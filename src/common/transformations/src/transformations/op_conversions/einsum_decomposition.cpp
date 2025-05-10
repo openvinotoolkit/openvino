@@ -424,11 +424,17 @@ ov::Output<ov::Node> broadcast_input(const ov::Output<ov::Node>& input_node,
     auto new_shape_op = std::make_shared<ov::op::v0::Concat>(new_shape_parts, 0);
     // if new shape is possible to compute on the shape infer stage, insert Constant node immediately
     // in order to prevent repeated computing during constant-folding pass
-    std::shared_ptr<ov::op::v3::Broadcast> reshaped_input_op;
+    std::shared_ptr<ov::Node> reshaped_input_op;
     if (auto new_shape_const = ov::util::get_constant_from_source(new_shape_op)) {
-        reshaped_input_op =
-            std::make_shared<ov::op::v3::Broadcast>(input_node, new_shape_const, ov::op::BroadcastType::BIDIRECTIONAL);
-        subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
+        auto new_shape_values = new_shape_const->cast_vector<size_t>();
+        if (input_node.get_partial_shape().is_static() && input_node.get_shape() == ov::Shape{new_shape_values}) {
+            reshaped_input_op = input_node.get_node_shared_ptr();
+        } else {
+            reshaped_input_op =
+                    std::make_shared<ov::op::v3::Broadcast>(input_node, new_shape_const,
+                                                            ov::op::BroadcastType::BIDIRECTIONAL);
+            subgraph_nodes.insert(subgraph_nodes.end(), {new_shape_const});
+        }
     } else {
         reshaped_input_op = std::make_shared<ov::op::v3::Broadcast>(input_node,
                                                                     new_shape_op->output(0),
