@@ -721,6 +721,20 @@ class Core:
                     :rtype: openvino.RemoteContext
         """
     @typing.overload
+    def get_property(self, device_name: str, name: str, arguments: dict[str, typing.Any]) -> typing.Any:
+        """
+                    Gets properties dedicated to device behaviour.
+        
+                    :param device_name: A name of a device to get a properties value.
+                    :type device_name: str
+                    :param name: Property or name of Property.
+                    :type name: str
+                    :param arguments: Additional arguments to get a property.
+                    :type arguments: dict[str, typing.Any]
+                    :return: Extracted information from property.
+                    :rtype: typing.Any
+        """
+    @typing.overload
     def get_property(self, device_name: str, property: str) -> typing.Any:
         """
                     Gets properties dedicated to device behaviour.

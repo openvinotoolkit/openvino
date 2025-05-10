@@ -67,7 +67,6 @@ public:
 
 private:
     static std::shared_ptr<ov::Model> CreateFunction(const SparseFillEmptyRowsParams& params) {
-        using ov::op::v0::Constant;
         using ov::op::v0::Parameter;
 
         const auto values = std::make_shared<Parameter>(params.valuesTensor.type, params.valuesTensor.shape);
