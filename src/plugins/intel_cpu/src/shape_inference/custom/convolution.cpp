@@ -7,6 +7,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "ov_ops/convolution.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -21,12 +22,13 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
                                    const std::vector<ptrdiff_t>& pads_begin,
                                    const std::vector<ptrdiff_t>& pads_end,
                                    bool auto_padding,
-                                   bool isGrouped) {
+                                   bool isGrouped,
+                                   bool isInternalOpset) {
     OPENVINO_ASSERT(data_shape.size() >= 3, "At least 3D data shape is expected");
     OPENVINO_ASSERT(filters_shape.size() >= 3, "At least 3D filters shape is expected");
-    const auto G = isGrouped ? filters_shape[0] : 1;
+    const auto G = ((isInternalOpset || isGrouped) && !(isInternalOpset && !isGrouped)) ? filters_shape[0] : 1;
     const auto data_shape_IC = data_shape[1] / G;
-    const auto filter_shape_IC = isGrouped ? filters_shape[2] : filters_shape[1];
+    const auto filter_shape_IC = ((isInternalOpset || isGrouped) && !(isInternalOpset && !isGrouped)) ? filters_shape[2] : filters_shape[1];
     OPENVINO_ASSERT(data_shape_IC == filter_shape_IC, "Input and filter channels must match");
 
     const auto data_rank = data_shape.size();
@@ -39,7 +41,7 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
     // {N, C_OUT, ...}
     const auto N = data_shape[0];
     output_shape.emplace_back(N);
-    const auto CO = isGrouped ? filters_shape[0] * filters_shape[1] : filters_shape[0];
+    const auto CO = ((isInternalOpset || isGrouped) && !(isInternalOpset && !isGrouped)) ? filters_shape[0] * filters_shape[1] : filters_shape[0];
     output_shape.emplace_back(CO);
 
     const auto spatial_num = strides.size();
@@ -85,7 +87,8 @@ Result ConvolutionShapeInfer::infer(const std::vector<std::reference_wrapper<con
                                                 m_pads_begin,
                                                 m_pads_end,
                                                 m_auto_padding,
-                                                m_isGrouped);
+                                                m_isGrouped,
+                                                m_isInternalOpset);
 
     return {{output_shape}, ShapeInferStatus::success};
 }
@@ -93,13 +96,15 @@ Result ConvolutionShapeInfer::infer(const std::vector<std::reference_wrapper<con
 ShapeInferPtr ConvolutionShapeInferFactory::makeShapeInfer() const {
     if (const auto convolution = ov::as_type_ptr<const ov::op::util::ConvolutionFwdPropBase>(m_op)) {
         const auto is_grouped = ov::is_type<const ov::op::v1::GroupConvolution>(convolution);
+        const auto is_internal_opset = ov::is_type<const ov::op::internal::Convolution>(convolution);
         return std::make_shared<ConvolutionShapeInfer>(
             convolution->get_strides(),
             convolution->get_dilations(),
             convolution->get_pads_begin(),
             convolution->get_pads_end(),
             one_of(convolution->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER),
-            is_grouped);
+            is_grouped,
+            is_internal_opset);
     }
 
     OPENVINO_THROW("Unexpected operation type in the Convolution shape inference factory");

@@ -647,12 +647,24 @@ static std::tuple<MemoryDescPtr, MemoryDescPtr> createDummySrcDstDescs(const Con
                                                          paddingL,
                                                          paddingR,
                                                          attrs.autoPadding != AutoPaddingType::None,
-                                                         attrs.isGrouped);
+                                                         attrs.isGrouped,
+                                                         false);
 
     auto srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     auto dstDesc = memory.at(ARG_DST)->getDescPtr();
 
+    std::cout << "dummyInputDims: ";
+    for (const auto& dim : dummyInputDims) {
+        std::cout << dim << " ";
+    }
+    std::cout << std::endl;
+
+    std::cout << "dummyOutputDims: ";
+    for (const auto& dim : dummyOutputDims) {
+        std::cout << dim << " ";
+    }
+    std::cout << std::endl;
     srcDesc = srcDesc->cloneWithNewDims(dummyInputDims);
     dstDesc = dstDesc->cloneWithNewDims(dummyOutputDims);
 
@@ -747,6 +759,7 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
                     fcAttrs.withBias,
                     fcAttrs.weightsNonTransposed,
                     false,
+                    true,
                     false,
                     true,
                     false,
