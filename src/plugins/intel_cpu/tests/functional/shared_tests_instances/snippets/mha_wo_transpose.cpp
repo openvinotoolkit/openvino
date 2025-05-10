@@ -150,6 +150,35 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(CPUTestUtils::cpu_bf16_plugin_config)),
     MHA::getTestCaseName);
 
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_MHAWOTransposeEnforceFP16_4D,
+    MHAWOTranspose,
+    ::testing::Combine(::testing::ValuesIn(originalShape_4D),
+                       ::testing::ValuesIn(precision_f32(3)),
+                       ::testing::Values(ov::element::f16),
+                       ::testing::Values(true),  // Need to support False for graph builder in tests
+                       ::testing::Values(MHA::default_thread_count),
+                       ::testing::Values(1),
+                       ::testing::Values(1),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(CPUTestUtils::cpu_f16_plugin_config)),
+    MHA::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_MHAWOTransposeEnforceFP16_3D,
+    MHAWOTranspose,
+    ::testing::Combine(::testing::ValuesIn(originalShape_3D),
+                       ::testing::ValuesIn(precision_f32(3)),
+                       ::testing::Values(ov::element::f16),
+                       ::testing::Values(true),  // Need to support False for graph builder in tests
+                       ::testing::Values(MHA::default_thread_count),
+                       ::testing::Values(1),
+                       ::testing::Values(1),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(CPUTestUtils::cpu_f16_plugin_config)),
+    MHA::getTestCaseName);
+
 }  // namespace
 }  // namespace snippets
 }  // namespace test
