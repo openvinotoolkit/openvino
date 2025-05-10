@@ -13,6 +13,7 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
@@ -28,6 +29,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/parallel.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
@@ -97,7 +99,10 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
                   attrs.modelType};
 
     auto builder = [&context](const Key& dnnlKey) {
-        return std::make_shared<DnnlFCPrimitive>(dnnlKey, context->getEngine(), context->getImplPriorities());
+        return std::make_shared<DnnlFCPrimitive>(dnnlKey,
+                                                 context->getEngine(),
+                                                 context->getThreadPool(),
+                                                 context->getImplPriorities());
     };
 
     auto runtimeCache = context->getRuntimeCache();
@@ -462,8 +467,9 @@ static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc)
 
 DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                  const dnnl::engine& engine,
+                                 std::shared_ptr<ThreadPool> threadPool,
                                  const std::vector<impl_desc_type>& implPriorities)
-    : m_stream(dnnl::stream(engine)),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(
           key.src->getDnnlDesc(),
           key.wei->getDnnlDesc(),

@@ -100,6 +100,7 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
 void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     std::vector<size_t> batchLenghts;
     if (idcesPrecision == ov::element::i32) {
@@ -115,7 +116,7 @@ void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
        2. Apply sliding window of windowSize with a step windowStride and form k new embedding vectors for the embedding
     */
     memset(dstData, 0, numOutElems * sizeof(float));
-    parallel_for(batchLenghts.size() - 1, [&](const size_t batchIdx) {
+    cpu_parallel->parallel_for(batchLenghts.size() - 1, [&](const size_t batchIdx) {
         size_t srcWindowBias = 0;
         size_t dstWindowBias = 0;
 

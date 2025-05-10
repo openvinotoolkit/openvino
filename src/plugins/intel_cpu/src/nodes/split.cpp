@@ -445,6 +445,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
 }
 
 void Split::optimizedNspc2Ncsp(size_t MB) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto parentEdge = getParentEdgeAt(0);
     const int rank = parentEdge->getMemory().getShape().getRank();
     const auto parentDims = parentEdge->getMemory().getStaticDims();
@@ -476,7 +477,7 @@ void Split::optimizedNspc2Ncsp(size_t MB) {
         const size_t OC = dims[1];
         const size_t strideOB = OC * strideOC;
 
-        parallel_for2d(MB, DHW, [&](size_t b, size_t j) {
+        cpu_parallel->parallel_for2d(MB, DHW, [&](size_t b, size_t j) {
             auto localSrcPtr = srcPtr + b * strideIB + j * strideIW;
             auto localDstPtr = dstData + b * strideOB + j * dataSize;
             for (size_t c = 0; c < OC; c++) {

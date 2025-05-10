@@ -481,6 +481,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                                const VectorDims& scoresStrides,
                                const VectorDims& roisnumStrides,
                                const bool shared) {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
@@ -489,7 +490,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
         return iou <= adaptive_threshold ? 1.0f : 0.0f;
     };
 
-    parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
+    cpu_parallel->parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
         if (!shared) {
             if (roisnum[batch_idx] <= 0) {
                 m_numFiltBox[batch_idx][class_idx] = 0;
@@ -599,7 +600,8 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
                                   const VectorDims& scoresStrides,
                                   const VectorDims& roisnumStrides,
                                   const bool shared) {
-    parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
+    const auto& cpu_parallel = context->getCpuParallel();
+    cpu_parallel->parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
         /*
         // nms over a class over an image
         // boxes:       num_priors, 4

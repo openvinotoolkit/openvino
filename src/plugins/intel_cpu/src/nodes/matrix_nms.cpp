@@ -209,9 +209,10 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
 
     std::vector<float> iouMatrix((originalSize * (originalSize - 1)) >> 1);
     std::vector<float> iouMax(originalSize);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     iouMax[0] = 0.;
-    ov::parallel_for(originalSize - 1, [&](size_t i) {
+    cpu_parallel->parallel_for(originalSize - 1, [&](size_t i) {
         float max_iou = 0.;
         size_t actual_index = i + 1;
         auto idx_a = candidateIndex[actual_index];
@@ -327,10 +328,11 @@ void MatrixNms::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto& cpu_parallel = context->getCpuParallel();
     const auto* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
     const auto* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
-    ov::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
+    cpu_parallel->parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
         if (classIdx == static_cast<size_t>(m_backgroundClass)) {
             m_numPerBatchClass[batchIdx][classIdx] = 0;
             return;
@@ -347,7 +349,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         m_numPerBatchClass[batchIdx][classIdx] = classNumDet;
     });
 
-    ov::parallel_for(m_numBatches, [&](size_t batchIdx) {
+    cpu_parallel->parallel_for(m_numBatches, [&](size_t batchIdx) {
         size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
         BoxInfo* batchFilteredBox = m_filteredBoxes.data() + batchOffset;
         auto& numPerClass = m_numPerBatchClass[batchIdx];

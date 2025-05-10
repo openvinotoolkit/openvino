@@ -113,7 +113,8 @@ public:
           engine(graphContext->getEngine()),
           implPriorities(std::move(implPriorities)),
           privateWeighCache(std::move(privateWeighCache)),
-          numNumaNodes(graphContext->getNumNumaNodes()) {
+          numNumaNodes(graphContext->getNumNumaNodes()),
+          threadPool(graphContext->getThreadPool()) {
         auto cpuStreamsExecutor = graphContext->getCPUStreamExecutor();
         curNumaNodeId = std::max(0, cpuStreamsExecutor ? cpuStreamsExecutor->get_numa_node_id() : curNumaNodeId);
     }
@@ -144,6 +145,10 @@ public:
         return weightsCache;
     }
 
+    [[nodiscard]] std::shared_ptr<ThreadPool> getThreadPool() const {
+        return threadPool;
+    }
+
 private:
     // weak_ptr is required to avoid cycle dependencies with MultiCache
     // since ExecutorContext is stored in Executor itself
@@ -156,6 +161,7 @@ private:
     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeighCache;
     int numNumaNodes;
     int curNumaNodeId = -1;
+    std::shared_ptr<ThreadPool> threadPool;
 };
 
 class ExecutorFactoryLegacy {

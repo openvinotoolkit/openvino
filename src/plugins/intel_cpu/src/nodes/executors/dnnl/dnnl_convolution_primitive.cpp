@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <tuple>
 #include <vector>
 
@@ -32,8 +33,10 @@
 #include "nodes/executors/graph_emitter.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/convolution.hpp"
+#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {
 
@@ -843,6 +846,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     auto builder = [&context, defaultImplType](const Key& dnnlKey) {
         return std::make_shared<DnnlConvolutionPrimitive>(dnnlKey,
                                                           context->getEngine(),
+                                                          context->getThreadPool(),
                                                           context->getImplPriorities(),
                                                           defaultImplType);
     };
@@ -991,9 +995,10 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
 
 DnnlConvolutionPrimitive::DnnlConvolutionPrimitive(const Key& key,
                                                    const dnnl::engine& engine,
+                                                   std::shared_ptr<ThreadPool> threadPool,
                                                    const std::vector<impl_desc_type>& implPriorities,
                                                    const impl_desc_type defaultImplType)
-    : m_stream(dnnl::stream(engine)),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),

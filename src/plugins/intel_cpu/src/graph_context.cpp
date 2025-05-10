@@ -15,12 +15,14 @@ GraphContext::GraphContext(Config config,
                            WeightsSharing::Ptr w_cache,
                            bool isGraphQuantized,
                            ov::threading::IStreamsExecutor::Ptr streamExecutor,
+                           std::shared_ptr<CpuParallel> cpuParallel,
                            std::shared_ptr<SubMemoryManager> sub_memory_manager)
     : m_config(std::move(config)),
       m_weightsCache(std::move(w_cache)),
       m_rtParamsCache(std::make_shared<MultiCache>(m_config.rtCacheCapacity)),
       m_isGraphQuantizedFlag(isGraphQuantized),
       m_streamExecutor(std::move(streamExecutor)),
+      m_cpuParallel(std::move(cpuParallel)),
       m_subMemoryManager(std::move(sub_memory_manager)),
 
       m_memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
@@ -40,6 +42,8 @@ GraphContext::GraphContext(Config config,
     for (int i = 0; i < numaNum; i++) {
         m_rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i));
     }
+
+    m_threadPool = std::make_shared<ThreadPool>(m_cpuParallel);
 }
 
 const dnnl::engine& GraphContext::getEngine() {

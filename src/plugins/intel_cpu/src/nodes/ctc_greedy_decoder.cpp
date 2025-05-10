@@ -75,6 +75,7 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
     const auto* sequenceMask = getSrcDataAtPortAs<const float>(SEQUENCE_LENGTH_INDEX);
     auto* outputSequences = getDstDataAtPortAs<float>(0);
+    const auto& cpu_parallel = context->getCpuParallel();
 
     const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
     const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];
@@ -85,7 +86,7 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int blankIndex = C - 1;
 
     std::vector<size_t> sequenceLengths(B, 0);
-    parallel_for(B, [&](size_t b) {
+    cpu_parallel->parallel_for(B, [&](size_t b) {
         size_t t = 0;
         for (; t < T; t++) {
             if (sequenceMask[B * t + b] == 0.f) {
@@ -151,7 +152,7 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     parallel_nt(0, threadBody);
 
-    parallel_for(B, [&](size_t b) {
+    cpu_parallel->parallel_for(B, [&](size_t b) {
         int prevClassIdx = -1;
         size_t outputIndex = b * T;
         const size_t sequenceLength = sequenceLengths[b];

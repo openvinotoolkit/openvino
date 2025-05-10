@@ -281,6 +281,7 @@ void Unique::flattenTensorExec() {
 
 template <typename T>
 void Unique::slicedTensorExec() {
+    const auto& cpu_parallel = context->getCpuParallel();
     auto inDataMemPtr = getSrcMemoryAtPort(IN_DATA);
     auto srcDataPtr = inDataMemPtr->getDataAs<const T>();
     int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
@@ -380,7 +381,7 @@ void Unique::slicedTensorExec() {
     const auto dstOuterStep = innerLen * uniqueLen;
     // Filling of the first output if needed.
     if (sorted || definedOutputs[UNIQUE_DATA]) {
-        parallel_for(uniqueLen, [&](size_t u) {
+        cpu_parallel->parallel_for(uniqueLen, [&](size_t u) {
             auto first1 = srcDataPtr + uniqIdx[u] * innerLen;
             auto first2 = dstDataPtr + u * innerLen;
             for (int64_t p = 0lu; p < outerLen; p++) {
@@ -425,7 +426,7 @@ void Unique::slicedTensorExec() {
                 });
 
                 // Permutation
-                parallel_for2d(outerLen, uniqueLen, [&](int64_t ot, size_t u) {
+                cpu_parallel->parallel_for2d(outerLen, uniqueLen, [&](int64_t ot, size_t u) {
                     auto src = dst1 + ot * dstOuterStep + colToSort[u].idx * innerLen;
                     auto dst = dst2 + ot * dstOuterStep + u * innerLen;
 
@@ -433,7 +434,7 @@ void Unique::slicedTensorExec() {
                 });
 
                 if (defined3outputs) {
-                    parallel_for(uniqueLen, [&](size_t u) {
+                    cpu_parallel->parallel_for(uniqueLen, [&](size_t u) {
                         if (definedOutputs[FIRST_UNIQUE_IDX]) {
                             first1[u] = first2[colToSort[u].idx];
                         }
