@@ -47,17 +47,21 @@ __attribute__((reqd_work_group_size(LWS0, LWS1, LWS2)))
 KERNEL(swiglu_gpu_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
-    __global OUTPUT_TYPE* output)
+    __global OUTPUT_TYPE* output
+    #if HAS_FUSED_OPS_DECLS
+        , FUSED_OPS_DECLS
+    #endif
+    )
 {
     const unsigned int x = (uint)get_global_linear_id();
     const unsigned int y = x + ((x / SPLIT_LENGTH) * SPLIT_LENGTH);
 
 #if SPLIT_TO_GLU_IDX == 0
     ACCUMULATOR_TYPE gate = input[y];
-    ACCUMULATOR_TYPE value = input[y + SPLIT_LENGTH];
+    ACCUMULATOR_TYPE res = input[y + SPLIT_LENGTH];
 #else
     ACCUMULATOR_TYPE gate = input[y + SPLIT_LENGTH];
-    ACCUMULATOR_TYPE value = input[y];
+    ACCUMULATOR_TYPE res = input[y];
 #endif
 
     #if GLU_TYPE == 0   // Swish
@@ -68,6 +72,28 @@ KERNEL(swiglu_gpu_opt)(
         gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (tanh(GEGLU_SQUARE_2_OVER_PI * gate * (ACCUMULATOR_VAL_ONE + GEGLU_MULT * gate * gate)))));
     #endif
 
-    value *= gate;
-    output[x] = TO_OUTPUT_TYPE(value);
+    res *= gate;
+
+    #if HAS_FUSED_OPS
+    {
+        #if OUTPUT_DIMS == 5
+            uint data_idx = (uint)get_global_id(GWS_YX);
+            const uint x = data_idx % OUTPUT_SIZE_X;
+            data_idx = data_idx / OUTPUT_SIZE_X;
+            const uint y = data_idx % OUTPUT_SIZE_Y;
+            data_idx = data_idx / OUTPUT_SIZE_Y;
+            const uint z = data_idx % OUTPUT_SIZE_Z;
+        #else // 2D spatial
+            const uint x = (uint)get_global_id(GWS_YX) % OUTPUT_SIZE_X;
+            const uint y = (uint)get_global_id(GWS_YX) / OUTPUT_SIZE_X;
+        #endif
+        const uint f = (uint)get_global_id(GWS_FEATURE);
+        const uint b = (uint)get_global_id(GWS_BATCH);
+
+        FUSED_OPS;
+        res = FUSED_OPS_RESULT;
+    }
+    #endif
+
+    output[x] = TO_OUTPUT_TYPE(res);
 }
