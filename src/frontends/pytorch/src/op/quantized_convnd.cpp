@@ -47,6 +47,7 @@ Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
     auto pad_type = ov::op::PadType::EXPLICIT;
 
     std::shared_ptr<ov::Node> conv;
+    
     if (groups == 1) {
         conv = std::make_shared<v1::Convolution>(input, weight, strides, pads, pads, dilations, pad_type);
     } else {
