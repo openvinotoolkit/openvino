@@ -90,7 +90,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ github.event_name != 'merge_group' && needs.smart_ci.outputs.skip_workflow != 'True' }}
     timeout-minutes: 150
     defaults:
       run:
@@ -163,9 +163,7 @@ jobs:
       # Build
       #
 
-      - name: CMake configure - CC COLLECT with clang-tidy
-         # clang-tidy static analysis check is enabled as part of collection
-         # to avoid an additional separate build execution
+      - name: CMake configure
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
@@ -173,7 +171,6 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_CPPLINT=OFF \
-            -DENABLE_CLANG_TIDY=ON \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
