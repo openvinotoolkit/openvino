@@ -250,6 +250,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.unsqueeze.default": None,
             "torch.ops.aten.unsqueeze_copy.default": None,
             "torch.ops.aten.upsample_nearest2d.default": None,
+            "torch.ops.aten.upsample_nearest2d.vec": None,
             "torch.ops.aten.var.correction": None,
             "torch.ops.aten.var_mean.correction": None,
             "torch.ops.aten.view.default": None,
