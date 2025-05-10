@@ -278,10 +278,10 @@ void MKernel::generate_1x2() {
     ret();
 }
 
-class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator {
+class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(FP16ToBF16Kernel)
-    FP16ToBF16Kernel() : jit_generator("FP16ToBF16Kernel") {
+    FP16ToBF16Kernel() : jit_generator_t("FP16ToBF16Kernel") {
         create_kernel();
     }
 
@@ -571,7 +571,7 @@ void GateUpCombine::generate() {
     const auto zmm_up = zmm0;
     const auto ymm_dst = ymm5;
 
-    auto injector = std::make_shared<jit_uni_eltwise_injector<dnnl::impl::cpu::x64::avx512_core>>(
+    auto injector = std::make_shared<jit_uni_eltwise_injector_t<dnnl::impl::cpu::x64::avx512_core>>(
         this,
         m_act_alg,
         1.f,

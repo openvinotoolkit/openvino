@@ -12,7 +12,7 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-ScalarTppEmitter::ScalarTppEmitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
+ScalarTppEmitter::ScalarTppEmitter(jit_generator_t* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
     push_arg_entry_of("scalar_tpp", jit_scalar_emitter::read_value(expr), false);
     in_out_type_ = gpr_to_gpr;

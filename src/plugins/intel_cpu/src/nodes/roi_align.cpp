@@ -34,15 +34,15 @@ using ngAlignedMode = ov::opset9::ROIAlign::AlignedMode;
 #    define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
 template <cpu_isa_t isa>
-struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public jit_generator {
+struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_align_kernel_f32);
 
     explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp)
         : jit_uni_roi_align_kernel(jcp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     };
 
@@ -71,8 +71,8 @@ private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    const int v_len = cpu_isa_traits<isa>::vlen;
-    const int x_len = cpu_isa_traits<sse41>::vlen;
+    const int v_len = cpu_isa_traits_t<isa>::vlen;
+    const int x_len = cpu_isa_traits_t<sse41>::vlen;
     const int v_step = v_len / sizeof(float);
     const int x_step = x_len / sizeof(float);
 
@@ -477,7 +477,7 @@ private:
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
 
-        int lane = v_len / cpu_isa_traits<sse41>::vlen;
+        int lane = v_len / cpu_isa_traits_t<sse41>::vlen;
         uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
         L(main_loop_label);
         {

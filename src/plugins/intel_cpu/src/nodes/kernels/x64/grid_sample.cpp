@@ -12,7 +12,7 @@ namespace ov::intel_cpu::kernel {
 
 template <x64::cpu_isa_t isa>
 GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp)
-    : GridSampleKernelBase(jit_name(), jcp, isa, x64::cpu_isa_traits<isa>::vlen) {
+    : GridSampleKernelBase(jit_name(), jcp, isa, x64::cpu_isa_traits_t<isa>::vlen) {
     if (dataTypeSize == 2) {
         dataTypeShift = 1;
     } else if (dataTypeSize == 4) {
@@ -22,7 +22,7 @@ GridSampleKernel<isa>::GridSampleKernel(const GridSampleKernelConfParams& jcp)
 
 template <x64::cpu_isa_t isa>
 void GridSampleKernel<isa>::create_ker() {
-    auto code = x64::jit_generator::create_kernel();
+    auto code = x64::jit_generator_t::create_kernel();
     if (code != dnnl::impl::status::success) {
         OPENVINO_THROW("Could not create GridSample kernel. Error code: ", std::to_string(code));
     }
@@ -367,7 +367,7 @@ void GridSampleKernel<isa>::getCoordinates(const Vmm& vHCoord, const Vmm& vWCoor
     Xbyak::Xmm xmmWCoord(vWCoord.getIdx());
     Xbyak::Xmm xmmHCoord(vHCoord.getIdx());
     Xbyak::Xmm xmmAux(vAux.getIdx());
-    const uint64_t xmmVlen = x64::cpu_isa_traits<x64::sse41>::vlen;
+    const uint64_t xmmVlen = x64::cpu_isa_traits_t<x64::sse41>::vlen;
 
     uni_vmovups(xmmWCoord, ptr[regGrid]);
     uni_vpshufd(xmmWCoord, xmmWCoord, 0xD8);
@@ -644,7 +644,7 @@ void GridSampleKernel<isa>::denormalizeRawCoordinates(const Vmm& vWCoord, const 
             auto rAux = getReg64();
             halfHolder = getVmm();
             vHalfTmp = halfHolder;
-            static const float halfValues[x64::cpu_isa_traits<x64::avx512_core>::vlen / sizeof(float)] =
+            static const float halfValues[x64::cpu_isa_traits_t<x64::avx512_core>::vlen / sizeof(float)] =
                 {0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f};
             mov(rAux, reinterpret_cast<uintptr_t>(halfValues));
             uni_vmovups(vHalfTmp, ptr[rAux]);
@@ -1060,7 +1060,7 @@ void GridSampleKernel<x64::avx512_core>::bicubicCoefficients(const Vmm& vCoef, c
 
 template <>
 void GridSampleKernel<x64::avx2>::bicubicCoefficients(const Vmm& vCoef, const Vmm& vDDim, const uint8_t idx) {
-    static const size_t elPerVec = x64::cpu_isa_traits<x64::avx2>::vlen / sizeof(float);
+    static const size_t elPerVec = x64::cpu_isa_traits_t<x64::avx2>::vlen / sizeof(float);
     ;
     static const float const_0_75[elPerVec] = {-0.75f, -0.75f, -0.75f, -0.75f, -0.75f, -0.75f, -0.75f, -0.75f};
     static const float const_1_25[elPerVec] = {1.25f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f};
@@ -1103,7 +1103,7 @@ void GridSampleKernel<x64::avx2>::bicubicCoefficients(const Vmm& vCoef, const Vm
 
 template <>
 void GridSampleKernel<x64::avx>::bicubicCoefficients(const Vmm& vCoef, const Vmm& vDDim, const uint8_t idx) {
-    static const size_t elPerVec = x64::cpu_isa_traits<x64::avx>::vlen / sizeof(float);
+    static const size_t elPerVec = x64::cpu_isa_traits_t<x64::avx>::vlen / sizeof(float);
     static const float const_0_75[elPerVec] = {-0.75f, -0.75f, -0.75f, -0.75f, -0.75f, -0.75f, -0.75f, -0.75f};
     static const float const_1_25[elPerVec] = {1.25f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f};
     static const float const_1_50[elPerVec] = {1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f};
@@ -1150,7 +1150,7 @@ void GridSampleKernel<x64::avx>::bicubicCoefficients(const Vmm& vCoef, const Vmm
 
 template <>
 void GridSampleKernel<x64::sse41>::bicubicCoefficients(const Vmm& vCoef, const Vmm& vDDim, const uint8_t idx) {
-    static const size_t elToAllocate = 2 * x64::cpu_isa_traits<x64::sse41>::vlen / sizeof(float);
+    static const size_t elToAllocate = 2 * x64::cpu_isa_traits_t<x64::sse41>::vlen / sizeof(float);
     // Allocation with a margin for address alignment.
     static const float c_0_75[elToAllocate] = {-0.75f, -0.75f, -0.75f, -0.75f, -0.75f, -0.75f, -0.75f, -0.75f};
     static const float c_1_25[elToAllocate] = {1.25f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f, 1.25f};
