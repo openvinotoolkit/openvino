@@ -97,6 +97,8 @@ public:
         return result.str();
     }
 
+    static std::mutex _mutex;
+
 protected:
     std::shared_ptr<ov::Node> init_compressed_weights_subgraph(const ov::Shape& weights_shape,
                                                                const int group_size,
@@ -416,7 +418,10 @@ protected:
     }
 };
 
+std::mutex FullyConnectedHorizontalFusion::_mutex;
+
 TEST_P(FullyConnectedHorizontalFusion, Inference) {
+    std::lock_guard<std::mutex> lock(FullyConnectedHorizontalFusion::_mutex);
     run();
     check_results();
 }
@@ -441,34 +446,34 @@ const std::vector<ShapeParams> input_shapes = {
 const std::vector<uint64_t> lora_rank = {0, 16}; // 0 means w/o LoRA
 
 // TODO: will be fix, Skip the test, unexpected validation team failure.
-// INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_no_bias,
-//                          FullyConnectedHorizontalFusion,
-//                          ::testing::Combine(::testing::ValuesIn(input_shapes),
-//                                             ::testing::ValuesIn(weights_precisions),
-//                                             ::testing::ValuesIn(activations_precisions),
-//                                             ::testing::ValuesIn(transpose_weights),
-//                                             ::testing::Values(true),
-//                                             ::testing::Values(true),
-//                                             ::testing::ValuesIn(per_tensor_zp),
-//                                             ::testing::Values(false),
-//                                             ::testing::Values(0) /* no dyn_quan */,
-//                                             ::testing::ValuesIn(lora_rank)),
-//                          FullyConnectedHorizontalFusion::get_test_case_name);
+INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_no_bias,
+                         FullyConnectedHorizontalFusion,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(activations_precisions),
+                                            ::testing::ValuesIn(transpose_weights),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::ValuesIn(per_tensor_zp),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0) /* no dyn_quan */,
+                                            ::testing::ValuesIn(lora_rank)),
+                         FullyConnectedHorizontalFusion::get_test_case_name);
 
 // TODO: will be fix, Skip the test, unexpected validation team failure.
-// INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_with_bias,
-//                          FullyConnectedHorizontalFusion,
-//                          ::testing::Combine(::testing::ValuesIn(input_shapes),
-//                                             ::testing::ValuesIn(weights_precisions),
-//                                             ::testing::ValuesIn(activations_precisions),
-//                                             ::testing::Values(true),
-//                                             ::testing::Values(true),
-//                                             ::testing::Values(true),
-//                                             ::testing::Values(true),
-//                                             ::testing::Values(true),
-//                                             ::testing::Values(0) /* no dyn_quan */,
-//                                             ::testing::ValuesIn(lora_rank)),
-//                          FullyConnectedHorizontalFusion::get_test_case_name);
+INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_with_bias,
+                         FullyConnectedHorizontalFusion,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(activations_precisions),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(0) /* no dyn_quan */,
+                                            ::testing::ValuesIn(lora_rank)),
+                         FullyConnectedHorizontalFusion::get_test_case_name);
 
 std::vector<ov::Shape> dyn_quan_weights = {{1, 128, 32}, {1, 128, 4}, {1, 128, 32}};
 
