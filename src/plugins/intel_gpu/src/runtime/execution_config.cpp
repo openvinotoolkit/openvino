@@ -183,14 +183,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
-        if (is_paged_attention_model || !info.supports_immad) {
-            // Enable KV-cache compression by default for:
-            // 1) Non-systolic platforms in case of SDPA-based models
-            // 2) For any platforms in case of PagedAttention-based model
-            m_kv_cache_precision = ov::element::i8;
-        } else {
-            m_kv_cache_precision = get_inference_precision();
-        }
+        m_kv_cache_precision = ov::element::i8;
     }
 
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
