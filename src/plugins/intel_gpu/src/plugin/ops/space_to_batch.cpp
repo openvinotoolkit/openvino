@@ -29,7 +29,7 @@ static void CreateSpaceToBatchOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         }
     }
 
-    if (!p.use_new_shape_infer() && !op->is_dynamic() && constant_shape) {
+    if (constant_shape) {
         std::vector<cldnn::tensor> tensor_inputs;
         auto rank = op->get_input_partial_shape(0).size();
         auto format = cldnn::format::get_default_format(rank);
