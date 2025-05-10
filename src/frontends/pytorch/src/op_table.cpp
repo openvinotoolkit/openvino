@@ -219,9 +219,11 @@ OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
 OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
+OP_CONVERTER(translate_reflection_pad_nd);
 OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
+OP_CONVERTER(translate_replicate_pad_nd);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
 OP_CONVERTER(translate_rms_norm);
@@ -326,7 +328,6 @@ OP_CONVERTER(translate_new_ones_fx);
 OP_CONVERTER(translate_new_zeros_fx);
 OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
-OP_CONVERTER(translate_reflection_pad_nd_fx);
 OP_CONVERTER(translate_repeat_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
@@ -670,6 +671,12 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
+        {"aten::reflection_pad1d", op::translate_reflection_pad_nd},
+        {"aten::reflection_pad2d", op::translate_reflection_pad_nd},
+        {"aten::reflection_pad3d", op::translate_reflection_pad_nd},
+        {"aten::replication_pad1d", op::translate_replicate_pad_nd},
+        {"aten::replication_pad2d", op::translate_replicate_pad_nd},
+        {"aten::replication_pad3d", op::translate_replicate_pad_nd},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
         // TO DO: enable behaviour for resolve_conj and resolve_neg complex tensors,
@@ -1005,9 +1012,12 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.pixel_unshuffle.default", op::translate_pixel_unshuffle},
         {"aten.rand.default", op::translate_rand},
         {"aten.reciprocal.default", op::translate_reciprocal},
-        {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd_fx},
-        {"aten.reflection_pad2d.default", op::translate_reflection_pad_nd_fx},
-        {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd_fx},
+        {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd},
+        {"aten.reflection_pad2d.default", op::translate_reflection_pad_nd},
+        {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd},
+        {"aten.replication_pad1d.default", op::translate_replicate_pad_nd},
+        {"aten.replication_pad2d.default", op::translate_replicate_pad_nd},
+        {"aten.replication_pad3d.default", op::translate_replicate_pad_nd},
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.repeat.default", op::translate_repeat_fx},
