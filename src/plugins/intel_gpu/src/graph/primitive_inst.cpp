@@ -2018,8 +2018,7 @@ void primitive_inst::execute() {
                 cldnn::memory_ptr actual_mem = nullptr;
                 // Need to use actual layout, not the fake aligned memory layout
                 if (actual_input_layout.count() != 0) {
-                    if (allocated_mem)
-                        actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
+                    actual_mem = engine.reinterpret_buffer(*allocated_mem, actual_input_layout);
                 } else {
                     actual_mem = engine.allocate_memory(actual_input_layout);
                 }
@@ -2576,8 +2575,8 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
 
         topology t;
 
-        std::vector<primitive_id> outer_dep_ids;
-        std::vector<primitive_id> outer_dep_ids_with_port;  // outer_dep_ids that is updated with port number. This contains original name without port
+        std::vector<primitive_id> added_prim_ids;
+        std::vector<primitive_id> outer_dep_ids_with_port;  // added_prim_ids that is updated with port number. This contains original name without port
         // Add input primitives: constants are moved as is
         //   Any other primitive types are replaced with input_layout
         //   Name has postfix of port number for multi-port connection case (such as dynamic_quantization)
@@ -2585,9 +2584,6 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
         size_t dep_idx = 0;
         for (auto& dep : get_node().get_dependencies()) {
             cldnn::primitive_id dep_id = dep.first->id();
-
-            if (dep_idx >= prim_of_fused_node->input_size() && dep_idx < prim_of_fused_node->dependencies().size())
-                dep_id = prim_of_fused_node->dependencies()[dep_idx].pid;
 
             // Update name to have port number as postfix
             auto port_dep_id = tag_port_number(dep_id, dep.second);
@@ -2605,11 +2601,10 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 data data_prim(port_dep_id, data_node.get_attached_memory_ptr());
                 t.add(data_prim);
             } else {
-                auto port_dep_id = tag_port_number(dep_id, dep.second);
                 input_layout in_prim(port_dep_id, dep.first->get_output_layout());
                 t.add(in_prim);
             }
-            outer_dep_ids.push_back(dep_id);
+            added_prim_ids.push_back(dep_id);
             outer_dep_ids_with_port.push_back(dep_id);
             dep_idx += 1;
         }
@@ -2620,7 +2615,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             GPU_DEBUG_TRACE_DETAIL << "    input" << in.idx << " - " << in.pid << "\n";
         }
         t.add_primitive(prim_of_fused_node);
-        outer_dep_ids.push_back(get_node().id());
+        added_prim_ids.push_back(get_node().id());
 
         GPU_DEBUG_TRACE_DETAIL << "  Add fused primitives of " << get_node().id() << "\n";
         // Add primitives for fused-ops
@@ -2643,7 +2638,7 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 // which doesn't exist anymore in the graph
                 // Thus we update dependency name used dependencies idx stored in fused descriptor.
                 GPU_DEBUG_TRACE_DETAIL << "    input of prim " << prim->id << "  - idx" << i << "  " << in << std::endl;
-                if (!has_primitive_id(outer_dep_ids, in.pid)) {
+                if (!has_primitive_id(added_prim_ids, in.pid)) {
                     if (fd.has_outer_dep()) {
                         size_t dep_id = fd.outer_dep_start_idx;
                         auto outer_dep_id = get_node().get_dependency(dep_id).id();
@@ -2667,12 +2662,12 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
             }
             GPU_DEBUG_TRACE_DETAIL << "  add fused_primitive " << prim->id << "\n";
             t.add_primitive(prim);
-            outer_dep_ids.push_back(prim->id);
+            added_prim_ids.push_back(prim->id);
         }
         // Samely, need to update dependency of the current fused nodes' input primitive ids with those in the current program
         for (size_t i = 0; i < prim_of_fused_node->input.size(); ++i) {
             auto& in = prim_of_fused_node->input[i];
-            if (!has_primitive_id(outer_dep_ids, in.pid)) {
+            if (!has_primitive_id(added_prim_ids, in.pid)) {
                 auto in_new = tag_port_number(get_node().get_dependency(i).id(), get_node().get_dependency_with_port(i).second);
                 GPU_DEBUG_TRACE_DETAIL << "    update prim_of_fused_node " << in << " -> " << in_new << "\n";
                 in = in_new;
