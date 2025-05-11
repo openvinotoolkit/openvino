@@ -29,7 +29,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
     initialize(config);
 }
 
-size_t Graph::export_blob(std::ostream& stream) const {
+std::pair<uint64_t, std::vector<uint64_t>> Graph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize;
     std::vector<uint8_t> blob;
@@ -50,7 +50,7 @@ size_t Graph::export_blob(std::ostream& stream) const {
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return 0;
+        return std::make_pair(0, std::vector<uint64_t>());
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -64,7 +64,7 @@ size_t Graph::export_blob(std::ostream& stream) const {
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
-    return blobSize;
+    return std::make_pair(blobSize, std::vector<uint64_t>());
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,

@@ -27,42 +27,62 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
       _initMetadata(initMetadata),
       _initBlobPtrs(initBlobPtrs) {}
 
-size_t WeightlessGraph::export_blob(std::ostream& stream) const {
-    const uint8_t* blobPtr = nullptr;
-    size_t blobSize;
-    std::vector<uint8_t> blob;
-
+std::pair<uint64_t, std::vector<uint64_t>> WeightlessGraph::export_blob(std::ostream& stream) const {
     if (_blobIsReleased) {
         OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
                        "its lifetime.");
     }
 
-    if (_blobPtr == nullptr) {  // when compiling the model using Compiler in Driver, the blob is handled by the driver
-        _zeGraphExt->getGraphBinary(_handle, blob, blobPtr, blobSize);
-    } else {  // in all other cases, the blob is handled by the plugin
-        blobPtr = static_cast<const uint8_t*>(_blobPtr->get_ptr());
-        blobSize = _blobPtr->size();
-    }
+    const auto writeToStream = [&](ze_graph_handle_t handle,
+                                   const std::unique_ptr<BlobContainer>& blobUniquePtr) -> uint64_t {
+        uint64_t blobSize;
+        const uint8_t* blobRawPtr = nullptr;
+        std::vector<uint8_t> blob;
 
-    stream.write(reinterpret_cast<const char*>(blobPtr), blobSize);
+        if (blobUniquePtr == nullptr) {
+            // when compiling the model using Compiler in Driver, the blob is handled by the driver
+            _zeGraphExt->getGraphBinary(handle, blob, blobRawPtr, blobSize);
+        } else {
+            // in all other cases, the blob is handled by the plugin
+            blobRawPtr = static_cast<const uint8_t*>(blobUniquePtr->get_ptr());
+            blobSize = blobUniquePtr->size();
+        }
 
-    if (!stream) {
-        _logger.error("Write blob to stream failed. Blob is broken!");
-        return 0;
+        stream.write(reinterpret_cast<const char*>(blobRawPtr), blobSize);
+
+        if (!stream) {
+            _logger.error("Write blob to stream failed. Blob is broken!");
+            return 0;
+        }
+
+        return blobSize;
+    };
+
+    // By convention, first write the main part
+    uint64_t mainBlobSize = writeToStream(_handle, _blobPtr);
+    uint64_t totalBlobSize = mainBlobSize;
+
+    // Then the init schedules
+    std::vector<uint64_t> initSizes;
+    for (size_t initIndex = 0; initIndex < _initHandles.size(); ++initIndex) {
+        uint64_t initBlobSize = writeToStream(_initHandles.at(initIndex), _initBlobPtrs.at(initIndex));
+        totalBlobSize += initBlobSize;
+        initSizes.push_back(initBlobSize);
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
         std::uint32_t result = 1171117u;
-        for (const uint8_t* it = blobPtr; it != blobPtr + blobSize; ++it) {
+        const uint8_t* blobRawPtr = static_cast<const uint8_t*>(_blobPtr->get_ptr());
+        for (const uint8_t* it = blobRawPtr; it != blobRawPtr + mainBlobSize; ++it) {
             result = ((result << 7) + result) + static_cast<uint32_t>(*it);
         }
 
         std::stringstream str;
-        str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
+        str << "Main blob size: " << mainBlobSize << ", hash: " << std::hex << result;
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
-    return blobSize;
+    return std::make_pair(totalBlobSize, initSizes);
 }
 
 void WeightlessGraph::initialize(const Config& config) {

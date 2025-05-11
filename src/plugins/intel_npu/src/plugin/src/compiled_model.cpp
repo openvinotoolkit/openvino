@@ -160,19 +160,9 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    size_t mainBlobSizeBeforeVersioning = _graph->export_blob(stream);
-    size_t totalInitBlobSizesBeforeVersioning = 0;
-    std::vector<uint64_t> initBlobSizes;
+    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
 
-    for (const std::shared_ptr<IGraph>& initGraph : _initGraphs) {
-        const uint64_t initBlobSize = initGraph->export_blob(stream);
-        totalInitBlobSizesBeforeVersioning += initBlobSize;
-        initBlobSizes.push_back(initBlobSize);
-    }
-
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(totalInitBlobSizesBeforeVersioning + mainBlobSizeBeforeVersioning,
-                                                   CURRENT_OPENVINO_VERSION,
-                                                   initBlobSizes);
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning, CURRENT_OPENVINO_VERSION, initBlobSizes);
     meta.write(stream);
 }
 

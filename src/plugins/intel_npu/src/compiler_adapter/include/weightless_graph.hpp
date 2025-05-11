@@ -23,7 +23,7 @@ public:
                     const Config& config,
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
-    size_t export_blob(std::ostream& stream) const override;
+    std::pair<uint64_t, std::vector<uint64_t>> export_blob(std::ostream& stream) const override;
 
     void initialize(const Config& config) override;
 
