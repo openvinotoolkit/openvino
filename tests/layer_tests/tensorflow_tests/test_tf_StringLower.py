@@ -45,14 +45,12 @@ class TestStringLower(CommonTFLayerTest):
                               ['第一句話在這裡', '第二句話在這裡', '第三句話在這裡']])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_string_lower(self, input_shape, encoding, strings_dictionary, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
+    def test_string_lower(self, input_shape, encoding, strings_dictionary, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_string_lower_net(input_shape=input_shape, encoding=encoding,
                                                  strings_dictionary=strings_dictionary),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestStringLowerOVC:
