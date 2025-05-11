@@ -246,16 +246,16 @@ static void CreateMOEExpertOp(ProgramBuilder& p, const std::shared_ptr<ov::op::i
     cldnn::moe_expert::scale_zp_mems scale_zps;
     cldnn::moe_expert::mlp_weights_mem wei_mem;
 
-    int cm_mask = 1;
+    uint8_t cm_mask = 1;
     auto env = std::getenv("CM_MASK");
     if (env) {
-        cm_mask = std::atoi(env);
+        cm_mask = static_cast<uint8_t>(std::atoi(env));
     }
     wei_mem.weights_base = pre_allocate_weights(p, op, cm_mask);
     prepare_weights(p, op, params, scale_zps, wei_mem, cm_mask);
     update_weights_offsets(p, params, wei_mem);
 
-    const cldnn::moe_expert moe(layerName, inputs, config, params, wei_mem, scale_zps);
+    const cldnn::moe_expert moe(layerName, inputs, config, params, wei_mem, scale_zps, cm_mask);
 
     p.add_primitive(*op, moe);
 }

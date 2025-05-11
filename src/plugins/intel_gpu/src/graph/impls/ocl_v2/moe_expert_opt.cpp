@@ -643,15 +643,12 @@ public:
     int _group_size;
     bool _up_use_cl;
     bool _down_use_cl;
-    // cldnn::memory::ptr _weights_base;
 
     MoeExpertOptImpl() : PrimitiveImplOCL(MoeExpertOpt::get_type_info_static()) {}
     MoeExpertOptImpl(const program_node& node, const RuntimeParams& params) : MoeExpertOptImpl() {
         node.get_program().get_engine().create_onednn_engine(node.get_program().get_config());
         const auto& moe = node.as<moe_expert>().get_primitive();
         const auto& moe_mlp_params = moe->_mlp_params;
-        // _weights_base = moe_mlp_params[0].base_addr;
-        // std::cout << "MoeExpertOptImpl: _weights_base = " << _weights_base << ", this = " << this << std::endl;
         _dnnl_weights.resize(moe_mlp_params.size());
         _hidden_size = static_cast<int>(moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(moe->_config.intermediate_size);
@@ -687,11 +684,7 @@ public:
             }
         }
 
-        int mask = 1;
-        auto p = std::getenv("CM_MASK");
-        if (p) {
-            mask = std::atoi(p);
-        }
+        auto mask = moe->_cm_mask;
         _up_use_cl = !(mask & 1);
         _down_use_cl = !(mask & 2);
 
@@ -720,7 +713,6 @@ public:
         moe->_group_size = _group_size;
         moe->_up_use_cl = _up_use_cl;
         moe->_down_use_cl = _down_use_cl;
-        // moe->_weights_base = _weights_base;
         return moe;
     }
 
@@ -907,9 +899,11 @@ public:
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
         const auto& mlp_weight_mem = moe->_mlp_weights_mem;
         event::ptr ret;
-        if (cm_mlp_up) {
+
+        {
             const auto& scale_zps = moe->_scale_zp;
 
+            // scratch.up = up(x) * silu(gate(x))
             if (_up_use_cl) {
                 execute_stage({},
                               instance,
@@ -927,6 +921,7 @@ public:
                               {static_cast<size_t>(max_topk), static_cast<size_t>(_intermediate_size / 2 * 4)},
                               {1, 4});
             }
+            // scratch.y = down(scratch.up) * weight[expert_no]
             if (_down_use_cl) {
                 execute_stage({},
                               instance,
@@ -950,6 +945,7 @@ public:
                               {static_cast<size_t>(max_topk), static_cast<size_t>(_hidden_size / 4 * 4)},
                               {1, 4});
             }
+            // final = sum(scratch.y)
             if (!_up_use_cl || !_down_use_cl) {
                 // global: [1, HIDDEN_SIZE/SUBGROUP_SIZE], local: [1, SUBGROUP_NUM]
                 ret = execute_stage({},
@@ -970,32 +966,6 @@ public:
                                     {1, std::min(max_work_group_size, size_t{1024})},
                                     instance.needs_completion_event());
             }
-        } else {
-            // scratch.up = up(x) * silu(gate(x))
-            execute_stage({},
-                        instance,
-                        *mlp_gate_up,
-                        {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, hidden_states_mem_ptr},
-                        {scratch.up},
-                        {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_intermediate_size / N_BLOCK)},
-                        {1, subgroup_size, SUBGROUP_NUM});
-            // scratch.y = down(scratch.up) * weight[expert_no]
-            execute_stage({},
-                        instance,
-                        *mlp_down,
-                        {batch_mem_ptr, mlp_weight_mem.weights_base, mlp_weight_mem.weights_offset, scratch.up, routing_mem_ptr},
-                        {scratch.y},
-                        {static_cast<size_t>(max_topk), subgroup_size, static_cast<size_t>(_hidden_size / N_BLOCK)},
-                        {1, subgroup_size, SUBGROUP_NUM});
-            // final = sum(scratch.y)
-            ret = execute_stage({},
-                                instance,
-                                *mlp_reduce,
-                                {scratch.y},
-                                {final_hidden_states_mem_ptr},
-                                {static_cast<size_t>(1), static_cast<size_t>(_hidden_size)},
-                                {1, std::min(max_work_group_size, size_t{1024})},
-                                instance.needs_completion_event());
         }
         return ret;
     }

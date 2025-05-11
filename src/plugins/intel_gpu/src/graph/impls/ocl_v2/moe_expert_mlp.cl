@@ -203,15 +203,6 @@ KERNEL (mlp_gate_up)(
     __global half* up_scale = (__global half*)(weight_base_addr + addr_offset[4]);
     __global uchar* up_zp = (__global uchar*)(weight_base_addr + addr_offset[5]);
 
-#if 0
-    if(get_global_id(1)==0 && get_global_id(2)==0) {
-        int id = expert_list[expert_no];
-        printf("[%d]=%d: addr_offset[%d-%d]: %d, %d, %d, %d, %d, %d\n", expert_no, id, id*EACH_EXPERT_WEIGHTS_OFFSET_SIZE/4,
-                    (id+1)*EACH_EXPERT_WEIGHTS_OFFSET_SIZE/4 - 1,
-                    addr_offset[0], addr_offset[1], addr_offset[2], addr_offset[3], addr_offset[4], addr_offset[5]);
-    }
-#endif
-
     __local half x2[HIDDEN_SIZE];
     __local float xg_sum[HIDDEN_SIZE/32];
     gemv_n2x(up_weight, up_scale, up_zp, x, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);

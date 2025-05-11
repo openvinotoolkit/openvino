@@ -64,18 +64,21 @@ struct moe_expert : public primitive_base<moe_expert> {
             const std::vector<input_info>& inputs,
             const MOEExpert::Config& config, const std::vector<mlp_params>& param,
             const mlp_weights_mem& wei_mem,
-            const scale_zp_mems& scale_zp)
+            const scale_zp_mems& scale_zp,
+            const uint8_t cm_mask)
         : primitive_base(id, inputs, 1, {optional_data_type()}),
           _config(config),
           _mlp_params(param),
           _mlp_weights_mem(wei_mem),
-          _scale_zp(scale_zp) {
+          _scale_zp(scale_zp),
+          _cm_mask(cm_mask) {
     }
 
     MOEExpert::Config _config;
     std::vector<mlp_params> _mlp_params;
     mlp_weights_mem _mlp_weights_mem;
     scale_zp_mems _scale_zp;
+    uint8_t _cm_mask;
 
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
