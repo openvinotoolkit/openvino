@@ -16,7 +16,7 @@
 
 namespace intel_npu {
 
-class Graph final : public IGraph {
+class Graph : public IGraph {
 public:
     Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
           const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
@@ -26,16 +26,16 @@ public:
           const Config& config,
           const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
-    size_t export_blob(std::ostream& stream) const override;
+    virtual size_t export_blob(std::ostream& stream) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 
-    void initialize(const Config& config) override;
+    virtual void initialize(const Config& config) override;
 
-    ~Graph() override;
+    virtual ~Graph() override;
 
 private:
     bool release_blob(const Config& config);
