@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,15 +44,14 @@ bool common_node_for_all_outputs(const ov::OutputVector& outputs) {
 OperatorsBridge register_extensions(OperatorsBridge& bridge,
                                     const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
     for (const auto& extension : conversions) {
-        if (const auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+        if (const auto common_conv_ext = ov::as_type_ptr<ov::frontend::ConversionExtension>(extension)) {
             bridge.overwrite_operator(
                 common_conv_ext->get_op_type(),
                 "",
                 [common_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
                     return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
                 });
-        } else if (const auto onnx_conv_ext =
-                       std::dynamic_pointer_cast<ov::frontend::onnx::ConversionExtension>(extension)) {
+        } else if (const auto onnx_conv_ext = ov::as_type_ptr<ov::frontend::onnx::ConversionExtension>(extension)) {
             bridge.overwrite_operator(onnx_conv_ext->get_op_type(),
                                       onnx_conv_ext->get_domain(),
                                       [onnx_conv_ext](const ov::frontend::onnx::Node& node) -> ov::OutputVector {
@@ -446,10 +445,6 @@ void Graph::set_friendly_names(const Node& onnx_node, const ov::OutputVector& ov
         // null node does not have tensor
         if (!ov::op::util::is_null(ov_subgraph_outputs[i])) {
             ov_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(static_cast<int>(i))});
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ov::descriptor::set_ov_tensor_legacy_name(ov_subgraph_outputs[i].get_tensor(),
-                                                      onnx_node.output(static_cast<int>(i)));
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
 }

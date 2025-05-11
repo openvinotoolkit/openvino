@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,7 +62,7 @@ private:
                                                        : op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto SpaceToDepth = std::make_shared<op::v0::SpaceToDepth>(data, mode, params.blockSize);
-        return std::make_shared<Model>(NodeVector{SpaceToDepth}, ParameterVector{data});
+        return std::make_shared<Model>(OutputVector{SpaceToDepth}, ParameterVector{data});
     }
 };
 

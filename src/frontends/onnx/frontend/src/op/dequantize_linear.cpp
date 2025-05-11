@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
@@ -221,19 +222,8 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     FRONT_END_GENERAL_CHECK(src_x.get_partial_shape().is_static(),
                             "DequantizeLinear cannot operate with dynamic shapes of input X");
 
-    const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{1});
-
-    if (inputs.size() > 2) {
-        zp = inputs[2];
-        if (zp.get_element_type() != scale.get_element_type()) {
-            zp = std::make_shared<v1::ConvertLike>(zp, scale);
-        }
-        zp = std::make_shared<v0::Unsqueeze>(zp, unsqueezed_axes);
-    }
-
     const auto axis = node.get_attribute_value<int64_t>("axis", 1);
     const auto block_size = static_cast<size_t>(node.get_attribute_value<int64_t>("block_size", 0));
-    const auto scale_type = scale.get_element_type();
 
     FRONT_END_GENERAL_CHECK(axis == 0, "Axis != 0 isn't supported");
     FRONT_END_GENERAL_CHECK(block_size > 0, "block_size must be greater than zero");
@@ -241,16 +231,32 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
         src_x.get_shape()[0] % block_size == 0,
         "DequantizeLinear doesn't support case when first dimension of X cannot be divided by block_size");
 
-    const auto& x = src_x.get_element_type() == scale_type ? src_x : std::make_shared<v1::ConvertLike>(src_x, scale);
     // For further broadcasting scales and zp - reshape input to a shape [x.shape[0]/block_size, block_size, x.shape[1]]
-    ov::Output<ov::Node> broadcastable_x =
-        op::util::reshape(x, Shape{static_cast<size_t>(x.get_shape()[0]) / block_size, block_size, x.get_shape()[1]});
+    ov::Output<ov::Node> broadcastable_x = op::util::reshape(
+        src_x,
+        Shape{static_cast<size_t>(src_x.get_shape()[0]) / block_size, block_size, src_x.get_shape()[1]});
+
+    const auto& unsqueezed_axes = std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{1});
+
+    const auto scale_type = scale.get_element_type();
+    if (inputs.size() > 2) {
+        zp = inputs[2];
+        zp = std::make_shared<v0::Unsqueeze>(zp, unsqueezed_axes);
+        if (zp.get_element_type() != scale.get_element_type()) {
+            zp = std::make_shared<v0::Convert>(zp, scale_type);
+        }
+    }
+
+    const auto& x = src_x.get_element_type() == scale_type ? broadcastable_x
+                                                           : std::make_shared<v0::Convert>(broadcastable_x, scale_type);
 
     // Adding additional dimension for broadcasting
     scale = std::make_shared<v0::Unsqueeze>(scale, unsqueezed_axes);
 
     if (zp.get_node_shared_ptr()) {
-        broadcastable_x = std::make_shared<v1::Subtract>(broadcastable_x, zp);
+        broadcastable_x = std::make_shared<v1::Subtract>(x, zp);
+    } else {
+        broadcastable_x = x;
     }
 
     const auto& scaled_x = std::make_shared<v1::Multiply>(broadcastable_x, scale);

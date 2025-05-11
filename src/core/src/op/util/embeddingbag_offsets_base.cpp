@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,4 +135,6 @@ EnumNames<op::util::EmbeddingBagOffsetsBase::Reduction>::get() {
 std::ostream& operator<<(std::ostream& s, const op::util::EmbeddingBagOffsetsBase::Reduction& reduction) {
     return s << as_string(reduction);
 }
+
+AttributeAdapter<op::util::EmbeddingBagOffsetsBase::Reduction>::~AttributeAdapter() = default;
 }  // namespace ov

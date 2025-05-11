@@ -29,8 +29,10 @@ Operation Specifications
    BatchToSpace-2 <operation-specs/movement/batch-to-space-2>
    BinaryConvolution-1 <operation-specs/convolution/binary-convolution-1>
    BitwiseAnd-13 <operation-specs/bitwise/bitwise-and-13>
+   BitwiseLeftShift-15 <operation-specs/bitwise/bitwise-left-shift-15>
    BitwiseNot-13 <operation-specs/bitwise/bitwise-not-13>
    BitwiseOr-13 <operation-specs/bitwise/bitwise-or-13>
+   BitwiseRightShift-15 <operation-specs/bitwise/bitwise-right-shift-15>
    BitwiseXor-13 <operation-specs/bitwise/bitwise-xor-13>
    Broadcast-1 <operation-specs/movement/broadcast-1>
    Broadcast-3 <operation-specs/movement/broadcast-3>
@@ -39,6 +41,7 @@ Operation Specifications
    CTCGreedyDecoderSeqLen-6 <operation-specs/sequence/ctc-greedy-decoder-seq-len-6>
    Ceiling-1 <operation-specs/arithmetic/ceiling-1>
    Clamp-1 <operation-specs/activation/clamp-1>
+   Col2Im-15 <operation-specs/movement/col2im-15>
    Concat-1 <operation-specs/movement/concat-1>
    Constant-1 <operation-specs/infrastructure/constant-1>
    ConvertLike-1 <operation-specs/type/convert-like-1>
@@ -61,7 +64,9 @@ Operation Specifications
    Einsum-7 <operation-specs/matrix/einsum-7>
    Elu-1 <operation-specs/activation/elu-1>
    EmbeddingBagOffsetsSum-3 <operation-specs/sparse/embedding-bag-offsets-sum-3>
+   EmbeddingBagOffsets-15 <operation-specs/sparse/embedding-bag-offsets-15>
    EmbeddingBagPackedSum-3 <operation-specs/sparse/embedding-bag-packed-sum-3>
+   EmbeddingBagPacked-15 <operation-specs/sparse/embedding-bag-packed-15>
    EmbeddingSegmentsSum-3 <operation-specs/sparse/embedding-segments-sum-3>
    Equal-1 <operation-specs/comparison/equal-1>
    Erf-1 <operation-specs/arithmetic/erf-1>
@@ -113,7 +118,7 @@ Operation Specifications
    IsNaN-10 <operation-specs/comparison/isnan-10>
    LRN-1 <operation-specs/normalization/lrn-1>
    LSTMCell-1 <operation-specs/sequence/lstm-cell-1>
-   LSTMSequence-1 <operation-specs/sequence/lstm-sequence-1>
+   LSTMSequence-5 <operation-specs/sequence/lstm-sequence-5>
    LessEqual-1 <operation-specs/comparison/lessequal-1>
    Less-1 <operation-specs/comparison/less-1>
    Log-1 <operation-specs/arithmetic/log-1>
@@ -189,6 +194,7 @@ Operation Specifications
    RNNSequence-5 <operation-specs/sequence/rnn-sequence-5>
    ROIAlign-3 <operation-specs/detection/roi-align-3>
    ROIAlign-9 <operation-specs/detection/roi-align-9>
+   ROIAlignRotated-15 <operation-specs/detection/roi-align-rotated-15>
    ROIPooling-1 <operation-specs/detection/roi-pooling-1>
    Roll-7 <operation-specs/movement/roll-7>
    Round-5 <operation-specs/arithmetic/round-5>
@@ -196,6 +202,7 @@ Operation Specifications
    ScatterElementsUpdate-3 <operation-specs/movement/scatter-elements-update-3>
    ScatterElementsUpdate-12 <operation-specs/movement/scatter-elements-update-12>
    ScatterNDUpdate-3 <operation-specs/movement/scatter-nd-update-3>
+   ScatterNDUpdate-15 <operation-specs/movement/scatter-nd-update-15>
    ScatterUpdate-3 <operation-specs/movement/scatter-update-3>
    SearchSorted-15 <operation-specs/sort/search-sorted-15>
    Select-1 <operation-specs/condition/select-1>
@@ -208,6 +215,7 @@ Operation Specifications
    Sin-1 <operation-specs/arithmetic/sin-1>
    Sinh-1 <operation-specs/arithmetic/sinh-1>
    Slice-8 <operation-specs/movement/slice-8>
+   SliceScatter-15 <operation-specs/movement/slice-scatter-15>
    SoftMax-1 <operation-specs/activation/softmax-1>
    SoftMax-8 <operation-specs/activation/softmax-8>
    SoftPlus-4 <operation-specs/activation/softplus-4>
@@ -218,7 +226,11 @@ Operation Specifications
    Sqrt-1 <operation-specs/arithmetic/sqrt-1>
    SquaredDifference-1 <operation-specs/arithmetic/squared-difference-1>
    Squeeze-1 <operation-specs/shape/squeeze-1>
+   Squeeze-15 <operation-specs/shape/squeeze-15>
+   STFT-15 <operation-specs/signals/stft-15>
    StridedSlice-1 <operation-specs/movement/strided-slice-1>
+   StringTensorPack-15 <operation-specs/type/string-tensor-pack-15>
+   StringTensorUnpack-15 <operation-specs/type/string-tensor-unpack-15>
    Subtract-1 <operation-specs/arithmetic/subtract-1>
    Swish-4 <operation-specs/activation/swish-4>
    Tan-1 <operation-specs/arithmetic/tan-1>

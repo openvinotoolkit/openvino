@@ -20,13 +20,23 @@ on:
         description: 'OS that is used for testing in the form of "ubuntu_20_04"'
         type: string
         required: true
+      build-type:
+        description: 'OpenVINO build type, e.g., "Release"'
+        type: string
+        required: false
+        default: 'Release'
+      timeout-minutes:
+        description: 'Timeout in minutes for the job'
+        type: number
+        required: false
+        default: 45
 
 permissions: read-all
 
 jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
-    timeout-minutes: ${{ contains(inputs.runner, 'win') && 50 || 35 }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
@@ -41,13 +51,13 @@ jobs:
       SETUPVARS: ${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -165,7 +175,6 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).transformations.test && runner.arch != 'ARM64' }} # Ticket: 126281
         run: |
           ${{ env.SETUPVARS_COMMAND }}
-
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
       - name: Common test utils tests
@@ -186,6 +195,18 @@ jobs:
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
 
+      - name: CPU plugin unit tests (vectorized)
+        if: fromJSON(inputs.affected-components).CPU.test
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests_vectorized --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTestsVectorized.xml
+
+      - name: NPU plugin unit tests 
+        if: ${{fromJSON(inputs.affected-components).NPU.test && runner.os == 'Windows'}}
+        run: |
+          ${{ env.SETUPVARS_COMMAND }}
+          ${{ env.INSTALL_TEST_DIR }}/ov_npu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-NPUUnitTests.xml
+      
       - name: ov_subgraphs_dumper_tests tests
         run: |
           ${{ env.SETUPVARS_COMMAND }}
@@ -208,8 +229,9 @@ jobs:
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
+      # Disabled for debug build due to long execution time
       - name: Template plugin func tests
-        if: fromJSON(inputs.affected-components).TEMPLATE.test
+        if: ${{ fromJSON(inputs.affected-components).TEMPLATE.test && inputs.build-type != 'debug' }}
         run: |
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateFuncTests.xml
@@ -231,9 +253,10 @@ jobs:
         run: |
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_unit_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_unit_tests.xml
-
+      
+      # Disabled for debug build due to long execution time
       - name: AutoBatch func tests
-        if: fromJSON(inputs.affected-components).AUTO_BATCH.test
+        if: ${{ fromJSON(inputs.affected-components).AUTO_BATCH.test && inputs.build-type != 'debug' }}
         run: |
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml --gtest_filter="*smoke*"
@@ -250,14 +273,15 @@ jobs:
           ${{ env.SETUPVARS_COMMAND }}
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
+      # Disabled for debug build due to long execution time
       - name: Hetero func tests
-        if: ${{ fromJSON(inputs.affected-components).HETERO.test && inputs.os != 'debian_10' }} # Ticket: 153170
+        if: ${{ fromJSON(inputs.affected-components).HETERO.test && inputs.os != 'debian_10' && inputs.build-type != 'debug' }} # Ticket: 153170
         run: |
           ${{ env.SETUPVARS_COMMAND }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*"
+          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp

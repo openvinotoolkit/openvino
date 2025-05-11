@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,11 +67,29 @@ public:
 
 private:
     static std::shared_ptr<ov::op::v0::MatMul> get_matmul(const std::shared_ptr<op::Subgraph>& subgraph);
-    static std::pair<size_t, size_t> get_splited_dimensions(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount);
+    /**
+     * @brief Contains splitM approaches allowing to get the batch ideally divisible by optimal_parallelism_work_amount
+     */
+    static std::pair<size_t, size_t> split_ideally(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount);
+    /**
+     * @brief Splits m_dim to minimize kernel_m in order to reduce waiting time for idle threads at the last parallel loop iteration.
+     */
+    static std::pair<size_t, size_t> split_minimize_kernel_wa(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount);
+    /**
+     * @brief Splits m_dim to get the batch in (optimal_parallelism_work_amount, 2 * optimal_parallelism_work_amount) interval
+     */
+    static std::pair<size_t, size_t> split_fallback_increase_parallel_wa(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount);
 
     void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph, const ov::Shape& shape, size_t batch_m_dim, size_t new_m_dim);
 
+    static size_t get_dim_M(const ov::Shape& shape) {
+        return *(shape.rbegin() + dim_M_index);
+    }
+
     size_t m_concurrency;
+
+    static const size_t min_kernel_m;
+    static const size_t dim_M_index;
 };
 } // namespace pass
 } // namespace snippets

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -295,6 +295,12 @@ void remove_redundant_reorders::run(program& p) {
         auto o_layout = r_node.get_output_layout();
         const auto& i_layout = r_node.get_input_layout(0);
 
+        auto is_r_node_rank_changed = r_node.get_output_layout().get_rank() != r_node.get_dependency(0).get_output_layout().get_rank();
+        if (is_r_node_rank_changed &&
+            ((!update_implementations && r_node.get_dependency(0).is_type<crop>()) ||
+             (r_node.get_dependency(0).is_type<crop>() && r_node.get_dependency(0).can_be_optimized())))
+            continue;
+
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
         if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() &&
@@ -489,7 +495,7 @@ void remove_redundant_reorders::run(program& p) {
                             (dep.get_output_layout().format == format::b_fs_yx_fsv16 ||
                              dep.get_output_layout().format == format::bfyx ||
                              (dep.get_output_layout().format == format::fs_b_yx_fsv32 &&
-                             !lo.get_optimization_attributes().use_onednn_impls));
+                             !lo.has_all_enabled_onednn_impls_optimization_attribute()));
 
         auto convert_color_opt = usr->is_type<convert_color>() && prim_desc->has_surface_input();
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -78,7 +78,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime openvino::util ${DELAYIMP_LIB} ${CMAKE_JS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::util ${DELAYIMP_LIB} ${CMAKE_JS_LIB})
 
 if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
     # Generate node.lib
@@ -90,7 +90,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
 endif()
 
 if(APPLE)
-    target_link_options(${PROJECT_NAME} PRIVATE -Wl,-undefined,suppress,-flat_namespace)
+    target_link_options(${PROJECT_NAME} PRIVATE -Wl,-undefined,dynamic_lookup,-bundle,-flat_namespace)
 elseif(AARCH64 OR ARM)
     target_link_options(${PROJECT_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-all)
 endif()

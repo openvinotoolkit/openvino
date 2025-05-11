@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,7 @@ using Convolution = ov::intel_gpu::op::Convolution;
 }  // namespace op
 }  // namespace ov
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 
 static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::Convolution>& op) {
@@ -104,7 +103,6 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     }
 
     auto weightsName = inputs[1];
-    auto weights_node = op->get_input_node_shared_ptr(1);
     // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
     // Dimensions order of weights blob is IOYX, but
     // the selected format is OIYX by default. So we need to swap (and transpose) I and O dimensions to match the format
@@ -125,7 +123,6 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
         weightsName.pid = permuteName;
     }
 
-    std::vector<cldnn::primitive_id> weights = {weightsName.pid};
     const bool weights_have_group_dim = false;
 
     auto strides = op->get_strides();
@@ -133,14 +130,14 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     auto pads_end = op->get_pads_end();
     auto output_padding = op->get_output_padding();
 
-    if (!op->is_dynamic()) {
+    if (!op->is_dynamic() && !p.use_new_shape_infer()) {
         // Extend 1d vectors to 2d as 1d can't be handled properly by the graph optimizer for now
         strides.resize(std::max<size_t>(2, strides.size()), 1);
         dilations.resize(std::max<size_t>(2, strides.size()), 1);
         pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
         auto deconvPrim = cldnn::deconvolution(layerName,
                                                inputs[0],
-                                               weights,
+                                               weightsName.pid,
                                                {},
                                                1,
                                                strides,
@@ -152,7 +149,7 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     } else {
         auto deconvPrim = cldnn::deconvolution(layerName,
                                                inputs[0],
-                                               weights,
+                                               weightsName.pid,
                                                {},
                                                1,
                                                strides,
@@ -163,7 +160,7 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
                                                output_padding,
                                                weights_have_group_dim);
         if (op->get_input_size() == 3) {
-            auto output_shape_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto output_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {
                 auto output_shape = output_shape_constant->cast_vector<int64_t>();
                 ov::Shape shape(output_shape.begin(), output_shape.end());
@@ -193,7 +190,6 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
     uint32_t groups = static_cast<uint32_t>(op->get_input_shape(1)[0]);
 
     auto weightsName = inputs[1];
-    auto weights_node = op->get_input_node_shared_ptr(1);
     // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
     // Dimensions order of weights blob is IOYX, but
     // the selected format is OIYX by default. So we need to swap I and O dimensions to match the format.
@@ -214,7 +210,6 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
         weightsName.pid = permuteName;
     }
 
-    std::vector<cldnn::primitive_id> weights = {weightsName.pid};
     const bool weights_have_group_dim = true;
 
     auto strides = op->get_strides();
@@ -230,7 +225,7 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
 
         auto deconvPrim = cldnn::deconvolution(layerName,
                                                inputs[0],
-                                               weights,
+                                               weightsName.pid,
                                                {},
                                                groups,
                                                strides,
@@ -238,11 +233,14 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
                                                dilations,
                                                tensor_from_dims(op->get_output_tensor(0).get_shape()),
                                                weights_have_group_dim);
+        deconvPrim.out_padding = output_padding;
+        deconvPrim.pads_begin = pads_begin;
+        deconvPrim.pads_end = pads_end;
         p.add_primitive(*op, deconvPrim);
     } else {
         auto deconvPrim = cldnn::deconvolution(layerName,
                                                inputs[0],
-                                               weights,
+                                               weightsName.pid,
                                                {},
                                                groups,
                                                strides,
@@ -253,7 +251,7 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
                                                output_padding,
                                                weights_have_group_dim);
         if (op->get_input_size() == 3) {
-            auto output_shape_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto output_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {
                 auto output_shape = output_shape_constant->cast_vector<int64_t>();
                 ov::Shape shape(output_shape.begin(), output_shape.end());
@@ -339,5 +337,4 @@ REGISTER_FACTORY_IMPL(v1, GroupConvolutionBackpropData);
 REGISTER_FACTORY_IMPL(v1, DeformableConvolution);
 REGISTER_FACTORY_IMPL(v8, DeformableConvolution);
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

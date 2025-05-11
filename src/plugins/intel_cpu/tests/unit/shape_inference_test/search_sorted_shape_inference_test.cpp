@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,8 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/search_sorted.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -19,7 +21,7 @@ TEST_F(SearchSortedShapeInferenceTest, same_dimensions_nd_inputs) {
     const auto sorted = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto values = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto op = make_op(sorted, values);
-    const auto input_shapes = ShapeVector{StaticShape{1, 3, 6}, StaticShape{1, 3, 6}};
+    const auto input_shapes = StaticShapeVector{StaticShape{1, 3, 6}, StaticShape{1, 3, 6}};
     const auto output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 6}));
@@ -29,7 +31,7 @@ TEST_F(SearchSortedShapeInferenceTest, scalar_values) {
     const auto sorted = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto values = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto op = make_op(sorted, values);
-    const auto input_shapes = ShapeVector{StaticShape{3}, StaticShape{}};
+    const auto input_shapes = StaticShapeVector{StaticShape{3}, StaticShape{}};
     const auto output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape{});
@@ -39,7 +41,7 @@ TEST_F(SearchSortedShapeInferenceTest, different_last_dim) {
     const auto sorted = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto values = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto op = make_op(sorted, values);
-    const auto input_shapes = ShapeVector{StaticShape{1, 3, 7, 100}, StaticShape{1, 3, 7, 10}};
+    const auto input_shapes = StaticShapeVector{StaticShape{1, 3, 7, 100}, StaticShape{1, 3, 7, 10}};
     const auto output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 7, 10}));
@@ -49,7 +51,7 @@ TEST_F(SearchSortedShapeInferenceTest, 1d_inputs) {
     const auto sorted = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto values = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto op = make_op(sorted, values);
-    const auto input_shapes = ShapeVector{StaticShape{5}, StaticShape{20}};
+    const auto input_shapes = StaticShapeVector{StaticShape{5}, StaticShape{20}};
     const auto output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({20}));
@@ -59,7 +61,7 @@ TEST_F(SearchSortedShapeInferenceTest, 1d_sequence) {
     const auto sorted = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto values = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
     const auto op = make_op(sorted, values);
-    const auto input_shapes = ShapeVector{StaticShape{50}, StaticShape{1, 3, 7, 10}};
+    const auto input_shapes = StaticShapeVector{StaticShape{50}, StaticShape{1, 3, 7, 10}};
     const auto output_shapes = shape_inference(op.get(), input_shapes);
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({1, 3, 7, 10}));
@@ -77,7 +79,7 @@ TEST_F(SearchSortedShapeInferenceTest, input_shapes_ranks_validation) {
     const auto sorted = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto values = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto op = make_op(sorted, values);
-    const auto input_shapes = ShapeVector{StaticShape{1, 3, 6}, StaticShape{1, 3, 6, 7}};
+    const auto input_shapes = StaticShapeVector{StaticShape{1, 3, 6}, StaticShape{1, 3, 6, 7}};
     OV_EXPECT_THROW(std::ignore = shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     testing::HasSubstr("the ranks of the inputs have to be compatible"));
@@ -87,7 +89,7 @@ TEST_F(SearchSortedShapeInferenceTest, input_shapes_compatibility) {
     const auto sorted = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto values = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto op = make_op(sorted, values);
-    const auto input_shapes = ShapeVector{StaticShape{1, 3, 6}, StaticShape{1, 6, 6}};
+    const auto input_shapes = StaticShapeVector{StaticShape{1, 3, 6}, StaticShape{1, 6, 6}};
     OV_EXPECT_THROW(std::ignore = shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     testing::HasSubstr("All dimensions but the last one have to be compatible"));
@@ -97,7 +99,7 @@ TEST_F(SearchSortedShapeInferenceTest, scalar_sorted_sequence) {
     const auto sorted = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto values = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto op = make_op(sorted, values);
-    const auto input_shapes = ShapeVector{StaticShape{}, StaticShape{1, 6, 6}};
+    const auto input_shapes = StaticShapeVector{StaticShape{}, StaticShape{1, 6, 6}};
     OV_EXPECT_THROW(std::ignore = shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     testing::HasSubstr("The sorted sequence input cannot be a scalar"));
@@ -107,7 +109,7 @@ TEST_F(SearchSortedShapeInferenceTest, scalar_values_and_ND_sequence) {
     const auto sorted = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto values = std::make_shared<Parameter>(element::i32, PartialShape::dynamic());
     const auto op = make_op(sorted, values);
-    const auto input_shapes = ShapeVector{StaticShape{2, 3}, StaticShape{}};
+    const auto input_shapes = StaticShapeVector{StaticShape{2, 3}, StaticShape{}};
     OV_EXPECT_THROW(std::ignore = shape_inference(op.get(), input_shapes),
                     NodeValidationFailure,
                     testing::HasSubstr("the ranks of the inputs have to be compatible"));

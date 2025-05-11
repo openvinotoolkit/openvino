@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,11 @@
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "template/properties.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {
@@ -35,6 +40,79 @@ void LoraPatternBase::run_test_empty_tensors() {
     auto tx_result = inferRequest.get_tensor(outputs[0]);
     auto tz_result = inferRequest.get_tensor(outputs[1]);
     ov::test::utils::compare(tx_result, tz_result, 1e-4, 1e-4);
+}
+
+void LoraPatternBase::run_test_random_tensors() {
+    compile_model();
+    inferRequest = compiledModel.create_infer_request();
+    ASSERT_TRUE(inferRequest);
+
+    // use the Template plugin as a reference
+
+    auto compiledReferenceModel = core->compile_model(function,
+                                                      ov::test::utils::DEVICE_TEMPLATE,
+                                                      {{ov::template_plugin::disable_transformations(true)}});
+    auto inferRequestRef = compiledReferenceModel.create_infer_request();
+    ASSERT_TRUE(inferRequestRef);
+
+    generate_inputs(targetStaticShapes.front());
+    for (const auto& input : inputs) {
+        inferRequest.set_tensor(input.first, input.second);
+        inferRequestRef.set_tensor(input.first, input.second);
+    }
+
+    constexpr size_t lora_order = 25lu;
+    constexpr int infer_count = 6lu;
+
+    std::unordered_map<std::string, ov::Shape> stateShapes;
+
+    auto&& vars = function->get_variables();
+
+    for (auto&& var : vars) {
+        auto var_info = var->get_info();
+        auto var_shape = var_info.data_shape;
+
+        std::for_each(var_shape.begin(), var_shape.end(), [=](ov::PartialShape::value_type& x) {
+            if (x.is_dynamic()) {
+                x = lora_order;
+            }
+        });
+        stateShapes.insert({var_info.variable_id, var_shape.to_shape()});
+    }
+
+    for (int i = 0; i < infer_count; ++i) {
+        // set states
+
+        auto&& states = inferRequest.query_state();
+        if (!(i & 0x1)) { // every even call
+            // generate and set state tensors
+            for (auto&& item : states) {
+                auto&& refStates = inferRequestRef.query_state();
+                using ov::test::utils::InputGenerateData;
+                const auto& shape = stateShapes.at(item.get_name());
+                auto tensor = ov::test::utils::create_and_fill_tensor(netType, shape, InputGenerateData{0, 10, 1, i});
+                item.set_state(tensor);
+                auto itr = std::find_if(refStates.begin(), refStates.end(), [&](const ov::VariableState& state) {
+                    return state.get_name() == item.get_name();
+                });
+                ASSERT_FALSE(itr == refStates.end());
+                itr->set_state(tensor);
+            }
+        }
+
+        inferRequest.infer();
+        inferRequestRef.infer();
+        auto outputs = function->outputs();
+
+        auto tx_result = inferRequest.get_tensor(outputs[0]);
+        auto tz_result = inferRequest.get_tensor(outputs[1]);
+
+        auto tx_result_ref = inferRequestRef.get_tensor(outputs[0]);
+        auto tz_result_ref = inferRequestRef.get_tensor(outputs[1]);
+
+        ov::test::utils::compare(tx_result, tx_result_ref, 1e-4, 1e-4);
+        ov::test::utils::compare(tz_result, tz_result_ref, 1e-4, 1e-4);
+    }
 }
 
 void LoraPatternMatmul::SetUp() {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,6 +92,18 @@ typedef enum {
     RESIZE_CUBIC,   //!< cubic algorithm
     RESIZE_NEAREST  //!< nearest algorithm
 } ov_preprocess_resize_algorithm_e;
+
+/**
+ * @enum ov_padding_mode_e
+ * @ingroup ov_prepostprocess_c_api
+ * @brief This enum contains enumeration for  padding mode.
+ */
+typedef enum {
+    CONSTANT = 0,  //!< Pads with given constant value.
+    EDGE,          //!< Pads with tensor edge values.
+    REFLECT,       //!< Pads with reflection of tensor data along axis. Values on the edges are not duplicated.
+    SYMMETRIC      //!<  Pads similar like `REFLECT` but values on the edges are duplicated.
+} ov_padding_mode_e;
 
 /**
  * @brief Create a ov_preprocess_prepostprocessor_t instance.
@@ -512,3 +524,23 @@ ov_preprocess_input_model_info_set_layout(ov_preprocess_input_model_info_t* prep
  */
 OPENVINO_C_API(ov_status_e)
 ov_preprocess_prepostprocessor_build(const ov_preprocess_prepostprocessor_t* preprocess, ov_model_t** model);
+
+/**
+ * @brief Add pad preprocess operation. Extends an input tensor on edges with constants.
+ *
+ * @param preprocess_input_process_steps  A pointer to the ov_preprocess_preprocess_steps_t.
+ * @param pads_begin                      Number of padding elements to add at the beginning of each axis.
+ * @param pads_begin_size                 Pads begin size (number of axes).
+ * @param pads_end                        Number of padding elements to add at the end of each axis.
+ * @param pads_end_size                   Pads end size (number of axes).
+ * @param value                           Value to be populated in the padded area (mode=CONSTANT)
+ * @param mode                            Padding mode.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_preprocess_steps_pad(const ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                   const int* const pads_begin,
+                                   size_t pads_begin_size,
+                                   const int* const pads_end,
+                                   size_t pads_end_size,
+                                   float value,
+                                   ov_padding_mode_e mode);

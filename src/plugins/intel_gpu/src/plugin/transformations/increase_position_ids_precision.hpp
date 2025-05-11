@@ -6,8 +6,7 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 /**
  * @brief This pass adds additional convert nodes on the position_ids input branch (around MatMul operation),
@@ -17,9 +16,8 @@ namespace intel_gpu {
  */
 class IncreasePositionIdsPrecision : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("IncreasePositionIdsPrecision", "0");
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecision");
     IncreasePositionIdsPrecision();
 };
 
-}   // namespace intel_gpu
-}   // namespace ov
+}   // namespace ov::intel_gpu

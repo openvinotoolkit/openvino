@@ -24,12 +24,13 @@ on:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
+  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
+  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
 
 jobs:
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
-    timeout-minutes: 30
+    timeout-minutes: 60
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -42,16 +43,17 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
+      USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
           
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: openvino_[wheels|openvino_tokenizers]*
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -65,6 +67,12 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
+          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
+          echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
+
+      - name: Setup HuggingFace Cache Directory (Windows)
+        if: runner.os == 'Windows'
+        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -82,11 +90,13 @@ jobs:
             Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_DIR }}
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Fetch setup_python action
+      - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
+            .github/actions/install_ov_wheels/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
@@ -94,31 +104,15 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
-          should-setup-pip-paths: ${{ runner.os == 'Linux' }}
-          self-hosted-runner: ${{ runner.os == 'Linux' }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
+          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' }}
 
-      - name: Install OpenVINO Python wheels (Linux and macOS)
-        if: runner.os != 'Windows'
-        run: |
-          # Install the core OV wheel
-          python3 -m pip install ./openvino-*.whl
-
-          # Install the core OV Tokenizers wheel
-          python3 -m pip install ./openvino_tokenizers-*.whl
-        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
-
-      - name: Install OpenVINO Python wheels (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          # Find and install the core OV wheel
-          $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino-*.whl | % { $_.FullName }
-          python3 -m pip install "$ovCoreWheelPath"
-
-          # Find and install the core OV Tokenizers wheel
-          $ovCoreWheelPath=Get-ChildItem -Path . -Filter openvino_tokenizers-*.whl | % { $_.FullName }
-          python3 -m pip install "$ovCoreWheelPath"
-        working-directory: ${{ env.INSTALL_WHEELS_DIR }}
+      - name: Install OpenVINO Python wheels
+        uses: ./openvino/.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-to-install: 'openvino openvino_tokenizers'
 
       - name: Install Python Layer tests dependencies
         run: |
@@ -150,7 +144,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
           name: test-results-python-tf-layers

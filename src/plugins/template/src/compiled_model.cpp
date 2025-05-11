@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include "async_infer_request.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "perf_counter.hpp"
@@ -179,8 +180,10 @@ void ov::template_plugin::CompiledModel::export_model(std::ostream& model_stream
     model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     model_stream.write(m_model.c_str(), dataSize);
 
-    dataSize = static_cast<std::uint64_t>(m_constants.size());
-    model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    model_stream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+    if (m_cfg.cache_mode == CacheMode::OPTIMIZE_SPEED) {
+        dataSize = static_cast<std::uint64_t>(m_constants.size());
+        model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+        model_stream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+    }
 }
 // ! [compiled_model:export_model]

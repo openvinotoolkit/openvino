@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/config/common.hpp"
-#include "overload/ov_plugin/life_time.hpp"
+#include "intel_npu/config/options.hpp"
 
 using namespace ov::test::behavior;
 
@@ -36,18 +35,6 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVHoldersTestOnImportedNetwork,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
                          getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVHoldersTestNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
-                         OVHoldersTestNPU::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
-                         OVHoldersTestOnImportedNetworkNPU,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
-                         OVHoldersTestOnImportedNetworkNPU::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_VirtualPlugin_BehaviorTests,
                          OVHoldersTestWithConfig,

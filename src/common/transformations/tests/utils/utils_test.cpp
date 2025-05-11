@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include <queue>
 #include <string>
 
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
 
 using namespace ov;
 

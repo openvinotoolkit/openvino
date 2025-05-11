@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/convolution_params.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace CPUTestUtils;
 
@@ -118,8 +121,8 @@ public:
 
         runtimeType = getNetType();
         auto it = configuration.find(ov::hint::inference_precision.name());
-        ov::element::Type inference_precision = (it != configuration.end()) ?
-                                                it->second.as<ov::element::Type>() : ov::element::undefined;
+        ov::element::Type inference_precision =
+            (it != configuration.end()) ? it->second.as<ov::element::Type>() : ov::element::dynamic;
         if (inference_precision == ov::element::bf16) {
             runtimeType = ov::element::Type_t::bf16;
         } else if (inference_precision == ov::element::f16) {

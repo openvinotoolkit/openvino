@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
@@ -23,7 +24,7 @@ ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPreci
     auto sin_tab = any_input();
     auto rope = makePattern<ov::op::internal::RoPE>({any_input(), cos_tab, sin_tab});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto cos_input_node = pattern_map.at(cos_tab).get_node();
         auto sin_input_node = pattern_map.at(sin_tab).get_node();
@@ -31,9 +32,12 @@ ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPreci
         auto visit_func = [](ov::Node* node) {
             ov::disable_fp16_compression(node->shared_from_this());
         };
-        // skip constant and parameter node
+        // skip constant, parameter and shapeof
+        // The inputs of cos_sin table generation are position_ids and a ShapeOf [batch, input_length]
+        // The parent of ShapeOf may change when IR changes so skip it to avoid unknown precision problem
         auto skip_node_predicate = [](ov::Node* node) -> bool {
-            return ov::is_type<ov::op::v0::Constant>(node) || ov::is_type<ov::op::v0::Parameter>(node);
+            return ov::is_type<ov::op::v0::Constant>(node) || ov::is_type<ov::op::v0::Parameter>(node) ||
+                   ov::is_type<ov::op::util::ShapeOfBase>(node);
         };
         if (!visited.count(cos_input_node)) {
             ov::op::util::visit_path(cos_input_node, visited, visit_func, skip_node_predicate);

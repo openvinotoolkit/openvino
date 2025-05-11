@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -218,7 +218,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_unsupported_op) {
     try {
         convert_model("unsupported_op.onnx");
         FAIL() << "Expected ov::Exception";
-    } catch (ov::Exception const& err) {
+    } catch (const ov::Exception& err) {
         std::string what{err.what()};
         EXPECT_NE(what.find("OpenVINO does not support"), std::string::npos);
         EXPECT_NE(what.find("FakeOpName"), std::string::npos);
@@ -1137,6 +1137,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18_axes_as_input) {
     test_case.add_input<int64_t>({3});
 
     test_case.add_expected_output(Shape{1, 1, 4, 1}, std::vector<float>{9, 9, 12, 9});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_l1_18_axes_as_input_v2) {
+    auto model = convert_model("reduce_l1_18_axis_as_input_v2.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{1, 2, 3, 2}, {23, 41, 81, 61, 24, 45, 59, 24, 71, 91, 47, 35});
+    test_case.add_input<int64_t>({1});
+
+    test_case.add_expected_output(Shape{1, 1, 3, 2}, std::vector<float>{82, 65, 152, 152, 71, 80});
 
     test_case.run();
 }

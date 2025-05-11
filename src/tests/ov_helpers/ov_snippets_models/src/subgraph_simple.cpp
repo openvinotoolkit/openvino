@@ -15,32 +15,32 @@ std::shared_ptr<ov::Model> AddFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     auto add = std::make_shared<op::v1::Add>(data0, data1);
-    return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
+    return std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{data0, data1});
 }
 std::shared_ptr<ov::Model> AddFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     auto add = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1}, getOriginal());
-    return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0, data1});
+    return std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{data0, data1});
 }
 std::shared_ptr<ov::Model> ExpFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto exp = std::make_shared<op::v0::Exp>(data0);
-    return std::make_shared<ov::Model>(NodeVector{exp}, ParameterVector{data0});
+    return std::make_shared<ov::Model>(OutputVector{exp}, ParameterVector{data0});
 }
 std::shared_ptr<ov::Model> ExpReciprocalFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto factor = std::make_shared<op::v0::Constant>(precision, ov::Shape{1}, std::vector<float>{-1.f});
     auto exp = std::make_shared<op::v0::Exp>(data0);
     auto reciprocal = std::make_shared<op::v1::Power>(exp, factor);
-    return std::make_shared<ov::Model>(NodeVector{reciprocal}, ParameterVector{data0});
+    return std::make_shared<ov::Model>(OutputVector{reciprocal}, ParameterVector{data0});
 }
 std::shared_ptr<ov::Model> AddConstFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     const std::vector<float> const_values = ov::test::utils::generate_float_numbers(shape_size(m_const_shape.get_shape()), -10., 10.);
     auto const_data1 = std::make_shared<op::v0::Constant>(precision, m_const_shape.get_shape(), const_values);
     auto add = std::make_shared<op::v1::Add>(data0, const_data1);
-    return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0});
+    return std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{data0});
 }
 std::shared_ptr<ov::Model> AddRollConstFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -53,7 +53,7 @@ std::shared_ptr<ov::Model> AddRollConstFunction::initOriginal() const {
     // The limitation for BF16 in CPU Plugin:
     roll0->get_rt_info()["enforceBF16evenForGraphTail"] = true;
     add->get_rt_info()["enforceBF16evenForGraphTail"] = true;
-    return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{data0});
+    return std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{data0});
 }
 std::shared_ptr<ov::Model> EltwiseFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -63,7 +63,7 @@ std::shared_ptr<ov::Model> EltwiseFunction::initOriginal() const {
     auto add = std::make_shared<op::v1::Add>(data0, data1);
     auto sub = std::make_shared<op::v1::Subtract>(add, const_data);
     auto mul = std::make_shared<op::v1::Multiply>(add, sub);
-    return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data0, data1});
+    return std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{data0, data1});
 }
 std::shared_ptr<ov::Model> EltwiseFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -75,10 +75,11 @@ std::shared_ptr<ov::Model> EltwiseFunction::initReference() const {
     auto indata2 = std::make_shared<op::v0::Parameter>(precision, data1->get_shape());
     auto add = std::make_shared<op::v1::Add>(indata0, indata1);
     auto sub = std::make_shared<op::v1::Subtract>(add, indata2);
-    auto mul = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1, const_data},
-                                          std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v1::Multiply>(add, sub)},
-                                                                  ParameterVector{indata0, indata1, indata2}));
-    return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data0, data1});
+    auto mul = std::make_shared<ov::snippets::op::Subgraph>(
+        NodeVector{data0, data1, const_data},
+        std::make_shared<ov::Model>(OutputVector{std::make_shared<op::v1::Multiply>(add, sub)},
+                                    ParameterVector{indata0, indata1, indata2}));
+    return std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{data0, data1});
 }
 
 std::shared_ptr<ov::Model> EltwiseThreeInputsFunction::initOriginal() const {
@@ -90,7 +91,7 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsFunction::initOriginal() const {
     auto add = std::make_shared<op::v1::Add>(data0, data1);
     auto sub = std::make_shared<op::v1::Subtract>(data2, const_data);
     auto mul = std::make_shared<op::v1::Multiply>(add, sub);
-    return std::make_shared<ov::Model>(NodeVector{mul}, ParameterVector{data0, data1, data2});
+    return std::make_shared<ov::Model>(OutputVector{mul}, ParameterVector{data0, data1, data2});
 }
 
 std::shared_ptr<ov::Model> EltwiseMaxNumParamsFunction::initOriginal() const {
@@ -111,7 +112,7 @@ std::shared_ptr<ov::Model> EltwiseMaxNumParamsFunction::initOriginal() const {
     auto sub = std::make_shared<op::v1::Subtract>(mul[0], mul[1]);
     auto power = std::make_shared<op::v1::Power>(params.back(), sub);
     auto exit_sinh = std::make_shared<op::v0::Sinh>(power);
-    return std::make_shared<ov::Model>(NodeVector{sub, exit_sinh}, params);
+    return std::make_shared<ov::Model>(OutputVector{sub, exit_sinh}, params);
 }
 
 std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initOriginal() const {
@@ -167,13 +168,13 @@ std::shared_ptr<ov::Model> MatMulEltwiseBranchesFunction::initReference() const 
 
     auto add = std::make_shared<op::v1::Add>(elu, relu);
     ParameterVector subgraph_params{ snippet_input };
-    auto snippet_function = std::make_shared<Model>(NodeVector{ add }, subgraph_params);
+    auto snippet_function = std::make_shared<Model>(OutputVector{add}, subgraph_params);
 
     ov::NodeVector snippet_inputs{ non_snippet_op };
     auto snippet = std::make_shared<ov::snippets::op::Subgraph>(snippet_inputs, snippet_function);
     auto result = std::make_shared<op::v0::Result>(snippet);
 
-    return std::make_shared<Model>(NodeVector{ result }, ParameterVector{ data_1, data_2 });
+    return std::make_shared<Model>(OutputVector{result}, ParameterVector{data_1, data_2});
 }
 
 std::shared_ptr<ov::Model> EltwiseLogLoopFunction::initOriginal() const {
@@ -183,7 +184,7 @@ std::shared_ptr<ov::Model> EltwiseLogLoopFunction::initOriginal() const {
     auto hswish = std::make_shared<op::v4::HSwish>(add);
     auto log = std::make_shared<op::v0::Log>(add);
     auto mul = std::make_shared<op::v1::Multiply>(hswish, log);
-    return std::make_shared<Model>(NodeVector{mul}, ParameterVector{data0, data1});
+    return std::make_shared<Model>(OutputVector{mul}, ParameterVector{data0, data1});
 }
 std::shared_ptr<ov::Model> EltwiseLogLoopFunction::initReference() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
@@ -192,7 +193,7 @@ std::shared_ptr<ov::Model> EltwiseLogLoopFunction::initReference() const {
     auto indata1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
     auto inAdd = std::make_shared<op::v1::Add>(indata0, indata1);
     auto inHswish = std::make_shared<op::v4::HSwish>(inAdd);
-    auto body = std::make_shared<Model>(NodeVector{inAdd, inHswish}, ParameterVector{indata0, indata1});
+    auto body = std::make_shared<Model>(OutputVector{inAdd, inHswish}, ParameterVector{indata0, indata1});
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1}, body);
     auto log = std::make_shared<op::v0::Log>(subgraph->output(0));
     //Note that log is not currently supported by snippets, so it won't be converted to subgraph.
@@ -200,10 +201,11 @@ std::shared_ptr<ov::Model> EltwiseLogLoopFunction::initReference() const {
     //  before the node outputs. So the Subgraph{Add}.output(1)->Log{} becomes Subgraph{Add+Hswish}.output(0)->Log{}
     auto subgraph_param = std::make_shared<op::v0::Parameter>(precision, subgraph->get_output_shape(1));
     auto log_param = std::make_shared<op::v0::Parameter>(precision, log->get_output_shape(0));
-    auto mul = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{subgraph->output(1), log->output(0)},
-                                          std::make_shared<Model>(NodeVector{std::make_shared<op::v1::Multiply>(subgraph_param, log_param)},
-                                                                  ParameterVector{subgraph_param, log_param}));
-    return std::make_shared<Model>(NodeVector{mul}, ParameterVector{data0, data1});
+    auto mul = std::make_shared<ov::snippets::op::Subgraph>(
+        OutputVector{subgraph->output(1), log->output(0)},
+        std::make_shared<Model>(OutputVector{std::make_shared<op::v1::Multiply>(subgraph_param, log_param)},
+                                ParameterVector{subgraph_param, log_param}));
+    return std::make_shared<Model>(OutputVector{mul}, ParameterVector{data0, data1});
 }
 
 std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
@@ -218,15 +220,11 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
     auto relu = std::make_shared<op::v0::Relu>(hswish);
     relu->set_friendly_name("relu");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor0 = add->get_output_tensor(0);
-    ov::descriptor::set_ov_tensor_legacy_name(out_tensor0, "add_out");
     out_tensor0.set_names({"add_out", "y0"});
 
     auto& out_tensor1 = relu->get_output_tensor(0);
-    ov::descriptor::set_ov_tensor_legacy_name(out_tensor1, "relu_out");
     out_tensor1.set_names({"relu_out", "y1"});
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto res0 = std::make_shared<op::v0::Result>(add);
     res0->set_friendly_name("res0");
@@ -246,26 +244,22 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
     add->set_friendly_name("add");
     auto hswish = std::make_shared<op::v4::HSwish>(add);
     hswish->set_friendly_name("hswish");
-    auto subgraph0 = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0, data1},
-                                        std::make_shared<ov::Model>(NodeVector{add, hswish},
-                                                                    ParameterVector{indata0, indata1}));
+    auto subgraph0 = std::make_shared<ov::snippets::op::Subgraph>(
+        NodeVector{data0, data1},
+        std::make_shared<ov::Model>(OutputVector{add, hswish}, ParameterVector{indata0, indata1}));
     subgraph0->set_friendly_name("add");
     auto indata2 = std::make_shared<op::v0::Parameter>(precision, subgraph0->get_output_shape(1));
     auto relu = std::make_shared<op::v0::Relu>(indata2);
     relu->set_friendly_name("relu");
-    auto subgraph1 = std::make_shared<ov::snippets::op::Subgraph>(OutputVector{subgraph0->output(1)},
-                                        std::make_shared<ov::Model>(NodeVector{relu},
-                                                                    ParameterVector{indata2}));
+    auto subgraph1 = std::make_shared<ov::snippets::op::Subgraph>(
+        OutputVector{subgraph0->output(1)},
+        std::make_shared<ov::Model>(OutputVector{relu}, ParameterVector{indata2}));
     subgraph1->set_friendly_name("relu");
-    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor0 = subgraph0->get_output_tensor(0);
-    ov::descriptor::set_ov_tensor_legacy_name(out_tensor0, "add_out");
     out_tensor0.set_names({"add_out", "y0"});
 
     auto& out_tensor1 = subgraph1->get_output_tensor(0);
-    ov::descriptor::set_ov_tensor_legacy_name(out_tensor1, "relu_out");
     out_tensor1.set_names({"relu_out", "y1"});
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto res0 = std::make_shared<op::v0::Result>(subgraph0->output(0));
     res0->set_friendly_name("res0");
@@ -282,7 +276,7 @@ std::shared_ptr<ov::Model> TwoInputsAndOutputsFunction::initOriginal() const {
     auto relu = std::make_shared<op::v0::Relu>(add);
     auto sin3 = std::make_shared<op::v0::Sin>(relu);
 
-    return std::make_shared<Model>(NodeVector{hswish, sin3}, ParameterVector{data0, data1});
+    return std::make_shared<Model>(OutputVector{hswish, sin3}, ParameterVector{data0, data1});
 }
 
 std::shared_ptr<ov::Model> TwoInputsAndOutputsWithReversedOutputsFunction::initOriginal() const {
@@ -293,7 +287,7 @@ std::shared_ptr<ov::Model> TwoInputsAndOutputsWithReversedOutputsFunction::initO
     auto relu = std::make_shared<op::v0::Relu>(add);
     auto sin3 = std::make_shared<op::v0::Sin>(relu);
 
-    return std::make_shared<Model>(NodeVector{sin3, hswish}, ParameterVector{data0, data1});
+    return std::make_shared<Model>(OutputVector{sin3, hswish}, ParameterVector{data0, data1});
 }
 
 std::shared_ptr<ov::Model> SelectFunction::initOriginal() const {
@@ -302,7 +296,7 @@ std::shared_ptr<ov::Model> SelectFunction::initOriginal() const {
     auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
     auto select = std::make_shared<op::v1::Select>(data0, data1, data2);
 
-    return std::make_shared<Model>(NodeVector{select}, ParameterVector{data0, data1, data2});
+    return std::make_shared<Model>(OutputVector{select}, ParameterVector{data0, data1, data2});
 }
 
 std::shared_ptr<ov::Model> BroadcastAddFunction::initOriginal() const {
@@ -312,7 +306,7 @@ std::shared_ptr<ov::Model> BroadcastAddFunction::initOriginal() const {
     auto broadcast = std::make_shared<ov::op::v1::Broadcast>(data0, target_shape);
     auto add = std::make_shared<op::v1::Add>(broadcast, data1);
 
-    return std::make_shared<Model>(NodeVector{add}, ParameterVector{data0, data1});
+    return std::make_shared<Model>(OutputVector{add}, ParameterVector{data0, data1});
 }
 
 
@@ -324,7 +318,7 @@ std::shared_ptr<ov::Model> BroadcastSelectFunction::initOriginal() const {
     auto broadcast = std::make_shared<ov::op::v1::Broadcast>(data0, target_shape);
     auto select = std::make_shared<op::v1::Select>(broadcast, data1, data2);
 
-    return std::make_shared<Model>(NodeVector{select}, ParameterVector{data0, data1, data2});
+    return std::make_shared<Model>(OutputVector{select}, ParameterVector{data0, data1, data2});
 }
 
 std::shared_ptr<ov::Model> EdgeReplaceFunction::initOriginal() const {
@@ -357,7 +351,7 @@ std::shared_ptr<ov::Model> EdgeReplaceFunction::initOriginal() const {
 
     auto concat = std::make_shared<op::v0::Concat>(ov::OutputVector{add_a3, add_a2}, 0);
 
-    return std::make_shared<Model>(NodeVector{concat}, ParameterVector{input});
+    return std::make_shared<Model>(OutputVector{concat}, ParameterVector{input});
 }
 }  // namespace snippets
 }  // namespace test

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -99,6 +98,22 @@ bool unsqueeze_axes_to_shape(const Output<Node>& input_node,
     }
     return true;
 }
+
+bool AreInputOutputShapesEqual(const std::shared_ptr<ov::op::v1::Reshape>& reshape) {
+    const auto input_shape = reshape->get_input_partial_shape(0);
+    const auto output_shape = reshape->get_output_partial_shape(0);
+
+    if (input_shape.is_dynamic() || output_shape.is_dynamic()) {
+        return false;
+    }
+    return input_shape == output_shape;
+}
+
+bool HasSpecialOne(const std::shared_ptr<ov::op::v0::Constant>& reshape_const) {
+    auto const_value = reshape_const->cast_vector<int64_t>();
+    return std::find(const_value.begin(), const_value.end(), -1) != const_value.end();
+}
+
 }  // namespace
 
 TSUnsqueezeForward::TSUnsqueezeForward() {
@@ -112,6 +127,28 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
         if (!unsqueeze_axes) {
             return false;
         }
+        auto ts_order_values = transpose_info.transpose_const->cast_vector<size_t>();
+
+        // if main_node does nothing, just swap them
+        auto reshape = as_type_ptr<ov::op::v1::Reshape>(main_node);
+        if (reshape && AreInputOutputShapesEqual(reshape) && !HasSpecialOne(unsqueeze_axes)) {
+            TransposeInputsInfo transpose_input_info = {transpose_info.transpose, transpose_info.transpose_const, 0};
+            // remove input Transpose
+            auto success = sink_forward::UpdateInputTransposes(main_node, transpose_input_info, {0});
+            if (!success) {
+                return false;
+            }
+
+            const auto reshape_order = ov::pass::transpose_sinking::utils::ReverseTransposeOrder(ts_order_values);
+            // transpose reshape const with Gather operation
+            auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+            auto gather =
+                ov::pass::transpose_sinking::utils::ChangeValuesOrder(reshape->input_value(1), reshape_order, axis);
+            main_node->input(1).replace_source_output(gather);
+
+            default_outputs_update(main_node, transpose_input_info);
+            return true;
+        }
 
         std::vector<size_t> non_negative_axes;
         if (as_type_ptr<ov::op::v1::Reshape>(main_node)) {
@@ -124,7 +161,6 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
             non_negative_axes =
                 ov::util::try_get_normalized_axis_vector(unsqueeze_axes->get_tensor_view(), rank, *main_node);
         }
-        auto ts_order_values = transpose_info.transpose_const->cast_vector<size_t>();
 
         ts_order_values = GetOrderBeforeReduction(non_negative_axes, ts_order_values);
         auto new_transpose_order = ov::op::v0::Constant::create(transpose_info.transpose_const->get_element_type(),
@@ -183,6 +219,27 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
         if (!transpose_order || !unsqueeze_axes)
             return false;
 
+        auto transpose_order_values = transpose_order->cast_vector<size_t>();
+
+        // if main_node does nothing, just swap them
+        auto reshape = as_type_ptr<ov::op::v1::Reshape>(main_node);
+        if (reshape && AreInputOutputShapesEqual(reshape) && !HasSpecialOne(unsqueeze_axes)) {
+            // insert Transpose before main_node on #0 input
+            for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_order, {0})) {
+                register_new_node(new_node);
+            }
+            // transpose reshape const with Gather operation
+            auto axis = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{}, 0);
+            auto gather = ov::pass::transpose_sinking::utils::ChangeValuesOrder(reshape->input_value(1),
+                                                                                transpose_order_values,
+                                                                                axis);
+            main_node->input(1).replace_source_output(gather);
+
+            main_node->validate_and_infer_types();
+            RemoveTransposeConsumers(main_node);
+            return true;
+        }
+
         std::vector<size_t> non_negative_axes;
         if (as_type_ptr<ov::op::v1::Reshape>(main_node)) {
             auto success = shape_to_unsqueeze_axes(main_node, unsqueeze_axes, non_negative_axes);
@@ -205,7 +262,6 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
             }
         }
 
-        auto transpose_order_values = transpose_order->cast_vector<size_t>();
         auto old_transpose_order_values = transpose_order_values;
         std::vector<size_t> new_values;
 

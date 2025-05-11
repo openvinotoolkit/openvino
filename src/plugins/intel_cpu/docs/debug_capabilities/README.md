@@ -24,3 +24,10 @@ Use the following cmake option to enable debug capabilities:
   `OV_CPU_SUMMARY_PERF=1`  
   Set the environment variable to display performance summary at the time when model is being destructed.  
   Internal performance counter will be enabled automatically. 
+* [Average counters](average_counters.md)  
+  `OV_CPU_AVERAGE_COUNTERS=filename`
+* Memory statistics  
+  `OV_CPU_MEMORY_STATISTICS_PATH=cout`  
+  Set this environment variable to dump memory usage statistics to the standard output when the compiled model is destructed.  
+  `OV_CPU_MEMORY_STATISTICS_PATH=<file_path>.csv`  
+  Set this environment variable to dump memory usage statistics to *.csv files. The `file_path` will be enhanced with the name of each compiled model: `file_path_<model_name>.csv`.

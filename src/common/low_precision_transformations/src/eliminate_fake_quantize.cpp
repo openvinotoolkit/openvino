@@ -10,6 +10,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "itt.hpp"
 #include "low_precision/network_helper.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -30,16 +31,16 @@ EliminateFakeQuantizeTransformation::EliminateFakeQuantizeTransformation(const P
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     const auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool EliminateFakeQuantizeTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
+bool EliminateFakeQuantizeTransformation::transform(ov::pass::pattern::Matcher& m) {
     const auto root = m.get_match_root();
-    if (!canBeTransformed(context, root)) {
+    if (!canBeTransformed(root)) {
         return false;
     }
 
@@ -51,7 +52,7 @@ bool check_interval(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
                     const std::shared_ptr<ov::opset1::Constant>& constant,
                     const float value,
                     const float max_diff,
-                    const bool exact_comparison) noexcept {
+                    const bool exact_comparison) {
     bool need_to_check_intervals = false;
     const auto& constant_values = constant->cast_vector<float>();
     for (const auto constant_value : constant_values) {
@@ -69,10 +70,10 @@ bool check_interval(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
     if (need_to_check_intervals) {
         auto tmp_fq = as_type_ptr<ov::opset1::FakeQuantize>(fq->clone_with_new_inputs({
             constant,
-            fq->get_input_node_shared_ptr(1),
-            fq->get_input_node_shared_ptr(2),
-            fq->get_input_node_shared_ptr(3),
-            fq->get_input_node_shared_ptr(4)}));
+            fq->input_value(1),
+            fq->input_value(2),
+            fq->input_value(3),
+            fq->input_value(4)}));
         auto result = NetworkHelper::fold_fake_quantize(tmp_fq, false);
         const auto result_constant = as_type_ptr<ov::opset1::Constant>(result);
         if (result_constant == nullptr) {
@@ -115,8 +116,8 @@ bool check_intervals(const std::shared_ptr<ov::opset1::FakeQuantize>& fakeQuanti
 }
 } // namespace
 
-bool EliminateFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
-    if (!CleanupTransformation::canBeTransformed(context, operation)) {
+bool EliminateFakeQuantizeTransformation::canBeTransformed(const std::shared_ptr<Node>& operation) const {
+    if (!CleanupTransformation::canBeTransformed(operation)) {
         return false;
     }
 

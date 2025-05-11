@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -228,7 +228,8 @@ macro(ov_add_frontend)
     ov_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
 
-    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} PUBLIC openvino::runtime)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES} openvino::frontend::common_translators
+                          PUBLIC openvino::runtime)
     ov_add_library_version(${TARGET_NAME})
 
     if(OV_FRONTEND_PROTOBUF_REQUIRED)
@@ -304,6 +305,9 @@ macro(ov_add_frontend)
     # then we need to mark it to be CXX ABI free
     ov_abi_free_target(${TARGET_NAME})
 
+    # public target name
+    set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})
+
     # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
@@ -334,6 +338,8 @@ macro(ov_add_frontend)
                     LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${lib_component} ${frontend_exclude_from_all}
                     ${namelink})
 
+            ov_install_pdb(${TARGET_NAME})
+
             # export to build tree
             # Note: we keep this even with passed DISABLE_CPP_INSTALL to ensure that Python API can be built
             if(OV_FRONTEND_LINKABLE_FRONTEND)
@@ -351,9 +357,6 @@ macro(ov_add_frontend)
                     COMPONENT ${dev_component}
                     ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}
                     FILES_MATCHING PATTERN "*.hpp")
-
-            # public target name
-            set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::${OV_FRONTEND_NAME})
         endif()
     else()
         # skipped frontend has to be installed in static libraries case

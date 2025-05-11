@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,13 +15,11 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class TENSORFLOW_LITE_API QuantizationInfo : public ov::RuntimeAttribute {
+class TENSORFLOW_LITE_FRONTEND_API QuantizationInfo : public ov::RuntimeAttribute {
 public:
-    OPENVINO_RTTI("QuantizationInfo");
+    OPENVINO_RTTI("QuantizationInfo", "0", RuntimeAttribute);
     QuantizationInfo() = default;
-    explicit QuantizationInfo(const std::vector<float>& scale,
-                              const std::vector<int64_t>& zero_point,
-                              const int64_t& axis)
+    QuantizationInfo(const std::vector<float>& scale, const std::vector<int64_t>& zero_point, const int64_t& axis)
         : m_scale(scale),
           m_zero_point(zero_point),
           m_axis(axis) {}

@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/max_pool.hpp"
 
 namespace ov {
 namespace builder {
@@ -117,9 +119,9 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
     std::shared_ptr<Node> parentOnActivation = input;
     {
         if (!fqOnData.empty()) {
-            parentOnActivation = fqOnData.outputPrecision == element::undefined ?
-                ov::builder::subgraph::makeFakeQuantize(input, precision, fqOnData) :
-                ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(input, precision, fqOnData);
+            parentOnActivation = fqOnData.outputPrecision == element::dynamic
+                                     ? ov::builder::subgraph::makeFakeQuantize(input, precision, fqOnData)
+                                     : ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(input, precision, fqOnData);
         }
 
         if (!convertOnData.empty()) {
@@ -152,9 +154,14 @@ std::shared_ptr<ov::Model> FakeQuantizeAndConvolutionFunction::get(
                 constantOnWeights.values);
 
         if (!fqOnWeights.empty()) {
-            parentOnWeights = fqOnWeights.outputPrecision == element::undefined ?
-                ov::builder::subgraph::makeFakeQuantize(parentOnWeights, parentOnWeights->output(0).get_element_type(), fqOnWeights) :
-                ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(parentOnWeights, parentOnWeights->output(0).get_element_type(), fqOnWeights);
+            parentOnWeights =
+                fqOnWeights.outputPrecision == element::dynamic
+                    ? ov::builder::subgraph::makeFakeQuantize(parentOnWeights,
+                                                              parentOnWeights->output(0).get_element_type(),
+                                                              fqOnWeights)
+                    : ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(parentOnWeights,
+                                                                         parentOnWeights->output(0).get_element_type(),
+                                                                         fqOnWeights);
         }
 
         if (!convertOnWeights.empty()) {

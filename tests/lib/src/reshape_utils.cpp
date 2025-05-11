@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ std::map<std::string, std::vector<size_t>> parseDataShapes(const std::string &sh
     // Parse input parameter string
     std::vector<std::string> inputsShapes = split(shapeString, '&');
 
-    for (int i = 0; i < inputsShapes.size(); i++) {
+    for (size_t i = 0; i < inputsShapes.size(); i++) {
         std::vector<std::string> curLayout = split(inputsShapes[i], '*');
 
         std::string curLayoutName = curLayout.at(0);
@@ -41,7 +41,7 @@ std::map<std::string, ov::PartialShape> parseReshapeShapes(const std::string &sh
     // Parse input parameter string
     std::vector<std::string> inputsShapes = split(shapeString, '&');
 
-    for (int i = 0; i < inputsShapes.size(); i++) {
+    for (size_t i = 0; i < inputsShapes.size(); i++) {
         std::vector<std::string> curLayout = split(inputsShapes[i], '*');
 
         std::string curLayoutName = curLayout.at(0);

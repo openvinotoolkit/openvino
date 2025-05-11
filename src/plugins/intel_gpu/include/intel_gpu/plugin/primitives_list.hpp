@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,6 +188,7 @@ REGISTER_FACTORY(v4, CTCLoss);
 // REGISTER_FACTORY(v4, Range);
 
 // ------------------------------ Supported v5 ops ------------------------------ //
+REGISTER_FACTORY(v5, GRUSequence);
 REGISTER_FACTORY(v5, HSigmoid);
 REGISTER_FACTORY(v5, LogSoftmax);
 REGISTER_FACTORY(v5, LSTMSequence);
@@ -198,7 +199,6 @@ REGISTER_FACTORY(v5, Loop);
 
 // ----------------------------- Unsupported v5 ops ----------------------------- //
 // REGISTER_FACTORY(v5, BatchNormInference);
-// REGISTER_FACTORY(v5, GRUSequence);
 // REGISTER_FACTORY(v5, RNNSequence);
 
 // ------------------------------ Supported v6 ops ------------------------------ //
@@ -245,6 +245,7 @@ REGISTER_FACTORY(v9, ROIAlign);
 REGISTER_FACTORY(v9, RDFT);
 REGISTER_FACTORY(v9, IRDFT);
 REGISTER_FACTORY(v9, Eye);
+REGISTER_FACTORY(v9, NonMaxSuppression);
 
 // ------------------------------ Supported v10 ops ----------------------------- //
 REGISTER_FACTORY(v10, IsFinite);
@@ -267,11 +268,19 @@ REGISTER_FACTORY(v13, ScaledDotProductAttention);
 REGISTER_FACTORY(v13, BitwiseAnd);
 REGISTER_FACTORY(v13, BitwiseOr);
 REGISTER_FACTORY(v13, BitwiseXor);
+REGISTER_FACTORY(v13, FakeConvert);
+
 
 // ------------------------------ Supported v15 ops ----------------------------- //
 REGISTER_FACTORY(v15, ROIAlignRotated);
 REGISTER_FACTORY(v15, BitwiseRightShift);
 REGISTER_FACTORY(v15, BitwiseLeftShift);
+REGISTER_FACTORY(v15, SearchSorted);
+REGISTER_FACTORY(v15, STFT);
+REGISTER_FACTORY(v15, Col2Im);
+
+// ------------------------------ Supported v16 ops ----------------------------- //
+REGISTER_FACTORY(v16, ISTFT);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
@@ -283,9 +292,11 @@ REGISTER_FACTORY(internal, FullyConnectedCompressed);
 REGISTER_FACTORY(internal, RMS);
 REGISTER_FACTORY(internal, GatherCompressed);
 REGISTER_FACTORY(internal, KVCache);
+REGISTER_FACTORY(internal, KVCacheCompressed);
 REGISTER_FACTORY(internal, ReadValue);
+REGISTER_FACTORY(internal, ReadValues);
 REGISTER_FACTORY(internal, Gemm);
-REGISTER_FACTORY(internal, SwiGLU);
+REGISTER_FACTORY(internal, GLU);
 REGISTER_FACTORY(internal, IndirectGemm);
 REGISTER_FACTORY(internal, Convolution);
 REGISTER_FACTORY(internal, Placeholder);

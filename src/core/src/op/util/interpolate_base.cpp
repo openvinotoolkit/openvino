@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,6 +129,11 @@ EnumNames<op::util::InterpolateBase::NearestMode>::get() {
          {"simple", op::util::InterpolateBase::NearestMode::SIMPLE}});
     return enum_names;
 }
+
+AttributeAdapter<op::util::InterpolateBase::InterpolateMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::util::InterpolateBase::CoordinateTransformMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::util::InterpolateBase::NearestMode>::~AttributeAdapter() = default;
+AttributeAdapter<op::util::InterpolateBase::ShapeCalcMode>::~AttributeAdapter() = default;
 
 std::ostream& operator<<(std::ostream& s, const op::util::InterpolateBase::InterpolateMode& type) {
     return s << as_string(type);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ private:
                                                                                  params.padEnd,
                                                                                  params.dialations,
                                                                                  auto_pad);
-        return std::make_shared<ov::Model>(NodeVector{GroupConvolution}, ParameterVector{in, filter});
+        return std::make_shared<ov::Model>(OutputVector{GroupConvolution}, ParameterVector{in, filter});
     }
 };
 

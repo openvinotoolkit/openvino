@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "intel_npu/common/icompiled_model.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/variable_state.hpp"
-#include "intel_npu/icompiler.hpp"
+#include "intel_npu/network_metadata.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 
@@ -161,6 +162,12 @@ protected:
                                                  const bool isInput,
                                                  const ov::Allocator& allocator = {},
                                                  const std::optional<std::size_t> batchSize = std::nullopt) const;
+
+    virtual std::shared_ptr<ov::ITensor> create_tensor(ov::element::Type type,
+                                                       const ov::Shape& shape,
+                                                       const ov::Allocator& allocator = {}) const;
+
+    virtual void add_state(const IODescriptor& descriptor, const size_t tensorIndex) const;
 
     bool is_batched_input(size_t idx) const;
 

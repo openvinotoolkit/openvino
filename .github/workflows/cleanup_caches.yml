@@ -4,13 +4,13 @@ on:
   schedule:
     # at 00:00 on the 1st day of every month
     - cron: '0 0 1 * *'
- 
+
 permissions: read-all
 
 jobs:
   Cleanup_PIP:
     name: Cleanup PIP cache
-    runs-on: aks-linux-2-cores-8gb
+    runs-on: aks-linux-small
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
@@ -35,9 +35,36 @@ jobs:
           echo "Cache info: "
           du -h -d2 ${PIP_CACHE_PATH}
 
+  Cleanup_HF_Cache:
+    name: Cleanup HuggingFace cache
+    runs-on: aks-linux-4-cores-16gb
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount:/mount
+    env:
+      HF_CACHE_PATH: /mount/caches/huggingface
+
+    steps:
+      - name: Checkout cache action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/cache
+
+      - name: Cleanup HF cache
+        uses: ./.github/actions/cache/cleanup
+        with:
+          cache-size: 1700
+          max-cache-size: 2000
+          cache-path: ${{ env.HF_CACHE_PATH }}
+          recursive: true
+          key: '.'
+
   Cleanup_ccache_lin:
     name: Cleanup Linux ccache
-    runs-on: aks-linux-2-cores-8gb
+    runs-on: aks-linux-small
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
@@ -47,8 +74,9 @@ jobs:
       CCACHE_PATH: /mount/caches/ccache
 
     steps:
-      - name: Checkout cach action
+      - name: Checkout cache action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/cache
 
@@ -60,8 +88,8 @@ jobs:
           cache-path: ${{ env.CCACHE_PATH }}
           recursive: true
           key: '.'
-          
-          
+
+
   Cleanup_ccache_win:
     name: Cleanup Windows ccache
     runs-on: 'aks-win-4-cores-8gb'
@@ -69,8 +97,9 @@ jobs:
       CCACHE_PATH: C:\\mount\\caches\\ccache
 
     steps:
-      - name: Checkout cach action
+      - name: Checkout cache action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/cache
 

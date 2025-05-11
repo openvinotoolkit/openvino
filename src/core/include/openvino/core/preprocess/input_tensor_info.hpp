@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,11 @@ namespace preprocess {
 
 class OPENVINO_API TensorInfoMemoryType : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("memory_type", "0");
+    OPENVINO_RTTI("memory_type", "0", RuntimeAttribute);
 
     TensorInfoMemoryType() = default;
+
+    ~TensorInfoMemoryType() override;
 
     explicit TensorInfoMemoryType(const std::string& value) : value(value) {}
 

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@ public:
     DispatchData SetDefault(const reorder_weights_params& arg) const override;
 
 protected:
+    JitConstants GetJitConstants(const reorder_weights_params& params) const override;
     bool Validate(const Params& params) const override;
 };
 }  // namespace kernel_selector

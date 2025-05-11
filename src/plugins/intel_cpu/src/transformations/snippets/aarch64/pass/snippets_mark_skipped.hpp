@@ -6,35 +6,37 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @interface SnippetsMarkSkipped
- * @brief Mark operations that should be ignored by snippets on tokenization stage. A typical example is eltwise operations
- * that will be fused into convolutions on plugin side.
+ * @brief Mark operations that should be ignored by snippets on tokenization stage. A typical example is eltwise
+ * operations that will be fused into convolutions on plugin side.
  */
 class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("SnippetsMarkSkipped", "0");
+    OPENVINO_MODEL_PASS_RTTI("SnippetsMarkSkipped");
     SnippetsMarkSkipped() : ModelPass() {}
-    bool run_on_model(const std::shared_ptr<ov::Model> &) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
 
 /*
 NotSet - not part of a fusing chain
 FusedTerminator - the node is fused, but the chain can't be continued
 FusedWithConvolution, FusedWithMisc - fusing chains with different continuation rules
-IgnoredAfterInputs - node must be skipped, since can't be handled properly at this time. Also a continuable fusing chain.
-Order of SnippetsNodeType is important!:
+IgnoredAfterInputs - node must be skipped, since can't be handled properly at this time. Also a continuable fusing
+chain. Order of SnippetsNodeType is important!:
 * SnippetsNodeType >= FusedTerminator is a Fused chain
 * SnippetsNodeType > FusedTerminator is a Fused chain that may be continued
 */
 enum class NodeFusingType : int64_t {
     NotSet,
     FusedTerminator,
-    FusedWithConvolution,  FusedWithBinaryConvolution,
-    FusedWithMatMul, FusedWithFC, FusedWithMisc};
+    FusedWithConvolution,
+    FusedWithBinaryConvolution,
+    FusedWithMatMul,
+    FusedWithFC,
+    FusedWithMisc
+};
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace ov::intel_cpu

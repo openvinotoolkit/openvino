@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,12 @@
 
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "zero_init.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 
 namespace intel_npu {
 class ZeroEngineBackend final : public IEngineBackend {
 public:
-    ZeroEngineBackend(const Config& config);
+    ZeroEngineBackend();
     virtual ~ZeroEngineBackend();
     const std::shared_ptr<IDevice> getDevice() const override;
     const std::shared_ptr<IDevice> getDevice(const std::string&) const override;
@@ -25,19 +25,17 @@ public:
     uint32_t getDriverVersion() const override;
     uint32_t getGraphExtVersion() const override;
 
-    bool isBatchingSupported() const override;
     bool isCommandQueueExtSupported() const override;
     bool isLUIDExtSupported() const override;
 
     void* getContext() const override;
-    void* getDriverHandle() const;
-    void* getDeviceHandle() const;
-    ze_graph_dditable_ext_curr_t& getGraphDdiTable() const;
 
     void updateInfo(const Config& config) override;
 
+    const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const override;
+
 private:
-    std::shared_ptr<ZeroInitStructsHolder> _instance;
+    std::shared_ptr<ZeroInitStructsHolder> _initStruct;
 
     std::map<std::string, std::shared_ptr<IDevice>> _devices{};
     Logger _logger;

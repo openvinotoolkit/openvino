@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -81,7 +81,7 @@ std::vector<TRShape> shape_infer(const GatherND* op, const std::vector<TShape>& 
                       [&output_dims](const DimType& dim) {
                           output_dims[0] *= dim;
                       });
-        output_dims.insert(output_dims.begin() + 1, output_base_shape.begin() + batch_dims, output_base_shape.end());
+        output_dims.insert(output_dims.end(), output_base_shape.begin() + batch_dims, output_base_shape.end());
         output_shapes[0] = TRShape(std::move(output_dims));
     }
     return output_shapes;

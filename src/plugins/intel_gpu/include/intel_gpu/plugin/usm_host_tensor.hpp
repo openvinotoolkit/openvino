@@ -8,8 +8,7 @@
 
 #include <memory>
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 class RemoteContextImpl;
 class RemoteTensorImpl;
@@ -21,7 +20,7 @@ public:
 
     ~USMHostTensor() override = default;
 
-    void* data(const element::Type& element_type) const override;
+    const void* data(const element::Type& element_type) const override;
     const element::Type& get_element_type() const override;
 
     const Shape& get_shape() const override;
@@ -38,5 +37,4 @@ private:
     std::shared_ptr<RemoteTensorImpl> m_impl;
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

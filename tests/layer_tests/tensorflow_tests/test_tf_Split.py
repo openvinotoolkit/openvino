@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -30,10 +30,8 @@ class TestSplit(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_split_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_legacy_frontend):
+    def test_split_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU' and params['value_shape'] == [4, 3, 2, 7]:
             pytest.skip("accuracy issue on GPU")
         self._test(*self.create_split_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

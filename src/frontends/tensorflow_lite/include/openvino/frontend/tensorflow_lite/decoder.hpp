@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -14,7 +14,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-struct TENSORFLOW_LITE_API TensorMetaInfo {
+struct TENSORFLOW_LITE_FRONTEND_API TensorMetaInfo {
     std::shared_ptr<QuantizationInfo> m_quantization_info;
     std::shared_ptr<SparsityInfo> m_sparsity_info;
     ov::PartialShape m_partial_shape;
@@ -23,11 +23,14 @@ struct TENSORFLOW_LITE_API TensorMetaInfo {
     std::string m_tensor_name;
 };
 
-class TENSORFLOW_LITE_API DecoderBase : public ov::frontend::DecoderBase {};
+class TENSORFLOW_LITE_FRONTEND_API DecoderBase : public ov::frontend::DecoderBase {
+public:
+    ~DecoderBase() override;
+};
 
 // DecoderBaseOperation corresponds to operation node to retrieve its attributes and information about input and output
 // tensors
-class TENSORFLOW_LITE_API DecoderBaseOperation : public ov::frontend::tensorflow_lite::DecoderBase {
+class TENSORFLOW_LITE_FRONTEND_API DecoderBaseOperation : public ov::frontend::tensorflow_lite::DecoderBase {
 public:
     /// \brief Get input tensor name by index
     /// Operation nodes are connected between each other by tensors.
@@ -67,11 +70,13 @@ public:
 
     /// \brief Get a number of outputs
     virtual size_t get_output_size() const = 0;
+
+    ~DecoderBaseOperation() override;
 };
 
 // DecoderBaseTensor corresponds to tensor node to retrieve information about type, shapem quantization and sparsity
 // information
-class TENSORFLOW_LITE_API DecoderBaseTensor : public ov::frontend::tensorflow_lite::DecoderBase {
+class TENSORFLOW_LITE_FRONTEND_API DecoderBaseTensor : public ov::frontend::tensorflow_lite::DecoderBase {
 public:
     /// \brief Get tensor info
     virtual TensorMetaInfo get_tensor_info() const = 0;
@@ -87,6 +92,8 @@ public:
     /// it must be from 0 to m-1, where m - number of outputs in the model
     /// if it is not input, returns  -1
     virtual int64_t get_output_idx() const = 0;
+
+    ~DecoderBaseTensor() override;
 };
 
 }  // namespace tensorflow_lite

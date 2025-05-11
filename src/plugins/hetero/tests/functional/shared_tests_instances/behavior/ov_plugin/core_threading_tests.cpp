@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 namespace {
 const Params params[] = {
     std::tuple<Device, Config>{ov::test::utils::DEVICE_HETERO,
-                               {{ov::device::priorities.name(), ov::test::utils::DEVICE_CPU}}},
+                               {{ov::device::priorities.name(), ov::test::utils::DEVICE_TEMPLATE}}},
 };
 }  // namespace
 

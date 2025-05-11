@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,16 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/random_uniform.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -25,6 +30,9 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace op {
@@ -129,6 +137,31 @@ bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
         if (ov::as_type_ptr<op::v0::Constant>(layer) && layer->output(0).get_element_type() == ov::element::f16) {
             return true;
         }
+    }
+    return false;
+}
+
+bool is_large_language_model(const ov::Model& model, std::function<bool(std::shared_ptr<ov::Node>)> func) {
+    using namespace ov::pass::pattern;
+
+    const auto past = wrap_type<ov::op::v6::ReadValue>();
+    const auto convert_past = ov::pass::pattern::optional<ov::op::v0::Convert>(past);
+    const auto beam_idx = wrap_type<ov::op::v0::Parameter>();
+    const auto gather_past = wrap_type<ov::op::v8::Gather>({convert_past, beam_idx, wrap_type<ov::op::v0::Constant>()});
+    const auto gather_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(gather_past);
+    const auto concat_past_input =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{convert_past, gather_convert});
+    const auto concat = wrap_type<ov::op::v0::Concat>({concat_past_input, any_input()});
+    const auto convert_present = ov::pass::pattern::optional<ov::op::v0::Convert>(concat);
+    const auto present = wrap_type<ov::op::v6::Assign>({convert_present});
+    const auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
+
+    for (const auto& op : model.get_ops()) {
+        if (func(op))
+            return true;
+
+        if (kvcache_matcher->match(op->output(0)) || ov::is_type<ov::op::PagedAttentionExtension>(op))
+            return true;
     }
     return false;
 }
@@ -462,11 +495,25 @@ bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int6
 
 bool is_on_constant_path(const ov::Output<ov::Node>& output) {
     auto status = true;
-    std::deque<ov::Node*> nodes_to_calculate = {output.get_node()};
 
+    auto root_node = output.get_node();
+    if (!root_node || root_node->get_output_size() == 0) {
+        return false;
+    }
+    std::deque<ov::Node*> nodes_to_calculate = {root_node};
+
+    std::unordered_set<ov::Node*> visited;
     while (status && !nodes_to_calculate.empty()) {
         auto current_node = nodes_to_calculate.front();
         nodes_to_calculate.pop_front();
+        if (visited.count(current_node)) {
+            continue;
+        }
+        visited.insert(current_node);
+        // RandomUniform output changes during runtime, so we should not consider it as a constant
+        if (current_node->get_type_info() == ov::op::v8::RandomUniform::get_type_info_static()) {
+            return false;
+        }
 
         if (current_node->get_input_size() == 0 && !ov::is_type<ov::op::v0::Constant>(current_node)) {
             status = false;
@@ -474,7 +521,9 @@ bool is_on_constant_path(const ov::Output<ov::Node>& output) {
             // not a leaf - continue to search
             for (const auto& input_value : current_node->input_values()) {
                 const auto& input_node = input_value.get_node();
-                nodes_to_calculate.push_front(input_node);
+                if (!visited.count(input_node)) {
+                    nodes_to_calculate.push_front(input_node);
+                }
             }
         }
     }
@@ -484,7 +533,7 @@ bool is_on_constant_path(const ov::Output<ov::Node>& output) {
 bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node) {
     bool changed = false;
 
-    if (const auto& multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
+    if (const auto& multi_subgraph_op = ov::as_type_ptr<op::util::MultiSubGraphOp>(node)) {
         for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
             if (sub_graph) {
                 changed = model_pass.run_on_model(sub_graph) || changed;

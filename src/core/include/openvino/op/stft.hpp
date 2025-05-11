@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace v15 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API STFT : public Op {
 public:
-    OPENVINO_OP("STFT");
+    OPENVINO_OP("STFT", "opset15");
     STFT() = default;
 
     /// \brief Constructs a STFT operation.

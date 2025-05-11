@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,8 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -120,8 +122,8 @@ inline std::shared_ptr<ov::Node> make_qkv_transpose(ov::Output<ov::Node> qkv, st
     return std::make_shared<ov::op::v1::Transpose>(qkv, transpose_const);
 }
 
-inline std::shared_ptr<ov::Node> make_kv_rearrange(ov::Output<ov::Node> kv_past, ov::Output<ov::Node> beam_idx) {
-    auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
+inline std::shared_ptr<ov::Node> make_kv_rearrange(ov::Output<ov::Node> kv_past, ov::Output<ov::Node> beam_idx, int axis_val = 0) {
+    auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, axis_val);
     return std::make_shared<ov::op::v8::Gather>(kv_past, beam_idx, axis, 0);
 }
 
@@ -180,7 +182,7 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
         if (build_state_initializer) {
             auto state_initializer = make_state_initializer(in_new_token, element_type, kv_cache_size, {0, 1, 2, 3});
             for (auto op : model->get_ops()) {
-                if (auto read_value = std::dynamic_pointer_cast<ov::op::v6::ReadValue>(op)) {
+                if (auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
                     read_value->set_arguments(ov::OutputVector{state_initializer});
                 }
             }
@@ -194,7 +196,8 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch 
 
 inline std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension batch = ov::Dimension::dynamic(),
                                                                  ov::Dimension n_heads = ov::Dimension::dynamic(),
-                                                                 ov::Dimension n_features = ov::Dimension::dynamic(),
+                                                                 ov::Dimension k_features = ov::Dimension::dynamic(),
+                                                                 ov::Dimension v_features = ov::Dimension::dynamic(),
                                                                  ov::element::Type_t element_type = ov::element::f32,
                                                                  std::vector<int64_t> qkv_order = {0, 1, 2, 3},
                                                                  bool causal = false,
@@ -203,32 +206,38 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension b
                                                                  bool stateful = false,
                                                                  bool fuse_cache_reorder = false,
                                                                  size_t num_groups = 1) {
-    ov::PartialShape kv_cache_size_def = {batch, n_heads / num_groups, -1, n_features};
-    ov::PartialShape new_token_size_def = {batch, n_heads / num_groups, -1, n_features};
-    ov::PartialShape q_size_def = {batch, n_heads, -1, n_features};
+    ov::PartialShape k_cache_size_def = {batch, n_heads / num_groups, -1, k_features};
+    ov::PartialShape v_cache_size_def = {batch, n_heads / num_groups, -1, v_features};
+    ov::PartialShape new_k_token_size_def = {batch, n_heads / num_groups, -1, k_features};
+    ov::PartialShape new_v_token_size_def = {batch, n_heads / num_groups, -1, v_features};
+    ov::PartialShape q_size_def = {batch, n_heads, -1, k_features};
 
-    ov::PartialShape kv_cache_size = ov::PartialShape::dynamic(4);
-    ov::PartialShape new_token_size = ov::PartialShape::dynamic(4);
+    ov::PartialShape k_cache_size = ov::PartialShape::dynamic(4);
+    ov::PartialShape v_cache_size = ov::PartialShape::dynamic(4);
+    ov::PartialShape new_k_token_size = ov::PartialShape::dynamic(4);
+    ov::PartialShape new_v_token_size = ov::PartialShape::dynamic(4);
     ov::PartialShape q_size = ov::PartialShape::dynamic(4);
 
-    for (size_t i = 0; i < kv_cache_size_def.size(); i++) {
-        kv_cache_size[qkv_order[i]] = kv_cache_size_def[i];
-        new_token_size[qkv_order[i]] = new_token_size_def[i];
+    for (size_t i = 0; i < k_cache_size_def.size(); i++) {
+        k_cache_size[qkv_order[i]] = k_cache_size_def[i];
+        v_cache_size[qkv_order[i]] = v_cache_size_def[i];
+        new_k_token_size[qkv_order[i]] = new_k_token_size_def[i];
+        new_v_token_size[qkv_order[i]] = new_v_token_size_def[i];
         q_size[qkv_order[i]] = q_size_def[i];
     }
 
     int64_t concat_axis = qkv_order[2];
 
-    auto past_k = std::make_shared<ov::op::v0::Parameter>(element_type, kv_cache_size);
+    auto past_k = std::make_shared<ov::op::v0::Parameter>(element_type, k_cache_size);
     past_k->set_friendly_name("past_k");
 
-    auto past_v = std::make_shared<ov::op::v0::Parameter>(element_type, kv_cache_size);
+    auto past_v = std::make_shared<ov::op::v0::Parameter>(element_type, v_cache_size);
     past_v->set_friendly_name("past_v");
 
-    auto in_k_token = std::make_shared<ov::op::v0::Parameter>(element_type, new_token_size);
+    auto in_k_token = std::make_shared<ov::op::v0::Parameter>(element_type, new_k_token_size);
     in_k_token->set_friendly_name("new_k_token");
 
-    auto in_v_token = std::make_shared<ov::op::v0::Parameter>(element_type, new_token_size);
+    auto in_v_token = std::make_shared<ov::op::v0::Parameter>(element_type, new_v_token_size);
     in_v_token->set_friendly_name("new_v_token");
 
     auto in_q = std::make_shared<ov::op::v0::Parameter>(element_type, q_size);
@@ -242,8 +251,8 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension b
         in_beam_idx->set_friendly_name("beam_idx");
         params.push_back(in_beam_idx);
 
-        concat_k_input = make_kv_rearrange(past_k, in_beam_idx);
-        concat_v_input = make_kv_rearrange(past_v, in_beam_idx);
+        concat_k_input = make_kv_rearrange(past_k, in_beam_idx, qkv_order[0]);
+        concat_v_input = make_kv_rearrange(past_v, in_beam_idx, qkv_order[0]);
     }
 
     auto concat_k = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{concat_k_input, in_k_token}, concat_axis);
@@ -269,21 +278,25 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension b
     }
 
     if (with_mask && with_scale) {
-        scale = ov::op::v0::Constant::create(element_type, ov::Shape{}, { 1.0f / std::sqrt(n_features.get_max_length())});
+        scale = ov::op::v0::Constant::create(element_type, ov::Shape{}, { 1.0f / std::sqrt(k_features.get_max_length())});
     }
 
     if (num_groups > 1) {
         auto nh = static_cast<int32_t>(n_heads.get_length());
-        auto hs = static_cast<int32_t>(n_features.get_length());
-        std::vector<int32_t> target_shape = { 0, nh, -1, hs };
-        std::vector<int32_t> target_shape_transposed(target_shape.size());
+        auto vs = static_cast<int32_t>(v_features.get_length());
+        auto ks = static_cast<int32_t>(k_features.get_length());
+        std::vector<int32_t> v_target_shape = { 0, nh, -1, vs };
+        std::vector<int32_t> v_target_shape_transposed(v_target_shape.size());
+        std::vector<int32_t> k_target_shape = { 0, nh, -1, ks };
+        std::vector<int32_t> k_target_shape_transposed(k_target_shape.size());
 
-        for (size_t i = 0; i < target_shape.size(); i++) {
-            target_shape_transposed[qkv_order[i]] = target_shape[i];
+        for (size_t i = 0; i < v_target_shape.size(); i++) {
+            k_target_shape_transposed[qkv_order[i]] = k_target_shape[i];
+            v_target_shape_transposed[qkv_order[i]] = v_target_shape[i];
         }
 
-        k = make_gqa(k, num_groups, target_shape_transposed, nh);
-        v = make_gqa(v, num_groups, target_shape_transposed, nh);
+        k = make_gqa(k, num_groups, k_target_shape_transposed, nh);
+        v = make_gqa(v, num_groups, v_target_shape_transposed, nh);
     }
 
     if (qkv_order != std::vector<int64_t>{0, 1, 2, 3}) {
@@ -310,10 +323,15 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension b
 
     if (stateful) {
         ov::pass::MakeStateful({{past_k, present_k}, {past_v, present_v}}).run_on_model(model);
-        auto state_initializer = make_state_initializer(in_v_token, element_type, kv_cache_size, qkv_order);
+        auto k_state_initializer = make_state_initializer(in_k_token, element_type, k_cache_size, qkv_order);
+        auto v_state_initializer = make_state_initializer(in_v_token, element_type, v_cache_size, qkv_order);
         for (auto op : model->get_ops()) {
-            if (auto read_value = std::dynamic_pointer_cast<ov::op::v6::ReadValue>(op)) {
-                read_value->set_arguments(ov::OutputVector{state_initializer});
+            if (auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
+                auto shape = op->get_output_partial_shape(0);
+                if (shape[3] == k_features)
+                    read_value->set_arguments(ov::OutputVector{k_state_initializer});
+                else if (shape[3] == v_features)
+                    read_value->set_arguments(ov::OutputVector{v_state_initializer});
             }
         }
     }
@@ -321,6 +339,96 @@ inline std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension b
     model->validate_nodes_and_infer_types();
 
     return model;
+}
+
+
+inline std::shared_ptr<ov::Model> makeLBRGRUSequence(ov::element::Type_t model_type, ov::PartialShape initShape,
+    size_t N, size_t I, size_t H, size_t sequence_axis, ov::op::RecurrentSequenceDirection seq_direction) {
+    auto X = std::make_shared<ov::op::v0::Parameter>(model_type, initShape);
+    auto Y = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, H});
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(X);
+    auto indices = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
+    auto axis = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
+    auto seq_lengths = std::make_shared<ov::op::v1::Gather>(shape_of, indices, axis);
+
+    auto w_val = std::vector<float>(3 * H * I, 0);
+    auto r_val = std::vector<float>(3 * H * H, 0);
+    auto b_val = std::vector<float>(4 * H, 0);
+    auto W = ov::op::v0::Constant::create(model_type, ov::Shape{N, 3 * H, I}, w_val);
+    auto R = ov::op::v0::Constant::create(model_type, ov::Shape{N, 3 * H, H}, r_val);
+    auto B = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H}, b_val);
+    auto default_activations = std::vector<std::string>{"sigmoid", "tanh"};
+    std::vector<float> empty_activations;
+    auto rnn_sequence = std::make_shared<ov::op::v5::GRUSequence>(X,
+        Y,
+        seq_lengths,
+        W,
+        R,
+        B,
+        128,
+        seq_direction,
+        default_activations,
+        empty_activations,
+        empty_activations,
+        0.f,
+        true);
+
+    auto Y_out = std::make_shared<ov::op::v0::Result>(rnn_sequence->output(0));
+    auto Ho = std::make_shared<ov::op::v0::Result>(rnn_sequence->output(1));
+    Y_out->set_friendly_name("Y_out");
+    Ho->set_friendly_name("Ho");
+
+    auto fn_ptr = std::make_shared<ov::Model>(ov::NodeVector{Y_out, Ho}, ov::ParameterVector{X, Y});
+    fn_ptr->set_friendly_name("GRUSequence");
+    return fn_ptr;
+}
+
+
+/*
+*   Generate LSTMSequence
+*   @param model_type precision of model
+*   @param initShape initial shape {N, L(sequence length), I}
+*   @param N batch size
+*   @param I input size
+*   @param H hidden layer
+*/
+inline std::shared_ptr<ov::Model> makeLSTMSequence(ov::element::Type_t model_type, ov::PartialShape initShape,
+    size_t N, size_t I, size_t H, size_t sequence_axis,
+    ov::op::RecurrentSequenceDirection seq_direction) {
+    auto X = std::make_shared<ov::op::v0::Parameter>(model_type, initShape);
+    auto Y = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, H});
+    auto Z = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape{N, 1, H});
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(X);
+    auto indices = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
+    auto axis = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
+    auto seq_lengths = std::make_shared<ov::op::v1::Gather>(shape_of, indices, axis);
+
+    auto w_val = std::vector<float>(4 * H * I, 0);
+    auto r_val = std::vector<float>(4 * H * H, 0);
+    auto b_val = std::vector<float>(4 * H, 0);
+    auto W = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H, I}, w_val);
+    auto R = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H, H}, r_val);
+    auto B = ov::op::v0::Constant::create(model_type, ov::Shape{N, 4 * H}, b_val);
+
+    auto rnn_sequence = std::make_shared<ov::op::v5::LSTMSequence>(X,
+                Y,
+                Z,
+                seq_lengths,
+                W,
+                R,
+                B,
+                128,
+                seq_direction);
+    auto Y_out = std::make_shared<ov::op::v0::Result>(rnn_sequence->output(0));
+    auto Ho = std::make_shared<ov::op::v0::Result>(rnn_sequence->output(1));
+    auto Co = std::make_shared<ov::op::v0::Result>(rnn_sequence->output(2));
+    Y_out->set_friendly_name("Y_out");
+    Ho->set_friendly_name("Ho");
+    Co->set_friendly_name("Co");
+
+    auto fn_ptr = std::make_shared<ov::Model>(ov::OutputVector{Y_out, Ho, Co}, ov::ParameterVector{X, Y, Z});
+    fn_ptr->set_friendly_name("LSTMSequence");
+    return fn_ptr;
 }
 
 } // namespace tests

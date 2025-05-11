@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,9 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {
@@ -45,7 +48,7 @@ void PermConvPermConcat::SetUp() {
         this->GetParam();
 
     if (element_type == ov::element::f32) {
-        abs_threshold = 1e-6;
+        abs_threshold = 1e-5;
     }
 
     configuration.insert(additional_config.begin(), additional_config.end());

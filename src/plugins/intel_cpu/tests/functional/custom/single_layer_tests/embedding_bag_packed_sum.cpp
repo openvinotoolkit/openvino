@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/embeddingbag_packedsum.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -67,7 +68,7 @@ protected:
         auto emb_table_node = std::make_shared<ov::op::v0::Parameter>(inType, inputShapes.first);
         ov::ParameterVector params = {emb_table_node};
 
-        auto embBag = std::dynamic_pointer_cast<ov::op::v3::EmbeddingBagPackedSum>(
+        auto embBag = ov::as_type_ptr<ov::op::v3::EmbeddingBagPackedSum>(
             ov::test::utils::make_embedding_bag_packed_sum(inType, indPrecision, emb_table_node, indices, withWeights));
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(embBag)};
         function = std::make_shared<ov::Model>(results, params, "embeddingBagPackedSum");

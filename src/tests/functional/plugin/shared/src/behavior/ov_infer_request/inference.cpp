@@ -1,11 +1,13 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "behavior/ov_infer_request/inference.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace test {

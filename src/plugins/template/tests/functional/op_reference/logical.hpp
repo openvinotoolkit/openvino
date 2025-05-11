@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,7 @@ private:
             throw std::runtime_error("Incorrect type of Logical operation");
         }
         }
-        return std::make_shared<ov::Model>(ov::NodeVector{logical_op}, ov::ParameterVector{params_vec});
+        return std::make_shared<ov::Model>(ov::OutputVector{logical_op}, ov::ParameterVector{params_vec});
     }
 };
 }  // namespace LogicalOpsRefTestDefinitions

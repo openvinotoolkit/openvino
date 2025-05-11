@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "utils.hpp"
 

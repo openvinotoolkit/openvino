@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,6 @@ _OPENVINO_OP_REG(LogicalOr, ov::op::v1)
 _OPENVINO_OP_REG(LogicalXor, ov::op::v1)
 _OPENVINO_OP_REG(LRN, ov::op::v0)
 _OPENVINO_OP_REG(LSTMCell, ov::op::v0)
-_OPENVINO_OP_REG(LSTMSequence, ov::op::v0)
 _OPENVINO_OP_REG(MatMul, ov::op::v0)
 _OPENVINO_OP_REG(MaxPool, ov::op::v1)
 _OPENVINO_OP_REG(Maximum, ov::op::v1)

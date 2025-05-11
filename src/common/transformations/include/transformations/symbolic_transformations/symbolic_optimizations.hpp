@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API LabelResolvingThroughSelect;
  */
 class ov::pass::SymbolicOptimizations : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("SymbolicOptimizations", "0");
+    OPENVINO_MODEL_PASS_RTTI("SymbolicOptimizations");
     explicit SymbolicOptimizations(bool full_run = true);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
     std::shared_ptr<ov::pass::Manager> get_manager() {
@@ -42,7 +42,7 @@ private:
  */
 class ov::pass::SymbolicPropagation : public ov::pass::ModelPass {
 public:
-    OPENVINO_RTTI("SymbolicPropagation");
+    OPENVINO_MODEL_PASS_RTTI("SymbolicPropagation");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
@@ -58,6 +58,6 @@ public:
  */
 class ov::pass::LabelResolvingThroughSelect : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("LabelResolvingThroughSelect", "0");
+    OPENVINO_MATCHER_PASS_RTTI("LabelResolvingThroughSelect");
     LabelResolvingThroughSelect();
 };

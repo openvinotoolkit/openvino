@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,11 @@
 #include <tuple>
 #include "low_precision/lpt_visibility.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace pass {
@@ -50,7 +54,8 @@ public:
         const std::shared_ptr<ov::Node>& elementwise,
         std::shared_ptr<ov::opset1::Constant>& constant);
 
-    size_t channelDimIndex;
+    // for most node with layout NC, NCHW, NCDWH, index of channel dimension is 1
+    size_t channelDimIndex = 1ul;
     Output<Node> data;
     std::shared_ptr<ov::opset1::Convert> convert;
     std::shared_ptr<ov::opset1::Subtract> subtract;

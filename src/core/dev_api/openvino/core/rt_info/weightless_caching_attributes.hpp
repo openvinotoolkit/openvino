@@ -5,9 +5,12 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {
+
+OPENVINO_API void copy_weightless_cache_attr(const std::shared_ptr<Node>& from, const std::shared_ptr<Node>& to);
 
 /**
  * @brief Holds weightless caching attributes of a single constant.
@@ -21,18 +24,20 @@ namespace ov {
  */
 class OPENVINO_API WeightlessCacheAttribute : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("WeightlessCacheAttribute");
+    OPENVINO_RTTI("WeightlessCacheAttribute", "0", RuntimeAttribute);
 
     WeightlessCacheAttribute() = delete;
 
-    WeightlessCacheAttribute(size_t original_size, size_t bin_offset)
+    WeightlessCacheAttribute(size_t original_size, size_t bin_offset, ov::element::Type original_dtype)
         : original_size(original_size),
-          bin_offset(bin_offset) {}
+          bin_offset(bin_offset),
+          original_dtype(original_dtype) {}
 
     bool is_copyable() const override;
 
     size_t original_size;
     size_t bin_offset;
+    ov::element::Type original_dtype;
 };
 
 }  // namespace ov

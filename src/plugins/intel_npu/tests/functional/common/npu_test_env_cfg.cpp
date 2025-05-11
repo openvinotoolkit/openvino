@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,8 @@
 #include <cstdlib>
 #include <stdexcept>
 
-#include "intel_npu/config/common.hpp"
 #include "intel_npu/config/config.hpp"
+#include "intel_npu/config/options.hpp"
 
 namespace ov::test::utils {
 
@@ -133,6 +133,14 @@ NpuTestEnvConfig::NpuTestEnvConfig() {
 
     if (auto var = std::getenv("IE_NPU_TESTS_PLATFORM")) {
         IE_NPU_TESTS_PLATFORM = var;
+    }
+
+    if (auto var = std::getenv("OV_NPU_TESTS_SKIP_CONFIG_FILE")) {
+        OV_NPU_TESTS_SKIP_CONFIG_FILE = var;
+    }
+
+    if (auto var = std::getenv("OV_NPU_TESTS_BLOBS_PATH")) {
+        OV_NPU_TESTS_BLOBS_PATH = var;
     }
 }
 

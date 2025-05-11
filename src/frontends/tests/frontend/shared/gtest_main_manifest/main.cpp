@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 
 static const std::string s_manifest{
 #ifdef MANIFEST
-    ov::util::path_join({ov::test::utils::getExecutableDirectory(), MANIFEST})
+    ov::util::path_join({ov::test::utils::getExecutableDirectory(), MANIFEST}).string()
 #endif
 };
 

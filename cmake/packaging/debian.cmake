@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -98,6 +98,10 @@ macro(ov_cpack_settings)
         2024.2.0
         2024.3.0
         2024.4.0
+        2024.5.0 2024.5.1
+        2024.6.0
+        2025.0.0 2025.0.1
+        2025.1.0
         )
 
     ov_check_conflicts_versions(conflicting_versions)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,10 +87,10 @@ private:
         if (beta != 1) {
             const auto BETA = std::make_shared<op::v0::Parameter>(input_type, Shape{});
             const auto Swish = std::make_shared<op::v4::Swish>(in, BETA);
-            return std::make_shared<Model>(NodeVector{Swish}, ParameterVector{in, BETA});
+            return std::make_shared<Model>(OutputVector{Swish}, ParameterVector{in, BETA});
         } else {
             const auto Swish = std::make_shared<op::v4::Swish>(in);
-            return std::make_shared<ov::Model>(NodeVector{Swish}, ParameterVector{in});
+            return std::make_shared<ov::Model>(OutputVector{Swish}, ParameterVector{in});
         }
     }
 };

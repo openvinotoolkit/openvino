@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -30,5 +30,6 @@ class TestStrides(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_strides(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)

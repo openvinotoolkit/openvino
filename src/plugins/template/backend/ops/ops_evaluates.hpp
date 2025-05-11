@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include "evaluate_node.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/op/rms_norm.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -76,12 +77,6 @@ extern template bool evaluate_node<ov::op::v0::LSTMCell>(std::shared_ptr<ov::Nod
 extern template bool evaluate_node<ov::op::v1::ReduceMean>(std::shared_ptr<ov::Node> node,
                                                            ov::TensorVector& outputs,
                                                            const ov::TensorVector& inputs);
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-extern template bool evaluate_node<ov::op::v0::LSTMSequence>(std::shared_ptr<ov::Node> node,
-                                                             ov::TensorVector& outputs,
-                                                             const ov::TensorVector& inputs);
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 extern template bool evaluate_node<ov::op::v0::MVN>(std::shared_ptr<ov::Node> node,
                                                     ov::TensorVector& outputs,
@@ -533,6 +528,10 @@ extern template bool evaluate_node<ov::op::v15::STFT>(std::shared_ptr<ov::Node> 
                                                       ov::TensorVector& outputs,
                                                       const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v16::ISTFT>(std::shared_ptr<ov::Node> node,
+                                                       ov::TensorVector& outputs,
+                                                       const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::internal::AUGRUCell>(std::shared_ptr<ov::Node> node,
                                                                 ov::TensorVector& outputs,
                                                                 const ov::TensorVector& inputs);
@@ -556,3 +555,15 @@ extern template bool evaluate_node<ov::op::v15::StringTensorPack>(std::shared_pt
 extern template bool evaluate_node<ov::op::v15::SearchSorted>(std::shared_ptr<ov::Node> node,
                                                               ov::TensorVector& outputs,
                                                               const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,
+                                                          ov::TensorVector& outputs,
+                                                          const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v16::SegmentMax>(std::shared_ptr<ov::Node> node,
+                                                            ov::TensorVector& outputs,
+                                                            const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v16::SparseFillEmptyRows>(std::shared_ptr<ov::Node> node,
+                                                                     ov::TensorVector& outputs,
+                                                                     const ov::TensorVector& inputs);

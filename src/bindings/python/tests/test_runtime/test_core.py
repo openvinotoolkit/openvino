@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -21,14 +21,14 @@ from openvino import (
 
 import openvino.properties as props
 import openvino.properties.hint as hints
-from openvino.runtime import Extension
+from openvino import Extension
 from tests.utils.helpers import (
     generate_image,
     generate_relu_compiled_model,
     get_relu_model,
     plugins_path,
     compare_models,
-    create_filename_for_test,
+    create_filenames_for_ir,
     get_model_with_template_extension,
 )
 
@@ -77,7 +77,7 @@ def test_core_class(device):
 ])
 def test_compile_model(request, tmp_path, device_name):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     model = core.read_model(model=xml_path, weights=bin_path)
@@ -97,7 +97,7 @@ def get_model():
 
 @pytest.fixture
 def get_model_path(request, tmp_path):
-    xml_path, _ = create_filename_for_test(request.node.name, tmp_path, True)
+    xml_path, _ = create_filenames_for_ir(request.node.name, tmp_path, True)
     serialize(get_relu_model(), xml_path)
     return Path(xml_path)
 
@@ -130,7 +130,7 @@ def test_compact_api(model_type, device_name, config, request):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_from_ir(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     model = core.read_model(model=xml_path, weights=bin_path)
@@ -141,9 +141,27 @@ def test_read_model_from_ir(request, tmp_path):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_from_ir_with_user_config(request, tmp_path):
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+
+    core_cache_dir = core.get_property("CACHE_DIR")
+    cache_path = tmp_path / Path("cache")
+
+    model = core.read_model(xml_path, bin_path, config={"CACHE_DIR": f"{cache_path}"})
+
+    assert isinstance(model, Model)
+    assert core_cache_dir == core.get_property("CACHE_DIR")
+    assert os.path.exists(cache_path)
+    os.rmdir(cache_path)
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_from_tensor(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path, is_xml_path=True, is_bin_path=True)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path, is_xml_path=True, is_bin_path=True)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     arr = np.ones(shape=(10), dtype=np.int8)
@@ -156,7 +174,7 @@ def test_read_model_from_tensor(request, tmp_path):
 
 def test_read_model_with_wrong_input():
     core = Core()
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(TypeError) as e:
         core.read_model(model=3, weights=3)
     assert "Provided python object type <class 'int'> isn't supported as 'model' argument." in str(e.value)
 
@@ -164,7 +182,7 @@ def test_read_model_with_wrong_input():
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_as_path(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path, True, True)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path, True, True)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
 
@@ -179,9 +197,27 @@ def test_read_model_as_path(request, tmp_path):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_as_path_with_user_config(request, tmp_path):
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+
+    core_cache_dir = core.get_property("CACHE_DIR")
+    cache_path = tmp_path / Path("cache_as_path")
+
+    model = core.read_model(Path(xml_path), Path(bin_path), config={"CACHE_DIR": f"{cache_path}"})
+
+    assert isinstance(model, Model)
+    assert core_cache_dir == core.get_property("CACHE_DIR")
+    assert os.path.exists(cache_path)
+    os.rmdir(cache_path)
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_from_buffer(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     with open(bin_path, "rb") as f:
@@ -193,9 +229,25 @@ def test_read_model_from_buffer(request, tmp_path):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_read_model_from_bytesio(request, tmp_path):
+    from io import BytesIO
+
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+    relu_model = get_relu_model()
+    serialize(relu_model, xml_path, bin_path)
+    with open(bin_path, "rb") as f:
+        weights = BytesIO(f.read())
+    with open(xml_path, "rb") as f:
+        xml = BytesIO(f.read())
+    model = core.read_model(model=xml, weights=weights)
+    assert isinstance(model, Model)
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_model_from_buffer_valid(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     with open(bin_path, "rb") as f:

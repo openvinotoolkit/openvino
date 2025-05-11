@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,7 +105,7 @@ private:
                                                                                    params.mode,
                                                                                    params.padValue,
                                                                                    auto_pad);
-        return std::make_shared<ov::Model>(NodeVector{BinaryConvolution}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{BinaryConvolution}, ParameterVector{in});
     }
 };
 

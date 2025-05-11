@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ struct network_output {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
         if (do_sync) {
-            if (_stream->get_queue_type() == QueueTypes::in_order) {
+            if (_stream->get_queue_type() == QueueTypes::in_order || !_event) {
                 _stream->finish();
             } else {
                 _event->wait();
@@ -111,8 +111,8 @@ public:
     engine& get_engine() const { return _engine; }
 
     void reset_execution(bool wait = true);
-    event::ptr set_input_data(const primitive_id& id, memory::ptr data);
-    std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem);
+    event::ptr set_input_data(const primitive_id& id, memory::ptr data, bool need_to_check_memory_to_set = true);
+    std::vector<event::ptr> set_output_memory(const primitive_id& id, memory::ptr mem, bool is_remote = false);
 
     std::vector<std::shared_ptr<primitive_inst>> const& get_outputs() { return _outputs; }
 
@@ -160,6 +160,7 @@ public:
     std::map<primitive_id, network_output> execute(const std::vector<event::ptr>& dependencies = {});
 
     void validate_primitives();
+    void preallocate_shape_info_buffers();
     void set_arguments();
     // Implementation specific calls
     bool does_node_need_lockable_output(const primitive_id& id) const;
@@ -167,12 +168,10 @@ public:
     std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
     std::string get_implementation_info(const primitive_id& id) const;
-    const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
-    bool has_event(const primitive_id& id) const { return _events.count(id); }
+    const event::ptr& get_primitive_event(const primitive_id& id) const;
+    bool has_event(const primitive_id& id) const;
     std::vector<primitive_inst*> get_primitives(const std::vector<primitive_id>& ids);
     std::vector<std::pair<primitive_inst*, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
-    void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
-                           const std::vector<event::ptr>& events);
     void allocate_primitives();
     void configure_primitives_second_output();
     void build_insts_deps();
@@ -183,6 +182,10 @@ public:
     bool is_primary_stream() const { return _is_primary_stream; }
     bool is_dynamic() const { return _is_dynamic; }
     size_t get_weights_cache_capacity() const { return _weights_cache_capacity; }
+    bool contains_state(const std::string& variable_id);
+    memory& get_output_remote_memory(const primitive_id& id) const;
+    bool has_output_remote_memory_ptr(const primitive_id& id) const;
+    void reset_output_remote_memory_ptrs();
 
     memory_pool& get_memory_pool() const {
         return *_memory_pool;
@@ -194,8 +197,10 @@ public:
     const ov::intel_gpu::VariableStateInfo& get_variable_info(const std::string &variable_id) const;
     const ov::intel_gpu::VariablesMap& get_variables() const;
     const ov::intel_gpu::VariablesInfoMap& get_variables_info() const;
+    void set_reuse_variable_mem(bool reuse = false);
+    bool is_reuse_variable_mem() { return _reuse_variable_mem; }
 
-    const ExecutionConfig& get_config() const { return _config; }
+    const ExecutionConfig& get_config() const { return _program->get_config(); }
 
     std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
@@ -208,7 +213,6 @@ private:
     using output_chains_map = std::map<primitive_id, std::vector<primitive_inst*>>;
     uint32_t net_id = 0;
     program::ptr _program;
-    ExecutionConfig _config;
     engine& _engine;
     stream::ptr _stream;
     std::unique_ptr<memory_pool> _memory_pool;
@@ -217,6 +221,12 @@ private:
     bool _is_dynamic = false;
     bool _enable_profiling = false;
     bool _reset_arguments;
+    bool _reuse_variable_mem = false;
+
+    /* Common memory pointer for shape_info */
+    memory::ptr _shape_info_ptr;
+
+    std::unordered_map<primitive_id, memory::ptr> _output_remote_mem_ptrs;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
     std::vector<shared_mem_type> _in_out_shared_mem_types;
@@ -227,13 +237,12 @@ private:
 
     ov::intel_gpu::VariablesMap _variables_states;
     ov::intel_gpu::VariablesInfoMap _variables_state_info;
+    std::vector<std::shared_ptr<primitive_inst>> _read_values;
+    std::unordered_map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>> _state_initializers;
 
     program::primitives_info _prims_info;
     size_t _weights_cache_capacity = 1;
 
-    std::unordered_map<primitive_id, event::ptr> _events;
-    // This map is used to temporarily hold events that will be deallocated later
-    std::unordered_map<primitive_id, event::ptr> _old_events;
     output_chains_map _output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;

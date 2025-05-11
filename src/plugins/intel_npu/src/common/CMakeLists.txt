@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,7 +20,7 @@ target_link_libraries(${TARGET_NAME}
     PUBLIC
         openvino::npu_al
         openvino::npu_logger_utils
-        openvino::runtime::dev
+        openvino::npu_zero_utils
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

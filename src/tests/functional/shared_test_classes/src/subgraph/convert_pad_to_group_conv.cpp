@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/convert_pad_to_group_conv.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace ov {
 namespace test {

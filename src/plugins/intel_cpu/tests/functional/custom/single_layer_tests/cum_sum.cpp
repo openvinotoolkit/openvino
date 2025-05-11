@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/cum_sum.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -60,7 +61,7 @@ protected:
             ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, std::vector<int64_t>{axis})->output(0);
         auto cumSum = std::make_shared<ov::op::v0::CumSum>(params[0], axisNode, exclusive, reverse);
 
-        function = std::make_shared<ov::Model>(ov::NodeVector{cumSum}, params, "CumSumLayerCPUTest");
+        function = std::make_shared<ov::Model>(ov::OutputVector{cumSum}, params, "CumSumLayerCPUTest");
         functionRefs = function->clone();
     }
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,7 +63,7 @@ private:
     static std::shared_ptr<Model> CreateFunction(const ShuffleChannelsParams& params) {
         const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto function = std::make_shared<op::v0::ShuffleChannels>(data, params.axis, params.group);
-        return std::make_shared<Model>(NodeVector{function}, ParameterVector{data});
+        return std::make_shared<Model>(OutputVector{function}, ParameterVector{data});
     }
 };
 

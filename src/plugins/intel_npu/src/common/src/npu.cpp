@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,10 @@ void* IEngineBackend::getContext() const {
 
 void IEngineBackend::registerOptions(OptionsDesc&) const {}
 
+const std::shared_ptr<ZeroInitStructsHolder> IEngineBackend::getInitStructs() const {
+    return nullptr;
+}
+
 IDevice::Uuid IDevice::getUuid() const {
     OPENVINO_THROW("Get UUID not supported");
 }
@@ -73,23 +77,6 @@ ov::device::Type IDevice::getDeviceType() const {
 
 std::map<ov::element::Type, float> IDevice::getGops() const {
     OPENVINO_THROW("Get DEVICE_GOPS is not supported");
-}
-
-ov::SoPtr<ov::IRemoteTensor> IDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext>,
-                                                         const ov::element::Type&,
-                                                         const ov::Shape&,
-                                                         const Config&,
-                                                         ov::intel_npu::TensorType,
-                                                         ov::intel_npu::MemType,
-                                                         void*) {
-    OPENVINO_THROW("Create Remote Tensor is not supported");
-}
-
-ov::SoPtr<ov::ITensor> IDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext>,
-                                                 const ov::element::Type&,
-                                                 const ov::Shape&,
-                                                 const Config&) {
-    OPENVINO_THROW("Create Host Tensor is not supported");
 }
 
 }  // namespace intel_npu

@@ -54,7 +54,7 @@ std::vector<layout> rope_inst::calc_output_layouts(rope_node const& node, kernel
             output_shape[3] = input_slice_size;
         }
 
-        if (desc->config.input_trans0213 || desc->config.is_interleaved) {
+        if (desc->config.input_trans0213 || desc->config.output_trans0213) {
             std::swap(output_shape[2], output_shape[1]);
         }
     }
@@ -77,6 +77,7 @@ std::string rope_inst::to_string(rope_node const& node) {
     rope_info.add("input_trans0213", desc->config.input_trans0213);
     rope_info.add("is_chatglm", desc->config.is_chatglm);
     rope_info.add("support_2d_rope", desc->config.support_2d_rope);
+    rope_info.add("output_trans0213", desc->config.output_trans0213);
     rope_info.add("is_interleaved", desc->config.is_interleaved);
     rope_info.add("is_qwen", desc->config.is_qwen);
     rope_info.add("rotary_ndims", desc->config.rotary_ndims);

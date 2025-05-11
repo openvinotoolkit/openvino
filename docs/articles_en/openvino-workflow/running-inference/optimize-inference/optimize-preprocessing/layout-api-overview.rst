@@ -22,8 +22,7 @@ Below is a list of cases where input/output layout is important:
 * Doing the same operations as used during the model conversion phase. For more information, refer to the:
 
   * :doc:`Convert to OpenVINO <../../../model-preparation/convert-model-to-ir>`
-  * `OpenVINO Model Conversion Tutorial <https://docs.openvino.ai/2024/notebooks/convert-to-openvino-with-output.html>`__
-  * :doc:`[LEGACY] Model Optimizer Embedding Preprocessing Computation <../../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>` guide.
+  * `OpenVINO Model Conversion Tutorial <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/convert-to-openvino>`__
 
 * Improving the readability of a model input and output.
 

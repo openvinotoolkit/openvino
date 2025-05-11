@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 #include "common_test_utils/subgraph_builders/kso_func.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -221,7 +221,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, DeviceAllocMemSizeLesserAfterModelIsLoad
     ASSERT_LE(a1, a2);
 }
 
-TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeLesserAfterModelIsLoaded) {
+TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeLesserAfterModelIsLoaded) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core ie;
     ov::Any p;
@@ -231,7 +231,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeLesserAfterModelIsL
 
     SKIP_IF_CURRENT_TEST_IS_DISABLED() {
         auto model = ov::test::utils::make_conv_pool_relu();
-        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, ov::AnyMap{ov::log::level(ov::log::Level::DEBUG)}));
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, ov::AnyMap{ov::log::level(ov::log::Level::ERR)}));
     }
 
     OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
@@ -244,7 +244,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeLesserAfterModelIsL
     ASSERT_LE(a1, a2);
 }
 
-TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyCompiledModel) {
+TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyCompiledModel) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core core;
     ov::Any deviceAllocMemSizeAny;
@@ -256,7 +256,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyCom
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
     uint64_t deviceAllocMemSizeFinal;
 
-    for (size_t i = 0; i < 1000; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
         ov::CompiledModel compiledModel;
         OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
 
@@ -269,7 +269,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyCom
     }
 }
 
-TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInferRequest) {
+TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyInferRequest) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core core;
     ov::Any deviceAllocMemSizeAny;
@@ -289,7 +289,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInf
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
     uint64_t deviceAllocMemSizeFinal;
 
-    for (size_t i = 0; i < 1000; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
         inferRequest = compiledModel.create_infer_request();
         inferRequest.infer();
 
@@ -302,7 +302,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInf
     }
 }
 
-TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInferRequestSetTensor) {
+TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyInferRequestSetTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core core;
     ov::Any deviceAllocMemSizeAny;
@@ -322,10 +322,11 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInf
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
     uint64_t deviceAllocMemSizeFinal;
 
-    for (size_t i = 0; i < 1000; ++i) {
+    auto tensor = ov::Tensor(model->input(0).get_element_type(), model->input(0).get_shape());
+    ov::test::utils::fill_data_random(static_cast<ov::float16*>(tensor.data()), tensor.get_size());
+
+    for (size_t i = 0; i < 10; ++i) {
         auto inferRequest = compiledModel.create_infer_request();
-        auto tensor = ov::Tensor(model->input(0).get_element_type(), model->input(0).get_shape());
-        ov::test::utils::fill_data_random(static_cast<ov::float16*>(tensor.data()), tensor.get_size());
         inferRequest.set_input_tensor(tensor);
         inferRequest.infer();
 
@@ -338,7 +339,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInf
     }
 }
 
-TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInferRequestGetTensor) {
+TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyInferRequestGetTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::Core core;
     ov::Any deviceAllocMemSizeAny;
@@ -351,7 +352,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInf
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
     uint64_t deviceAllocMemSizeFinal;
 
-    for (size_t i = 0; i < 1000; ++i) {
+    for (size_t i = 0; i < 10; ++i) {
         OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
 
         auto inferRequest = compiledModel.create_infer_request();

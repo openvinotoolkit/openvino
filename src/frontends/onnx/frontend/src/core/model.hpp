@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,7 +103,7 @@ public:
     std::int64_t get_opset_version(const std::string& domain) {
         try {
             return ov::frontend::onnx::get_opset_version(*this->m_model_proto, domain);
-        } catch (ov::Exception const&) {
+        } catch (const ov::Exception&) {
             return -1;
         }
     }

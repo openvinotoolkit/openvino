@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,8 @@
 #include "ov_lpt_models/concat.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/concat.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -150,7 +152,7 @@ public:
             testValues.actual.dequantization2,
             true,
             {},
-            ov::element::undefined,
+            ov::element::dynamic,
             {},
             testValues.axis,
             testValues.addNotPrecisionPreservedOperation);

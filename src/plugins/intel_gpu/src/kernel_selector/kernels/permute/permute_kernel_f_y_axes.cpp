@@ -19,12 +19,12 @@ constexpr size_t cSimpleMemCopyOpDivider = 4UL;
 constexpr size_t c3DTransposeBufHeight = 4UL;
 
 size_t GetDivisor(const size_t input_size) {
-    std::vector<size_t> v = {/*32,*/ 16, 8, 4, 2, 1};
-    auto is_divided = [input_size](size_t i) {
-        return input_size % i == 0;
-    };
-    auto result = std::find_if(begin(v), end(v), is_divided);
-    return *result;
+    for (size_t d : {16, 8, 4, 2}) {
+        if (input_size % d == 0)
+            return d;
+    }
+
+    return 1; // Fallback: Any integer divides evenly by 1
 }
 
 bool IsSimpleMemCopyOperation(const permute_params& params) {
@@ -145,6 +145,8 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
         jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     }
 
+    jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
+
     if (!params.fused_ops.empty()) {
         const std::vector<std::string> original_output_order = {"b_idx", "f_out_idx", "y_out_idx", "x_idx"};
         const FusedOpsConfiguration conf_scalar = {"", original_output_order, "res", params.inputs[0].GetDType(), 1};
@@ -214,6 +216,8 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
     const auto& params = dynamic_cast<const permute_params&>(p);
     const auto& in = params.inputs[0];
     const auto in_layout = in.GetLayout();
+    const auto& out = params.outputs[0];
+    const auto& out_layout = out.GetLayout();
 
     const auto feature_div = GetDivisor(in.Feature().v);
     const auto y_div = GetDivisor(in.Y().v);
@@ -224,6 +228,10 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
         return false;
     }
     if (!is_swapping_f_with_y(params.order)) {
+        return false;
+    }
+
+    if (in_layout != out_layout) {
         return false;
     }
 

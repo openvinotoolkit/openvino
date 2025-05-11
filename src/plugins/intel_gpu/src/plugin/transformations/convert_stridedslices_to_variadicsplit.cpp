@@ -15,8 +15,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
     using namespace ov::pass::pattern;
@@ -31,7 +30,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                 return false;
             user_count++;
         }
-        return (user_count == num_users_to_fuse) && consumers_count(num_users_to_fuse);
+        return (user_count == num_users_to_fuse) && consumers_count(num_users_to_fuse)(output);
     };
 
     auto data_m = any_input();
@@ -39,17 +38,17 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
     auto bias_m = any_input();
     auto fully_connected_compressed_m = wrap_type<op::FullyConnectedCompressed>({data_m, weights_m, bias_m, any_input(), any_input()}, fc_predicate);
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
-        auto fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(m.get_match_root());
+        auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
         ov::NodeVector strided_slice_nodes;
         std::vector<int64_t> split_lengths;
         int64_t begin_offset = 0;
         int64_t end_offset = 0;
         for (const auto& user : fc->get_users()) {
-            const auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(user);
+            const auto strided_slice_node = ov::as_type_ptr<ov::op::v1::StridedSlice>(user);
             if (strided_slice_node) {
                 auto valid_ps = [](const ov::PartialShape& shape) -> bool {
                     return shape.rank().is_static() && shape[shape.rank().get_length() - 1].is_static();
@@ -87,7 +86,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                     }
                     return true;
                 };
-                auto begin_node = strided_slice_node->get_input_node_shared_ptr(1);
+                auto begin_node = strided_slice_node->input_value(1);
                 if (const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node)) {
                     auto values = begin_constant_node->cast_vector<int64_t>();
                     auto begin_mask = strided_slice_node->get_begin_mask();
@@ -101,9 +100,9 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                     return false;
                 }
 
-                auto end_node = strided_slice_node->get_input_node_shared_ptr(2);
+                auto end_node = strided_slice_node->input_value(2);
                 if (const auto& end_constant_node = ov::util::get_constant_from_source(end_node)) {
-                    int64_t max_value = end_node->get_element_type() == ov::element::i32 ? std::numeric_limits<int32_t>::max()
+                    int64_t max_value = end_node.get_node()->get_element_type() == ov::element::i32 ? std::numeric_limits<int32_t>::max()
                                                                                          : std::numeric_limits<int64_t>::max();
                     auto values = end_constant_node->cast_vector<int64_t>();
                     auto end_mask = strided_slice_node->get_end_mask();
@@ -146,5 +145,4 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

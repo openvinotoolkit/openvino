@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,10 +42,7 @@ TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
     mem_w->add_control_dependency(mem_r);
     sum->add_control_dependency(mem_w);
 
-    auto model = std::make_shared<ov::Model>(
-        ov::NodeVector      {sum},
-        ov::ParameterVector {input},
-        "SimpleNet");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sum}, ov::ParameterVector{input}, "SimpleNet");
 
     // Load into plugin and get exec graph
     auto core  = ov::Core();

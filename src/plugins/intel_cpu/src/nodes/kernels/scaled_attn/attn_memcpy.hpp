@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -7,13 +7,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+
 #include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
-namespace ov {
-namespace Extensions {
-namespace Cpu {
-namespace XARCH {
+namespace ov::Extensions::Cpu::XARCH {
 
 void attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
                  const ov::intel_cpu::PlainTensor& v_input,
@@ -35,7 +33,4 @@ void attn_memcpy2d_kernel(void* src,
                           size_t width,
                           size_t height);
 
-}  // namespace XARCH
-}  // namespace Cpu
-}  // namespace Extensions
-}  // namespace ov
+}  // namespace ov::Extensions::Cpu::XARCH

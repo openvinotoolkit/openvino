@@ -3,9 +3,9 @@
 //
 
 #include "intel_gpu/op/kv_cache.hpp"
+#include "intel_gpu/op/kv_cache_compressed.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
-#include "intel_gpu/runtime/optionals.hpp"
 #include "kv_cache_inst.h"
 #include "primitive_type_base.h"
 #include <sstream>
@@ -29,19 +29,39 @@ template<typename ShapeType>
 std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<kv_cache>();
 
-    ov::intel_gpu::op::KVCache op;
-    op.set_output_size(desc->num_outputs);
-    op.set_concat_axis(desc->concat_axis);
-    op.set_gather_axis(desc->gather_axis);
-
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>(),
                                            impl_param.get_input_layout(1).get<ShapeType>()};
-    if (desc->num_outputs > 1)
+    if (desc->indirect) {
         input_shapes.push_back(impl_param.get_input_layout(2).get<ShapeType>());
+    }
 
-    std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
+    if (desc->compressed) {
+        input_shapes.push_back(impl_param.get_input_layout(3).get<ShapeType>());
 
-    static const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}};
+        if (desc->get_compression_zp_inputs_num() > 0) {
+            input_shapes.push_back(impl_param.get_input_layout(4).get<ShapeType>());
+        }
+    }
+
+    std::vector<ShapeType> output_shapes;
+    if (desc->compressed) {
+        ov::intel_gpu::op::KVCacheCompressed op;
+        op.set_output_size(desc->num_outputs);
+        op.set_concat_axis(desc->concat_axis);
+        op.set_gather_axis(desc->gather_axis);
+        op.set_quantization_attrs(desc->quantization_attributes);
+
+        output_shapes = shape_infer(&op, input_shapes);
+    } else {
+        ov::intel_gpu::op::KVCache op;
+        op.set_output_size(desc->num_outputs);
+        op.set_concat_axis(desc->concat_axis);
+        op.set_gather_axis(desc->gather_axis);
+
+        output_shapes = shape_infer(&op, input_shapes);
+    }
+
+    static const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}, {2, 3}, {3, 4}};
 
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->num_outputs; i++) {
@@ -64,6 +84,9 @@ std::string kv_cache_inst::to_string(const kv_cache_node& node) {
     kv_cache_info.add("concat axis", node.get_primitive()->concat_axis);
     kv_cache_info.add("gather axis", node.get_primitive()->gather_axis);
     kv_cache_info.add("indirect", node.get_primitive()->indirect);
+    kv_cache_info.add("compressed", node.get_primitive()->compressed);
+    kv_cache_info.add("output_storage_type", static_cast<int>(node.get_primitive()->quantization_attributes.output_storage_type));
+    kv_cache_info.add("scales_zp_output_order", node.get_primitive()->quantization_attributes.scales_zp_output_order);
     node_info->add("kv_cache info", kv_cache_info);
     std::stringstream primitive_description;
     node_info->dump(primitive_description);
@@ -93,8 +116,8 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
 
     size_t i = 0;
     // [kv_state, kv_new_token, [beam_idx, bt_past]]
-    for (i = 0; i < _node->get_dependencies().size(); i++) {
-        const auto& node_in_lay = _node->get_input_layout(i);
+    for (i = 0; i < get_node().get_dependencies().size(); i++) {
+        const auto& node_in_lay = get_node().get_input_layout(i);
         const auto& runtime_in_lay = params.input_layouts[i];
 
         GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
@@ -118,9 +141,9 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
         fill_shape_info_data(bt_layout, bt_state->get_initial_layout(), shape_info_ptr, offset);
     }
 
-    for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
+    for (size_t i = 0; i < get_node().get_output_layouts().size(); i++) {
         GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for output[" << i << "]" << std::endl;
-        const auto& node_out_lay = _node->get_output_layout(i);
+        const auto& node_out_lay = get_node().get_output_layout(i);
         const auto& runtime_out_lay = params.output_layouts[i];
         fill_shape_info_data(runtime_out_lay, node_out_lay, shape_info_ptr, offset);
     }

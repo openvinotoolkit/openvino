@@ -17,9 +17,9 @@
 #include "openvino/op/matmul.hpp"
 
 #include <unordered_map>
+#include "openvino/core/graph_util.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 namespace {
 using LabelDimMap = std::unordered_map<std::string, std::vector<size_t>>;
@@ -896,7 +896,7 @@ void contract_two_inputs(EinsumDecomposition* einsum_decompose_ptr,
 
 EinsumDecomposition::EinsumDecomposition() {
     ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
-        auto einsum_node = std::dynamic_pointer_cast<ov::op::v7::Einsum>(m.get_match_root());
+        auto einsum_node = ov::as_type_ptr<ov::op::v7::Einsum>(m.get_match_root());
         if (!einsum_node) {
             return false;
         }
@@ -948,5 +948,4 @@ EinsumDecomposition::EinsumDecomposition() {
     register_matcher(matcher, callback);
 }
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

@@ -33,11 +33,11 @@ public:
     Group(const std::shared_ptr<ov::Node>& node,
           size_t gid,
           own::ade::NodeHandle nh,
-          const std::shared_ptr<own::ade::Graph>& g,
+          const std::weak_ptr<own::ade::Graph>& g,
           const std::weak_ptr<Snapshot>& snapshot);
     Group(size_t gid,
           own::ade::NodeHandle nh,
-          const std::shared_ptr<own::ade::Graph>& g,
+          const std::weak_ptr<own::ade::Graph>& g,
           const std::weak_ptr<Snapshot>& snapshot);
 
     // After we formed a final structure of partitioning,
@@ -100,7 +100,7 @@ private:
 
     own::ade::NodeHandle m_nh;
     size_t m_id;  // used for utility prints only
-    std::shared_ptr<own::ade::Graph> m_graph;
+    std::weak_ptr<own::ade::Graph> m_graph;
     std::weak_ptr<Snapshot> m_snapshot;
     bool m_frozen = false;
     bool m_nofold = false;

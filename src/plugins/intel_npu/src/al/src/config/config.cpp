@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,14 @@ int32_t OptionParser<int32_t>::parse(std::string_view val) {
         return std::stol(val.data());
     } catch (...) {
         OPENVINO_THROW("Value '%s' is not a valid INT32 option", val.data());
+    }
+}
+
+uint32_t OptionParser<uint32_t>::parse(std::string_view val) {
+    try {
+        return std::stoul(val.data());
+    } catch (...) {
+        OPENVINO_THROW("Value '%s' is not a valid UINT32 option", val.data());
     }
 }
 
@@ -167,6 +175,23 @@ details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) c
     return desc;
 }
 
+void OptionsDesc::reset() {
+    _impl.clear();
+}
+
+bool OptionsDesc::has(std::string_view key) const {
+    std::string searchKey{key};
+    const auto itDeprecated = _deprecated.find(searchKey);
+    if (itDeprecated != _deprecated.end()) {
+        return true;
+    }
+    const auto itMain = _impl.find(searchKey);
+    if (itMain != _impl.end()) {
+        return true;
+    }
+    return false;
+}
+
 std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     std::vector<std::string> res;
     res.reserve(_impl.size());
@@ -174,6 +199,32 @@ std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
     for (const auto& p : _impl) {
         if (p.second.isPublic() || includePrivate) {
             res.push_back(p.first);
+        }
+    }
+
+    return res;
+}
+
+std::vector<ov::PropertyName> OptionsDesc::getSupportedOptions(bool includePrivate) const {
+    std::vector<ov::PropertyName> res;
+    res.reserve(_impl.size());
+
+    for (const auto& p : _impl) {
+        if (p.second.isPublic() || includePrivate) {
+            res.push_back({p.first, p.second.mutability()});
+        }
+    }
+
+    return res;
+}
+
+std::string OptionsDesc::getSupportedAsString(bool includePrivate) const {
+    std::string res;
+
+    for (const auto& p : _impl) {
+        if (p.second.isPublic() || includePrivate) {
+            res += p.first;
+            res += " ";
         }
     }
 
@@ -211,6 +262,10 @@ void Config::parseEnvVars() {
     });
 }
 
+bool Config::has(std::string key) const {
+    return _impl.count(key) != 0;
+}
+
 void Config::update(const ConfigMap& options, OptionMode mode) {
     auto log = Logger::global().clone("Config");
 
@@ -227,6 +282,7 @@ std::string Config::toString() const {
     for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
         const auto& key = it->first;
 
+        // include only enabled configs
         resultStream << key << "=\"" << it->second->toString() << "\"";
         if (std::next(it) != _impl.end()) {
             resultStream << " ";
@@ -234,6 +290,31 @@ std::string Config::toString() const {
     }
 
     return resultStream.str();
+}
+
+void Config::fromString(const std::string& str) {
+    std::map<std::string, std::string> config;
+    std::string str_cfg(str);
+
+    auto parse_token = [&](const std::string& token) {
+        auto pos_eq = token.find('=');
+        auto key = token.substr(0, pos_eq);
+        auto value = token.substr(pos_eq + 2, token.size() - pos_eq - 3);
+        config[key] = std::move(value);
+    };
+
+    size_t pos = 0;
+    std::string token, key, value;
+    while ((pos = str_cfg.find(' ')) != std::string::npos) {
+        token = str_cfg.substr(0, pos);
+        parse_token(token);
+        str_cfg.erase(0, pos + 1);
+    }
+
+    // Process tail
+    parse_token(str_cfg);
+
+    update(config);
 }
 
 //

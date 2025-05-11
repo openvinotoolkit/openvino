@@ -52,9 +52,6 @@
 [submodule "thirdparty/onednn_gpu"]
 	path = src/plugins/intel_gpu/thirdparty/onednn_gpu
 	url = https://github.com/oneapi-src/oneDNN.git
-[submodule "tools/pot/thirdparty/open_model_zoo"]
-	path = thirdparty/open_model_zoo
-	url = https://github.com/openvinotoolkit/open_model_zoo.git
 [submodule "thirdparty/json/nlohmann_json"]
 	path = thirdparty/json/nlohmann_json
 	url = https://github.com/nlohmann/json.git
@@ -90,3 +87,9 @@
 [submodule "src/plugins/intel_cpu/thirdparty/shl"]
 	path = src/plugins/intel_cpu/thirdparty/shl
 	url = https://github.com/openvinotoolkit/shl.git
+[submodule "src/plugins/intel_cpu/thirdparty/kleidiai"]
+	path = src/plugins/intel_cpu/thirdparty/kleidiai
+	url = https://github.com/ARM-software/kleidiai.git
+[submodule "src/plugins/intel_cpu/thirdparty/xbyak_riscv"]
+	path = src/plugins/intel_cpu/thirdparty/xbyak_riscv
+	url = https://github.com/herumi/xbyak_riscv.git

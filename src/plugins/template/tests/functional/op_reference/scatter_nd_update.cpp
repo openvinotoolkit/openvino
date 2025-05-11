@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,7 +88,7 @@ private:
                                                                 params.updateTensor.shape,
                                                                 params.updateTensor.data.data());
         const auto scatter = std::make_shared<op::v3::ScatterNDUpdate>(data, indices, updates);
-        return std::make_shared<ov::Model>(NodeVector{scatter}, ParameterVector{data});
+        return std::make_shared<ov::Model>(OutputVector{scatter}, ParameterVector{data});
     }
 };
 
@@ -121,7 +121,7 @@ private:
                                                                 params.updateTensor.shape,
                                                                 params.updateTensor.data.data());
         const auto scatter = std::make_shared<op::v15::ScatterNDUpdate>(data, indices, updates, params.reduction);
-        return std::make_shared<ov::Model>(NodeVector{scatter}, ParameterVector{data});
+        return std::make_shared<ov::Model>(OutputVector{scatter}, ParameterVector{data});
     }
 };
 

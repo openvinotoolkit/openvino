@@ -1,20 +1,17 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/lstm_cell.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
 
-class LSTMCellV4StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v4::LSTMCell> {
-protected:
-    void SetUp() override {
-        this->output_shapes = ShapeVector(2);
-    }
-};
+class LSTMCellV4StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v4::LSTMCell> {};
 
 TEST_F(LSTMCellV4StaticShapeInferenceTest, default_ctor) {
     const size_t batch_size = 2;
@@ -72,7 +69,7 @@ TEST(StaticShapeInferenceTest, LSTMCellV0Test) {
     const auto H_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
     const auto C_t = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1});
     const auto Bias = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1});
-    const auto Peelhole = op::v0::Constant::create(element::f32, Shape{3 * hidden_size}, std::vector<float>{0.f});
+    const auto Peelhole = op::v0::Constant::create(element::f32, ov::Shape{3 * hidden_size}, std::vector<float>{0.f});
     const auto lstm_cell = std::make_shared<op::v0::LSTMCell>(X, H_t, C_t, W, R, Bias, Peelhole, hidden_size);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{batch_size, input_size},

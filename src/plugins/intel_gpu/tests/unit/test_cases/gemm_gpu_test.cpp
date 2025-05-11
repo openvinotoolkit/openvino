@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -473,6 +473,9 @@ public:
             config.set_property(ov::intel_gpu::optimize_data(true));
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
+            ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::ocl };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_ref", gemm_impl} }));
+
             network network(engine, topology, config);
             network.set_input_data("input1", input1_mem);
             network.set_input_data("input2", input2_mem);
@@ -498,6 +501,10 @@ public:
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::ocl };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }));
+
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input1", input1_mem);
         network->set_input_data("input2", input2_mem);
@@ -1246,10 +1253,12 @@ public:
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
 
-        auto inst = network->get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        if (!engine.get_device_info().supports_immad) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        }
 
         auto outputs = network->execute();
 
@@ -1533,10 +1542,12 @@ public:
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);
 
-        auto inst = network->get_primitive("gemm");
-        auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        if (!engine.get_device_info().supports_immad) {
+            auto inst = network->get_primitive("gemm");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic() == is_input_dynamic);
+        }
 
         auto outputs = network->execute();
 
@@ -2612,7 +2623,7 @@ public:
         }
         auto outputs = network->execute();
         auto output = outputs.at("reorder_bfyx").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         const float threshold_int8 = 1.f;
         const float threshold_fp16 = 1e-1;
@@ -2853,13 +2864,15 @@ public:
 
         auto inst = network->get_primitive("gemm");
         auto impl = inst->get_impl();
-        ASSERT_TRUE(impl != nullptr);
-        ASSERT_TRUE(impl->is_dynamic());
+        if (!engine.get_device_info().supports_immad) {
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
 
         auto outputs = network->execute();
 
         auto output = outputs.at("gemm").get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), (uint32_t)3);
         for (uint32_t i = 0; i < out_data.size(); ++i) {
@@ -2870,7 +2883,7 @@ public:
         network->get_program()->get_compilation_context().wait_all();
 
         auto& lo = network->get_program()->get_layout_optimizer();
-        ASSERT_TRUE(lo.get_optimization_attributes().use_onednn_impls);
+        ASSERT_TRUE(lo.has_all_enabled_onednn_impls_optimization_attribute());
 
         // Check if OneDNN's impl is used for the next execute() call
         network->execute();
@@ -3076,8 +3089,8 @@ public:
 
         auto ref_res = get_ref_results();
 
-        mem_lock<ov::float16> res_lock(res, get_test_stream());
-        mem_lock<ov::float16> res_ref_lock(ref_res, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> res_lock(res, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> res_ref_lock(ref_res, get_test_stream());
         for (size_t i = 0; i < res->count(); i++) {
             ASSERT_EQ(res_lock[i], res_ref_lock[i]) << i;
         }
@@ -3212,8 +3225,8 @@ public:
 
         auto ref_res = get_ref_results();
 
-        mem_lock<ov::float16> res_lock(res, get_test_stream());
-        mem_lock<ov::float16> res_ref_lock(ref_res, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> res_lock(res, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> res_ref_lock(ref_res, get_test_stream());
         for (size_t i = 0; i < res->count(); i++) {
             ASSERT_EQ(res_lock[i], res_ref_lock[i]) << i;
         }
@@ -3227,7 +3240,7 @@ public:
 
         auto res_onednn = engine.reinterpret_buffer(*output_mem_onednn, output_layout_onednn);
 
-        mem_lock<ov::float16> res_lock_onednn(res_onednn, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> res_lock_onednn(res_onednn, get_test_stream());
         for (size_t i = 0; i < res->count(); i++) {
             ASSERT_EQ(res_lock_onednn[i], res_ref_lock[i]) << i;
         }

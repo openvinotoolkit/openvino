@@ -7,8 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/core/visibility.hpp"
 
-namespace ov {
-namespace intel_gpu {
+namespace ov::intel_gpu {
 
 /**
  * @brief EinsumDecomposition transformation decomposes Einsum-7 operation into a sub-graph with more simple operations:
@@ -16,8 +15,8 @@ namespace intel_gpu {
  */
 class EinsumDecomposition : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("EinsumDecomposition");
     EinsumDecomposition();
 };
 
-}  // namespace intel_gpu
-}  // namespace ov
+}  // namespace ov::intel_gpu

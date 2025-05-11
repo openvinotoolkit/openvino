@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ private:
                                                  const int64_t axis) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto LogSoftmax = std::make_shared<op::v5::LogSoftmax>(in, axis);
-        return std::make_shared<ov::Model>(NodeVector{LogSoftmax}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{LogSoftmax}, ParameterVector{in});
     }
 };
 

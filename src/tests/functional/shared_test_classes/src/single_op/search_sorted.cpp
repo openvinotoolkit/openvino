@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/search_sorted.hpp"
 
 namespace ov {
 namespace test {
@@ -88,11 +89,30 @@ void SearchSortedLayerTest::SetUp() {
 
 const std::vector<SearchSortedSpecificParams> SearchSortedLayerTest::GenerateParams() {
     const std::vector<SearchSortedSpecificParams> params = {
+        SearchSortedSpecificParams{InputShape{PartialShape::dynamic(3), {{1, 18, 104}}},
+                                   InputShape{PartialShape::dynamic(3), {{1, 18, 104}}},
+                                   true},
+        SearchSortedSpecificParams{InputShape{PartialShape::dynamic(4), {{1, 2, 3, 100}}},
+                                   InputShape{PartialShape::dynamic(4), {{1, 2, 3, 10}}},
+                                   true},
+        SearchSortedSpecificParams{InputShape{PartialShape::dynamic(5), {{2, 1, 2, 3, 10}}},
+                                   InputShape{PartialShape::dynamic(5), {{2, 1, 2, 3, 20}}},
+                                   false},
+        SearchSortedSpecificParams{InputShape{PartialShape::dynamic(1), {{1}}},
+                                   InputShape{PartialShape::dynamic(5), {{2, 1, 2, 3, 20}}},
+                                   false},
+        SearchSortedSpecificParams{InputShape{PartialShape::dynamic(1), {{50}}},
+                                   InputShape{{1, -1, 10}, {{1, 18, 10}}},
+                                   false},
         SearchSortedSpecificParams{InputShape{{}, {{1, 18, 104}}}, InputShape{{}, {{1, 18, 104}}}, true},
         SearchSortedSpecificParams{InputShape{{}, {{1, 2, 3, 100}}}, InputShape{{}, {{1, 2, 3, 10}}}, true},
         SearchSortedSpecificParams{InputShape{{}, {{2, 1, 2, 3, 10}}}, InputShape{{}, {{2, 1, 2, 3, 20}}}, false},
         SearchSortedSpecificParams{InputShape{{}, {{1}}}, InputShape{{}, {{2, 1, 2, 3, 20}}}, false},
         SearchSortedSpecificParams{InputShape{{}, {{50}}}, InputShape{{1, -1, 10}, {{1, 18, 10}}}, false},
+        SearchSortedSpecificParams{InputShape{{2, -1, 50}, {{2, 3, 50}}},
+                                   InputShape{{-1, -1, 10}, {{2, 3, 10}}},
+                                   false},
+        SearchSortedSpecificParams{InputShape{{2, -1, 50}, {{2, 3, 50}}}, InputShape{{-1, 3, 10}, {{2, 3, 10}}}, false},
     };
 
     return params;

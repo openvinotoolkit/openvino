@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ enum class KernelType {
     ARG_MAX_MIN,
     BEAM_TABLE_UPDATE,
     PA_KV_CACHE_UPDATE,
+    PA_KV_CACHE_ROTATE,
     PA_SDPA,
     CONVOLUTION,
     DECONVOLUTION,
@@ -36,13 +37,14 @@ enum class KernelType {
     COUNT_NONZERO,
     GATHER_NONZERO,
     GROUP_NORMALIZATION,
+    GRU_SEQ_CELL,
     PERMUTE,
     CONCATENATION,
     RESAMPLE,
     REGION_YOLO,
     REORG_YOLO,
     MVN,
-    LSTM_ELT,
+    LSTM_SEQ_CELL,
     BORDER,
     TILE,
     SELECT,
@@ -101,7 +103,11 @@ enum class KernelType {
     RMS,
     SWIGLU,
     ROPE,
-    DYNAMIC_QUANTIZE
+    DYNAMIC_QUANTIZE,
+    SEARCH_SORTED,
+    STFT,
+    ISTFT,
+    COL2IM
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

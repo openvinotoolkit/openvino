@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -7,22 +7,19 @@
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "onednn/iml_type_mapper.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class MlasGemmExecutor : public Executor {
 public:
-    MlasGemmExecutor(const FCAttrs& attrs,
-                     const PostOps& postOps,
-                     const MemoryArgs& memory,
-                     const ExecutorContext::CPtr context);
+    MlasGemmExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
     void execute(const MemoryArgs& memory) override;
 
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::gemm_mlas;
     }
 
@@ -43,5 +40,4 @@ private:
 
 using MlasGemmExecutorPtr = std::shared_ptr<MlasGemmExecutor>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

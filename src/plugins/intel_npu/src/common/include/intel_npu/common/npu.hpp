@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,10 @@
 #include <cstdint>
 
 #include "intel_npu/common/icompiled_model.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/sync_infer_request.hpp"
 #include "intel_npu/config/config.hpp"
-#include "intel_npu/icompiler.hpp"
-#include "openvino/runtime/intel_npu/remote_properties.hpp"
-#include "openvino/runtime/iremote_context.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace intel_npu {
@@ -35,8 +34,6 @@ public:
     virtual uint32_t getGraphExtVersion() const;
     /** @brief Get name of backend */
     virtual const std::string getName() const = 0;
-    /** @brief Backend has support for concurrency batching */
-    virtual bool isBatchingSupported() const = 0;
     /** @brief Backend has support for workload type */
     virtual bool isCommandQueueExtSupported() const = 0;
     /** @brief Backend has support for LUID info */
@@ -47,6 +44,8 @@ public:
     virtual void* getContext() const;
     /** @brief Update backend and device info */
     virtual void updateInfo(const Config& config) = 0;
+    /** @brief Get LevelZero structures */
+    virtual const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const;
 
 protected:
     virtual ~IEngineBackend() = default;
@@ -54,22 +53,11 @@ protected:
 
 //------------------------------------------------------------------------------
 
-class IExecutor {
-public:
-    virtual ~IExecutor() = default;
-
-    virtual void setWorkloadType(const ov::WorkloadType workloadType) const = 0;
-};
-
 //------------------------------------------------------------------------------
 
 class IDevice : public std::enable_shared_from_this<IDevice> {
 public:
     using Uuid = ov::device::UUID;
-
-    virtual std::shared_ptr<IExecutor> createExecutor(
-        const std::shared_ptr<const NetworkDescription>& networkDescription,
-        const Config& config) = 0;
 
     virtual std::string getName() const = 0;
     virtual std::string getFullDeviceName() const = 0;
@@ -85,24 +73,9 @@ public:
 
     virtual std::shared_ptr<SyncInferRequest> createInferRequest(
         const std::shared_ptr<const ICompiledModel>& compiledModel,
-        const std::shared_ptr<IExecutor>& executor,
         const Config& config) = 0;
 
     virtual void updateInfo(const Config& config) = 0;
-
-    virtual ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(
-        std::shared_ptr<ov::IRemoteContext> context,
-        const ov::element::Type& element_type,
-        const ov::Shape& shape,
-        const Config& config,
-        ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
-        ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
-        void* mem = nullptr);
-
-    virtual ov::SoPtr<ov::ITensor> createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
-                                                    const ov::element::Type& element_type,
-                                                    const ov::Shape& shape,
-                                                    const Config& config);
 
 protected:
     virtual ~IDevice() = default;

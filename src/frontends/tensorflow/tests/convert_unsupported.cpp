@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_op) {
     ASSERT_THROW(frontEnd->convert(model), OpConversionFailure);
 
     for (auto& node : model->get_ordered_ops()) {
-        if (node->get_friendly_name() == "relu_0" && dynamic_pointer_cast<ov::op::util::FrameworkNode>(node)) {
+        if (node->get_friendly_name() == "relu_0" && ov::as_type_ptr<ov::op::util::FrameworkNode>(node)) {
             model->replace_node(node, make_shared<v0::Relu>(node->input(0).get_source_output()));
         }
     }

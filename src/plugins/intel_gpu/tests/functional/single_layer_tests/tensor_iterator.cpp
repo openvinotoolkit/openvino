@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,9 @@
 #include "common_test_utils/node_builders/gru_cell.hpp"
 #include "common_test_utils/node_builders/lstm_cell.hpp"
 #include "common_test_utils/node_builders/rnn_cell.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace {
 using TensorIteratorWithConfigParams = typename std::tuple<

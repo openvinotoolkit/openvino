@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 import torch
-from packaging import version
+from packaging.version import parse as parse_version
 
 from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
@@ -134,6 +134,66 @@ class TestBitwiseOperators(PytorchLayerTest):
             kwargs_to_prepare_input={
                 "lhs_dtype": lhs_dtype,
                 "rhs_dtype": rhs_dtype,
+                "lhs_shape": lhs_shape,
+                "rhs_shape": rhs_shape,
+            },
+            trace_model=True,
+            freeze_model=False,
+        )
+
+
+class TestBitwiseInplaceOp(PytorchLayerTest):
+    def _prepare_input(self, lhs_shape, rhs_shape, dtype):
+        choices = np.array([0, 1, 255, 7])
+        x = np.random.choice(choices, lhs_shape).astype(dtype)
+        y = np.random.choice(choices, rhs_shape).astype(dtype)
+        return x, y
+
+    def create_model(self, op):
+        class aten_bitwise(torch.nn.Module):
+            def __init__(self, op) -> None:
+                super().__init__()
+                if op == "aten::__ior__":
+                    self.forward = self.forward_or
+                if op == "aten::__iand__":
+                    self.forward = self.forward_and
+                if op == "aten::__ixor__":
+                    self.forward = self.forward_xor
+
+            def forward_or(self, lhs, rhs):
+                return lhs.__ior__(rhs)
+    
+            def forward_and(self, lhs, rhs):
+                return lhs.__iand__(rhs)
+    
+            def forward_xor(self, lhs, rhs):
+                return lhs.__ixor__(rhs)
+
+        return aten_bitwise(op), None, op
+
+    @pytest.mark.skipif(PytorchLayerTest.use_torch_export() and parse_version(torch.__version__) < parse_version("2.6.0"), reason="unsupported on pytorch before 2.6 with torch.export")
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("dtype", ["bool", "int32"])
+    @pytest.mark.parametrize(
+        ("lhs_shape", "rhs_shape"),
+        [
+            ([2, 3], [2, 3]),
+            ([2, 3], []),
+        ],
+    )
+    @pytest.mark.parametrize("op", ["aten::__ior__", "aten::__iand__", "aten::__ixor__"])
+    def test_bitwise_operators(self, op, dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version):
+        if ie_device == "GPU" and dtype != "bool":
+            pytest.xfail(reason="bitwise ops are not supported on GPU")
+        self._test(
+            *self.create_model(op),
+            ie_device,
+            precision,
+            ir_version,
+            kwargs_to_prepare_input={
+                "dtype": dtype,
                 "lhs_shape": lhs_shape,
                 "rhs_shape": rhs_shape,
             },

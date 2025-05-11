@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,10 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {

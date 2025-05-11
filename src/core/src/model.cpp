@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,7 @@ ov::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr<ov:
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::auto_detect_parameters");
     ov::ParameterVector parameter_vector;
     for (const auto& op : ordered_ops) {
-        if (const auto& param = dynamic_pointer_cast<ov::op::v0::Parameter>(op)) {
+        if (const auto& param = ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
             parameter_vector.push_back(param);
         }
     }
@@ -104,23 +104,23 @@ std::map<ov::Output<ov::Node>, ov::PartialShape> tensor_names_shapes_to_node_sha
     const std::map<std::string, ov::PartialShape>& partial_shapes) {
     std::map<ov::Output<ov::Node>, ov::PartialShape> const_pshape;
     std::unordered_map<ov::Node*, std::string> port_tensor_map;
-    for (const auto& it : partial_shapes) {
-        const auto port = model->input(it.first);
+    for (const auto& [name, shape] : partial_shapes) {
+        const auto port = model->input(name);
         if (port_tensor_map.find(port.get_node()) != port_tensor_map.end()) {
-            OPENVINO_ASSERT(it.second == const_pshape.at(port),
+            OPENVINO_ASSERT(shape == const_pshape.at(port),
                             "Tensor with names {'",
-                            it.first,
+                            name,
                             "', '",
                             port_tensor_map[port.get_node()],
                             "'} has "
                             "conflicting shapes ",
-                            it.second,
+                            shape,
                             " and ",
                             const_pshape.at(port),
                             ", but they define the same tensor");
         }
-        port_tensor_map[port.get_node()] = it.first;
-        const_pshape[port] = it.second;
+        port_tensor_map[port.get_node()] = name;
+        const_pshape[port] = shape;
     }
     return const_pshape;
 }
@@ -128,31 +128,13 @@ std::map<ov::Output<ov::Node>, ov::PartialShape> tensor_names_shapes_to_node_sha
 }  // namespace
 
 ov::Model::Model(const ResultVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : m_name(name),
-      m_unique_name("Model" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ov::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
-      m_results(results),
-      m_parameters(parameters) {
-    prerequirements(true, false);
-}
+    : Model(results, {}, parameters, name) {}
 
 ov::Model::Model(const OutputVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : m_name(name),
-      m_unique_name("Model" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ov::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
-      m_results(as_result_vector(results)),
-      m_parameters(parameters) {
-    prerequirements(true, false);
-}
+    : Model(as_result_vector(results), parameters, name) {}
 
 ov::Model::Model(const NodeVector& results, const ov::ParameterVector& parameters, const std::string& name)
-    : m_name(name),
-      m_unique_name("Model" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ov::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
-      m_results(as_result_vector(as_output_vector(results))),
-      m_parameters(parameters) {
-    prerequirements(true, false);
-}
+    : Model(as_output_vector(results), parameters, name) {}
 
 ov::Model::Model(const std::shared_ptr<Node>& result, const ov::ParameterVector& parameters, const std::string& name)
     : Model(verify_node(result)->outputs(), parameters, name) {}
@@ -220,6 +202,8 @@ ov::Model::Model(const ov::OutputVector& results, const ov::SinkVector& sinks, c
 }
 
 ov::Model::Model(const OutputVector& results, const string& name) : Model(results, ov::SinkVector{}, name) {}
+
+ov::Model::~Model() = default;
 
 void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::prerequirements");
@@ -304,23 +288,24 @@ std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
     lock_guard<mutex> lock(m_model_mutex);
 
     NodeVector nodes;
+    auto node_inserter = std::back_inserter(nodes);
     if (m_shared_rt_info->get_use_topological_cache()) {
         for (const auto& node : m_cached_ordered_ops) {
             if (auto locked_node = node.lock()) {
-                nodes.emplace_back(locked_node);
+                *node_inserter = locked_node;
             }
         }
         return nodes;
     }
 
     for (const auto& r : get_results()) {
-        nodes.emplace_back(r);
+        *node_inserter = r;
     }
     for (auto& r : get_sinks()) {
-        nodes.emplace_back(r);
+        *node_inserter = r;
     }
     for (auto& param : get_parameters()) {
-        nodes.push_back(param);
+        *node_inserter = param;
     }
 
     auto order = m_topological_sorter(nodes);
@@ -534,9 +519,8 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
     OutputVector outputs;
     std::map<RawNodeOutput, ov::Tensor> output_tensor_map;
     for (size_t i = 0; i < m_results.size(); ++i) {
-        auto result = m_results.at(i)->output(0);
-        output_tensor_map[result] = output_tensors.at(i);
-        outputs.push_back(result);
+        outputs.push_back(m_results.at(i)->output(0));
+        output_tensor_map[outputs.back()] = output_tensors.at(i);
     }
     for (const auto& m_sink : m_sinks) {
         outputs.push_back(m_sink);
@@ -949,8 +933,8 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
             return input.get_node()->output(0);
         }
     }
-    auto result = std::make_shared<ov::op::v0::Result>(port);
-    m_results.push_back(result);
+    m_results.emplace_back(std::make_shared<ov::op::v0::Result>(port, true));
+    auto& result = m_results.back();
     if (m_shared_rt_info->get_use_topological_cache()) {
         if (cache_valid()) {
             // Full update of topological cache is not needed, 'result' can be just inserted to the end
@@ -1182,3 +1166,5 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         OPENVINO_ASSERT(false, stream.str());
     }
 }
+
+ov::AttributeAdapter<std::shared_ptr<ov::Model>>::~AttributeAdapter() = default;

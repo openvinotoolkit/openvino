@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ class TRANSFORMATIONS_API SwishFusionWithoutBeta;
  */
 class ov::pass::SwishFusionWithSigmoid : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithSigmoid", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SwishFusionWithSigmoid");
     SwishFusionWithSigmoid();
 };
 
@@ -38,7 +38,7 @@ public:
  */
 class ov::pass::SwishFusionWithSigmoidWithBeta : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithSigmoidWithBeta", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SwishFusionWithSigmoidWithBeta");
     SwishFusionWithSigmoidWithBeta();
 };
 
@@ -48,7 +48,7 @@ public:
  */
 class ov::pass::SwishFusionWithBeta : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithBeta", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SwishFusionWithBeta");
     SwishFusionWithBeta();
 };
 
@@ -58,7 +58,7 @@ public:
  */
 class ov::pass::SwishFusionWithoutBeta : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("SwishFusionWithoutBeta", "0");
+    OPENVINO_MATCHER_PASS_RTTI("SwishFusionWithoutBeta");
     SwishFusionWithoutBeta();
 };
 
@@ -68,7 +68,7 @@ public:
  */
 class ov::pass::SwishFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("SwishFusion", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("SwishFusion");
     SwishFusion() {
         add_matcher<ov::pass::SwishFusionWithSigmoid>();
         add_matcher<ov::pass::SwishFusionWithSigmoidWithBeta>();

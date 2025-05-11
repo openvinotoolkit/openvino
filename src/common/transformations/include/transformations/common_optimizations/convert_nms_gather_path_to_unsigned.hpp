@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,6 @@ class TRANSFORMATIONS_API ConvertNmsGatherPathToUnsigned;
  */
 class ov::pass::ConvertNmsGatherPathToUnsigned : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("ConvertNmsGatherPathToUnsigned", "0");
+    OPENVINO_GRAPH_REWRITE_RTTI("ConvertNmsGatherPathToUnsigned");
     ConvertNmsGatherPathToUnsigned();
 };

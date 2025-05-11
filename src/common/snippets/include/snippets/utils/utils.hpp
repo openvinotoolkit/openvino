@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,6 +91,12 @@ static inline auto rnd_up(const T lhs, const U rhs) -> decltype(div_up(lhs, rhs)
     return div_up_res * rhs;
 }
 
+static inline bool is_planar_layout(const std::vector<size_t>& order) {
+    for (size_t i = 0; i < order.size(); ++i)
+        if (order[i] != i) return false;
+    return true;
+}
+
 inline bool is_dynamic_vdims(const VectorDims& shape) {
     return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return is_dynamic_value(v); });
 }
@@ -165,6 +171,8 @@ size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx);
 // get stride on dimenison of dim_idx
 // given shape [a,b,c,d], the stride is [b*c*d, c*d, d, 1]
 int64_t get_stride(size_t dim_idx, const VectorDims& shape);
+
+VectorDims get_planar_layout(size_t rank);
 
 /* ----- Shape `getters` ----- */
 /**
@@ -284,13 +292,35 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std
 std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node);
 
 /**
- *
  * @param Get stride of input/output dimension
  * @param expr_port target port that contains shape and layout info
  * @param idx index of the target dimension starting from the shape's end (default = 1)
  */
 
 int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx = 1);
+/**
+ * @brief Get stride of input dimension
+ * @param shape target shape
+ * @param layout target layout
+ * @param idx index of the target dimension starting from the shape's end (default = 1)
+ */
+int64_t get_dim_in_stride(const VectorDims& shape, const VectorDims& layout, size_t idx = 1);
+/**
+ * @brief Get stride of output dimension
+ * @param shape target shape
+ * @param layout target layout
+ * @param idx index of the target dimension starting from the shape's end (default = 1)
+ */
+int64_t get_dim_out_stride(const VectorDims& shape, const VectorDims& layout, size_t idx = 1);
+/**
+ * @brief Iniializes strides of shape
+ * @param shape target shape
+ * @param rank target rank
+ * @param data_size scale for offsets
+ * @param start_idx start index of offsets
+ * @param offsets target offsets to be inited
+ */
+void init_strides(const VectorDims& shape, size_t rank, size_t data_size, size_t start_idx, VectorDims& offsets);
 
 /**
  * @brief Traverses path starting from "expr", and calls "func" for each expression.
@@ -304,6 +334,15 @@ void visit_path(const lowered::ExpressionPtr& expr,
                 std::unordered_set<lowered::ExpressionPtr>& visited,
                 std::function<void(lowered::ExpressionPtr)> func,
                 bool visit_parent_path);
+
+/**
+ * @brief Converts a tensor to a string representation.
+ *        Each value in the tensor is converted to a string. If the value is a full dimension, it is represented as
+ * "FULL_DIM". If the value is dynamic, it is represented as "?".
+ * @param tensor The tensor to be converted to a string.
+ * @return A string representation of the tensor.
+ */
+std::string tensor2str(const VectorDims& tensor, const std::string& delimiter = ", ");
 
 } // namespace utils
 } // namespace snippets

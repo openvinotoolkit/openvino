@@ -6,12 +6,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit From a Docker Image
                  manually to install OpenVINO™ Runtime on Linux and Windows operating systems.
 
 This guide presents information on how to use a pre-built Docker image or create a new image
-manually, to install OpenVINO™ Runtime. The supported host operating systems for the Docker
-base image are:
-
-- Linux
-- Windows (WSL2)
-- macOS (CPU exectuion only)
+manually, to install OpenVINO™ Runtime.
 
 You can get started easily with pre-built and published docker images, which are available at:
 
@@ -34,19 +29,32 @@ The Docker CI repository includes guides on how to
 `get started with docker images <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__ and how to use
 `OpenVINO™ Toolkit containers with GPU accelerators. <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
 
-To start using Dockerfiles the following conditions must be met:
+To start using Dockerfiles, install Docker Engine or a compatible container
+engine on your system:
 
-- Linux OS or Windows (under :ref:`Windows Subsystem for Linux (WSL2) <wsl_install>`)
-- Installed docker engine or compatible container engine
-- Permissions to run containers (sudo or docker group membership)
+.. tab-set::
+
+   .. tab-item:: Linux
+      :sync: linux
+
+      * `Docker Desktop <https://docs.docker.com/desktop/install/linux/>`__
+      * `Docker Engine <https://docs.docker.com/engine/install/>`__
+
+   .. tab-item:: Windows (WSL2)
+      :sync: win
+
+      OpenVINO can be installed under :ref:`Windows Subsystem for Linux (WSL2) <wsl_install>`.
+
+      * `Docker Desktop <https://docs.docker.com/desktop/install/linux/>`__
+
+Also, verify you have permissions to run containers (sudo or docker group membership).
 
 .. note::
 
    OpenVINO's `Docker <https://docs.docker.com/>`__ and :doc:`Bare Metal <../install-openvino>`
    distributions are identical, so the documentation applies to both.
 
-   Note that starting with OpenVINO 2024.4, Ubuntu docker images will no longer be provided
-   and will be replaced by Debian-based ones.
+   Note that Ubuntu docker images are no longer provided, Debian-based ones are available instead.
 
 .. note::
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ private:
                                                  const element::Type& expected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto log = std::make_shared<op::v0::Log>(in);
-        return std::make_shared<Model>(NodeVector{log}, ParameterVector{in});
+        return std::make_shared<Model>(OutputVector{log}, ParameterVector{in});
     }
 };
 

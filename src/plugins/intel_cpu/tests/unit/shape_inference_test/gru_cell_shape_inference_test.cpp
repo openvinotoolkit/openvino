@@ -1,20 +1,16 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "utils.hpp"
+#include "openvino/op/gru_cell.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
 
-class GRUCellV3StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v3::GRUCell> {
-protected:
-    void SetUp() override {
-        this->output_shapes = ShapeVector(1);
-    }
-};
+class GRUCellV3StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v3::GRUCell> {};
 
 TEST_F(GRUCellV3StaticShapeInferenceTest, default_ctor) {
     constexpr size_t batch_size = 2;

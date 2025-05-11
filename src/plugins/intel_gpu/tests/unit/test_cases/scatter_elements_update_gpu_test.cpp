@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,7 +107,6 @@ struct ScatterElementsUpdateParams {
     tensor indices_tensor;
     std::vector<T_IND> indices;
     std::vector<T> updates;
-    std::vector<T> expected;
 };
 
 template<typename T, typename T_IND>
@@ -162,7 +161,6 @@ std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdate
             tensor{2, 2, 1, 1},
             getValues<T_IND>({ 0, 1, 2, 3 }),
             getValues<T>({ -10, -11, -12, -13 }),
-            getValues<T>({ -10, -11, 2, 3, 4, 5, -12, -13 })
         },
         {   2,
             tensor{2, 1, 2, 2},
@@ -170,7 +168,6 @@ std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdate
             tensor{2, 1, 2, 1},
             getValues<T_IND>({ 0, 1, 0, 1 }),
             getValues<T>({ -10, -11, -12, -13 }),
-            getValues<T>({ -10, 1, 2, -11, -12, 5, 6, -13 })
         },
         {   3,
             tensor{2, 1, 2, 2},
@@ -178,13 +175,19 @@ std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdate
             tensor{2, 1, 1, 2},
             getValues<T_IND>({ 0, 1, 0, 1 }),
             getValues<T>({ -10, -11, -12, -13 }),
-            getValues<T>({ -10, 1, 2, -11, -12, 5, 6, -13 })
+        },
+        {
+            1,
+            tensor{1, 4, 1, 1},
+            getValues<T>({10, 20, 30, 40}),
+            tensor{1, 2, 1, 1},
+            getValues<T_IND>({2, 3}),
+            getValues<T>({99, 88}),
         },
     };
 
     return result;
 }
-
 
 template<typename T, typename T_IND>
 std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdateParams3D() {
@@ -195,7 +198,6 @@ std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdate
             tensor{2, 1, 1, 1, 2},
             getValues<T_IND>({ 0, 3, 1, 2 }),
             getValues<T>({ -100, -110, -120, -130 }),
-            getValues<T>({ -100, 1, 2, 3, 4, 5, 6, 7, 8, 9, -110, 11, 12, 13, 14, -120, 16, 17, 18, -130, 20, 21, 22, 23 })
         },
         {   4,
             tensor{2, 4, 1, 1, 3},
@@ -203,8 +205,15 @@ std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdate
             tensor{2, 1, 1, 1, 2},
             getValues<T_IND>({ 0, 1, 0, 1 }),
             getValues<T>({ -100, -110, -120, -130 }),
-            getValues<T>({ -100, 1, -110, 3, 4, 5, 6, 7, 8, 9, 10, 11, -120, 13, -130, 15, 16, 17, 18, 19, 20, 21, 22, 23 })
         },
+        {
+            0,
+            tensor{2, 2, 2, 1, 1},
+            getValues<T>({1, 2, 3, 4, 5, 6, 7, 8}),
+            tensor{2, 1, 2, 1, 1},
+            getValues<T_IND>({1, 0, 0, 1}),
+            getValues<T>({9, 8, 7, 6}),
+        }
     };
 
     return result;
@@ -218,11 +227,17 @@ std::vector<ScatterElementsUpdateParams<T, T_IND>> generateScatterElementsUpdate
             getValues<T>({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
                           24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47}),
             tensor{2, 1, 1, 1, 1, 2},
-            getValues<T_IND>({2, 1, 1, 1, 2}),
+            getValues<T_IND>({2, 1, 1, 1}),
             getValues<T>({-100, -110, -120, -130}),
-            getValues<T>({0, 1, -100, -110, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-                          24, -120, 26, -130, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47}),
-        }
+        },
+        {
+            5,
+            tensor{1, 2, 2, 2, 1, 1},
+            getValues<T>({1, 2, 3, 4, 5, 6, 7, 8}),
+            tensor{1, 2, 1, 2, 1, 1},
+            getValues<T_IND>({1, 0, 0, 1}),
+            getValues<T>({10, 11, 12, 13}),
+        },
     };
 
     return result;
@@ -282,6 +297,7 @@ struct PrintToStringParamName {
     }
 };
 
+
 template<typename T, typename T_IND>
 struct scatter_elements_update_gpu_formats_test
         : public ::testing::TestWithParam<ScatterElementsUpdateParamsWithFormat<T, T_IND> > {
@@ -296,6 +312,7 @@ public:
         format::type target_updates_format;
 
         std::tie(params, plain_format, target_data_format, target_indices_format, target_updates_format) = this->GetParam();
+        auto expected = generateReferenceOutput(plain_format, params, ov::op::v12::ScatterElementsUpdate::Reduction::NONE, false);
         if (target_indices_format == format::any) {
             target_indices_format = target_data_format;
         }
@@ -336,11 +353,43 @@ public:
         const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(params.data.size(), output_ptr.size());
-        ASSERT_EQ(params.expected.size(), output_ptr.size());
+        ASSERT_EQ(expected.size(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
-            ASSERT_NEAR(output_ptr[i], params.expected[i], getError<T>())
+            ASSERT_NEAR(output_ptr[i], expected[i], getError<T>())
                                 << "format=" << fmt_to_str(target_data_format) << ", i=" << i;
         }
+    }
+
+private:
+    static ov::Shape tensorToShape(const tensor &t, const format f) {
+        std::vector<int> vec(cldnn::format::dimension(f));
+        for (size_t i = 0; i < vec.size(); ++i) {
+            vec[i] = t.sizes()[i];
+        }
+        std::reverse(vec.begin() + 2, vec.end());
+    
+        return ov::Shape(vec.begin(), vec.end());
+    }
+    
+    
+    static std::vector<T> generateReferenceOutput(const format fmt,
+                                                  const ScatterElementsUpdateParams<T, T_IND>& p,
+                                                  const ScatterElementsUpdateOp::Reduction mode,
+                                                  const bool use_init_value) {
+        std::vector<T> out(p.data_tensor.count());
+        const auto data_shape = tensorToShape(p.data_tensor, fmt);
+        const auto indices_shape = tensorToShape(p.indices_tensor, fmt);
+                                                
+        ov::reference::scatter_elem_update<T, T_IND>(p.data.data(),
+                                                     p.indices.data(),
+                                                     p.updates.data(),
+                                                     p.axis,
+                                                     out.data(),
+                                                     data_shape,
+                                                     indices_shape,
+                                                     mode,
+                                                     use_init_value);
+        return out;
     }
 };
 
@@ -360,7 +409,7 @@ public:
         ScatterElementsUpdateOp::Reduction mode;
         bool use_init_value;
         std::tie(params, mode, use_init_value, plain_format) = this->GetParam();
-        params.expected = generateReferenceOutput(plain_format, params, mode, use_init_value);
+        auto expected = generateReferenceOutput(plain_format, params, mode, use_init_value);
 
         auto& engine = get_test_engine();
         const auto data = engine.allocate_memory({data_type, plain_format, params.data_tensor});
@@ -395,9 +444,9 @@ public:
         const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(params.data.size(), output_ptr.size());
-        ASSERT_EQ(params.expected.size(), output_ptr.size());
+        ASSERT_EQ(expected.size(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
-            ASSERT_NEAR(output_ptr[i], params.expected[i], getError<T>()) << ", i=" << i;
+            ASSERT_NEAR(output_ptr[i], expected[i], getError<T>()) << ", i=" << i;
         }
     }
 private:
@@ -627,4 +676,3 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF_cached) {
 TEST_P(scatter_elements_update_gpu_reduction_test_f32, cached) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
-

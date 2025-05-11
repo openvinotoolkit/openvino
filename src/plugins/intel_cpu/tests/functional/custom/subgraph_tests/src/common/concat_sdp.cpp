@@ -1,7 +1,6 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
@@ -30,6 +29,13 @@ const std::vector<std::vector<InputShape>> inputShapes = {
         {{-1, 8, -1, 64}, {{4, 8, 10, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}}},
         // B, H, L0, S
         {{-1, 8, -1, 64}, {{4, 8, 0, 64}, {4, 8, 10, 64}, {4, 8, 11, 64}, {4, 8, 12, 64}, {4, 8, 13, 64}}},
+    },
+    // big batch to check cvt_copy fast-path inside mha_single_token_kernel
+    {
+        // B, H, L1, S
+        {{-1, 8, -1, 64}, {{129, 8, 10, 64}, {129, 8, 1, 64}, {129, 8, 1, 64}, {129, 8, 1, 64}, {129, 8, 1, 64}}},
+        // B, H, L0, S
+        {{-1, 8, -1, 64}, {{129, 8, 0, 64}, {129, 8, 10, 64}, {129, 8, 11, 64}, {129, 8, 12, 64}, {129, 8, 13, 64}}},
     },
 };
 

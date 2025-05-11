@@ -4,10 +4,10 @@
 
 #include "pooling.hpp"
 
-namespace ov {
-namespace intel_cpu {
+#include <utility>
 
-PoolingExecutor::PoolingExecutor(const ExecutorContext::CPtr context) : context(context) {}
+namespace ov::intel_cpu {
 
-}   // namespace intel_cpu
-}   // namespace ov
+PoolingExecutor::PoolingExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}
+
+}  // namespace ov::intel_cpu

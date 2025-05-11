@@ -27,7 +27,7 @@ public:
     RMS(const Output<Node>& data,
         const Output<Node>& gamma,
         double epsilson,
-        const ov::element::Type output_type = ov::element::undefined);
+        const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
@@ -41,6 +41,10 @@ public:
 
     void set_epsilon(double epsilon) {
         m_epsilon = epsilon;
+    }
+
+    void set_output_type_attr(const element::Type& output_type) {
+        m_output_type = output_type;
     }
 
 private:

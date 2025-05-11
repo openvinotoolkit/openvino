@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,8 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/runtime/core.hpp"
 
 class PartialShapeDeserialization : public testing::Test {

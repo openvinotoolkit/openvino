@@ -6,8 +6,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ts_test_case.hpp"
 

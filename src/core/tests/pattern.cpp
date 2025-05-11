@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -30,11 +31,16 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -82,6 +88,8 @@ static std::shared_ptr<pattern::op::Label> construct_mean_graph() {
 
 class TestGraphRewrite : public ov::pass::GraphRewrite {
 public:
+    OPENVINO_GRAPH_REWRITE_RTTI("TestGraphRewrite");
+
     void construct_multiply_by_one() {
         // pattern #1 : a * 1 = a
         auto iconst1 = construct_constant_node(1);
@@ -229,7 +237,7 @@ TEST(pattern, graph_rewrite) {
         auto graph_a = make_shared<op::v1::Add>(a, iconst0);
         auto graph_b = make_shared<op::v1::Add>(b, iconst0);
 
-        auto f = std::make_shared<Model>(ov::NodeVector{a, b, graph_a, c, graph_b}, ParameterVector{a, b, c});
+        auto f = std::make_shared<Model>(ov::OutputVector{a, b, graph_a, c, graph_b}, ParameterVector{a, b, c});
         pass_manager.run_passes(f);
 
         ASSERT_TRUE(graph_a->get_output_target_inputs(0).empty());
@@ -521,6 +529,63 @@ TEST(pattern, optional_match_node_with_single_input) {
         // true: match exp without optional + exp as an input
         ASSERT_TRUE(matcher.match(pattern, make_shared<op::v0::Exp>(model_const_exp)));
     }
+}
+
+TEST(pattern, or_pattern_points_the_selected_branch) {
+    using namespace ov::op;
+    using namespace ov::pass::pattern;
+
+    // Graph:
+    auto model_param = make_shared<v0::Parameter>();
+    auto model_sigmoid = make_shared<v0::Sigmoid>(model_param);
+
+    // Pattern:
+    auto option_1 = wrap_type<v0::Parameter>();
+    auto option_2 = wrap_type<v0::Sigmoid>();
+    auto or_pattern = option_1 | option_2;
+
+    // Test:
+    TestMatcher matcher;
+    EXPECT_TRUE(matcher.match(or_pattern, model_sigmoid));
+
+    auto pattern_val_mp = matcher.get_pattern_value_map();
+    EXPECT_EQ(pattern_val_mp.count(or_pattern), 1);
+
+    // we expect that Or pattern points to the first node of the selected branch
+    EXPECT_NE(ov::as_type<v0::Sigmoid>(pattern_val_mp.at(or_pattern).get_node()), nullptr);
+}
+
+TEST(pattern, multiple_optionals_in_row) {
+    using namespace ov::op;
+    using namespace ov::pass::pattern;
+
+    // Graph:
+    Shape shape{1, 2, 3};
+    auto model_input_0 = make_shared<v0::Parameter>(element::f32, shape);
+    auto model_sigmoid = make_shared<v0::Sigmoid>(model_input_0);
+
+    // Pattern:
+    auto in = wrap_type<v0::Parameter>();
+    auto pattern_convert = pattern::optional<v0::Convert>(in);
+    auto pattern_relu = pattern::optional<v0::Relu>(pattern_convert);
+    auto pattern_sigmoid = wrap_type<v0::Sigmoid>({pattern_relu});
+
+    // Test:
+    TestMatcher matcher;
+    EXPECT_TRUE(matcher.match(pattern_sigmoid, model_sigmoid));
+
+    auto pattern_val_mp = matcher.get_pattern_value_map();
+
+    EXPECT_EQ(pattern_val_mp.count(in), 1);
+    EXPECT_NE(ov::as_type<v0::Parameter>(pattern_val_mp.at(in).get_node()), nullptr);
+
+    // as Convert and Relu ops are not present in the graph, so we expect the optional nodes
+    // do not point to the graph nodes, in other words, the optional nodes are not in the pattern map.
+    EXPECT_EQ(pattern_val_mp.count(pattern_convert), 0);
+    EXPECT_EQ(pattern_val_mp.count(pattern_relu), 0);
+
+    EXPECT_EQ(pattern_val_mp.count(pattern_sigmoid), 1);
+    EXPECT_NE(ov::as_type<v0::Sigmoid>(pattern_val_mp.at(pattern_sigmoid).get_node()), nullptr);
 }
 
 // match optional nodes with multi input where order in not important
@@ -1198,4 +1263,319 @@ TEST(pattern, pattern_optional_root) {
 
     // Should perfectly match
     ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+}
+
+TEST(pattern, pattern_predicate_operator) {
+    // Sample model
+    PartialShape shape{2, 2};
+    auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_param2 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_add = std::make_shared<ov::op::v1::Add>(model_param1->output(0), model_param2->output(0));
+    auto model_result = std::make_shared<ov::op::v0::Result>(model_add->output(0));
+
+    TestMatcher tm;
+
+    ASSERT_TRUE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(2) ||
+                                                      ov::pass::pattern::type_matches(element::Type_t::boolean)),
+                         model_add));
+    ASSERT_TRUE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::Type_t::boolean) ||
+                                                      ov::pass::pattern::rank_equals(2)),
+                         model_add));
+
+    ASSERT_FALSE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(2) &&
+                                                       ov::pass::pattern::type_matches(element::Type_t::boolean)),
+                          model_add));
+    ASSERT_FALSE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::Type_t::boolean) &&
+                                                       ov::pass::pattern::rank_equals(2)),
+                          model_add));
+
+    ASSERT_TRUE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(2) &&
+                                                      ov::pass::pattern::type_matches(element::Type_t::i32)),
+                         model_add));
+    ASSERT_TRUE(tm.match(ov::pass::pattern::any_input(ov::pass::pattern::type_matches(element::Type_t::i32) &&
+                                                      ov::pass::pattern::rank_equals(2)),
+                         model_add));
+}
+
+namespace {
+shared_ptr<Node> static_model() {
+    auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{2, 10});
+    auto model_param2 = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape{1, 10});
+    return std::make_shared<ov::op::v1::Add>(model_param1->output(0), model_param2->output(0));
+}
+}  // namespace
+
+TEST(pattern, pattern_symbol_predicate_exact_match) {
+    auto node = static_model();
+    TestMatcher tm;
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("[2,10]")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("(2,10)")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("2,10")), node));
+
+    ASSERT_FALSE(tm.match(pattern::any_input(pattern::shape_matches("1,10")), node));
+    ASSERT_FALSE(tm.match(pattern::any_input(pattern::shape_matches("2")), node));
+    ASSERT_FALSE(tm.match(pattern::any_input(pattern::shape_matches("2,10,1")), node));
+}
+
+TEST(pattern, pattern_symbol_predicate_approximate_match) {
+    auto node = static_model();
+    TestMatcher tm;
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches(" 2,   ? ")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("?, 10")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("..., 10")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("..., ?")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("2, ...")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("2,10,...")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("2,...,10")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("...,2,10")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("?, ...")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("?, ?")), node));
+
+    ASSERT_FALSE(tm.match(pattern::any_input(pattern::shape_matches("1, ?")), node));
+    ASSERT_FALSE(tm.match(pattern::any_input(pattern::shape_matches("?, 11")), node));
+}
+
+TEST(pattern, pattern_symbol_predicate_name_match_record) {
+    auto node = static_model();
+    TestMatcher tm;
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("BATCH,LEN")), node));
+    auto symbols = tm.get_symbols();
+    ASSERT_TRUE(symbols["BATCH"].is_integer() && symbols["BATCH"].i() == 2);
+    ASSERT_TRUE(symbols["LEN"].is_integer() && symbols["LEN"].i() == 10);
+
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("B,L")), node));
+    symbols = tm.get_symbols();
+    ASSERT_TRUE(symbols.count("BATCH") == 0 && symbols.count("LEN") == 0);
+    ASSERT_TRUE(symbols["B"].is_integer() && symbols["B"].i() == 2);
+    ASSERT_TRUE(symbols["L"].is_integer() && symbols["L"].i() == 10);
+}
+
+TEST(pattern, pattern_symbol_predicate_name_match_record_repeated_value) {
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{1, 3, 224, 224});
+    TestMatcher tm;
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("BATCH,CHANNEL,SPATIAL,SPATIAL")), node));
+    auto symbols = tm.get_symbols();
+    ASSERT_TRUE(symbols["BATCH"].is_integer() && symbols["BATCH"].i() == 1);
+    ASSERT_TRUE(symbols["CHANNEL"].is_integer() && symbols["CHANNEL"].i() == 3);
+    ASSERT_TRUE(symbols["SPATIAL"].is_integer() && symbols["SPATIAL"].i() == 224);
+
+    node = std::make_shared<ov::op::v0::Parameter>(element::dynamic, PartialShape{1, 3, 224, 225});
+    ASSERT_FALSE(tm.match(pattern::any_input(pattern::shape_matches("BATCH,CHANNEL,SPATIAL,SPATIAL")), node));
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("...,1,3,224,225")), node));
+}
+
+TEST(pattern, pattern_symbol_predicate_name_match_record_compare) {
+    auto node = static_model();
+    TestMatcher tm;
+
+    auto pattern_input_1 = pattern::any_input(pattern::shape_matches("B1,L"));
+    auto pattern_input_2 = pattern::any_input(pattern::shape_matches("B2,L"));
+    auto pattern_node =
+        pattern::wrap_type<ov::op::v1::Add>({pattern_input_1, pattern_input_2}, pattern::shape_matches("B2,L"));
+    ASSERT_TRUE(tm.match(pattern_node, node));
+    auto symbols = tm.get_symbols();
+    ASSERT_TRUE(symbols.size() == 3);
+    ASSERT_TRUE(symbols["B1"].is_integer() && symbols["B1"].i() == 1);
+    ASSERT_TRUE(symbols["B2"].is_integer() && symbols["B2"].i() == 2);
+    ASSERT_TRUE(symbols["L"].is_integer() && symbols["L"].i() == 10);
+
+    pattern_input_1 = pattern::any_input(pattern::shape_matches("B,L"));
+    pattern_input_2 = pattern::any_input(pattern::shape_matches("B,L"));
+    pattern_node =
+        pattern::wrap_type<ov::op::v1::Add>({pattern_input_1, pattern_input_2}, pattern::shape_matches("B,L"));
+    ASSERT_FALSE(tm.match(pattern_node, node));
+}
+
+TEST(pattern, pattern_symbol_predicate_symbol_match_record) {
+    auto shape = PartialShape::dynamic(5);
+
+    auto A = std::make_shared<ov::Symbol>();
+    auto B = std::make_shared<ov::Symbol>();
+    shape[0].set_symbol(A);
+    shape[1].set_symbol(B);
+    shape[3] = 4;
+    shape[4] = 5;
+
+    auto node = std::make_shared<ov::op::v0::Parameter>(element::dynamic, shape);
+    TestMatcher tm;
+    ASSERT_TRUE(tm.match(pattern::any_input(pattern::shape_matches("A,B,?,4,C")), node));
+    auto symbols = tm.get_symbols();
+    ASSERT_TRUE(symbols.size() == 3);
+    ASSERT_TRUE(symbols["A"].is_dynamic() && symbols["A"].s() == A);
+    ASSERT_TRUE(symbols["B"].is_dynamic() && symbols["B"].s() == B);
+    ASSERT_TRUE(symbols["C"].is_integer() && symbols["C"].i() == 5);
+}
+
+TEST(pattern, pattern_symbol_predicate_symbol_match_record_compare) {
+    auto shape = PartialShape::dynamic(5);
+
+    auto A = std::make_shared<ov::Symbol>();
+    auto B = std::make_shared<ov::Symbol>();
+    shape[0].set_symbol(A);
+    shape[1].set_symbol(B);
+    shape[2] = 10;
+    shape[3] = 4;
+    shape[4] = 5;
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(element::dynamic, shape);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(input,
+                                                         ov::op::v0::Constant::create(element::i64, {4}, {0, 0, 0, 20}),
+                                                         true);
+
+    TestMatcher tm;
+
+    auto input_pattern = pattern::any_input(pattern::shape_matches("A,B,C,?,?"));
+    auto reshape_pattern = pattern::wrap_type<ov::op::v1::Reshape>({input_pattern, pattern::any_input()},
+                                                                   pattern::shape_matches("A,B,C,?"));
+
+    ASSERT_TRUE(tm.match(reshape_pattern, reshape));
+
+    auto symbols = tm.get_symbols();
+    ASSERT_TRUE(symbols.size() == 3);
+    ASSERT_TRUE(symbols["A"].is_dynamic() && symbols["A"].s() == A);
+    ASSERT_TRUE(symbols["B"].is_dynamic() && symbols["B"].s() == B);
+    ASSERT_TRUE(symbols["C"].is_integer() && symbols["C"].i() == 10);
+
+    reshape_pattern = pattern::wrap_type<ov::op::v1::Reshape>(
+        {pattern::any_input(pattern::shape_matches("A,B,C,...")), pattern::any_input()},
+        pattern::shape_matches("A,B,C,..."));
+
+    ASSERT_TRUE(tm.match(reshape_pattern, reshape));
+}
+
+TEST(pattern, pattern_symbol_predicate_and_operators) {
+    auto transpose_a_false = [=](const std::shared_ptr<Node>& node) -> bool {
+        auto mm = as_type_ptr<op::v0::MatMul>(node);
+        return mm && !mm->get_transpose_a();
+    };
+
+    auto predicate_and = pattern::consumers_count(1) && transpose_a_false && pattern::shape_matches("BATCHES_2...,Z");
+    auto predicate_or = pattern::consumers_count(1) || transpose_a_false || pattern::shape_matches("BATCHES_2...,Z");
+    auto predicate_mixed =
+        (pattern::consumers_count(1) && transpose_a_false) || pattern::shape_matches("BATCHES_2...,Z");
+
+    auto shape = PartialShape::dynamic(5);
+    auto input = std::make_shared<ov::op::v0::Parameter>(element::dynamic, shape);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(input,
+                                                         ov::op::v0::Constant::create(element::i64, {4}, {0, 0, 0, 20}),
+                                                         true);
+    pattern::PatternSymbolMap m;
+    for (size_t i = 0; i < 10; ++i) {
+        predicate_and = predicate_and && pattern::consumers_count(i);
+        predicate_or = predicate_and || pattern::consumers_count(i);
+        if (i % 2)
+            predicate_mixed = predicate_mixed && pattern::consumers_count(i);
+        else
+            predicate_mixed = predicate_mixed || pattern::consumers_count(i);
+
+        ASSERT_NO_THROW(predicate_and(m, input));
+    }
+}
+
+TEST(pattern, predicate_attr_match) {
+    TestMatcher tm;
+    auto input = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape::dynamic());
+    auto constant = op::v0::Constant::create(element::i64, {4}, {0, 0, 0, 20});
+
+    // boolean attr check
+    auto pattern_true = pattern::any_input(pattern::attrs_match({{"special_zero", true}}));
+    auto pattern_false = pattern::any_input(pattern::attrs_match({{"special_zero", false}}));
+
+    auto reshape_true = std::make_shared<op::v1::Reshape>(input, constant, true);
+    auto reshape_false = std::make_shared<op::v1::Reshape>(input, constant, false);
+
+    ASSERT_TRUE(tm.match(pattern_true, reshape_true));
+    ASSERT_FALSE(tm.match(pattern_true, reshape_false));
+    ASSERT_TRUE(tm.match(pattern_false, reshape_false));
+    ASSERT_FALSE(tm.match(pattern_false, reshape_true));
+
+    // element type check
+    auto pattern_i64 =
+        pattern::wrap_type<op::v0::ShapeOf, op::v3::ShapeOf>(pattern::attrs_match({{"output_type", "i64"}}));
+    auto pattern_i32 = pattern::wrap_type<op::v0::ShapeOf, op::v3::ShapeOf>({{"output_type", "i32"}});
+
+    auto shape_of_i64 = std::make_shared<op::v3::ShapeOf>(input, element::i64);
+    auto shape_of_i32 = std::make_shared<op::v3::ShapeOf>(input, element::i32);
+
+    ASSERT_TRUE(tm.match(pattern_i64, shape_of_i64));
+    ASSERT_FALSE(tm.match(pattern_i64, shape_of_i32));
+    ASSERT_FALSE(tm.match(pattern_i32, shape_of_i64));
+    ASSERT_TRUE(tm.match(pattern_i32, shape_of_i32));
+
+    // broadcasting check
+    auto pattern_numpy = pattern::any_input({{"auto_broadcast", "numpy"}});
+    auto pattern_pdpd = pattern::optional<op::v1::Multiply>({{"auto_broadcast", "pdpd"}});
+    auto pattern_numpy_or_pdpd = pattern::any_input(pattern::attrs_match({{"auto_broadcast", "numpy"}}) ||
+                                                    pattern::attrs_match({{"auto_broadcast", "pdpd"}}));
+
+    auto mul_numpy = std::make_shared<op::v1::Multiply>(input, input, op::AutoBroadcastType::NUMPY);
+    auto mul_pdpd = std::make_shared<op::v1::Multiply>(input, input, op::AutoBroadcastType::PDPD);
+    auto mul_none = std::make_shared<op::v1::Multiply>(input, input, op::AutoBroadcastType::NONE);
+
+    ASSERT_TRUE(tm.match(pattern_numpy, mul_numpy));
+    ASSERT_FALSE(tm.match(pattern_numpy, mul_pdpd));
+    ASSERT_FALSE(tm.match(pattern_pdpd, mul_numpy));
+    ASSERT_TRUE(tm.match(pattern_pdpd, mul_pdpd));
+
+    ASSERT_TRUE(tm.match(pattern_numpy_or_pdpd, mul_numpy));
+    ASSERT_TRUE(tm.match(pattern_numpy_or_pdpd, mul_pdpd));
+    ASSERT_FALSE(tm.match(pattern_numpy_or_pdpd, mul_none));
+
+    auto num_splits_pattern = pattern::any_input({{"num_splits", 3}});
+    auto split = std::make_shared<op::v1::Split>(input, op::v0::Constant::create(element::i64, {}, {0}), 3);
+    ASSERT_TRUE(tm.match(num_splits_pattern, split));
+
+    auto ss = std::make_shared<op::v1::StridedSlice>(input,
+                                                     op::v0::Constant::create(element::i64, {1}, {0}),
+                                                     op::v0::Constant::create(element::i64, {1}, {-1}),
+                                                     op::v0::Constant::create(element::i64, {1}, {1}),
+                                                     std::vector<int64_t>{0, 1},
+                                                     std::vector<int64_t>{1, 0});
+
+    auto ss_pattern = pattern::any_input({{"begin_mask", std::vector<int64_t>{0, 1}}});
+    // TODO: to allow initializer list as attribute value -- need to update ov::Attribute value type -- wrap ov::Any and
+    //  allow implicit conversion from initializer lists of different types.
+    //  For now it seems excessive as it impacts quality of life of limited number of developers aka there is a WA
+    ASSERT_TRUE(tm.match(ss_pattern, ss));
+}
+
+TEST(pattern, predicate_value_match) {
+    TestMatcher tm;
+    auto constant_i = op::v0::Constant::create(element::i64, {4}, vector<int8_t>{-1, 0, 1, 2});
+    auto constant_d = op::v0::Constant::create(element::f64, {4}, vector<float>{-1.5f, 0.f, 1.3f, 2.75f});
+
+    // actual value check
+    auto pattern_i = pattern::any_input(pattern::value_matches("[-1, 0, 1, 2]"));
+    auto pattern_d = pattern::any_input(pattern::value_matches("[-1.5, 0, 1.3, 2.75]"));
+
+    ASSERT_TRUE(tm.match(pattern_i, constant_i));
+    ASSERT_FALSE(tm.match(pattern_i, constant_d));
+    ASSERT_TRUE(tm.match(pattern_d, constant_d));
+    ASSERT_FALSE(tm.match(pattern_d, constant_i));
+
+    auto pattern_neg_i = pattern::any_input(pattern::value_matches("[-1, ..., 1, 3]"));
+    ASSERT_FALSE(tm.match(pattern_neg_i, constant_i));
+
+    auto pattern_neg_d = pattern::any_input(pattern::value_matches("[-1.5, -0.1, 1.25, 2.65]"));
+    ASSERT_FALSE(tm.match(pattern_neg_d, constant_d));
+}
+
+TEST(pattern, predicate_syntactic_sugar) {
+    TestMatcher tm;
+    auto pattern_with_constant_inputs =
+        pattern::wrap_type<op::v1::VariadicSplit>({pattern::any_input(), 3, {"count", "-1"}});
+
+    auto vsplit = std::make_shared<op::v1::VariadicSplit>(
+        std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{1, -1, -1, 10}),
+        op::v0::Constant::create(element::i64, {}, vector<int8_t>{3}),
+        op::v0::Constant::create(element::i64, {2}, vector<int8_t>{4, -1}));
+    vsplit->set_output_size(2);
+    ASSERT_TRUE(tm.match_value(pattern_with_constant_inputs, vsplit->output(0)));
+    const auto& symbols = tm.get_symbols();
+    ASSERT_TRUE(symbols.count("count") && symbols.at("count").i() == 4);
+
+    // different ways to pass single input to the pattern op
+    ASSERT_NO_THROW(pattern::wrap_type<op::v0::Relu>(pattern::any_input()));
+    ASSERT_NO_THROW(pattern::wrap_type<op::v0::Relu>(pattern::wrap_type<op::v0::Relu>()));
+    ASSERT_NO_THROW(pattern::wrap_type<op::v0::Relu>("[-1,0,1]"));
 }

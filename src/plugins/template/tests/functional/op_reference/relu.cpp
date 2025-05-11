@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ private:
                                                  const element::Type& Reluected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Relu = std::make_shared<op::v0::Relu>(in);
-        return std::make_shared<ov::Model>(NodeVector{Relu}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{Relu}, ParameterVector{in});
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,7 @@
 #include "ov_lpt_models/move_fake_quantize.hpp"
 #include "ov_lpt_models/relu.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/avg_pool.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -130,7 +131,7 @@ public:
                                                                           {ov::PrecisionPreservedAttribute(true),
                                                                            ov::IntervalsAlignmentAttribute(interval, 256),
                                                                            ov::QuantizationAlignmentAttribute(false)},
-                                                                          ov::element::undefined,
+                                                                          ov::element::dynamic,
                                                                           testValues.axis,
                                                                           oneInputWithSplit);
 

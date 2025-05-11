@@ -357,6 +357,16 @@ void Snapshot::markInternalCompute() {
     LOG_INFO("Online partitioning: executing markInternalCompute pass...");
     LOG_BLOCK();
 
+    // Iterate over groups and drop all "fake" tags.
+    // It's done for markInternalCompute pass to work properly if
+    // there are multiple tags used to not split internal patterns.
+    for (const auto& nh : m_graph->sorted()) {
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        if (!group->isolatedTag().empty() && group->isolatedTag() == "fake") {
+            group->dontIsolate();
+        }
+    }
+
     // iterate it topological order
     for (const auto& nh : m_graph->sorted()) {
         Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
@@ -449,6 +459,7 @@ void Snapshot::earlyRegroup() {
     LOG_BLOCK();
 
     ov::pass::GraphRewrite rewr;
+    ov::pass::GraphRewrite rewr_fake;
     bool handle_patterns = false;
 
     for (const auto& isolate : m_ctx.isolates) {
@@ -465,34 +476,37 @@ void Snapshot::earlyRegroup() {
             break;
         }
         case PatternType::PATTERN: {
-            // FIXME: refactor as more patterns are supported
-            if (isolate.pattern == "RMSNorm") {
-                rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulCWu4") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCWu4>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulGQu4") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQu4>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulCWi4") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCWi4>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "DQMatMulGQi4") {
-                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQi4>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else if (isolate.pattern == "VocabMatMul") {
-                rewr.add_matcher<ov::npuw::patterns::compute::VocabMatMul>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
-            } else {
-                LOG_WARN("OPENVINO_NPUW_ISOLATE: unsupported pattern " << isolate.pattern << " is skipped!");
-            }
+#define HNDL(p)                                                                            \
+    if (isolate.pattern == #p) {                                                           \
+        rewr.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
+        handle_patterns = true;                                                            \
+    }
+#define HNDL_FAKE(p)                                                                            \
+    if (isolate.pattern == #p) {                                                                \
+        rewr_fake.add_matcher<ov::npuw::patterns::compute::p>(shared_from_this(), isolate.tag); \
+        handle_patterns = true;                                                                 \
+    }
+            HNDL(RMSNorm);
+            HNDL(RMSNorm2);
+            HNDL(DQMatMulCWu4);
+            HNDL(DQMatMulGQu4);
+            HNDL(DQMatMulCWi4);
+            HNDL(DQMatMulGQi4);
+            HNDL(DQMatMulConv);
+            HNDL(VocabMatMul);
+            HNDL(VariadicSplit);
+            HNDL_FAKE(FakeConvert);
+            HNDL_FAKE(FakeQuantize);
+#undef HNDL_FAKE
+#undef HNDL
         }
         }
     }
 
     if (handle_patterns) {
         // Check the model for all specified patterns
+        // Note: it's important to run Fake patterns first so it won't mix with the compute ones
+        rewr_fake.run_on_model(m_model);
         rewr.run_on_model(m_model);
     }
 
@@ -723,6 +737,20 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
         return {};
     }
 
+    if (prods.size() < m_ctx.keep_blocks) {
+        // In some cases (specifically mixed precision) during MergeUniques() pass we could be left with
+        // E.g. 10 repeated blocks with tag AAA and 2 repeated blocks with tag BBB
+        // TryMergeTriangles() pass checks that producer and consumer have a different tag to be merged further.
+        // Let's say in our example 10 AAA blocks are finalized and cannot be merged further due to above check.
+        // However we will proceed to merge 3 BBB blocks with 3 AAA blocks since the tags are different.
+        // This will create a new tag CCC for the merged blocks and the merge will continue until those 3 blocks
+        // consume a large amount of legit AAA blocks.
+        // Later in CleanUpUniques() pass those repeated blocks will be stripped off repeated tag due to the same check
+        // in this "if". To prevent such cases where we would end up with small number of huge blocks this check was
+        // introduced.
+        return {};
+    }
+
     // In this special case we only assume
     // our vector of N repeating consumer groups
     // 1. has the same size
@@ -937,6 +965,20 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
         if (std::find(prods.begin(), prods.end(), cons) != prods.end()) {
             OPENVINO_THROW("Online partitioning tried to merge repeated groups which overlap!");
         }
+    }
+
+    if (prods.size() < m_ctx.keep_blocks) {
+        // In some cases (specifically mixed precision) during MergeUniques() pass we could be left with
+        // E.g. 10 repeated blocks with tag AAA and 2 repeated blocks with tag BBB
+        // TryMergeRepeating() pass checks that producer and consumer have a different tag to be merged further.
+        // Let's say in our example 10 AAA blocks are finalized and cannot be merged further due to above check.
+        // However we will proceed to merge 3 BBB blocks with 3 AAA blocks since the tags are different.
+        // This will create a new tag CCC for the merged blocks and the merge will continue until those 3 blocks
+        // consume a large amount of legit AAA blocks.
+        // Later in CleanUpUniques() pass those repeated blocks will be stripped off repeated tag due to the same check
+        // in this "if". To prevent such cases where we would end up with small number of huge blocks this check was
+        // introduced.
+        return {};
     }
 
     std::shared_ptr<Repeated> new_rep = std::make_shared<Repeated>();

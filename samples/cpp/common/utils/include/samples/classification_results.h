@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,7 +66,10 @@ private:
 
         for (size_t i = 0; i < batchSize; i++) {
             const size_t offset = i * (input.get_size() / batchSize);
-            const T* batchData = input.data<const T>();
+            OPENVINO_SUPPRESS_DEPRECATED_START  // keep until 2026.0 release
+                const T* batchData = input.data<T>();
+            OPENVINO_SUPPRESS_DEPRECATED_END
+
             batchData += offset;
 
             std::iota(std::begin(indexes), std::end(indexes), 0);

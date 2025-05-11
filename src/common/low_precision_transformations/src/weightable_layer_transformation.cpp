@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2024 Intel Corporation
+﻿// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace pass {
@@ -49,9 +51,10 @@ WeightableLayerTransformation::WeightableLayerTransformation(const Params& param
     canBeTransformedParams(canBeTransformedParams) {
 }
 
-bool WeightableLayerTransformation::canConvolutionBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer,
-    const std::vector<ov::element::Type>& defaultPrecisions) const {
-    if (!WeightableLayerTransformation::canBeTransformed(context, layer)) {
+bool WeightableLayerTransformation::canConvolutionBeTransformed(
+    const std::shared_ptr<Node>& layer,
+    const ov::element::TypeVector& defaultPrecisions) const {
+    if (!WeightableLayerTransformation::canBeTransformed(layer)) {
         return false;
     }
 
@@ -88,8 +91,8 @@ bool WeightableLayerTransformation::canConvolutionBeTransformed(const Transforma
     return true;
 }
 
-bool WeightableLayerTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer)) {
+bool WeightableLayerTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
+    if (!LayerTransformation::canBeTransformed(layer)) {
         return false;
     }
 

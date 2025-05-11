@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ struct gather : public primitive_base<gather> {
     ov::element::Type decompressed_type;
     input_info decompression_scale;
     input_info decompression_zero_point;
-    optional_value<float> decompression_zero_point_scalar = optional_value<float>();
+    std::optional<float> decompression_zero_point_scalar = std::optional<float>();
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -162,19 +162,20 @@ struct gather : public primitive_base<gather> {
             ib >> make_data(&decompression_zero_point_value, sizeof(float));
             decompression_zero_point_scalar = decompression_zero_point_value;
         } else {
-            decompression_zero_point_scalar = optional_value<float>();
+            decompression_zero_point_scalar = std::optional<float>();
         }
     }
 
 protected:
-    std::vector<input_info> get_dependencies() const override {
-        std::vector<input_info> ret;
+    std::map<size_t, const input_info*> get_dependencies_map() const override {
+        auto ret = std::map<size_t, const input_info*>{};
+        auto idx = input.size();
 
         if (decompression_scale.is_valid())
-            ret.push_back(decompression_scale.pid);
+            ret[idx++] = &decompression_scale;
 
         if (decompression_zero_point.is_valid())
-            ret.push_back(decompression_zero_point.pid);
+            ret[idx++] = &decompression_zero_point;
 
         return ret;
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::BaseTest::create_dynamic
                                                                score_threshold);
     auto res = std::make_shared<ov::op::v0::Result>(nms);
     res->set_friendly_name("output_dynamic");
-    return std::make_shared<ov::Model>(ov::NodeVector{nms}, ov::ParameterVector{boxes, scores});
+    return std::make_shared<ov::Model>(ov::OutputVector{nms}, ov::ParameterVector{boxes, scores});
 }
 
 ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
@@ -192,6 +192,9 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest(const MODELTYPE modelType) : Bas
         .WillByDefault(RETURN_MOCK_VALUE(dgpuFullDeviceName));
     const std::vector<std::string> availableDevs = {"CPU", "GPU.0", "GPU.1"};
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
+    std::vector<std::string> deviceIDs = {"0", "1"};
+    ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::available_devices.name()), _))
+        .WillByDefault(RETURN_MOCK_VALUE(deviceIDs));
     ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs, const bool keep_core_property = true) {
         auto item = fullConfigs.find(ov::device::properties.name());
         ov::AnyMap deviceConfigs;

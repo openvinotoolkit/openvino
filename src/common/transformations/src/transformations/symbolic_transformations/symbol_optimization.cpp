@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/symbolic_transformations/symbol_optimization.hpp"
+
+#include <optional>
 
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
@@ -29,7 +31,7 @@ void update_symbol(std::shared_ptr<ov::Symbol>& symbol) {
 void apply_table_of_equivalence_on_model(const std::shared_ptr<ov::Model>& m) {
     for (const auto& op : m->get_ordered_ops()) {
         // handle inner sub-graphs
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op))
+        if (auto multi_subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op))
             for (const auto& sub_graph : multi_subgraph_op->get_functions())
                 if (sub_graph)
                     apply_table_of_equivalence_on_model(sub_graph);
@@ -379,10 +381,11 @@ struct OutputValue {
             });
     }
 
-    static std::pair<bool, OutputValue> make(const ov::Output<ov::Node>& output) {
+
+    static std::optional<OutputValue> make(const ov::Output<ov::Node>& output) {
         auto symbols = output.get_tensor().get_value_symbol();
         if (symbols.empty() || symbols.size() == 1)
-            return {false, OutputValue()};
+            return {};
 
         const auto& lower_value = ov::util::to_vector<int64_t>(output.get_tensor().get_lower_value());
         const auto& upper_value = ov::util::to_vector<int64_t>(output.get_tensor().get_upper_value());
@@ -396,9 +399,9 @@ struct OutputValue {
             else if (symbols.at(i) != nullptr)
                 symbols_as_any[i] = ov::symbol::ancestor_of(symbols.at(i));
             else
-                return {false, OutputValue()};
+                return {};
         }
-        return {true, {symbols_as_any}};
+        return {OutputValue{std::move(symbols_as_any)}};
     }
 };
 
@@ -407,10 +410,10 @@ void save_and_update_value_sources(const std::shared_ptr<ov::Node>& op,
     for (auto& output : op->outputs()) {
         if (output.get_tensor().get_value_symbol().size() < 2)
             continue;  // singular values are handled by optimize_value_usage helper
-        auto result = OutputValue::make(output);
-        if (result.first) {
-            if (multi_symbol_source.count(result.second)) {
-                auto alternative_source = multi_symbol_source[result.second];
+
+        if (auto result = OutputValue::make(output)) {
+            if (multi_symbol_source.count(*result)) {
+                auto alternative_source = multi_symbol_source[*result];
                 if (output.get_element_type() != alternative_source.get_element_type()) {
                     auto convert = std::make_shared<ov::op::v0::Convert>(alternative_source, output.get_element_type());
                     ov::copy_runtime_info(output.get_node_shared_ptr(), convert);
@@ -421,7 +424,7 @@ void save_and_update_value_sources(const std::shared_ptr<ov::Node>& op,
                     continue;
                 output.replace(alternative_source);
             } else {
-                multi_symbol_source[result.second] = output;
+                multi_symbol_source[*result] = output;
             }
         }
     }

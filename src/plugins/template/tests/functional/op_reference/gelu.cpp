@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ private:
                                                  const op::GeluApproximationMode mode) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Gelu = std::make_shared<op::v0::Gelu>(in);
-        return std::make_shared<ov::Model>(NodeVector{Gelu}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{Gelu}, ParameterVector{in});
     }
 };
 
@@ -87,7 +87,7 @@ private:
                                                  const op::GeluApproximationMode mode) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto Gelu = std::make_shared<op::v7::Gelu>(in, mode);
-        return std::make_shared<ov::Model>(NodeVector{Gelu}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{Gelu}, ParameterVector{in});
     }
 };
 

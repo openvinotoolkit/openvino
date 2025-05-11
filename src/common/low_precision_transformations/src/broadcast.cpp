@@ -5,14 +5,14 @@
 #include "low_precision/broadcast.hpp"
 
 #include <memory>
-
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/broadcast.hpp"
 
 using namespace ov::pass::low_precision;
 
@@ -35,15 +35,15 @@ BroadcastTransformation::BroadcastTransformation(const Params& params) : Transpa
         if (transformation_callback(op)) {
             return false;
         }
-        return transform(*context, m);
+        return transform(m);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
-bool BroadcastTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<ov::Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer)) {
+bool BroadcastTransformation::canBeTransformed(const std::shared_ptr<ov::Node>& layer) const {
+    if (!LayerTransformation::canBeTransformed(layer)) {
         return false;
     }
 

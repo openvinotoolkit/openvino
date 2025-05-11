@@ -3,8 +3,10 @@
 //
 
 #include "mlp_kernel.hpp"
+
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "mlp_utils.hpp"
+#include "openvino/core/parallel.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -13,15 +15,21 @@ using namespace dnnl::impl::cpu::x64;
 using TileConfig = ov::Extensions::Cpu::TileConfig;
 using TileConfiger = ov::Extensions::Cpu::TileConfiger;
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
-void MKernel::generate() {
-    Xbyak::Reg64 reg_A_addr = abi_param2;
-    Xbyak::Reg64 reg_A_stride = abi_param3;
-    Xbyak::Reg64 reg_B_addr = abi_param4;
-    Xbyak::Reg64 reg_C_addr = abi_param5;
-    Xbyak::Reg64 reg_C_stride = abi_param6;
+void MKernel::generate_2x2() {
+    auto reg_A_addr = abi_param2;
+    auto reg_A_stride = abi_param3;
+    auto reg_B_addr = abi_param4;
+#ifdef _WIN32
+    auto reg_C_addr = rdi;
+    auto reg_C_stride = rsi;
+    push(rdi);
+    push(rsi);
+#else
+    auto reg_C_addr = abi_param5;
+    auto reg_C_stride = abi_param6;
+#endif
 
     Xbyak::Reg64 reg_ktiles = rax;
     Xbyak::Reg64 reg_B_stride = r10;
@@ -95,27 +103,27 @@ void MKernel::generate() {
         tileloadd(tmmB0, ptr[reg_B_addr + reg_B_stride]);
         lea(reg_B_addr, ptr[reg_B_addr + 1024]);
 
-        tdpbf16ps(tmmC00, tmmA0, tmmB0);
+        tmul(tmmC00, tmmA0, tmmB0);
         if (cur_PFB < num_PFB) {
             prefetcht2(ptr[reg_prefetch + cur_PFB * 64]);
             cur_PFB++;
         }
 
         tileloadd(tmmA1, ptr[reg_A1_addr + reg_A_stride]);
-        tdpbf16ps(tmmC10, tmmA1, tmmB0);
+        tmul(tmmC10, tmmA1, tmmB0);
         if (cur_PFB < num_PFB) {
             prefetcht2(ptr[reg_prefetch + cur_PFB * 64]);
             cur_PFB++;
         }
 
         tileloadd(tmmB1, ptr[reg_B_addr + reg_B_stride]);
-        tdpbf16ps(tmmC01, tmmA0, tmmB1);
+        tmul(tmmC01, tmmA0, tmmB1);
         if (cur_PFB < num_PFB) {
             prefetcht2(ptr[reg_prefetch + cur_PFB * 64]);
             cur_PFB++;
         }
 
-        tdpbf16ps(tmmC11, tmmA1, tmmB1);
+        tmul(tmmC11, tmmA1, tmmB1);
         if (cur_PFB < num_PFB) {
             for (int pi = cur_PFB; pi < num_PFB; pi++) {
                 prefetcht2(ptr[reg_prefetch + pi * 64]);
@@ -138,6 +146,10 @@ void MKernel::generate() {
     tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC11);
 
     pop(reg_prefetch);
+#ifdef _WIN32
+    pop(rsi);
+    pop(rdi);
+#endif
     ret();
 }
 
@@ -155,17 +167,115 @@ void MKernel::tile_config_M(TileConfig& tile_cfg, int M) {
         }
     }
     tile_cfg.reset(1,
-                    0,
-                    {
-                        {rows0, 64},  // C00:0
-                        {rows0, 64},  // C01:1
-                        {rows1, 64},  // C10:2
-                        {rows1, 64},  // C11:3
-                        {rows0, 64},  // A0:4
-                        {rows1, 64},  // A1:5
-                        {16, 64},     // B0:6
-                        {16, 64},     // B1:7
-                    });
+                   0,
+                   {
+                       {rows0, 64},  // C00:0
+                       {rows0, 64},  // C01:1
+                       {rows1, 64},  // C10:2
+                       {rows1, 64},  // C11:3
+                       {rows0, 64},  // A0:4
+                       {rows1, 64},  // A1:5
+                       {16, 64},     // B0:6
+                       {16, 64},     // B1:7
+                   });
+}
+
+void MKernel::generate_1x2() {
+    auto reg_A_addr = abi_param2;
+    auto reg_A_stride = abi_param3;
+    auto reg_B_addr = abi_param4;
+#ifdef _WIN32
+    auto reg_C_addr = rdi;
+    auto reg_C_stride = rsi;
+    push(rdi);
+    push(rsi);
+#else
+    auto reg_C_addr = abi_param5;
+    auto reg_C_stride = abi_param6;
+#endif
+
+    Xbyak::Reg64 reg_ktiles = rax;
+    Xbyak::Reg64 reg_B_stride = r10;
+    // Xbyak::Reg64 reg_prefetch = r12;
+
+    Xbyak::Tmm tmmC00 = tmm0;
+    Xbyak::Tmm tmmC01 = tmm1;
+    Xbyak::Tmm tmmA0 = tmm4;
+    Xbyak::Tmm tmmB0 = tmm6;
+    Xbyak::Tmm tmmB1 = tmm7;
+
+    Xbyak::Label loop_over_ktiles;
+    Xbyak::Label skip_load;
+
+    {
+        auto reg_tmp = reg_B_stride;
+
+        mov(reg_A_addr, ptr[abi_param1 + offsetof(call_args, pA)]);
+        mov(reg_A_stride, ptr[abi_param1 + offsetof(call_args, strideA)]);
+        mov(reg_B_addr, ptr[abi_param1 + offsetof(call_args, pB)]);
+        mov(reg_C_addr, ptr[abi_param1 + offsetof(call_args, pC)]);
+        mov(reg_C_stride, ptr[abi_param1 + offsetof(call_args, strideC)]);
+        mov(reg_ktiles, ptr[abi_param1 + offsetof(call_args, k_tiles)]);
+
+        mov(reg_tmp, ptr[abi_param1 + offsetof(call_args, do_accumulation)]);
+        // new: bit0: 0-skip load from mem, 1-load from mem; bit1: 0-skip tilezero, 1-tilezero; bit2: 0-skip store,
+        // 1-store
+        mov(abi_param1, reg_tmp);
+        and_(reg_tmp, 1);
+        jz(skip_load);
+        {
+            tileloadd(tmmC00, ptr[reg_C_addr + reg_C_stride]);
+            tileloadd(tmmC01, ptr[reg_C_addr + reg_C_stride + 64]);
+        }
+        L(skip_load);
+        mov(reg_tmp, abi_param1);
+        and_(reg_tmp, 2);
+        Xbyak::Label skip_zero;
+        jz(skip_zero);
+        {
+            tilezero(tmmC00);
+            tilezero(tmmC01);
+        }
+        L(skip_zero);
+    }
+
+    mov(reg_B_stride, 64);
+
+    auto const_A_steps = 64;
+
+    align(64, false);
+    L(loop_over_ktiles);
+    {
+        //                B: 1x2 tiles
+        // A : 2x1 tiles  C: 2x2 tiles
+        tileloadd(tmmA0, ptr[reg_A_addr + reg_A_stride]);
+        tileloadd(tmmB0, ptr[reg_B_addr + reg_B_stride]);
+        lea(reg_B_addr, ptr[reg_B_addr + 1024]);
+
+        tmul(tmmC00, tmmA0, tmmB0);
+
+        tileloadd(tmmB1, ptr[reg_B_addr + reg_B_stride]);
+        tmul(tmmC01, tmmA0, tmmB1);
+
+        lea(reg_A_addr, ptr[reg_A_addr + const_A_steps]);
+        lea(reg_B_addr, ptr[reg_B_addr + 1024]);
+    }
+    dec(reg_ktiles);
+    jnz(loop_over_ktiles, T_NEAR);
+
+    and_(abi_param1, 4);
+    Xbyak::Label skip_store;
+    jz(skip_store);
+    {
+        tilestored(ptr[reg_C_addr + reg_C_stride], tmmC00);
+        tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC01);
+    }
+    L(skip_store);
+#ifdef _WIN32
+    pop(rsi);
+    pop(rdi);
+#endif
+    ret();
 }
 
 class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator {
@@ -177,7 +287,7 @@ public:
 
     void generate() override {
         Xbyak::Label loop_begin;
-        Xbyak::Reg64 src = abi_param1;
+        auto src = abi_param1;
         for (int i = 0; i < 16; i++) {
             vcvtph2ps(zmm0, ptr[src]);
             vcvtph2ps(zmm1, ptr[src + 32]);
@@ -190,14 +300,14 @@ public:
     }
 };
 
-template <typename T>
-void MKernel::repackB(ov::bfloat16* dst, T* src, int N_stride, int N, int K) {
+template <typename Tdst>
+static std::enable_if_t<std::is_same_v<ov::bfloat16, Tdst> || std::is_same_v<ov::float16, Tdst>>
+repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     static FP16ToBF16Kernel fp16_to_bf16;
-
-    if (N == 16 && K == 32 && (std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value)) {
+    if (N == 16 && K == 32) {
         // SIMD optimized version
-        ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(T));
-        if (std::is_same<T, ov::float16>::value) {
+        ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(Tdst));
+        if (std::is_same_v<ov::bfloat16, Tdst>) {
             fp16_to_bf16(dst);
         }
         return;
@@ -206,15 +316,15 @@ void MKernel::repackB(ov::bfloat16* dst, T* src, int N_stride, int N, int K) {
     assert(K <= 32);
     assert(N <= 16);
     int k = 0;
-    ov::bfloat16 bf16zero(0.0f);
+    Tdst zero(0.0f);
     for (; k < 32; k += 2) {
         int n = 0;
         bool is_k0_valid = (k) < K;
         bool is_k1_valid = (k + 1) < K;
         auto* psrc = src + k;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
-            *dst++ = is_k0_valid ? ov::bfloat16(psrc[0]) : bf16zero;
-            *dst++ = is_k1_valid ? ov::bfloat16(psrc[1]) : bf16zero;
+            *dst++ = is_k0_valid ? static_cast<Tdst>(psrc[0]) : zero;
+            *dst++ = is_k1_valid ? static_cast<Tdst>(psrc[1]) : zero;
         }
         for (; n < 16; n++) {
             *dst++ = 0;
@@ -223,62 +333,154 @@ void MKernel::repackB(ov::bfloat16* dst, T* src, int N_stride, int N, int K) {
     }
 }
 
-template <typename T>
-void MKernel::prepareB(PlainTensor& ret, ov::bfloat16* dst, T* p_weight, int stride, int N, int K) {
+static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
+    if (N == 16 && K == 64) {
+        // SIMD optimized version
+        ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(int8_t));
+        return;
+    }
+
+    assert(K <= 64);
+    assert(N <= 16);
+    for (int k = 0; k < 64; k += 4) {
+        bool is_k0_valid = (k) < K;
+        bool is_k1_valid = (k + 1) < K;
+        bool is_k2_valid = (k + 2) < K;
+        bool is_k3_valid = (k + 3) < K;
+        auto* psrc = src + k;
+        int n = 0;
+        for (; n < 16 && n < N; n++, psrc += N_stride) {
+            *dst++ = is_k0_valid ? psrc[0] : 0;
+            *dst++ = is_k1_valid ? psrc[1] : 0;
+            *dst++ = is_k2_valid ? psrc[2] : 0;
+            *dst++ = is_k3_valid ? psrc[3] : 0;
+        }
+        for (; n < 16; n++) {
+            *dst++ = 0;
+            *dst++ = 0;
+            *dst++ = 0;
+            *dst++ = 0;
+        }
+    }
+}
+
+template <typename Tdst>
+void MKernel::BMatrix::setup(Tdst* ext_buff, ov::float16* p_weight, int weight_stride_in_bytes, int N, int K) {
     OPENVINO_ASSERT((N % 32) == 0);
     OPENVINO_ASSERT((K % 32) == 0);
-    // weight matrix is in unit of [N/32, Kx32]
-    ret.resize<ov::bfloat16>({static_cast<size_t>(N / 32), static_cast<size_t>(K * 32)}, dst);
 
-    auto N_stride = stride / sizeof(T);
-    for (int n = 0, blkn = 0; n < N; n += 32, blkn++) {
-        auto* dst_base = ret.ptr<ov::bfloat16>(blkn, 0);
-        for (int k = 0, blkk = 0; k < K; k += 32, blkk++, dst_base += 1024) {
-            // two adjacent 32x16 (512) block of weight: dst0 & dst1
-            auto* dst0 = dst_base;
-            auto* dst1 = dst0 + 16 * 32;
-            auto valid_k = (K - k) < 32 ? (K - k) : 32;
+    this->ptr = reinterpret_cast<uint8_t*>(ext_buff);
+    this->Bpair_rows = K / 32;
+    this->Bpair_cols = N / 32;
 
-            auto* src0 = p_weight + n * N_stride + k;
-            auto valid_n0 = (N - n) < 16 ? (N - n) : 16;
-            repackB<T>(dst0, src0, N_stride, valid_n0, valid_k);
+    const int k_step = 32;
+    auto N_stride = weight_stride_in_bytes / sizeof(Tdst);
+    auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
+    for (int n = 0; n < N; n += 32) {
+        auto* src0 = p_weight + n * N_stride;
+        auto* src1 = p_weight + (n + 16) * N_stride;
+        auto valid_n0 = std::min((N - n), 16);
+        auto valid_n1 = std::min((N - (n + 16)), 16);
+        for (int k = 0, blkk = 0; k < K; k += k_step, blkk++) {
+            auto valid_k = std::min((K - k), k_step);
+            repackB(reinterpret_cast<Tdst*>(pdst), src0 + k, N_stride, valid_n0, valid_k);
+            pdst += 1024;
+            repackB(reinterpret_cast<Tdst*>(pdst), src1 + k, N_stride, valid_n1, valid_k);
+            pdst += 1024;
+        }
+    }
+}
 
-            auto* src1 = p_weight + (n + 16) * N_stride + k;
-            auto valid_n1 = (N - (n + 16)) < 16 ? (N - (n + 16)) : 16;
-            repackB<T>(dst1, src1, N_stride, valid_n1, valid_k);
+template void MKernel::BMatrix::setup<ov::bfloat16>(ov::bfloat16*, ov::float16*, int, int, int);
+template void MKernel::BMatrix::setup<ov::float16>(ov::float16*, ov::float16*, int, int, int);
+
+void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stride_in_bytes, int N, int K) {
+    OPENVINO_ASSERT((N % 32) == 0);
+    OPENVINO_ASSERT((K % 64) == 0);
+
+    this->ptr = reinterpret_cast<uint8_t*>(ext_buff);
+    this->Bpair_rows = K / 64;
+    this->Bpair_cols = N / 32;
+
+    const int k_step = 64;
+    auto N_stride = weight_stride_in_bytes / sizeof(int8_t);
+    auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
+    for (int n = 0; n < N; n += 32) {
+        auto* src0 = p_weight + n * N_stride;
+        auto* src1 = p_weight + (n + 16) * N_stride;
+        auto valid_n0 = std::min((N - n), 16);
+        auto valid_n1 = std::min((N - (n + 16)), 16);
+        for (int k = 0, blkk = 0; k < K; k += k_step, blkk++) {
+            auto valid_k = std::min((K - k), k_step);
+            repackB(reinterpret_cast<int8_t*>(pdst), src0 + k, N_stride, valid_n0, valid_k);
+            pdst += 1024;
+            repackB(reinterpret_cast<int8_t*>(pdst), src1 + k, N_stride, valid_n1, valid_k);
+            pdst += 1024;
         }
     }
 }
 
 // interleaving two weights into one in unit of 16-column
-template <typename T>
-void MKernel::prepareB(PlainTensor& ret, ov::bfloat16* dst, T* p_weight1, T* p_weight2, int stride, int N, int K) {
+template <typename Tdst>
+void MKernel::BMatrix::setup(Tdst* ext_buff,
+                             ov::float16* p_weight_B0,
+                             ov::float16* p_weight_B1,
+                             int weight_stride_in_bytes,
+                             int N,
+                             int K) {
     OPENVINO_ASSERT((N % 32) == 0);
     OPENVINO_ASSERT((K % 32) == 0);
-    // weight matrix is in unit of [N/32, Kx32]
-    ret.resize<ov::bfloat16>({static_cast<size_t>(N / 32), static_cast<size_t>(K * 32)}, dst);
 
-    auto N_stride = stride / sizeof(T);
+    this->ptr = reinterpret_cast<uint8_t*>(ext_buff);
+    this->Bpair_rows = K / 32;
+    this->Bpair_cols = N / 32;
+
+    const int k_step = 32;
+    auto N_stride = weight_stride_in_bytes / sizeof(Tdst);
     auto N2 = N / 2;
-    for (int n = 0, blkn = 0; n < N2; n += 16, blkn++) {
-        for (int k = 0, blkk = 0; k < K; k += 32, blkk++) {
-            // two adjacent 32x16 (512) block of weight: dst0 & dst1
-            auto* dst0 = ret.ptr<ov::bfloat16>(blkn, blkk * 1024);
-            auto* dst1 = dst0 + 16 * 32;
-            auto valid_k = (K - k) < 32 ? (K - k) : 32;
-
-            auto* src0 = p_weight1 + n * N_stride + k;
-            auto valid_n0 = (N2 - n) < 16 ? (N2 - n) : 16;
-            repackB<T>(dst0, src0, N_stride, valid_n0, valid_k);
-
-            auto* src1 = p_weight2 + n * N_stride + k;
-            repackB<T>(dst1, src1, N_stride, valid_n0, valid_k);
+    auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
+    for (int n = 0; n < N2; n += 16) {
+        auto valid_n0 = std::min((N2 - n), 16);
+        for (int k = 0; k < K; k += k_step) {
+            auto valid_k = std::min((K - k), k_step);
+            repackB(reinterpret_cast<Tdst*>(pdst), p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            pdst += 1024;
+            repackB(reinterpret_cast<Tdst*>(pdst), p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            pdst += 1024;
         }
     }
 }
+template void MKernel::BMatrix::setup<ov::bfloat16>(ov::bfloat16*, ov::float16*, ov::float16*, int, int, int);
+template void MKernel::BMatrix::setup<ov::float16>(ov::float16*, ov::float16*, ov::float16*, int, int, int);
 
-template void MKernel::prepareB<ov::float16>(PlainTensor& ret, ov::bfloat16* dst, ov::float16* p_weight, int stride, int N, int K);
-template void MKernel::prepareB<ov::float16>(PlainTensor& ret, ov::bfloat16* dst, ov::float16* p_weight1, ov::float16* p_weight2, int stride, int N, int K);
+void MKernel::BMatrix::setup(int8_t* ext_buff,
+                             int8_t* p_weight_B0,
+                             int8_t* p_weight_B1,
+                             int weight_stride_in_bytes,
+                             int N,
+                             int K) {
+    OPENVINO_ASSERT((N % 32) == 0);
+    OPENVINO_ASSERT((K % 64) == 0);
+
+    this->ptr = reinterpret_cast<uint8_t*>(ext_buff);
+    this->Bpair_rows = K / 64;
+    this->Bpair_cols = N / 32;
+
+    const int k_step = 64;
+    auto N_stride = weight_stride_in_bytes / sizeof(int8_t);
+    auto N2 = N / 2;
+    auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
+    for (int n = 0; n < N2; n += 16) {
+        auto valid_n0 = std::min((N2 - n), 16);
+        for (int k = 0; k < K; k += k_step) {
+            auto valid_k = std::min((K - k), k_step);
+            repackB(reinterpret_cast<int8_t*>(pdst), p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            pdst += 1024;
+            repackB(reinterpret_cast<int8_t*>(pdst), p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            pdst += 1024;
+        }
+    }
+}
 
 // run L2 cache blocking kernel with size:
 //    [BM, BK]*[BK, BN] => [BM, BN]
@@ -288,26 +490,24 @@ template void MKernel::prepareB<ov::float16>(PlainTensor& ret, ov::bfloat16* dst
 // but prefetch of next B must be specified by caller.
 //
 void MKernel::run(int M,  // actual M
-            uint8_t* pA,
-            int strideA,              // A [M, K]
-            PlainTensor& repacked_B,  // B [N/32, K*32] ov::bfloat16
-            uint8_t* pC,
-            int strideC,          // C [M, N]
-            uint8_t* prefetch_B,  // prefetch B
-            bool do_accumulation) {
+                  uint8_t* pA,
+                  int strideA,          // A [M, K]
+                  BMatrix& repacked_B,  // B [N/32, K*32] ov::bfloat16
+                  uint8_t* pC,
+                  int strideC,          // C [M, N]
+                  uint8_t* prefetch_B,  // prefetch B
+                  bool do_accumulation) {
     call_args args;
-    // number of blocks in N dimension (in unit of 32 columns)
-    auto num_blkN = static_cast<int>(repacked_B.size(0));
-    auto K = repacked_B.size(1) / 32;
-    auto* pB = repacked_B.ptr<uint8_t>();
-    auto strideB = repacked_B.stride_bytes(0);
 
-    args.do_accumulation = do_accumulation;
-    args.k_tiles = K / 32;
+    auto* pB = repacked_B.ptr;
+    auto strideB = repacked_B.Bpair_rows * repacked_B.Bpair_size;
+    auto num_blkN = repacked_B.Bpair_cols;
+
+    args.do_accumulation = static_cast<int64_t>(do_accumulation);
+    args.k_tiles = repacked_B.Bpair_rows;
     args.strideA = strideA;
     args.strideC = strideC;
     args.prefetch = prefetch_B;
-    assert((K % 32) == 0);
 
     auto prefetch_step = m_prefetch_Blines * 64 * args.k_tiles;
 
@@ -316,20 +516,54 @@ void MKernel::run(int M,  // actual M
         args.pB = pB;
         args.M = std::min(M - m, 32);
         args.pA = pA;
-        for (int ni = 0; ni < num_blkN; ni++, args.pB += strideB, args.prefetch += prefetch_step) {
+        for (size_t ni = 0; ni < num_blkN; ni++, args.pB += strideB, args.prefetch += prefetch_step) {
             args.pC = pC + ni * 32 * sizeof(float);
             (*this)(&args);
         }
     }
 }
 
+void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) {
+    assert(static_cast<int64_t>(BM) <= M);
+    parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+        size_t start{0}, end{0};
+        splitter(BM, nthr, ithr, start, end);
+        ov::Extensions::Cpu::XARCH::llm_mlp_quantize_bf16_i8(psrc + start * src_stride,
+                                                             src_stride,
+                                                             data + start * K,
+                                                             K,
+                                                             end - start,
+                                                             K,
+                                                             scale + start,
+                                                             zp + start,
+                                                             asym);
+    });
+}
+
+void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) {
+    assert(static_cast<int64_t>(BM) <= M);
+    parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
+        size_t start{0}, end{0};
+        splitter(BM, nthr, ithr, start, end);
+        ov::Extensions::Cpu::XARCH::llm_mlp_quantize_f16_i8(psrc + start * src_stride,
+                                                            src_stride,
+                                                            data + start * K,
+                                                            K,
+                                                            end - start,
+                                                            K,
+                                                            scale + start,
+                                                            zp + start,
+                                                            asym);
+    });
+}
+
 void GateUpCombine::generate() {
     Xbyak::Label loop_begin;
 
-    Xbyak::Reg64 src = abi_param1;
-    Xbyak::Reg64 dst = abi_param2;
-    Xbyak::Reg64 prefetch_dst = abi_param3;
-    Xbyak::Reg64 BN = abi_param4;
+    auto src = abi_param1;
+    auto dst = abi_param2;
+    auto prefetch_dst = abi_param3;
+    auto BN = abi_param4;
 
     Xbyak::Reg64 loop_i = rax;
     const auto zmm_gate = zmm5;
@@ -337,12 +571,13 @@ void GateUpCombine::generate() {
     const auto zmm_up = zmm0;
     const auto ymm_dst = ymm5;
 
-    auto injector = std::make_shared<jit_uni_eltwise_injector_f32<dnnl::impl::cpu::x64::avx512_core>>(
+    auto injector = std::make_shared<jit_uni_eltwise_injector<dnnl::impl::cpu::x64::avx512_core>>(
         this,
         m_act_alg,
         1.f,
         1.0f,
         1.f,
+        data_type::f32,
         true,                               // save_state, true due to additional r15 is used.
         Xbyak::Reg64(Xbyak::Operand::R10),  // p_table
         Xbyak::Opmask(1),                   // k_mask
@@ -365,7 +600,11 @@ void GateUpCombine::generate() {
         injector->compute_vector(zmm_silu.getIdx());
         vmovups(zmm_up, ptr[src + loop_i * 8 + 16 * 4]);
         vmulps(zmm_up, zmm_up, zmm_silu);
-        vcvtneps2bf16(ymm_dst, zmm_up);
+        if (m_to_f16) {
+            vcvtps2ph(ymm_dst, zmm_up, 0x4);
+        } else {
+            vcvtneps2bf16(ymm_dst, zmm_up);
+        }
         prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
         vmovdqu(ptr[dst + loop_i * 2], ymm_dst);
     }
@@ -381,11 +620,18 @@ void GateUpCombine::generate() {
 
 void ReduceAdd2bh::generate() {
     if (m_do_reduce2) {
-        Xbyak::Reg64 src0 = abi_param1;
-        Xbyak::Reg64 src1 = abi_param2;
-        Xbyak::Reg64 dst = abi_param3;
-        Xbyak::Reg64 prefetch_dst = abi_param4;
-        Xbyak::Reg64 BN = abi_param5;
+        auto src0 = rdx;
+        auto src1 = r8;
+        auto dst = r9;
+        auto prefetch_dst = r10;
+        auto BN = r11;
+
+        mov(src0, ptr[abi_param1 + offsetof(CallArgs, src0)]);
+        mov(src1, ptr[abi_param1 + offsetof(CallArgs, src1)]);
+        mov(dst, ptr[abi_param1 + offsetof(CallArgs, dst)]);
+        mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
+        mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
+
         Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;
@@ -401,9 +647,15 @@ void ReduceAdd2bh::generate() {
             vmovups(zmm3, ptr[src1 + loop_i * 4 + 16 * 4]);
             vaddps(zmm0, zmm0, zmm1);
             vaddps(zmm2, zmm2, zmm3);
-            vcvtne2ps2bf16(zmm4, zmm2, zmm0);
-            prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
-            vmovups(ptr[dst + loop_i * 2], zmm4);
+            if (m_to_f16) {
+                vcvtps2ph(ptr[dst + loop_i * 2], zmm0, 0x4);
+                vcvtps2ph(ptr[dst + loop_i * 2 + 32], zmm2, 0x4);
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+            } else {
+                vcvtne2ps2bf16(zmm4, zmm2, zmm0);
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+                vmovups(ptr[dst + loop_i * 2], zmm4);
+            }
         }
         add(loop_i, 32);
         cmp(loop_i, BN);
@@ -411,10 +663,16 @@ void ReduceAdd2bh::generate() {
 
         ret();
     } else {
-        Xbyak::Reg64 src0 = abi_param1;
-        Xbyak::Reg64 dst = abi_param2;
-        Xbyak::Reg64 prefetch_dst = abi_param3;
-        Xbyak::Reg64 BN = abi_param4;
+        auto src0 = rdx;
+        auto dst = r9;
+        auto prefetch_dst = r10;
+        auto BN = r11;
+
+        mov(src0, ptr[abi_param1 + offsetof(CallArgs, src0)]);
+        mov(dst, ptr[abi_param1 + offsetof(CallArgs, dst)]);
+        mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
+        mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
+
         Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;
@@ -426,9 +684,15 @@ void ReduceAdd2bh::generate() {
         {
             vmovups(zmm0, ptr[src0 + loop_i * 4]);
             vmovups(zmm2, ptr[src0 + loop_i * 4 + 16 * 4]);
-            vcvtne2ps2bf16(zmm4, zmm2, zmm0);
-            prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
-            vmovups(ptr[dst + loop_i * 2], zmm4);
+            if (m_to_f16) {
+                vcvtps2ph(ptr[dst + loop_i * 2], zmm0, 0x4);
+                vcvtps2ph(ptr[dst + loop_i * 2 + 32], zmm2, 0x4);
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+            } else {
+                vcvtne2ps2bf16(zmm4, zmm2, zmm0);
+                prefetchwt1(ptr[prefetch_dst + loop_i * 2]);
+                vmovups(ptr[dst + loop_i * 2], zmm4);
+            }
         }
         add(loop_i, 32);
         cmp(loop_i, BN);
@@ -438,5 +702,4 @@ void ReduceAdd2bh::generate() {
     }
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
