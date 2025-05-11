@@ -178,6 +178,7 @@ jobs:
           target_arch: ${{ runner.arch }}
           build_type: 'release'
           save_to: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
+          trigger_repo_branch: ${{ inputs.target-branch }}
 
       - name: CMake configure
         run: |
