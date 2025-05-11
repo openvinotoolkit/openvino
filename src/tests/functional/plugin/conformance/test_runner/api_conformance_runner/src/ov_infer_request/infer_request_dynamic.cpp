@@ -8,6 +8,9 @@
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "ov_api_conformance_helpers.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/split.hpp"
 
 namespace {
 using namespace ov::test::behavior;
@@ -28,7 +31,7 @@ std::shared_ptr<ov::Model> ovGetFunction1() {
     auto relu2 = std::make_shared<ov::op::v0::Relu>(add->output(0));
     relu2->get_output_tensor(0).set_names({"relu2"});
 
-    ov::NodeVector results{relu1, relu2};
+    ov::OutputVector results{relu1, relu2};
     return std::make_shared<ov::Model>(results, params, "AddTwoOutputEdges");
 }
 

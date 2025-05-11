@@ -81,7 +81,7 @@ bool DnnlFCPrimitive::Key::operator==(const Key& rhs) const {
 
 std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memory,
                                                          const FCAttrs& attrs,
-                                                         const ExecutorContext::CPtr context,
+                                                         const ExecutorContext::CPtr& context,
                                                          const DnnlShapeAgnosticDataPtr& shapeAgnosticData) {
     const auto& srcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_SRC)->getDescPtr());
     const auto& weiDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_WEI)->getDescPtr());
@@ -92,7 +92,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
                   weiDesc,
                   biaDesc,
                   dstDesc,
-                  shapeAgnosticData->primAttrs.attr,
+                  shapeAgnosticData->m_primAttrs.attr,
                   attrs.sparseWeights,
                   attrs.modelType};
 
@@ -181,11 +181,16 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 
     MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
     int ic = weightsDesc->getShape().getStaticDims()[1];
+
+    if (ic < static_cast<int>(simdWidth)) {
+        return false;
+    }
+
     if (scalesPtr && scalesPtr->getShape().getRank() != 1) {
         auto scalesDims = scalesPtr->getShape().getStaticDims();
         auto groupsNum = scalesDims[1];
         size_t groupSize = ic / groupsNum;
-        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+        if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;
         }
     }
@@ -194,7 +199,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         auto zpDims = zpPtr->getShape().getStaticDims();
         int groupsNum = zpDims[1];
         size_t groupSize = ic / groupsNum;
-        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+        if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;
         }
     }
@@ -203,7 +208,6 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 }
 
 static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
-                                               const PostOps& postOps,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context,
                                                bool useDynamicQuantization) {
@@ -218,25 +222,30 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
         one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
-    DnnlPostOpsComposer
-        dnnlpoc(postOps, context->getEngine(), dims, dims.size() - 1, isINT8, 1 << 0, memory, outputDataType);
+    DnnlPostOpsComposer dnnlpoc(attrs.postOps,
+                                context->getEngine(),
+                                dims,
+                                dims.size() - 1,
+                                isINT8,
+                                1 << 0,
+                                memory,
+                                outputDataType,
+                                {},
+                                false,
+                                false);
 
-    if (memory.count(ARG_WEI | ARG_ATTR_SCALES)) {
-        auto dstPrc = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getPrecision();
+    if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
+        auto dstPrc = it->second->getPrecision();
         if (dstPrc != f8e8m0 || useDynamicQuantization) {
             dstPrc = ov::element::f32;
         }
 
-        dnnlpoc.appendDecompressionScalesLegacy(memory.at(ARG_WEI | ARG_ATTR_SCALES),
-                                                !attrs.weightsNonTransposed,
-                                                dstPrc);
+        dnnlpoc.appendDecompressionScalesLegacy(it->second, !attrs.weightsNonTransposed, dstPrc);
     }
 
-    if (memory.count(ARG_WEI | ARG_ATTR_ZERO_POINTS)) {
+    if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
-        dnnlpoc.appendDecompressionZeroPointsLegacy(memory.at(ARG_WEI | ARG_ATTR_ZERO_POINTS),
-                                                    !attrs.weightsNonTransposed,
-                                                    dstPrc);
+        dnnlpoc.appendDecompressionZeroPointsLegacy(it->second, !attrs.weightsNonTransposed, dstPrc);
     }
 
     if (useDynamicQuantization) {
@@ -377,7 +386,6 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
 }
 
 DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs& attrs,
-                                                                  const PostOps& postOps,
                                                                   const MemoryArgs& memory,
                                                                   const ExecutorContext::CPtr& context,
                                                                   const bool cacheWeights) {
@@ -393,7 +401,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
         useWeightsDecompression &&
         useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc, memory);
 
-    const auto postOpData = createPrimitiveAttrs(attrs, postOps, memory, context, useDynamicQuantization);
+    const auto postOpData = createPrimitiveAttrs(attrs, memory, context, useDynamicQuantization);
 
     if (!cacheWeights) {
         return std::make_shared<DnnlShapeAgnosticData>(postOpData);
@@ -437,7 +445,9 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
                                       context,
                                       useDynamicQuantization);
 
-    return std::make_shared<DnnlShapeAgnosticData>(postOpData);
+    const auto defaultImpType = parse_impl_name(primDesc.impl_info_str());
+
+    return std::make_shared<DnnlShapeAgnosticData>(postOpData, defaultImpType);
 }
 
 static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc) {

@@ -11,9 +11,12 @@
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/op/ops.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
@@ -37,7 +40,7 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
         auto image_shape = opset3::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
         auto pb = std::make_shared<opset3::PriorBox>(layer_shape, image_shape, attrs);
         auto res = std::make_shared<opset3::Result>(pb);
-        f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in});
+        f = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{in});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
@@ -57,7 +60,7 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
                 0.1f,       0.1f,       0.1f,      0.1f,      0.1f,       0.1f,       0.1f,      0.1f,
             });
         auto res = std::make_shared<opset3::Result>(const_prior_box);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -84,7 +87,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
         auto image_shape = opset3::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
         auto pb = std::make_shared<opset3::PriorBoxClustered>(layer_shape, image_shape, attrs);
         auto res = std::make_shared<opset3::Result>(pb);
-        f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in});
+        f = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{in});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
@@ -110,7 +113,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
              0.0f,         0.0f,         0.0f,        0.0f,        0.0f,         0.0f,         0.0f,        0.0f,
              0.0f,         0.0f,         0.0f,        0.0f,        0.0f,         0.0f,         0.0f,        0.0f});
         auto res = std::make_shared<opset3::Result>(const_prior_box);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -158,7 +161,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
                                                                std::vector<int64_t>{0});
         auto pb = std::make_shared<opset3::PriorBox>(ss_data, ss_image, attrs);
         auto res = std::make_shared<opset3::Result>(pb);
-        f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in, in_2});
+        f = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{in, in_2});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
@@ -176,7 +179,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
              0.1f,       0.1f,       0.1f,      0.1f,      0.1f,       0.1f,       0.1f,      0.1f,
              0.1f,       0.1f,       0.1f,      0.1f,      0.1f,       0.1f,       0.1f,      0.1f});
         auto res = std::make_shared<opset3::Result>(const_prior_box);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -220,7 +223,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
                                                                std::vector<int64_t>{0});
         auto pb = std::make_shared<opset3::PriorBoxClustered>(ss_data, ss_image, attrs);
         auto res = std::make_shared<opset3::Result>(pb);
-        f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in, in_2});
+        f = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{in, in_2});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
@@ -246,7 +249,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
              0.0f,         0.0f,         0.0f,        0.0f,        0.0f,         0.0f,         0.0f,        0.0f,
              0.0f,         0.0f,         0.0f,        0.0f,        0.0f,         0.0f,         0.0f,        0.0f});
         auto res = std::make_shared<opset3::Result>(const_prior_box);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -276,7 +279,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8) {
         auto image_shape = opset8::Constant::create<int64_t>(element::i64, Shape{2}, {10, 10});
         auto pb = std::make_shared<opset8::PriorBox>(layer_shape, image_shape, attrs);
         auto res = std::make_shared<opset8::Result>(pb);
-        f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in});
+        f = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{in});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
@@ -301,7 +304,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8) {
              0.1f,       0.1f,      0.1f,      0.1f,       0.1f,      0.1f,       0.1f,      0.1f,      0.1f,
              0.1f,       0.1f,      0.1f,      0.1f,       0.1f,      0.1f});
         auto res = std::make_shared<opset8::Result>(const_prior_box);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -349,7 +352,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
                                                                std::vector<int64_t>{0});
         auto pb = std::make_shared<opset8::PriorBox>(ss_data, ss_image, attrs);
         auto res = std::make_shared<opset8::Result>(pb);
-        f = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{in, in_2});
+        f = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{in, in_2});
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
@@ -374,7 +377,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
              0.1f,       0.1f,      0.1f,      0.1f,       0.1f,      0.1f,       0.1f,      0.1f,      0.1f,
              0.1f,       0.1f,      0.1f,      0.1f,       0.1f,      0.1f});
         auto res = std::make_shared<opset8::Result>(const_prior_box);
-        f_ref = std::make_shared<ov::Model>(NodeVector{res}, ParameterVector{layer_shape});
+        f_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{layer_shape});
     }
 
     auto res = compare_functions(f, f_ref);

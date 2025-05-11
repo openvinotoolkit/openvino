@@ -22,7 +22,7 @@
 #include "nodes/scaled_attn.h"
 #include "nodes/transpose.h"
 #include "onednn/dnnl.h"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -46,6 +46,9 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "itt.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 
 using namespace dnnl;
 using namespace ov::intel_cpu::node;
@@ -243,6 +246,11 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
     auto scaleDimsCheck = [](const NodePtr& node, const NodePtr& scales) {
         const auto nodeOutDims = node->getOutputShapeAtPort(0).getDims();
         const auto channelAxis = node->getFusingAxis();
+        OPENVINO_ASSERT(channelAxis >= 0 && channelAxis < static_cast<int>(nodeOutDims.size()),
+                        "Incorrect channel axis for Conv/Deconv/MatMul node: ",
+                        node->getName(),
+                        ", channel axis: ",
+                        nodeOutDims.size());
         auto OC = nodeOutDims[channelAxis];
 
         if (Shape::UNDEFINED_DIM == OC) {
@@ -360,6 +368,11 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
         }
 
         const auto channelAxis = parentNode->getFusingAxis();
+        OPENVINO_ASSERT(channelAxis >= 0 && channelAxis < static_cast<int>(parentOutDims.size()),
+                        "Incorrect channel axis for Conv/Deconv/MatMul node: ",
+                        parentNode->getName(),
+                        ", output dims size: ",
+                        parentOutDims.size());
         if (!dimsEqualStrong(biasDims[channelAxis], parentOutDims[channelAxis])) {
             return false;
         }
@@ -1084,6 +1097,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
                       dataEltwise->getName(),
                       " is optimized as zeropoint of Conv ##",
                       conv->getName());
+            conv->setOriginalInputPrecisionAtPort(0, dataEltwise->getOriginalInputPrecisionAtPort(0));
             graph.RemoveEdge(p_edge);
             graph.DropNode(dataEltwise);
             initializeOutputCompensation(conv);
@@ -1314,7 +1328,12 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
             OPENVINO_THROW("Cannot get convolution node ", parentNode->getName());
         }
 
-        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+        if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
+            return false;
+        }
+        // there is no optimized implementation for avx512, so two avx512 convolutions
+        // are expected to be faster than single fused avx2 convolution
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
             return false;
         }
 
@@ -2445,6 +2464,11 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
             }
         }
 
+        OPENVINO_ASSERT(channelPos < static_cast<int>(outputDims.size()),
+                        "Channel position is out of bounds. Channel position: ",
+                        channelPos,
+                        ", output dims size: ",
+                        outputDims.size());
         scalesBuffer = makeAlignedBuffer(outputDims[channelPos], scalesBuffer, 1);
         shiftsBuffer = makeAlignedBuffer(outputDims[channelPos], shiftsBuffer, 1);
 
@@ -2485,7 +2509,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
 
         const auto isSubnormal = [](const float value) {
             const auto* u32data = reinterpret_cast<const uint32_t*>(&value);
-            return (*u32data) && (((*u32data) & (0xFF << 23)) == 0);
+            return ((*u32data) != 0u) && (((*u32data) & (0xFF << 23)) == 0);
         };
 
         for (size_t i = 0; i < newInputScale.size(); i++) {

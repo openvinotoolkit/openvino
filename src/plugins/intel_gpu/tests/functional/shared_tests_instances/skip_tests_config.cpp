@@ -6,13 +6,27 @@
 #include <string>
 
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/core.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+
+namespace {
+bool isGPU1Present() {
+    std::string target_device{"GPU"};
+    std::string deviceID{"1"};
+    ov::Core ie = ov::test::utils::create_core();
+    auto deviceIDs = ie.get_property(target_device, ov::available_devices);
+    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+        return false;
+    }
+    return true;
+}
+} // namespace
 
 std::vector<std::string> disabledTestPatterns() {
-    return {
+    std::vector<std::string> returnVal = {
             // These tests might fail due to accuracy loss a bit bigger than threshold
             R"(.*(GRUCellTest).*)",
             R"(.*(RNNSequenceTest).*)",
-            R"(.*(GRUSequenceTest).*)",
             // These test cases might fail due to FP16 overflow
             R"(.*(LSTM).*activations=\(relu.*modelType=f16.*)",
 
@@ -207,4 +221,12 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_Check/ConstantResultSubgraphTest.Inference/SubgraphType=SINGLE_COMPONENT_IS=\[1,3,10,10\]_IT=i16_Device=GPU.*)",
 #endif
     };
+    if (!isGPU1Present()) {
+        returnVal.push_back(R"(.*nightly_OVClassSpecificDevice0Test/OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow/GPU.1.*)");
+        returnVal.push_back(R"(.*nightly_OVClassSpecificDevice0Test/OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow/GPU.1.*)");
+        returnVal.push_back(R"(.*nightly_OVClassSpecificDevice0Test/OVSpecificDeviceTestSetConfig.SetConfigSpecificDeviceNoThrow/GPU.1.*)");
+        returnVal.push_back(R"(.*nightly_OVClassSetDefaultDeviceIDPropTest/OVClassSetDefaultDeviceIDPropTest.SetDefaultDeviceIDNoThrow/0.*)");
+        returnVal.push_back(R"(.*nightly_OVClassSeveralDevicesTest/OVClassSeveralDevicesTestCompileModel.CompileModelActualSeveralDevicesNoThrow/0.*)");
+    }
+    return returnVal;
 }

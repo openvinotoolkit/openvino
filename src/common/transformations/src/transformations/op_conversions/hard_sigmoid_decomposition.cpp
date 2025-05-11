@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -29,10 +30,10 @@ ov::pass::HardSigmoidDecomposition::HardSigmoidDecomposition() {
             return false;
         }
 
-        auto alpha_constant = hard_sigmoid_node->get_input_node_shared_ptr(1);
+        auto alpha_constant = hard_sigmoid_node->input_value(1);
         auto multiply = std::make_shared<ov::op::v1::Multiply>(hard_sigmoid_node->input_value(0), alpha_constant);
 
-        auto betta_constant = hard_sigmoid_node->get_input_node_shared_ptr(2);
+        auto betta_constant = hard_sigmoid_node->input_value(2);
         auto add = std::make_shared<ov::op::v1::Add>(multiply, betta_constant);
 
         auto input_type = hard_sigmoid_node->input_value(0).get_element_type();
@@ -44,7 +45,14 @@ ov::pass::HardSigmoidDecomposition::HardSigmoidDecomposition() {
 
         max->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(hard_sigmoid_node,
-                              {alpha_constant, multiply, betta_constant, add, min_constant, min, max_constant, max});
+                              {alpha_constant.get_node_shared_ptr(),
+                               multiply,
+                               betta_constant.get_node_shared_ptr(),
+                               add,
+                               min_constant,
+                               min,
+                               max_constant,
+                               max});
         ov::replace_node(m.get_match_root(), max);
         return true;
     };
