@@ -23,8 +23,6 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "openvino/util/linux_perf.hpp"
-
 #include <algorithm>
 #include <iterator>
 #include <memory>
@@ -104,7 +102,6 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
 
 void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::infer");
-    LINUX_PERF_LOG("SyncInferRequest::infer");
     setup_stream_graph();
     std::lock_guard<std::mutex> lk(m_graph->get_mutex());
     enqueue();
@@ -126,7 +123,6 @@ std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const
 
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::set_tensor");
-    LINUX_PERF_LOG("SyncInferRequest::set_tensor");
     const auto& port_info = find_port(port);
     size_t port_index = port_info.idx;
     const auto& shape = port.get_partial_shape();
@@ -238,7 +234,6 @@ void SyncInferRequest::wait_notify() {
 void SyncInferRequest::enqueue() {
     int64_t network_enqueue_time = 0;
     auto enqueue_start = std::chrono::high_resolution_clock::now();
-    LINUX_PERF_LOG("SyncInferRequest::enqueue");
 
     // set input and output memory from request blob maps
     // into the network object primitives
@@ -315,7 +310,6 @@ void SyncInferRequest::enqueue() {
 void SyncInferRequest::wait() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait");
     OPENVINO_ASSERT(!m_internal_outputs.empty(), "[GPU] Inference was not started!\n");
-    LINUX_PERF_LOG("wait");
 
     int64_t sync_total_time = 0;
     auto wait_start = std::chrono::high_resolution_clock::now();
@@ -326,7 +320,6 @@ void SyncInferRequest::wait() {
     // for in_order_queue, it is enough to call finish only once
     bool do_sync_per_output = (network.get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
     if (!do_sync_per_output) {
-        LINUX_PERF_LOG("finish");
         auto sync_start = std::chrono::high_resolution_clock::now();
         network.get_stream().finish();
         auto sync_end = std::chrono::high_resolution_clock::now();
@@ -428,7 +421,6 @@ void SyncInferRequest::wait() {
         // mapping remote blobs not needed -
         // let the user take care of them explicitly
         if (!is_remote_tensor_impl && output_memory) {
-            LINUX_PERF_LOG("out_cpu");
             if (!is_generic_remote) {
                 auto dst_ptr = static_cast<uint8_t*>(output_tensor->data());
                 bool same_mem = same_host_mem(output_memory, dst_ptr);
@@ -451,7 +443,6 @@ void SyncInferRequest::wait() {
                 }
             }
         } else if (is_remote_tensor_impl && is_dynamic) {
-            LINUX_PERF_LOG("out_remote");
             auto& stream = m_graph->get_network()->get_stream();
             auto user_mem = remote_tensor_impl_ptr->get_original_memory();
             if (!m_graph->get_engine().is_the_same_buffer(*output_memory, *user_mem)) {
@@ -459,7 +450,6 @@ void SyncInferRequest::wait() {
             }
         }
     }
-    // LINUX_PERF_LOG("wait_for");
     if (!copy_events.empty()) {
         auto& stream = network.get_stream();
         if (stream.get_queue_type() == QueueTypes::in_order) {
@@ -749,8 +739,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                                                                size_t input_idx,
                                                                const ov::Output<const ov::Node>& port,
                                                                const TensorWrapper& user_tensor_wrapper) {
-    //OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
-    LINUX_PERF_LOG("SyncInferRequest::prepare_input: " + internal_name);
+    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
     if (internal_name.find("key_cache.") != std::string::npos || internal_name.find("value_cache.") != std::string::npos) {
         auto device_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor_wrapper.ptr);
         m_plugin_inputs[input_idx] = user_tensor_wrapper;
@@ -886,7 +875,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     cldnn::event::ptr ret_event = nullptr;
     if (convert_needed) {
-        LINUX_PERF_LOG("convert");
         if (is_remote_tensor_impl) {
             convert_and_copy(remote_tensor_impl_ptr->get_memory(), device_tensor->get_memory(), stream);
         } else {
@@ -894,7 +882,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         }
     } else {
         if (!is_remote_tensor_impl && !is_generic_remote) {
-            LINUX_PERF_LOG("copy_from", need_lockable_mem);
             auto src_ptr = static_cast<uint8_t*>(user_tensor->data());
             if (!same_host_mem(memory, src_ptr)) {
                 // WA: Set need_lockable_mem as a blocking argument
@@ -904,7 +891,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                 ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
             }
         } else if (is_generic_remote) {
-            LINUX_PERF_LOG("copy_to");
             user_tensor->copy_to(device_tensor);
         }
     }
