@@ -139,7 +139,9 @@ static constexpr Property<bool> enable_kernels_reuse{"GPU_ENABLE_KERNELS_REUSE"}
  *
  * If dynamic_quantization_group_size is larger than this max value, dynamic quantization will be disabled.
  */
-static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{"GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
+static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{
+    "GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
+
 }  // namespace hint
 
 /**
